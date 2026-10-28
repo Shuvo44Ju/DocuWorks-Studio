@@ -29,7 +29,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .progress div{height:100%;width:0;background:#2563eb;transition:width .2s}
 .hidden{display:none}
 .previews{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
-.preview{border:1px solid #dce4ef;border-radius:10px;padding:9px}
+.preview{border:1px solid #dce4ef;border-radius:10px;padding:9px;overflow:hidden}
 .preview canvas{width:100%;height:auto;border:1px solid #e5e7eb}
 .result-item{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border:1px solid #dce4ef;border-radius:10px;padding:14px;margin:10px 0}
 .filename{font-weight:650;overflow-wrap:anywhere}
@@ -40,7 +40,7 @@ footer{text-align:center;color:#667085;font-size:13px;padding-top:8px;padding-bo
 <body>
 <header>
 <h1>Ink Saver PDF</h1>
-<p>Make PDF pages printer-friendly and reduce ink usage.</p>
+<p>Improve readability, clean dark backgrounds and reduce printer ink usage.</p>
 </header>
 
 <main>
@@ -48,7 +48,7 @@ footer{text-align:center;color:#667085;font-size:13px;padding-top:8px;padding-bo
 <h2>1. Choose your PDFs</h2>
 <div class="drop" id="drop">
 <strong>Drop multiple PDFs here</strong>
-<p>Or choose several PDF files from your computer.</p>
+<p>Or choose one or more PDF files from your computer.</p>
 <label class="filebtn">Choose PDFs
 <input id="file" type="file" accept="application/pdf,.pdf" multiple>
 </label>
@@ -67,22 +67,22 @@ footer{text-align:center;color:#667085;font-size:13px;padding-top:8px;padding-bo
 <option value="on">Force invert</option>
 <option value="off">Do not invert</option>
 </select>
-<small>Attempts to convert dark backgrounds into light backgrounds and light text into dark text.</small>
+<small>Attempts to convert dark backgrounds to light and light text to dark.</small>
 </div>
+
 <div class="setting">
 <label for="ink">Ink reduction: <span id="inklabel">Balanced (25%)</span></label>
 <input id="ink" type="range" min="0" max="50" step="5" value="25">
-<small>Higher values lighten dark pixels more. Thin text may become faint.</small>
+<small>Higher values lighten dark pixels more. Too much reduction may make thin text faint.</small>
 </div>
+
 <div class="setting">
-<label for="quality">Text clarity / quality</label>
+<label for="quality">Text clarity / file size</label>
 <select id="quality">
-<option value="1.7">Smaller file</option>
-<option value="2.2" selected>Balanced — clearer text</option>
-<option value="2.8">Sharper text</option>
-<option value="3.2">Maximum clarity — larger file</option>
+<option value="small">Smaller file</option>
+<option value="clear" selected>Super clear text (larger file)</option>
 </select>
-<small>Higher resolution can preserve small text better but creates larger files. Output text may not be searchable or selectable.</small>
+<small id="qualityhelp">Super clear uses 4× rendering and lossless PNG page images to preserve fine text edges. Files will be larger and processing will take longer.</small>
 </div>
 </div>
 
@@ -96,7 +96,7 @@ footer{text-align:center;color:#667085;font-size:13px;padding-top:8px;padding-bo
 
 <section class="panel hidden" id="resultpanel">
 <h2>3. Optimized PDFs</h2>
-<p class="note">Files are ready below. Click Download beside a file when you want to save it. Original filenames are preserved. No ZIP file is created.</p>
+<p class="note">Your optimized PDFs will appear below. Click Download whenever you are ready. Original filenames are preserved. No ZIP is created.</p>
 <div id="results"></div>
 </section>
 
@@ -106,7 +106,7 @@ footer{text-align:center;color:#667085;font-size:13px;padding-top:8px;padding-bo
 </section>
 </main>
 
-<footer>Ink Saver PDF · Processing is performed in your browser.</footer>
+<footer>Ink Saver PDF · PDF processing happens in your browser.</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -122,28 +122,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc=
 let files=[];
 let outputs=[];
 let busy=false;
-let wakeLock=null;
 
 function msg(text){
   $('status').textContent=text;
 }
-
-async function keepAwake(){
-  try{
-    if('wakeLock' in navigator &&
-       !wakeLock &&
-       document.visibilityState==='visible'){
-      wakeLock=await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release',()=>{wakeLock=null});
-    }
-  }catch(e){
-    // Wake Lock is optional; processing does not depend on it.
-  }
-}
-
-document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible'&&busy)keepAwake();
-});
 
 function clearResults(){
   outputs.forEach(item=>{
@@ -159,6 +141,7 @@ function clearResults(){
 
 function choose(list){
   if(busy)return;
+
   const picked=Array.from(list||[]);
   if(!picked.length)return;
 
@@ -209,10 +192,11 @@ function clean(canvas){
   const ctx=canvas.getContext('2d',{willReadFrequently:true});
   const image=ctx.getImageData(0,0,canvas.width,canvas.height);
   const data=image.data;
-  let sum=0,count=0;
 
+  let sum=0,count=0;
   const step=Math.max(1,Math.floor(
-    Math.sqrt(canvas.width*canvas.height/10000)));
+    Math.sqrt(canvas.width*canvas.height/10000)
+  ));
 
   for(let y=0;y<canvas.height;y+=step){
     for(let x=0;x<canvas.width;x+=step){
@@ -241,15 +225,18 @@ function clean(canvas){
   return invert;
 }
 
-function canvasToDataURL(canvas){
+function canvasToDataURL(canvas,qualityMode){
   return new Promise((resolve,reject)=>{
+    // PNG is lossless; JPEG is smaller but can soften text edges.
+    const isClear=qualityMode==='clear';
     canvas.toBlob(blob=>{
       if(!blob)return reject(Error('Could not create page image.'));
+
       const reader=new FileReader();
       reader.onload=()=>resolve(reader.result);
-      reader.onerror=reject;
+      reader.onerror=()=>reject(Error('Could not read page image.'));
       reader.readAsDataURL(blob);
-    },'image/jpeg',.98);
+    },isClear?'image/png':'image/jpeg',isClear?undefined:0.82);
   });
 }
 
@@ -264,26 +251,32 @@ async function processOne(file,index,total){
     throw Error('Maximum 200 pages per PDF. This file has '+pdf.numPages+' pages.');
   }
 
+  const qualityMode=$('quality').value;
+  const scale=qualityMode==='clear'?4:1.7;
+  const imageFormat=qualityMode==='clear'?'PNG':'JPEG';
+
   let doc=null;
 
   for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){
     msg('Processing '+index+'/'+total+': '+file.name+
-      ' — page '+pageNumber+' of '+pdf.numPages);
+      ' — page '+pageNumber+' of '+pdf.numPages+'…');
 
     const page=await pdf.getPage(pageNumber);
-    const viewport=page.getViewport({scale:+$('quality').value});
+    const viewport=page.getViewport({scale});
     const canvas=document.createElement('canvas');
 
     canvas.width=Math.ceil(viewport.width);
     canvas.height=Math.ceil(viewport.height);
 
     const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    if(!ctx)throw Error('Could not allocate canvas memory. Try Smaller file.');
+
     ctx.fillStyle='#fff';
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
     await page.render({
       canvasContext:ctx,
-      viewport:viewport
+      viewport
     }).promise;
 
     const inverted=clean(canvas);
@@ -306,7 +299,7 @@ async function processOne(file,index,total){
       $('previewpanel').classList.remove('hidden');
     }
 
-    const image=await canvasToDataURL(canvas);
+    const image=await canvasToDataURL(canvas,qualityMode);
     const width=page.view[2]-page.view[0];
     const height=page.view[3]-page.view[1];
 
@@ -322,16 +315,22 @@ async function processOne(file,index,total){
         width>=height?'landscape':'portrait');
     }
 
-    doc.addImage(image,'JPEG',0,0,width,height,undefined,'FAST');
+    doc.addImage(
+      image,
+      imageFormat,
+      0,0,width,height,
+      undefined,
+      qualityMode==='clear'?'NONE':'FAST'
+    );
 
+    // Release large canvas memory before rendering the next page.
     canvas.width=1;
     canvas.height=1;
 
-    // Let the browser update progress between pages.
+    // Let the browser refresh progress between pages.
     await new Promise(resolve=>setTimeout(resolve,0));
   }
 
-  // Keep the original filename exactly as supplied by the user.
   return {
     name:file.name,
     blob:new Blob([doc.output('arraybuffer')],{
@@ -355,7 +354,8 @@ function addResult(item){
   const meta=document.createElement('div');
   meta.className='filemeta';
   meta.textContent=item.pages+' page(s) · '+
-    (item.blob.size/1048576).toFixed(2)+' MB · Ready to download';
+    (item.blob.size/1048576).toFixed(2)+
+    ' MB · Ready to download';
 
   info.append(name,meta);
 
@@ -384,11 +384,10 @@ async function run(){
 
   clearResults();
   $('resultpanel').classList.remove('hidden');
-  await keepAwake();
 
   let success=0;
-  const failed=[];
   let totalPages=0;
+  const failed=[];
 
   try{
     for(let i=0;i<files.length;i++){
@@ -397,15 +396,15 @@ async function run(){
 
         outputs.push(output);
         addResult(output);
-
         success++;
         totalPages+=output.pages;
 
         msg('Optimized '+success+' of '+files.length+
-          ' PDF(s). Choose Download when you are ready.');
+          ' PDF(s). Download them whenever you are ready.');
       }catch(error){
         console.error(error);
-        failed.push(files[i].name+': '+(error.message||'processing failed'));
+        failed.push(files[i].name+': '+
+          (error.message||'processing failed'));
 
         const row=document.createElement('div');
         row.className='result-item';
@@ -417,19 +416,20 @@ async function run(){
 
         const detail=document.createElement('div');
         detail.className='filemeta';
-        detail.textContent='Failed: '+(error.message||'Could not process file');
+        detail.textContent='Failed: '+
+          (error.message||'Could not process file');
 
         info.append(name,detail);
         row.append(info);
         $('results').append(row);
-        $('resultpanel').classList.remove('hidden');
       }
 
       $('bar').style.width=((i+1)/files.length*100)+'%';
+      await new Promise(resolve=>setTimeout(resolve,0));
     }
 
     msg(failed.length
-      ?'Finished. '+success+' optimized; '+failed.length+' failed.'
+      ?'Finished: '+success+' optimized; '+failed.length+' failed.'
       :'Optimization complete. Your PDFs are ready for manual download.');
 
     const summary=document.createElement('p');
@@ -437,6 +437,7 @@ async function run(){
     summary.textContent='Successful: '+success+'/'+files.length+
       ' PDFs. Total pages: '+totalPages+
       (failed.length?'. Failed: '+failed.join(' | '):'.');
+
     $('results').prepend(summary);
 
   }catch(error){
@@ -446,11 +447,6 @@ async function run(){
     busy=false;
     $('go').disabled=!files.length;
     $('reset').disabled=false;
-
-    if(wakeLock){
-      try{await wakeLock.release()}catch(error){}
-      wakeLock=null;
-    }
   }
 }
 
