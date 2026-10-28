@@ -28,12 +28,28 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .status{font-size:14px;margin-top:10px;overflow-wrap:anywhere}
 .progress{height:8px;background:#e8edf5;border-radius:10px;margin-top:12px;overflow:hidden}
 .progress div{height:100%;width:0;background:#2563eb;transition:width .2s}
-.scanner-modal{position:fixed;z-index:1000;inset:3vh 3vw;overflow:auto;margin:0;max-width:none;box-shadow:0 18px 70px #0b1730aa;border-radius:18px}
-.scanner-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.scanner-modal{position:fixed;z-index:1000;inset:4vh auto 4vh 50%;transform:translateX(-50%);width:min(900px,96vw);overflow:auto;margin:0;max-width:none;box-shadow:0 18px 70px #0b1730aa;border-radius:16px;padding:16px}
+.scanner-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.scanner-modal h2{font-size:20px;margin:0}
+.scanner-modal p{margin:6px 0 10px}
+.scanner-modal .drop{padding:12px}
+.scanner-modal .drop p{font-size:13px}
+.scanner-modal .grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.scanner-modal .setting{padding:10px}
+.scanner-modal .setting label{font-size:14px}
+.scanner-modal .setting small{font-size:12px}
+.scanner-modal .actions{gap:6px;margin-top:8px}
+.scanner-modal button,.scanner-modal .filebtn{padding:7px 10px;font-size:13px}
+.scanner-modal .previews{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.scanner-modal .preview{padding:7px}
+.scanner-modal .filename{font-size:12px}
+.scanner-modal .preview .actions{gap:4px}
+.scanner-modal .preview .actions button{padding:5px 7px}
+.scanner-modal .note{font-size:13px}
 body.scanner-open{overflow:hidden}
 #openScanner{margin:18px 0 0}
 .scan-thumb{max-width:100%;object-fit:contain}
-@media(max-width:600px){.scanner-modal{inset:1vh 2vw;padding:14px}.scanner-heading h2{font-size:21px}}
+@media(max-width:600px){.scanner-modal{inset:1vh 2vw;width:96vw;transform:none;left:0;padding:12px}.scanner-heading h2{font-size:18px}}
 .hidden{display:none!important}
 .previews{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 .preview{border:1px solid #dce4ef;border-radius:10px;padding:9px;overflow:hidden}
@@ -79,8 +95,10 @@ footer{text-align:center;color:#667085;font-size:13px;padding:8px 18px 28px}
 <div id="scanpages" class="previews" style="margin-top:14px"></div>
 <div class="grid" style="margin-top:14px">
 <div class="setting"><label for="scanfilter">Document enhancement</label>
-<select id="scanfilter"><option value="color">Original color</option><option value="gray">Grayscale</option><option value="bw">Black &amp; white document</option><option value="enhance">Improve contrast</option></select>
-<small>Filters can improve readability; black &amp; white may remove faint details.</small></div>
+<select id="scanfilter"><option value="magic">Magic Color (recommended)</option><option value="color">Original color</option><option value="gray">Grayscale</option><option value="bw">Black &amp; white document</option><option value="enhance">Improve contrast</option></select>
+<small>Magic Color boosts document color and contrast while preserving colored text and stamps.</small></div>
+<div class="setting"><label><input id="edgeDetect" type="checkbox" checked> Auto-detect page edges</label>
+<small>Finds the document outline and straightens perspective when a clear four-sided page is visible.</small></div>
 <div class="setting"><label for="scanquality">PDF quality</label>
 <select id="scanquality"><option value="high" selected>High quality</option><option value="balanced">Balanced size</option></select>
 <small>High quality uses lossless PNG page images.</small></div>
@@ -258,7 +276,7 @@ function drawScanPages() {
     image.src = item.url;
     image.loading = 'lazy'; image.decoding = 'async';
     image.alt = item.file.name;
-    image.style.cssText = 'display:block;width:100%;height:190px;object-fit:contain;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;filter:' + (item.filter === 'gray' ? 'grayscale(1)' : item.filter === 'bw' ? 'grayscale(1) contrast(2)' : item.filter === 'enhance' ? 'contrast(1.25) brightness(1.04)' : 'none') + ';transform:rotate(' + item.rotation + 'deg)';
+    image.style.cssText = 'display:block;width:100%;height:135px;object-fit:contain;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;filter:' + (item.filter === 'gray' ? 'grayscale(1)' : item.filter === 'bw' ? 'grayscale(1) contrast(2)' : item.filter === 'enhance' ? 'contrast(1.25) brightness(1.04)' : item.filter === 'magic' ? 'saturate(1.22) contrast(1.18) brightness(1.03)' : 'none') + ';transform:rotate(' + item.rotation + 'deg)';
     const title = document.createElement('div');
     title.className = 'filename';
     title.textContent = (index + 1) + '. ' + item.file.name;
@@ -316,12 +334,11 @@ function loadScanImage(url) {
   });
 }
 function processScanCanvas(source, filter) {
-  const canvas = document.createElement('canvas');
-  canvas.width = source.width; canvas.height = source.height;
+  // Work on one canvas to avoid duplicating full-resolution photo buffers.
+  const canvas = source;
   const ctx = canvas.getContext('2d', {willReadFrequently: true});
   if (!ctx) throw new Error('Not enough browser memory to process this photo.');
-  ctx.drawImage(source, 0, 0);
-  if (filter === 'color') return canvas;
+  if (filter === 'color' || filter === 'magic') return canvas;
   const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const d = image.data;
   for (let i = 0; i < d.length; i += 4) {
@@ -332,6 +349,84 @@ function processScanCanvas(source, filter) {
   }
   ctx.putImageData(image, 0, 0);
   return canvas;
+}
+async function loadOpenCv() {
+  if (window.cv && window.cv.Mat) return window.cv;
+  if (!window.__inkSaverCvPromise) {
+    window.__inkSaverCvPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://docs.opencv.org/4.x/opencv.js';
+      script.async = true;
+      script.onload = () => {
+        const started = Date.now();
+        const check = () => {
+          if (window.cv && window.cv.Mat) resolve(window.cv);
+          else if (Date.now() - started > 15000) reject(new Error('Edge detection library took too long to load.'));
+          else setTimeout(check, 100);
+        };
+        check();
+      };
+      script.onerror = () => reject(new Error('Could not load edge detection. Check your internet connection.'));
+      document.head.appendChild(script);
+    });
+  }
+  return window.__inkSaverCvPromise;
+}
+async function detectAndCropPage(source) {
+  const cv = await loadOpenCv();
+  const src = cv.imread(source);
+  let gray, blur, edges, contours, hierarchy, approx, best = null;
+  try {
+    gray = new cv.Mat(); blur = new cv.Mat(); edges = new cv.Mat();
+    contours = new cv.MatVector(); hierarchy = new cv.Mat();
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
+    cv.Canny(blur, edges, 50, 150);
+    cv.findContours(edges, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+    const imageArea = src.cols * src.rows;
+    let bestArea = 0;
+    for (let i = 0; i < contours.size(); i++) {
+      const contour = contours.get(i);
+      const perimeter = cv.arcLength(contour, true);
+      approx = new cv.Mat();
+      cv.approxPolyDP(contour, approx, .02 * perimeter, true);
+      const area = Math.abs(cv.contourArea(approx));
+      if (approx.rows === 4 && area > imageArea * .12 && area > bestArea && cv.isContourConvex(approx)) {
+        const pts = [];
+        for (let j = 0; j < 4; j++) pts.push({x:approx.intAt(j,0),y:approx.intAt(j,1)});
+        best = orderQuad(pts); bestArea = area;
+      }
+      approx.delete(); approx = null; contour.delete();
+    }
+    if (!best) return source;
+    const dist = (a,b) => Math.hypot(a.x-b.x,a.y-b.y);
+    const w = Math.round(Math.max(dist(best[0],best[1]),dist(best[3],best[2])));
+    const h = Math.round(Math.max(dist(best[0],best[3]),dist(best[1],best[2])));
+    if (w < 100 || h < 100) return source;
+    const srcPts = cv.matFromArray(4,1,cv.CV_32FC2,best.flatMap(p=>[p.x,p.y]));
+    const dstPts = cv.matFromArray(4,1,cv.CV_32FC2,[0,0,w-1,0,w-1,h-1,0,h-1]);
+    const transform = cv.getPerspectiveTransform(srcPts,dstPts);
+    const output = new cv.Mat();
+    cv.warpPerspective(src,output,transform,new cv.Size(w,h),cv.INTER_LINEAR,cv.BORDER_REPLICATE);
+    const result = document.createElement('canvas');
+    result.width = w; result.height = h;
+    cv.imshow(result,output);
+    srcPts.delete(); dstPts.delete(); transform.delete(); output.delete();
+    return result;
+  } finally {
+    src.delete(); if(gray)gray.delete(); if(blur)blur.delete(); if(edges)edges.delete();
+    if(contours){ for(let i=0;i<contours.size();i++){try{const c=contours.get(i);c.delete()}catch(_){}} contours.delete(); }
+    if(hierarchy)hierarchy.delete(); if(approx)approx.delete();
+  }
+}
+function orderQuad(points) {
+  const sum = p => p.x + p.y, diff = p => p.x - p.y;
+  return [
+    points.reduce((a,p)=>sum(p)<sum(a)?p:a,points[0]),
+    points.reduce((a,p)=>diff(p)>diff(a)?p:a,points[0]),
+    points.reduce((a,p)=>sum(p)>sum(a)?p:a,points[0]),
+    points.reduce((a,p)=>diff(p)<diff(a)?p:a,points[0])
+  ];
 }
 $('makeScanPdf').addEventListener('click', async () => {
   if (!scanItems.length || scanBusy) return;
@@ -358,7 +453,13 @@ $('makeScanPdf').addEventListener('click', async () => {
       ctx.translate(canvas.width/2, canvas.height/2);
       ctx.rotate(item.rotation * Math.PI / 180);
       ctx.drawImage(img, -sourceW/2, -sourceH/2, sourceW, sourceH);
-      let processed = processScanCanvas(canvas, item.filter);
+      let workingCanvas = canvas;
+      if ($('edgeDetect').checked) {
+        scanMessage('Detecting page edges for page ' + (i+1) + '…');
+        try { workingCanvas = await detectAndCropPage(canvas); }
+        catch (edgeError) { scanMessage('Edge detection unavailable; using full photo for page ' + (i+1) + '.'); }
+      }
+      let processed = processScanCanvas(workingCanvas, item.filter);
       const orientation = processed.width >= processed.height ? 'landscape' : 'portrait';
       const pageW = processed.width * 72 / 150;
       const pageH = processed.height * 72 / 150;
@@ -377,7 +478,8 @@ $('makeScanPdf').addEventListener('click', async () => {
         reader.readAsDataURL(pageBlob);
       });
       doc.addImage(dataUrl, usePng ? 'PNG' : 'JPEG', 0, 0, pageW, pageH);
-      canvas.width = canvas.height = processed.width = processed.height = 1;
+      canvas.width = canvas.height = 1;
+      if (processed !== canvas) { processed.width = processed.height = 1; }
       processed = null;
       await new Promise(resolve => setTimeout(resolve, 0));
     }
