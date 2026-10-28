@@ -267,7 +267,9 @@ async function processOne(file, index, total) {
   }
 
   const isClear = $('quality').value === 'clear';
-  const scale = isClear ? 2 : 1.25;
+  // Smaller file prioritizes speed: render at a modest resolution and use JPEG.
+  // Super clear keeps more detail, but will take longer and use more memory.
+  const scale = isClear ? 1.8 : 1;
   const imageFormat = isClear ? 'PNG' : 'JPEG';
   let doc = null;
 
@@ -300,7 +302,7 @@ async function processOne(file, index, total) {
           const title = document.createElement('b');
           title.textContent = `Page ${pageNumber}${inverted ? ' · background corrected' : ''}`;
           const preview = document.createElement('canvas');
-          const previewScale = Math.min(1, 500 / canvas.width);
+          const previewScale = Math.min(1, 400 / canvas.width);
           preview.width = Math.max(1, Math.round(canvas.width * previewScale));
           preview.height = Math.max(1, Math.round(canvas.height * previewScale));
           const previewCtx = preview.getContext('2d');
@@ -340,7 +342,7 @@ async function processOne(file, index, total) {
 
     const outputBlob = doc.output('blob');
     if (!outputBlob || outputBlob.size < 100) {
-      throw new Error('PDF creation returned an empty file. Try Smaller file.');
+      throw new Error('PDF creation returned an empty file. Please retry.');
     }
 
     return { name: file.name, blob: outputBlob, pages: pdf.numPages };
