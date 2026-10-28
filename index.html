@@ -263,110 +263,90 @@ async function processOne(file, index, total) {
   }).promise;
 
   if (pdf.numPages > 200) {
-    throw new Error(
-      `Maximum 200 pages per PDF. This file has ${pdf.numPages} pages.`
-    );
+    throw new Error(`Maximum 200 pages per PDF. This file has ${pdf.numPages} pages.`);
   }
 
   const isClear = $('quality').value === 'clear';
-  const scale = isClear ? 2.5 : 1.5;
+  const scale = isClear ? 2 : 1.25;
   const imageFormat = isClear ? 'PNG' : 'JPEG';
   let doc = null;
 
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-    msg(`Processing ${index}/${total}: ${file.name} — page ${pageNumber} of ${pdf.numPages}…`);
+  try {
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+      msg(`Processing ${index}/${total}: ${file.name} — page ${pageNumber} of ${pdf.numPages}…`);
 
-    let page = null;
-    let canvas = null;
+      let page = null;
+      let canvas = null;
 
-    try {
-      page = await pdf.getPage(pageNumber);
-      const viewport = page.getViewport({ scale });
+      try {
+        page = await pdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale });
+        canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
 
-      canvas = document.createElement('canvas');
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) throw new Error('Not enough memory. Try Smaller file.');
 
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) {
-        throw new Error('Could not allocate canvas memory. Try Smaller file.');
-      }
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        const inverted = clean(canvas);
 
-      await page.render({
-        canvasContext: ctx,
-        viewport
-      }).promise;
-
-      const inverted = clean(canvas);
-
-      if (index === 1 && pageNumber <= 3) {
-        const box = document.createElement('div');
-        box.className = 'preview';
-
-        const title = document.createElement('b');
-        title.textContent = `Page ${pageNumber}${inverted ? ' · background corrected' : ''}`;
-
-        const preview = document.createElement('canvas');
-        const previewScale = Math.min(1, 600 / canvas.width);
-        preview.width = Math.max(1, Math.round(canvas.width * previewScale));
-        preview.height = Math.max(1, Math.round(canvas.height * previewScale));
-
-        const previewCtx = preview.getContext('2d');
-        if (previewCtx) {
-          previewCtx.drawImage(canvas, 0, 0, preview.width, preview.height);
+        if (index === 1 && pageNumber <= 3) {
+          const box = document.createElement('div');
+          box.className = 'preview';
+          const title = document.createElement('b');
+          title.textContent = `Page ${pageNumber}${inverted ? ' · background corrected' : ''}`;
+          const preview = document.createElement('canvas');
+          const previewScale = Math.min(1, 500 / canvas.width);
+          preview.width = Math.max(1, Math.round(canvas.width * previewScale));
+          preview.height = Math.max(1, Math.round(canvas.height * previewScale));
+          const previewCtx = preview.getContext('2d');
+          if (previewCtx) previewCtx.drawImage(canvas, 0, 0, preview.width, preview.height);
+          box.append(title, preview);
+          $('previews').append(box);
+          $('previewpanel').classList.remove('hidden');
         }
 
-        box.append(title, preview);
-        $('previews').append(box);
-        $('previewpanel').classList.remove('hidden');
+        const width = page.view[2] - page.view[0];
+        const height = page.view[3] - page.view[1];
+
+        if (!doc) {
+          doc = new jspdf.jsPDF({
+            orientation: width >= height ? 'landscape' : 'portrait',
+            unit: 'pt',
+            format: [width, height],
+            compress: true
+          });
+        } else {
+          doc.addPage([width, height], width >= height ? 'landscape' : 'portrait');
+        }
+
+        doc.addImage(canvas, imageFormat, 0, 0, width, height);
+      } finally {
+        if (canvas) {
+          canvas.width = 1;
+          canvas.height = 1;
+        }
+        if (page) page.cleanup();
       }
 
-      const pageBlob = await canvasToBlob(canvas, isClear);
-      const image = await blobToDataURL(pageBlob);
-      const width = page.view[2] - page.view[0];
-      const height = page.view[3] - page.view[1];
-
-      if (!doc) {
-        doc = new jspdf.jsPDF({
-          orientation: width >= height ? 'landscape' : 'portrait',
-          unit: 'pt',
-          format: [width, height],
-          compress: true
-        });
-      } else {
-        doc.addPage(
-          [width, height],
-          width >= height ? 'landscape' : 'portrait'
-        );
-      }
-
-      doc.addImage(
-        image, imageFormat, 0, 0, width, height,
-        undefined, isClear ? 'NONE' : 'FAST'
-      );
-    } finally {
-      if (canvas) {
-        canvas.width = 1;
-        canvas.height = 1;
-      }
-      if (page) page.cleanup();
+      await new Promise(resolve => setTimeout(resolve, 0));
     }
 
-    await new Promise(resolve => setTimeout(resolve, 0));
+    if (!doc) throw new Error('No pages were processed.');
+
+    const outputBlob = doc.output('blob');
+    if (!outputBlob || outputBlob.size < 100) {
+      throw new Error('PDF creation returned an empty file. Try Smaller file.');
+    }
+
+    return { name: file.name, blob: outputBlob, pages: pdf.numPages };
+  } finally {
+    try { await pdf.destroy(); } catch (_) {}
   }
-
-  if (!doc) throw new Error('No pages were processed.');
-
-  return {
-    name: file.name,
-    blob: new Blob([doc.output('arraybuffer')], {
-      type: 'application/pdf'
-    }),
-    pages: pdf.numPages
-  };
 }
 
 function addResult(item) {
