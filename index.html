@@ -338,10 +338,19 @@ function processScanCanvas(source, filter) {
   const canvas = source;
   const ctx = canvas.getContext('2d', {willReadFrequently: true});
   if (!ctx) throw new Error('Not enough browser memory to process this photo.');
-  if (filter === 'color' || filter === 'magic') return canvas;
+  if (filter === 'color') return canvas;
   const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const d = image.data;
   for (let i = 0; i < d.length; i += 4) {
+    if (filter === 'magic') {
+      const lum = .299*d[i] + .587*d[i+1] + .114*d[i+2];
+      const contrast = 1.16, saturation = 1.18;
+      for (let c = 0; c < 3; c++) {
+        const value = (lum + (d[i+c] - lum) * saturation - 128) * contrast + 128;
+        d[i+c] = Math.max(0, Math.min(255, Math.round(value)));
+      }
+      continue;
+    }
     let v = Math.round(.299*d[i] + .587*d[i+1] + .114*d[i+2]);
     if (filter === 'bw') v = v >= 160 ? 255 : 0;
     else if (filter === 'enhance') v = Math.max(0, Math.min(255, Math.round((v - 128)*1.25 + 128)));
