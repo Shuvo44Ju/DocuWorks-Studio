@@ -57,6 +57,34 @@ footer{text-align:center;color:#667085;font-size:13px;padding:8px 18px 28px}
 <div class="status" id="filestatus"></div>
 </section>
 
+<section class="panel" id="scannerpanel">
+<h2>Scan photos into a PDF</h2>
+<p class="note">Choose photos transferred from your phone. Arrange pages, rotate them, apply document filters, preview, and export one multi-page PDF. Processing stays in this browser.</p>
+<div class="drop" id="scandrop">
+<strong>Drop document photos here</strong>
+<p>Or select multiple images (JPG, PNG, WebP).</p>
+<label class="filebtn">Choose photos
+<input id="scanfiles" type="file" accept="image/*" multiple>
+</label>
+<div class="status" id="scanstatus">No photos selected</div>
+</div>
+<div id="scanpages" class="previews" style="margin-top:14px"></div>
+<div class="grid" style="margin-top:14px">
+<div class="setting"><label for="scanfilter">Document enhancement</label>
+<select id="scanfilter"><option value="color">Original color</option><option value="gray">Grayscale</option><option value="bw">Black &amp; white document</option><option value="enhance">Improve contrast</option></select>
+<small>Filters can improve readability; black &amp; white may remove faint details.</small></div>
+<div class="setting"><label for="scanquality">PDF quality</label>
+<select id="scanquality"><option value="high" selected>High quality</option><option value="balanced">Balanced size</option></select>
+<small>High quality uses lossless PNG page images.</small></div>
+</div>
+<div class="actions">
+<button id="makeScanPdf" disabled>Create scanned PDF</button>
+<button class="secondary" id="clearScans" type="button">Clear photos</button>
+</div>
+<div class="status" id="scanmsg" role="status" aria-live="polite">Choose photos to start.</div>
+<div id="scanresult" class="hidden"></div>
+</section>
+
 <section class="panel">
 <h2>2. Optimization settings</h2>
 <div class="grid">
@@ -193,6 +221,146 @@ $('ink').addEventListener('input', () => {
   const value = Number($('ink').value);
   $('inklabel').textContent = value === 0 ? 'Off' :
     value === 25 ? 'Balanced (25%)' : `${value}%`;
+});
+
+const scanInput = $('scanfiles');
+const scanDrop = $('scandrop');
+let scanItems = [];
+let scanBusy = false;
+
+function scanMessage(text) { $('scanmsg').textContent = text; }
+
+function drawScanPages() {
+  const host = $('scanpages');
+  host.replaceChildren();
+  scanItems.forEach((item, index) => {
+    const card = document.createElement('div');
+    card.className = 'preview';
+    const image = document.createElement('img');
+    image.src = item.url;
+    image.alt = item.file.name;
+    image.style.cssText = 'display:block;width:100%;height:190px;object-fit:contain;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;filter:' + (item.filter === 'gray' ? 'grayscale(1)' : item.filter === 'bw' ? 'grayscale(1) contrast(2)' : item.filter === 'enhance' ? 'contrast(1.25) brightness(1.04)' : 'none') + ';transform:rotate(' + item.rotation + 'deg)';
+    const title = document.createElement('div');
+    title.className = 'filename';
+    title.textContent = (index + 1) + '. ' + item.file.name;
+    const controls = document.createElement('div');
+    controls.className = 'actions';
+    const button = (label, action, disabled = false) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'secondary'; b.textContent = label; b.disabled = disabled;
+      b.addEventListener('click', action); controls.append(b);
+    };
+    button('Rotate ↻', () => { item.rotation = (item.rotation + 90) % 360; drawScanPages(); });
+    button('↑', () => { if (index > 0) { [scanItems[index-1], scanItems[index]] = [scanItems[index], scanItems[index-1]]; drawScanPages(); } }, index === 0);
+    button('↓', () => { if (index < scanItems.length-1) { [scanItems[index+1], scanItems[index]] = [scanItems[index], scanItems[index+1]]; drawScanPages(); } }, index === scanItems.length-1);
+    button('Remove', () => { URL.revokeObjectURL(item.url); scanItems.splice(index, 1); drawScanPages(); updateScanStatus(); });
+    card.append(image, title, controls);
+    host.append(card);
+  });
+  $('makeScanPdf').disabled = scanItems.length === 0 || scanBusy;
+}
+function updateScanStatus() {
+  $('scanstatus').textContent = scanItems.length ? scanItems.length + ' photo(s) ready' : 'No photos selected';
+  $('makeScanPdf').disabled = scanItems.length === 0 || scanBusy;
+}
+function addScanFiles(list) {
+  if (scanBusy) return;
+  const picked = Array.from(list || []).filter(f => f.type.startsWith('image/'));
+  if (!picked.length) { scanMessage('Please choose image files such as JPG or PNG.'); return; }
+  picked.forEach(file => scanItems.push({file, url: URL.createObjectURL(file), rotation: 0, filter: $('scanfilter').value}));
+  $('scanresult').classList.add('hidden');
+  drawScanPages(); updateScanStatus();
+  scanMessage('Photos ready. Reorder or rotate pages, then create your PDF.');
+}
+scanInput.addEventListener('change', e => { addScanFiles(e.target.files); scanInput.value = ''; });
+scanDrop.addEventListener('dragover', e => { e.preventDefault(); scanDrop.classList.add('dragover'); });
+scanDrop.addEventListener('dragleave', e => { if (!scanDrop.contains(e.relatedTarget)) scanDrop.classList.remove('dragover'); });
+scanDrop.addEventListener('drop', e => { e.preventDefault(); scanDrop.classList.remove('dragover'); addScanFiles(e.dataTransfer.files); });
+$('scanfilter').addEventListener('change', () => {
+  scanItems.forEach(item => item.filter = $('scanfilter').value);
+  drawScanPages();
+});
+$('clearScans').addEventListener('click', () => {
+  if (scanBusy) return;
+  scanItems.forEach(item => URL.revokeObjectURL(item.url));
+  scanItems = []; drawScanPages(); updateScanStatus();
+  $('scanresult').replaceChildren(); $('scanresult').classList.add('hidden');
+  scanMessage('Photos cleared.');
+});
+
+function loadScanImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Could not open one of the selected photos.'));
+    img.src = url;
+  });
+}
+function processScanCanvas(source, filter) {
+  const canvas = document.createElement('canvas');
+  canvas.width = source.width; canvas.height = source.height;
+  const ctx = canvas.getContext('2d', {willReadFrequently: true});
+  if (!ctx) throw new Error('Not enough browser memory to process this photo.');
+  ctx.drawImage(source, 0, 0);
+  if (filter === 'color') return canvas;
+  const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = image.data;
+  for (let i = 0; i < d.length; i += 4) {
+    let v = Math.round(.299*d[i] + .587*d[i+1] + .114*d[i+2]);
+    if (filter === 'bw') v = v >= 160 ? 255 : 0;
+    else if (filter === 'enhance') v = Math.max(0, Math.min(255, Math.round((v - 128)*1.25 + 128)));
+    d[i] = d[i+1] = d[i+2] = v;
+  }
+  ctx.putImageData(image, 0, 0);
+  return canvas;
+}
+$('makeScanPdf').addEventListener('click', async () => {
+  if (!scanItems.length || scanBusy) return;
+  scanBusy = true; $('makeScanPdf').disabled = true;
+  $('clearScans').disabled = true;
+  $('scanresult').replaceChildren(); $('scanresult').classList.add('hidden');
+  let doc = null;
+  try {
+    for (let i = 0; i < scanItems.length; i++) {
+      const item = scanItems[i];
+      scanMessage('Preparing page ' + (i+1) + ' of ' + scanItems.length + '…');
+      const img = await loadScanImage(item.url);
+      const rotated = item.rotation % 180 !== 0;
+      const canvas = document.createElement('canvas');
+      canvas.width = rotated ? img.height : img.width;
+      canvas.height = rotated ? img.width : img.height;
+      const ctx = canvas.getContext('2d', {willReadFrequently: true});
+      if (!ctx) throw new Error('Not enough browser memory. Try fewer photos at once.');
+      ctx.translate(canvas.width/2, canvas.height/2);
+      ctx.rotate(item.rotation * Math.PI / 180);
+      ctx.drawImage(img, -img.width/2, -img.height/2);
+      const processed = processScanCanvas(canvas, item.filter);
+      const orientation = processed.width >= processed.height ? 'landscape' : 'portrait';
+      const pageW = processed.width * 72 / 150;
+      const pageH = processed.height * 72 / 150;
+      if (!doc) doc = new jspdf.jsPDF({orientation, unit:'pt', format:[pageW,pageH], compress:true});
+      else doc.addPage([pageW,pageH], orientation);
+      const usePng = $('scanquality').value === 'high';
+      const dataUrl = usePng ? processed.toDataURL('image/png') : processed.toDataURL('image/jpeg', 0.88);
+      doc.addImage(dataUrl, usePng ? 'PNG' : 'JPEG', 0, 0, pageW, pageH);
+      canvas.width = canvas.height = processed.width = processed.height = 1;
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    const blob = doc.output('blob');
+    if (!blob || blob.size < 100) throw new Error('PDF creation failed. Please try again.');
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = 'scanned-documents.pdf'; link.textContent = 'Download scanned-documents.pdf';
+    link.className = 'filebtn';
+    const note = document.createElement('p'); note.className = 'note'; note.textContent = 'PDF created with ' + scanItems.length + ' page(s). Download when ready.';
+    $('scanresult').append(note, link); $('scanresult').classList.remove('hidden');
+    scanMessage('Done. Your scanned PDF is ready to download.');
+    setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+  } catch (error) {
+    scanMessage('Could not create PDF: ' + (error.message || 'Unknown error'));
+  } finally {
+    scanBusy = false; $('clearScans').disabled = false; updateScanStatus();
+  }
 });
 
 function clean(canvas) {
