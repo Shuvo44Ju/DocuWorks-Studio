@@ -26,25 +26,35 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
 .status{font-size:14px;margin-top:10px;overflow-wrap:anywhere}
 .progress{height:8px;background:#e8edf5;border-radius:10px;margin-top:12px;overflow:hidden}
-.progress div{height:100%;width:0;background:#2563eb;transition:width .2s}
+.progress div{height:100%;width:0;background:#2563eb}
 .hidden{display:none}
 .previews{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 .preview{border:1px solid #dce4ef;border-radius:10px;padding:9px}
 .preview canvas{width:100%;height:auto;border:1px solid #e5e7eb}
 footer{text-align:center;color:#667085;font-size:13px;padding-top:8px;padding-bottom:28px}
 </style>
+
+<!-- Google Analytics: replace G-XXXXXXXXXX with your Measurement ID -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>
+window.dataLayer=window.dataLayer||[];
+function gtag(){dataLayer.push(arguments)}
+gtag('js',new Date());
+gtag('config','G-XXXXXXXXXX',{send_page_view:false});
+</script>
 </head>
 <body>
 <header>
 <h1>Ink Saver PDF</h1>
-<p>Make dark PDF pages printer-friendly, improve readability and save ink.</p>
+<p>Turn dark PDF pages into print-friendly pages and reduce heavy ink coverage.</p>
 </header>
+
 <main>
 <section class="panel">
 <h2>1. Choose your PDFs</h2>
 <div class="drop" id="drop">
 <strong>Drop multiple PDFs here</strong>
-<p>Or choose several PDF files from your computer.</p>
+<p>Or choose one or more PDF files from your computer.</p>
 <label class="filebtn">Choose PDFs
 <input id="file" type="file" accept="application/pdf,.pdf" multiple>
 </label>
@@ -54,7 +64,7 @@ footer{text-align:center;color:#667085;font-size:13px;padding-top:8px;padding-bo
 </section>
 
 <section class="panel">
-<h2>2. Ink-saving and clarity settings</h2>
+<h2>2. Ink-saving settings</h2>
 <div class="grid">
 <div class="setting">
 <label for="mode">Dark background cleanup</label>
@@ -63,60 +73,65 @@ footer{text-align:center;color:#667085;font-size:13px;padding-top:8px;padding-bo
 <option value="on">Force invert</option>
 <option value="off">Do not invert</option>
 </select>
-<small>Converts dark backgrounds to light and light text to dark. Inspect the preview before printing.</small>
+<small>Dark-background pages are reversed to light backgrounds and dark text.</small>
 </div>
+
 <div class="setting">
 <label for="ink">Ink reduction: <span id="inklabel">Balanced (25%)</span></label>
 <input id="ink" type="range" min="0" max="50" step="5" value="25">
-<small>Higher settings lighten dark pixels more. Excessive reduction can make thin text faint.</small>
+<small>Higher settings lighten more dark pixels; inspect thin text carefully.</small>
 </div>
+
 <div class="setting">
-<label for="quality">Text clarity / output quality</label>
+<label for="quality">Output quality</label>
 <select id="quality">
 <option value="1.7">Smaller file</option>
 <option value="2.2" selected>Balanced — clearer text</option>
-<option value="2.8">Sharper text</option>
-<option value="3.2">Maximum clarity — larger file</option>
+<option value="2.8">Sharper text (larger file)</option>
+<option value="3.2">Maximum clarity (largest file)</option>
 </select>
-<small>Higher resolution preserves small details better but needs more memory. Output pages are images, so text may not be searchable or selectable.</small>
+<small>Higher resolution improves small text but creates larger files. Text remains image-based and may not be searchable.</small>
 </div>
 </div>
+
 <div class="actions">
 <button id="go" disabled>Optimize all PDFs</button>
 <button class="secondary" id="reset">Reset</button>
 </div>
 <div class="progress"><div id="bar"></div></div>
 <div class="status" id="status">Choose PDFs to begin.</div>
-<div class="status" id="backgroundnote">You can switch tabs or apps during processing. Keep this browser tab open and prevent your PC from sleeping.</div>
+<div class="status" id="backgroundnote">
+You can switch tabs or apps during processing. Keep this browser open and prevent the PC from sleeping for best results.
+</div>
 </section>
 
 <section class="panel hidden" id="previewpanel">
-<h2>3. Results and preview</h2>
-<p class="note">Files are processed one at a time. Maximum 200 pages per PDF.</p>
+<h2>3. Results</h2>
+<p class="note">Files are processed one at a time. Each PDF is limited to 200 pages.</p>
 <div class="previews" id="previews"></div>
-<div class="actions">
-<button id="download" disabled>Download all as ZIP</button>
-</div>
 <div class="status" id="result"></div>
 </section>
 </main>
-<footer>Ink Saver PDF · Files are processed locally in your browser.</footer>
+
+<footer>Ink Saver PDF · Local browser processing</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
 <script>
 (()=>{
 'use strict';
+
 const $=id=>document.getElementById(id);
 pdfjsLib.GlobalWorkerOptions.workerSrc=
 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-let files=[],blob=null,busy=false,wakeLock=null;
+let files=[],busy=false,wakeLock=null;
 
 async function keepAwake(){
   try{
-    if('wakeLock' in navigator && !wakeLock && document.visibilityState==='visible'){
+    if('wakeLock' in navigator && !wakeLock &&
+       document.visibilityState==='visible'){
       wakeLock=await navigator.wakeLock.request('screen');
       wakeLock.addEventListener('release',()=>{wakeLock=null});
     }
@@ -126,7 +141,7 @@ async function keepAwake(){
 }
 
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible' && busy) keepAwake();
+  if(document.visibilityState==='visible'&&busy)keepAwake();
 });
 
 function msg(t){$('status').textContent=t}
@@ -134,8 +149,6 @@ function msg(t){$('status').textContent=t}
 function resetOutput(){
   $('previewpanel').classList.add('hidden');
   $('previews').innerHTML='';
-  $('download').disabled=true;
-  blob=null;
   $('bar').style.width='0';
   $('result').textContent='';
 }
@@ -143,10 +156,16 @@ function resetOutput(){
 function choose(list){
   const picked=Array.from(list||[]);
   if(!picked.length)return;
+
   const valid=picked.filter(f=>
     f.type==='application/pdf'||f.name.toLowerCase().endsWith('.pdf'));
   const rejected=picked.length-valid.length;
-  if(!valid.length){msg('Please select PDF files only.');return}
+
+  if(!valid.length){
+    msg('Please select PDF files only.');
+    return;
+  }
+
   files=valid;
   resetOutput();
   $('filename').textContent=files.map(f=>
@@ -158,10 +177,12 @@ function choose(list){
 }
 
 $('file').addEventListener('change',e=>choose(e.target.files));
+
 $('drop').addEventListener('dragover',e=>{
   e.preventDefault();
   e.dataTransfer.dropEffect='copy';
 });
+
 $('drop').addEventListener('drop',e=>{
   e.preventDefault();
   choose(e.dataTransfer.files);
@@ -173,6 +194,7 @@ $('ink').addEventListener('input',()=>{
     v===25?'Balanced (25%)':v+'%';
   resetOutput();
 });
+
 ['mode','quality'].forEach(id=>
   $(id).addEventListener('change',resetOutput));
 
@@ -194,35 +216,36 @@ function clean(canvas){
 
   const avg=sum/Math.max(n,1);
   const mode=$('mode').value;
-  const inv=mode==='on'||(mode==='auto'&&avg<125);
+  const invert=mode==='on'||(mode==='auto'&&avg<125);
   const lift=+$('ink').value/100;
 
   for(let i=0;i<d.length;i+=4){
     let v=.299*d[i]+.587*d[i+1]+.114*d[i+2];
-    if(inv)v=255-v;
+    if(invert)v=255-v;
     if(lift>0&&v<245)v+=(255-v)*lift;
     v=Math.round(Math.max(0,Math.min(255,v)));
     d[i]=d[i+1]=d[i+2]=v;
   }
 
   ctx.putImageData(im,0,0);
-  return inv;
+  return invert;
 }
 
 function dataUrl(canvas){
   return new Promise((resolve,reject)=>{
-    canvas.toBlob(b=>{
-      if(!b)return reject(Error('Could not create page image.'));
-      const r=new FileReader();
-      r.onload=()=>resolve(r.result);
-      r.onerror=reject;
-      r.readAsDataURL(b);
+    canvas.toBlob(blob=>{
+      if(!blob)return reject(Error('Could not create page image.'));
+      const reader=new FileReader();
+      reader.onload=()=>resolve(reader.result);
+      reader.onerror=reject;
+      reader.readAsDataURL(blob);
     },'image/jpeg',.98);
   });
 }
 
 async function processOne(file,index,total){
   msg('Opening '+file.name+' ('+index+' of '+total+')…');
+
   const pdf=await pdfjsLib.getDocument({
     data:await file.arrayBuffer()
   }).promise;
@@ -267,111 +290,118 @@ async function processOne(file,index,total){
     }
 
     const img=await dataUrl(canvas);
-    const w=page.view[2]-page.view[0];
-    const h=page.view[3]-page.view[1];
+    const width=page.view[2]-page.view[0];
+    const height=page.view[3]-page.view[1];
 
     if(!doc){
       doc=new jspdf.jsPDF({
-        orientation:w>=h?'landscape':'portrait',
+        orientation:width>=height?'landscape':'portrait',
         unit:'pt',
-        format:[w,h],
+        format:[width,height],
         compress:true
       });
     }else{
-      doc.addPage([w,h],w>=h?'landscape':'portrait');
+      doc.addPage([width,height],
+        width>=height?'landscape':'portrait');
     }
 
-    doc.addImage(img,'JPEG',0,0,w,h,undefined,'FAST');
+    doc.addImage(img,'JPEG',0,0,width,height,undefined,'FAST');
 
-    // Yield briefly so the browser can update progress and handle UI.
     await new Promise(resolve=>setTimeout(resolve,0));
     canvas.width=1;
     canvas.height=1;
   }
 
-  return {
-    name:file.name.replace(/\.pdf$/i,'')+'-ink-saver.pdf',
-    blob:new Blob([doc.output('arraybuffer')],{type:'application/pdf'}),
-    pages:pdf.numPages
-  };
+  const output=new Blob([doc.output('arraybuffer')],{
+    type:'application/pdf'
+  });
+
+  if(typeof window.gtag==='function'){
+    window.gtag('event','pdf_conversion',{
+      method:'ink_saver',
+      page_count:pdf.numPages,
+      transport_type:'beacon'
+    });
+  }
+
+  // Preserve the exact original filename, including its extension.
+  return {name:file.name,blob:output,pages:pdf.numPages};
+}
+
+function downloadPDF(pdfBlob,filename){
+  const url=URL.createObjectURL(pdfBlob);
+  const link=document.createElement('a');
+  link.href=url;
+  link.download=filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
 }
 
 async function run(){
   if(!files.length||busy)return;
+
   busy=true;
   keepAwake();
   $('backgroundnote').textContent=
     'Processing is active. You can switch to another tab or Windows app. '+
-    'Keep this browser open. The screen-awake request helps where supported, '+
-    'but browser and Windows power policies can still pause work.';
+    'Keep this browser open and prevent your PC from sleeping; browser and '+
+    'operating-system policies can still pause work.';
   $('go').disabled=true;
   resetOutput();
   $('previewpanel').classList.remove('hidden');
 
-  const zip=new JSZip();
   let success=0,failed=[],totalPages=0;
-  const usedNames=new Set();
 
   try{
     for(let i=0;i<files.length;i++){
       try{
         const out=await processOne(files[i],i+1,files.length);
-        let name=out.name;
-        const base=name.replace(/\.pdf$/i,'');
-        let n=2;
-        while(usedNames.has(name.toLowerCase())){
-          name=base+'-'+(n++)+'.pdf';
-        }
-        usedNames.add(name.toLowerCase());
-        zip.file(name,out.blob);
+
+        // Download each PDF separately with its original filename.
+        downloadPDF(out.blob,files[i].name);
+
         success++;
         totalPages+=out.pages;
-      }catch(e){
-        console.error(e);
-        failed.push(files[i].name+': '+(e.message||'could not process'));
+        $('result').textContent=
+          'Successfully optimized '+success+' of '+files.length+
+          ' PDF(s). Original filenames preserved.';
+      }catch(error){
+        console.error(error);
+        failed.push(files[i].name+': '+
+          (error.message||'could not process'));
       }
 
       $('bar').style.width=((i+1)/files.length*100)+'%';
+      await new Promise(resolve=>setTimeout(resolve,400));
     }
 
-    if(!success){
-      throw Error('No PDFs could be optimized. '+failed.join(' | '));
-    }
+    msg(failed.length
+      ?'Finished with '+failed.length+' failed PDF(s).'
+      :'All PDFs optimized and downloaded separately.');
 
-    msg('Creating ZIP file…');
-    blob=await zip.generateAsync({type:'blob'});
-    $('download').disabled=false;
-    $('result').textContent='Optimized '+success+' of '+files.length+
-      ' PDF(s), '+totalPages+' total page(s). ZIP size: '+
-      (blob.size/1048576).toFixed(2)+' MB.'+
+    $('result').textContent=
+      'Successful: '+success+'/'+files.length+
+      ' PDF(s). Total pages: '+totalPages+
+      '. Original filenames preserved.'+
       (failed.length?' Failed: '+failed.join(' | '):'');
-    msg(failed.length?
-      'Batch complete with some failures. Download the ZIP for successful files.':
-      'All PDFs optimized. Download the ZIP file.');
-  }catch(e){
-    console.error(e);
-    msg('Batch failed: '+(e.message||'unknown error'));
+  }catch(error){
+    console.error(error);
+    msg('Batch failed: '+(error.message||'unknown error'));
   }finally{
     busy=false;
+
     if(wakeLock){
-      try{await wakeLock.release()}catch(e){}
+      try{await wakeLock.release()}catch(error){}
       wakeLock=null;
     }
+
     $('go').disabled=!files.length;
   }
 }
 
 $('go').addEventListener('click',run);
-
-$('download').addEventListener('click',()=>{
-  if(!blob)return;
-  const a=document.createElement('a');
-  const url=URL.createObjectURL(blob);
-  a.href=url;
-  a.download='ink-saver-optimized.zip';
-  a.click();
-  setTimeout(()=>URL.revokeObjectURL(url),30000);
-});
 
 $('reset').addEventListener('click',()=>{
   if(busy)return;
