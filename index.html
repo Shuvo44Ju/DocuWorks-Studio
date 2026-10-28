@@ -96,7 +96,7 @@ footer{text-align:center;color:#667085;font-size:13px;padding-top:8px;padding-bo
 
 <section class="panel hidden" id="resultpanel">
 <h2>3. Optimized PDFs</h2>
-<p class="note">Your optimized PDFs will appear below. Click Download whenever you are ready. Original filenames are preserved. No ZIP is created.</p>
+<p class="note">Your optimized PDFs will appear below. Click Download whenever you are ready.</p>
 <div id="results"></div>
 </section>
 
@@ -252,7 +252,7 @@ async function processOne(file,index,total){
   }
 
   const qualityMode=$('quality').value;
-  const scale=qualityMode==='clear'?4:1.7;
+  const scale = qualityMode === 'clear' ? 2.5 : 1.5;
   const imageFormat=qualityMode==='clear'?'PNG':'JPEG';
 
   let doc=null;
@@ -290,7 +290,7 @@ async function processOne(file,index,total){
         (inverted?' · background corrected':'');
 
       const preview=document.createElement('canvas');
-      preview.width=canvas.width;
+      const preview = document.createElement('canvas'); const previewScale = Math.min(1, 600 / canvas.width);  preview.width = Math.max(1, Math.round(canvas.width * previewScale)); preview.height = Math.max(1, Math.round(canvas.height * previewScale));  preview.getContext('2d').drawImage(   canvas,   0, 0, preview.width, preview.height );
       preview.height=canvas.height;
       preview.getContext('2d').drawImage(canvas,0,0);
 
@@ -324,11 +324,12 @@ async function processOne(file,index,total){
     );
 
     // Release large canvas memory before rendering the next page.
-    canvas.width=1;
-    canvas.height=1;
+    canvas.width = 1;
+canvas.height = 1;
+page.cleanup();
 
-    // Let the browser refresh progress between pages.
-    await new Promise(resolve=>setTimeout(resolve,0));
+// Let the browser refresh progress between pages.
+await new Promise(resolve => setTimeout(resolve, 0));
   }
 
   return {
