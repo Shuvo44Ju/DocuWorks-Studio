@@ -81,6 +81,7 @@ footer{text-align:center;color:#667085;font-size:13px;padding:8px 18px 28px}
 <option value="clear" selected>Super clear text (larger file)</option>
 </select>
 <small>Super clear uses higher-resolution PNG page images. Smaller file uses lower-resolution JPEG images for faster processing and smaller output.</small>
+<small>Processing can continue while you switch tabs, but keep this tab open and your device awake. Your browser may slow background tabs; closing or refreshing this tab stops the current job.</small>
 </div>
 </div>
 <div class="actions">
@@ -274,7 +275,7 @@ async function processOne(file, index, total) {
   const isClear = $('quality').value === 'clear';
   // Smaller file prioritizes speed: render at a modest resolution and use JPEG.
   // Super clear keeps more detail, but will take longer and use more memory.
-  const scale = isClear ? 1.5 : 1;
+  const scale = isClear ? 1.8 : 1;
   const imageFormat = isClear ? 'PNG' : 'JPEG';
   let doc = null;
 
