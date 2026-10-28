@@ -75,6 +75,32 @@ const importDrop=$('importDrop');if(importDrop){importDrop.onclick=e=>{if(e.targ
 $('cropCancel').onclick=()=>{URL.revokeObjectURL(state.sourceURL||'');state.sourceURL=null;showScreen('homeScreen')};$('cropDone').onclick=acceptCrop;$('addPageBtn').onclick=()=>$('fileInput').click();$('retakeBtn').onclick=()=>{const p=state.pages[state.selected];if(p)beginCrop(p.blob,p.name)};
 $('magicToggle').onclick=()=>{state.magic=!state.magic;$('magicToggle').setAttribute('aria-pressed',String(state.magic));renderPage(state.pages[state.selected])};$('intensity').oninput=e=>{state.intensity=Number(e.target.value);$('intensityValue').value=state.intensity+'%';renderPage(state.pages[state.selected])};$('rotateLeft').onclick=()=>rotateSelected(-90);$('rotateRight').onclick=()=>rotateSelected(90);$('pdfBtn').onclick=exportPDF;$('jpgBtn').onclick=()=>exportSingle('image/jpeg');$('pngBtn').onclick=()=>exportSingle('image/png');$('saveDocBtn').onclick=saveDocument;$('renameDocBtn').onclick=()=>askText('Rename document',state.docName,async v=>{if(!v.trim())return;state.docName=v.trim();$('editorTitle').textContent=state.docName;await saveDocument()});if($('docsBtn'))$('docsBtn').onclick=()=>showScreen('documentsScreen');if($('allDocsBtn'))$('allDocsBtn').onclick=()=>showScreen('documentsScreen');document.querySelectorAll('[data-home]').forEach(b=>b.onclick=()=>{stopCamera();showScreen('homeScreen')});document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>b.dataset.nav==='cameraScreen'?startCamera():showScreen(b.dataset.nav));
 $('themeBtn').onclick=()=>{document.body.classList.toggle('dark');const dark=document.body.classList.contains('dark');$('themeBtn').textContent=dark?'☀':'☾';localStorage.setItem('paperscan-theme',dark?'dark':'light')};
-function waitForCV(){let tries=0;const timer=setInterval(()=>{tries++;if(window.cv&&cv.Mat&&cv.getPerspectiveTransform){state.opencv=true;clearInterval(timer);$('libraryLoader').classList.add('hidden');setTimeout(()=>$('libraryLoader').remove(),350)}else if(tries>120){clearInterval(timer);$('libraryLoader').classList.add('hidden');setTimeout(()=>$('libraryLoader').remove(),350);toast('OpenCV did not load. Check internet, then reload to enable perspective correction.')}},250)}
+function waitForCV(){
+ let tries=0,fallbackStarted=false;
+ const loader=$('libraryLoader');
+ const status=loader?.querySelector('strong');
+ const detail=loader?.querySelector('p');
+ const finish=()=>{state.opencv=true;clearInterval(timer);loader?.classList.add('hidden');setTimeout(()=>loader?.remove(),350)};
+ const timer=setInterval(()=>{
+  tries++;
+  if(window.cv&&cv.Mat&&cv.getPerspectiveTransform){finish();return}
+  if(tries===40&&!fallbackStarted){
+   fallbackStarted=true;
+   if(status)status.textContent='Connecting to scan engine…';
+   if(detail)detail.textContent='Trying an alternate download source.';
+   const fallback=document.createElement('script');
+   fallback.src='https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.10.0-release.1/opencv.js';
+   fallback.async=true;
+   fallback.onerror=()=>{if(status)status.textContent='Scan engine could not load';if(detail)detail.textContent='Check your internet connection, disable content blocking for this site, then reload the page.';const retry=document.createElement('button');retry.className='primarybtn';retry.textContent='Retry loading';retry.onclick=()=>location.reload();loader?.append(retry)};
+   document.head.appendChild(fallback);
+  }
+  if(tries>240){
+   clearInterval(timer);
+   if(status)status.textContent='Scan engine is taking too long';
+   if(detail)detail.textContent='Keep this page open a little longer, or reload to retry. Perspective correction needs the scan engine.';
+   if(loader){const retry=document.createElement('button');retry.className='primarybtn';retry.textContent='Retry loading';retry.onclick=()=>location.reload();loader.append(retry)}
+  }
+ },250);
+}
 window.addEventListener('load',async()=>{try{if(localStorage.getItem('paperscan-theme')==='dark'){document.body.classList.add('dark');$('themeBtn').textContent='☀'}await openDB()}catch(e){toast('Local storage is unavailable. Saved documents may not persist.')}waitForCV();if('serviceWorker'in navigator){navigator.serviceWorker.register('./service-worker.js').catch(()=>{})}});
 window.addEventListener('beforeunload',stopCamera);
