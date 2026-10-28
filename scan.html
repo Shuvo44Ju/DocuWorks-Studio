@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#176b55"><meta name="description" content="Private, browser-based document scanner. Your images stay on your device.">
+<link rel="manifest" href="./manifest.json"><link rel="stylesheet" href="./style.css">
+<title>PaperScan — Private Document Scanner</title>
+</head>
+<body>
+<header class="topbar"><a class="brand" href="./index.html" aria-label="Back to Ink Saver PDF"><span class="brandmark">▤</span><span>Document <span class="brandlight">Scanner</span></span></a><div class="topactions"><button id="themeBtn" class="iconbtn" aria-label="Toggle dark mode" title="Toggle theme">☾</button><button id="docsBtn" class="textbtn">My Documents</button></div></header>
+<main>
+<section id="homeScreen" class="screen active">
+<div class="hero"><div class="eyebrow">PRIVATE BY DESIGN</div><h1>Paperwork, <span>made simple.</span></h1><p>Scan documents cleanly. Everything stays on this device.</p></div>
+<div class="actiongrid"><button id="cameraStart" class="actioncard primary"><span class="actionicon">⌾</span><strong>Scan with camera</strong><small>Capture a new page</small></button><button id="uploadBtn" class="actioncard"><span class="actionicon">▧</span><strong>Import photos</strong><small>Select multiple images</small></button><input id="fileInput" type="file" accept="image/*" multiple hidden></div>
+<div class="privacy"><span>✓</span><div><strong>Your files stay private</strong><p>Images are processed locally and saved in this browser only. No image uploads.</p></div></div>
+<div class="sectionhead"><h2>Recent documents</h2><button id="allDocsBtn" class="linkbtn">View all</button></div><div id="recentDocs" class="doclist"><div class="empty">Your saved documents will appear here.</div></div>
+</section>
+<section id="cameraScreen" class="screen">
+<div class="screenhead"><button class="backbtn" data-home>←</button><div><h2>Capture page</h2><p>Place the document in the frame</p></div></div>
+<div class="camera-stage"><video id="video" autoplay playsinline muted></video><div id="cameraPlaceholder" class="camera-placeholder"><div class="camera-symbol">▣</div><p>Allow camera access to scan a page</p></div></div>
+<p id="cameraMessage" class="message" role="status">Camera preview appears here.</p><div class="camera-controls"><button id="switchCamera" class="roundbtn" title="Switch camera">↻</button><button id="captureBtn" class="capturebtn" aria-label="Capture photo"><span></span></button><button id="cameraUpload" class="roundbtn" title="Upload image">▧</button></div>
+</section>
+<section id="cropScreen" class="screen">
+<div class="screenhead"><button class="backbtn" data-home>←</button><div><h2>Adjust corners</h2><p>Drag each handle to fit the page</p></div></div>
+<div id="cropStage" class="crop-stage"><img id="cropImage" alt="Document crop preview"><canvas id="cropCanvas"></canvas><div id="loupe" class="loupe"><canvas id="loupeCanvas" width="150" height="150"></canvas></div></div>
+<div class="hint">Move all four corners onto the document edges. Pinch/zoom your screen if needed.</div>
+<div class="wideactions"><button id="cropCancel" class="secondary">Cancel</button><button id="cropDone" class="primarybtn">Done · Correct perspective</button></div>
+</section>
+<section id="editorScreen" class="screen">
+<div class="screenhead"><button class="backbtn" data-home>←</button><div><h2 id="editorTitle">Your document</h2><p id="pageCount">0 pages</p></div><button id="renameDocBtn" class="iconbtn" aria-label="Rename document">✎</button></div>
+<div class="preview-card"><div id="editorBusy" class="busy"><span class="spinner"></span><p>Preparing scan…</p></div><img id="pagePreview" alt="Scanned page preview"><div id="noPage" class="empty">Add a page to get started.</div></div>
+<div class="filter-panel"><div class="filter-title"><div><strong>Magic Color</strong><small>Bright paper, clear ink</small></div><button id="magicToggle" class="toggle" aria-pressed="true"><span></span></button></div><div class="sliderrow"><label for="intensity">Intensity</label><input id="intensity" type="range" min="0" max="100" value="65"><output id="intensityValue">65%</output></div></div>
+<div class="rotate-row"><button id="rotateLeft" class="secondary">↶ Rotate left</button><button id="rotateRight" class="secondary">↷ Rotate right</button><button id="retakeBtn" class="secondary">Retake / recrop</button></div>
+<div class="sectionhead"><h2>Pages</h2><button id="addPageBtn" class="linkbtn">＋ Add page</button></div><div id="pagesStrip" class="pages-strip"></div>
+<div class="export-panel"><h2>Export document</h2><p>Save all pages together as a PDF, or download the selected page.</p><button id="pdfBtn" class="primarybtn full">↓ Export all pages as PDF</button><div class="exportrow"><button id="jpgBtn" class="secondary">Download JPG</button><button id="pngBtn" class="secondary">Download PNG</button></div><button id="saveDocBtn" class="secondary full">Save to My Documents</button></div>
+</section>
+<section id="documentsScreen" class="screen"><div class="screenhead"><button class="backbtn" data-home>←</button><div><h2>My Documents</h2><p>Saved on this device</p></div></div><div class="privacy compact"><span>✓</span><div><strong>Local storage only</strong><p>Clearing browser data may remove saved documents. Export backups you need to keep.</p></div></div><div id="documentsList" class="doclist"><div class="empty">Loading documents…</div></div></section>
+</main>
+<nav class="bottomnav"><button class="navitem selected" data-nav="homeScreen"><span>⌂</span>Home</button><button class="navitem" data-nav="cameraScreen" id="navScan"><span>⊙</span>Scan</button><button class="navitem" data-nav="documentsScreen"><span>▤</span>Documents</button></nav>
+<div id="toast" class="toast" role="status"></div><div id="modal" class="modal" hidden><div class="modalbox"><h2 id="modalTitle">Rename document</h2><input id="modalInput" maxlength="100" placeholder="Document name"><div class="modalactions"><button id="modalCancel" class="secondary">Cancel</button><button id="modalOk" class="primarybtn">Save</button></div></div></div>
+<div id="libraryLoader" class="library-loader"><span class="spinner"></span><strong>Loading scan engine…</strong><p>First visit downloads the perspective-correction library.</p></div>
+<script src="https://docs.opencv.org/4.x/opencv.js" async></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script><script src="./app.js" defer></script>
+</body></html>
