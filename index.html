@@ -274,7 +274,7 @@ async function processOne(file, index, total) {
   const isClear = $('quality').value === 'clear';
   // Smaller file prioritizes speed: render at a modest resolution and use JPEG.
   // Super clear keeps more detail, but will take longer and use more memory.
-  const scale = isClear ? 1.8 : 1;
+  const scale = isClear ? 1.5 : 1;
   const imageFormat = isClear ? 'PNG' : 'JPEG';
   let doc = null;
 
