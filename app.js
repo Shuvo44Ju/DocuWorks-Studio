@@ -1,7 +1,7 @@
 /* PaperScan: all image processing and persistence stays in this browser. */
 'use strict';
 const $=id=>document.getElementById(id);
-const state={stream:null,facing:'environment',pages:[],selected:0,docId:null,docName:'Untitled scan',source:null,sourceURL:null,quad:[],drag:-1,opencv:false,magic:true,intensity:65,db:null,modalAction:null};
+const state={stream:null,facing:'environment',pages:[],selected:0,docId:null,docName:'Untitled scan',source:null,sourceURL:null,quad:[],drag:-1,opencv:true,magic:true,intensity:65,db:null,modalAction:null};
 const screens=['homeScreen','cameraScreen','cropScreen','editorScreen','documentsScreen'];
 const DB_NAME='paperscan-db',DB_VERSION=1;
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),2800)}
@@ -30,7 +30,21 @@ $('cropCanvas').addEventListener('pointerdown',e=>{const p=pointerPos(e);state.d
 $('cropCanvas').addEventListener('pointermove',e=>{if(state.drag>=0){e.preventDefault();moveCorner(pointerPos(e))}});function endDrag(){state.drag=-1;$('loupe').style.display='none'}$('cropCanvas').addEventListener('pointerup',endDrag);$('cropCanvas').addEventListener('pointercancel',endDrag);
 window.addEventListener('resize',()=>{if($('cropScreen').classList.contains('active')){const old=state.quad.map(p=>p);initQuad();if(old.length===4)drawQuad()}});
 function sortCorners(q){const sums=q.map(p=>p.x+p.y),diff=q.map(p=>p.y-p.x);return[q[sums.indexOf(Math.min(...sums))],q[diff.indexOf(Math.min(...diff))],q[sums.indexOf(Math.max(...sums))],q[diff.indexOf(Math.max(...diff))]]}
-function perspectiveWarp(src,quad){if(!window.cv||!cv.Mat||!cv.getPerspectiveTransform)throw new Error('OpenCV.js is still loading. Wait a moment and tap Done again.');const g=cropGeometry(),corners=sortCorners(quad).map(p=>({x:Math.max(0,Math.min(src.width,((p.x-g.x)/g.scale)*(src.width/state.cropPreview.width))),y:Math.max(0,Math.min(src.height,((p.y-g.y)/g.scale)*(src.height/state.cropPreview.height)))}));const [tl,tr,br,bl]=corners;const w=Math.round(Math.max(Math.hypot(br.x-bl.x,br.y-bl.y),Math.hypot(tr.x-tl.x,tr.y-tl.y))),h=Math.round(Math.max(Math.hypot(tr.x-br.x,tr.y-br.y),Math.hypot(tl.x-bl.x,tl.y-bl.y)));if(w<20||h<20)throw new Error('The selected area is too small. Move the corners farther apart.');const srcMat=cv.imread(src),srcPts=cv.matFromArray(4,1,cv.CV_32FC2,[tl.x,tl.y,tr.x,tr.y,br.x,br.y,bl.x,bl.y]),dstPts=cv.matFromArray(4,1,cv.CV_32FC2,[0,0,w-1,0,w-1,h-1,0,h-1]),M=cv.getPerspectiveTransform(srcPts,dstPts),dst=new cv.Mat();try{cv.warpPerspective(srcMat,dst,M,new cv.Size(w,h),cv.INTER_CUBIC,cv.BORDER_REPLICATE,new cv.Scalar());const out=document.createElement('canvas');out.width=w;out.height=h;cv.imshow(out,dst);return out}finally{srcMat.delete();srcPts.delete();dstPts.delete();M.delete();dst.delete()}}
+function perspectiveWarp(src,quad){
+ const g=cropGeometry();
+ const corners=sortCorners(quad).map(p=>({x:Math.max(0,Math.min(src.width,((p.x-g.x)/g.scale)*(src.width/state.cropPreview.width))),y:Math.max(0,Math.min(src.height,((p.y-g.y)/g.scale)*(src.height/state.cropPreview.height)))}));
+ const [tl,tr,br,bl]=corners;
+ const w=Math.min(2600,Math.round(Math.max(Math.hypot(br.x-bl.x,br.y-bl.y),Math.hypot(tr.x-tl.x,tr.y-tl.y))));
+ const h=Math.min(3400,Math.round(Math.max(Math.hypot(tr.x-br.x,tr.y-br.y),Math.hypot(tl.x-bl.x,tl.y-bl.y))));
+ if(w<20||h<20)throw new Error('The selected area is too small. Move the corners farther apart.');
+ // Solve a projective transform from output coordinates to the four source corners.
+ const dst=[[0,0],[w-1,0],[w-1,h-1],[0,h-1]],srcPts=[tl,tr,br,bl],A=[];
+ for(let i=0;i<4;i++){const u=dst[i][0],v=dst[i][1],x=srcPts[i].x,y=srcPts[i].y;A.push([u,v,1,0,0,0,-x*u,-x*v,x]);A.push([0,0,0,u,v,1,-y*u,-y*v,y])}
+ for(let col=0;col<8;col++){let pivot=col;for(let row=col+1;row<8;row++)if(Math.abs(A[row][col])>Math.abs(A[pivot][col]))pivot=row;[A[col],A[pivot]]=[A[pivot],A[col]];const div=A[col][col];if(Math.abs(div)<1e-10)throw new Error('Could not correct these corners. Adjust the page edges and try again.');for(let j=col;j<9;j++)A[col][j]/=div;for(let row=0;row<8;row++){if(row===col)continue;const f=A[row][col];for(let j=col;j<9;j++)A[row][j]-=f*A[col][j]}}
+ const m=A.map(row=>row[8]),input=document.createElement('canvas');input.width=src.width;input.height=src.height;const ictx=input.getContext('2d',{willReadFrequently:true});ictx.drawImage(src,0,0);const pixels=ictx.getImageData(0,0,src.width,src.height),out=document.createElement('canvas');out.width=w;out.height=h;const octx=out.getContext('2d',{willReadFrequently:true}),result=octx.createImageData(w,h),d=pixels.data,o=result.data;
+ for(let y=0;y<h;y++){for(let x=0;x<w;x++){const z=m[6]*x+m[7]*y+1,sx=Math.max(0,Math.min(src.width-1,Math.round((m[0]*x+m[1]*y+m[2])/z))),sy=Math.max(0,Math.min(src.height-1,Math.round((m[3]*x+m[4]*y+m[5])/z))),si=(sy*src.width+sx)*4,di=(y*w+x)*4;o[di]=d[si];o[di+1]=d[si+1];o[di+2]=d[si+2];o[di+3]=255}}
+ octx.putImageData(result,0,0);return out;
+}
 function magicCanvas(source,intensity=65){
  const c=document.createElement('canvas');c.width=source.width;c.height=source.height;
  const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(source,0,0);
@@ -53,7 +67,7 @@ function magicCanvas(source,intensity=65){
  ctx.putImageData(image,0,0);return c;
 }
 function renderPage(page){if(!page)return;$('pagePreview').style.display='block';$('noPage').style.display='none';$('editorBusy').classList.add('show');const img=new Image();img.onload=()=>{try{let c=canvasFromImage(img,2400);if(state.magic)c=magicCanvas(c,state.intensity);$('pagePreview').src=c.toDataURL('image/jpeg',.92)}catch(e){$('pagePreview').src=page.dataURL}finally{$('editorBusy').classList.remove('show')}};img.onerror=()=>{$('editorBusy').classList.remove('show');$('pagePreview').src=page.dataURL};img.src=page.dataURL;$('magicToggle').setAttribute('aria-pressed',String(state.magic));$('intensity').value=state.intensity;$('intensityValue').value=state.intensity+'%'}
-async function acceptCrop(){try{if(!state.opencv){toast('Scan engine is still loading. Please wait.');return}const c=perspectiveWarp(state.sourceImage,state.quad);const blob=await canvasBlob(c,'image/jpeg',.97);const dataURL=await blobToDataURL(blob);const page={id:uid(),name:state.sourceName||'Scanned page',blob,dataURL,rotation:0};if(!state.pages.length){state.pages.push(page);state.selected=0;state.docId=uid();state.docName='Untitled scan'}else{state.pages.push(page);state.selected=state.pages.length-1}URL.revokeObjectURL(state.sourceURL);state.sourceURL=null;if(state.importQueue&&state.importQueue.length){await nextQueuedImport();return}showEditor();toast('Perspective corrected. Scan ready.')}catch(e){toast(e.message||'Could not correct this page.')} }
+async function acceptCrop(){try{const c=perspectiveWarp(state.sourceImage,state.quad);const blob=await canvasBlob(c,'image/jpeg',.97);const dataURL=await blobToDataURL(blob);const page={id:uid(),name:state.sourceName||'Scanned page',blob,dataURL,rotation:0};if(!state.pages.length){state.pages.push(page);state.selected=0;state.docId=uid();state.docName='Untitled scan'}else{state.pages.push(page);state.selected=state.pages.length-1}URL.revokeObjectURL(state.sourceURL);state.sourceURL=null;if(state.importQueue&&state.importQueue.length){await nextQueuedImport();return}showEditor();toast('Perspective corrected. Scan ready.')}catch(e){toast(e.message||'Could not correct this page.')} }
 function blobToDataURL(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(blob)})}
 function showEditor(){stopCamera();showScreen('editorScreen');$('editorTitle').textContent=state.docName;renderPage(state.pages[state.selected]);renderPagesStrip();$('pageCount').textContent=state.pages.length+' page'+(state.pages.length===1?'':'s')}
 function renderPagesStrip(){const el=$('pagesStrip');el.innerHTML='';state.pages.forEach((p,i)=>{const b=document.createElement('button');b.className='page-thumb'+(i===state.selected?' active':'');b.draggable=true;b.dataset.index=i;const im=document.createElement('img');im.src=p.dataURL;im.alt='Page '+(i+1);const del=document.createElement('button');del.className='deletepage';del.textContent='×';del.title='Delete page';del.onclick=e=>{e.stopPropagation();if(!confirm('Delete page '+(i+1)+'?'))return;state.pages.splice(i,1);state.selected=Math.max(0,Math.min(state.selected,state.pages.length-1));showEditor()};const label=document.createElement('small');label.textContent='Page '+(i+1);b.append(im,label,del);b.onclick=()=>{state.selected=i;renderPage(state.pages[i]);renderPagesStrip()};b.ondragstart=e=>e.dataTransfer.setData('text/plain',String(i));b.ondragover=e=>e.preventDefault();b.ondrop=e=>{e.preventDefault();const from=Number(e.dataTransfer.getData('text/plain')),to=i;if(from===to||!Number.isInteger(from))return;const [p]=state.pages.splice(from,1);state.pages.splice(to,0,p);state.selected=to;renderPagesStrip();renderPage(p)};el.append(b)});$('pageCount').textContent=state.pages.length+' page'+(state.pages.length===1?'':'s');if(!state.pages.length){$('pagePreview').style.display='none';$('noPage').style.display='block'}}
@@ -75,32 +89,6 @@ const importDrop=$('importDrop');if(importDrop){importDrop.onclick=e=>{if(e.targ
 $('cropCancel').onclick=()=>{URL.revokeObjectURL(state.sourceURL||'');state.sourceURL=null;showScreen('homeScreen')};$('cropDone').onclick=acceptCrop;$('addPageBtn').onclick=()=>$('fileInput').click();$('retakeBtn').onclick=()=>{const p=state.pages[state.selected];if(p)beginCrop(p.blob,p.name)};
 $('magicToggle').onclick=()=>{state.magic=!state.magic;$('magicToggle').setAttribute('aria-pressed',String(state.magic));renderPage(state.pages[state.selected])};$('intensity').oninput=e=>{state.intensity=Number(e.target.value);$('intensityValue').value=state.intensity+'%';renderPage(state.pages[state.selected])};$('rotateLeft').onclick=()=>rotateSelected(-90);$('rotateRight').onclick=()=>rotateSelected(90);$('pdfBtn').onclick=exportPDF;$('jpgBtn').onclick=()=>exportSingle('image/jpeg');$('pngBtn').onclick=()=>exportSingle('image/png');$('saveDocBtn').onclick=saveDocument;$('renameDocBtn').onclick=()=>askText('Rename document',state.docName,async v=>{if(!v.trim())return;state.docName=v.trim();$('editorTitle').textContent=state.docName;await saveDocument()});if($('docsBtn'))$('docsBtn').onclick=()=>showScreen('documentsScreen');if($('allDocsBtn'))$('allDocsBtn').onclick=()=>showScreen('documentsScreen');document.querySelectorAll('[data-home]').forEach(b=>b.onclick=()=>{stopCamera();showScreen('homeScreen')});document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>b.dataset.nav==='cameraScreen'?startCamera():showScreen(b.dataset.nav));
 $('themeBtn').onclick=()=>{document.body.classList.toggle('dark');const dark=document.body.classList.contains('dark');$('themeBtn').textContent=dark?'☀':'☾';localStorage.setItem('paperscan-theme',dark?'dark':'light')};
-function waitForCV(){
- let tries=0,fallbackStarted=false;
- const loader=$('libraryLoader');
- const status=loader?.querySelector('strong');
- const detail=loader?.querySelector('p');
- const finish=()=>{state.opencv=true;clearInterval(timer);loader?.classList.add('hidden');setTimeout(()=>loader?.remove(),350)};
- const timer=setInterval(()=>{
-  tries++;
-  if(window.cv&&cv.Mat&&cv.getPerspectiveTransform){finish();return}
-  if(tries===40&&!fallbackStarted){
-   fallbackStarted=true;
-   if(status)status.textContent='Connecting to scan engine…';
-   if(detail)detail.textContent='Trying an alternate download source.';
-   const fallback=document.createElement('script');
-   fallback.src='https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.10.0-release.1/opencv.js';
-   fallback.async=true;
-   fallback.onerror=()=>{if(status)status.textContent='Scan engine could not load';if(detail)detail.textContent='Check your internet connection, disable content blocking for this site, then reload the page.';const retry=document.createElement('button');retry.className='primarybtn';retry.textContent='Retry loading';retry.onclick=()=>location.reload();loader?.append(retry)};
-   document.head.appendChild(fallback);
-  }
-  if(tries>240){
-   clearInterval(timer);
-   if(status)status.textContent='Scan engine is taking too long';
-   if(detail)detail.textContent='Keep this page open a little longer, or reload to retry. Perspective correction needs the scan engine.';
-   if(loader){const retry=document.createElement('button');retry.className='primarybtn';retry.textContent='Retry loading';retry.onclick=()=>location.reload();loader.append(retry)}
-  }
- },250);
-}
+function waitForCV(){state.opencv=true;const loader=$('libraryLoader');if(loader){loader.classList.add('hidden');setTimeout(()=>loader.remove(),350)}}
 window.addEventListener('load',async()=>{try{if(localStorage.getItem('paperscan-theme')==='dark'){document.body.classList.add('dark');$('themeBtn').textContent='☀'}await openDB()}catch(e){toast('Local storage is unavailable. Saved documents may not persist.')}waitForCV();if('serviceWorker'in navigator){navigator.serviceWorker.register('./service-worker.js').catch(()=>{})}});
 window.addEventListener('beforeunload',stopCamera);
