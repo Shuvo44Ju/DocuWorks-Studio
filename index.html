@@ -28,6 +28,12 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .status{font-size:14px;margin-top:10px;overflow-wrap:anywhere}
 .progress{height:8px;background:#e8edf5;border-radius:10px;margin-top:12px;overflow:hidden}
 .progress div{height:100%;width:0;background:#2563eb;transition:width .2s}
+.scanner-modal{position:fixed;z-index:1000;inset:3vh 3vw;overflow:auto;margin:0;max-width:none;box-shadow:0 18px 70px #0b1730aa;border-radius:18px}
+.scanner-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+body.scanner-open{overflow:hidden}
+#openScanner{margin:18px 0 0}
+.scan-thumb{max-width:100%;object-fit:contain}
+@media(max-width:600px){.scanner-modal{inset:1vh 2vw;padding:14px}.scanner-heading h2{font-size:21px}}
 .hidden{display:none!important}
 .previews{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 .preview{border:1px solid #dce4ef;border-radius:10px;padding:9px;overflow:hidden}
@@ -44,6 +50,8 @@ footer{text-align:center;color:#667085;font-size:13px;padding:8px 18px 28px}
 <p>Improve readability, clean dark backgrounds and reduce printer ink usage.</p>
 </header>
 <main>
+<section class="panel"><h2>Document scanner</h2><p class="note">Turn transferred phone photos into an enhanced, multi-page PDF.</p><button id="openScanner" type="button">Scan pages</button></section>
+
 <section class="panel">
 <h2>1. Choose your PDFs</h2>
 <div class="drop" id="drop">
@@ -57,8 +65,8 @@ footer{text-align:center;color:#667085;font-size:13px;padding:8px 18px 28px}
 <div class="status" id="filestatus"></div>
 </section>
 
-<section class="panel" id="scannerpanel">
-<h2>Scan photos into a PDF</h2>
+<section class="panel scanner-modal hidden" id="scannerpanel" role="dialog" aria-modal="true" aria-labelledby="scannerheading">
+<div class="scanner-heading"><h2 id="scannerheading">Scan photos into a PDF</h2><button type="button" class="secondary" id="closeScanner">Close scanner</button></div>
 <p class="note">Choose photos transferred from your phone. Arrange pages, rotate them, apply document filters, preview, and export one multi-page PDF. Processing stays in this browser.</p>
 <div class="drop" id="scandrop">
 <strong>Drop document photos here</strong>
@@ -223,6 +231,16 @@ $('ink').addEventListener('input', () => {
     value === 25 ? 'Balanced (25%)' : `${value}%`;
 });
 
+const scannerPanel = $('scannerpanel');
+$('openScanner').addEventListener('click', () => {
+  scannerPanel.classList.remove('hidden');
+  document.body.classList.add('scanner-open');
+});
+$('closeScanner').addEventListener('click', () => {
+  if (scanBusy) return;
+  scannerPanel.classList.add('hidden');
+  document.body.classList.remove('scanner-open');
+});
 const scanInput = $('scanfiles');
 const scanDrop = $('scandrop');
 let scanItems = [];
@@ -238,6 +256,7 @@ function drawScanPages() {
     card.className = 'preview';
     const image = document.createElement('img');
     image.src = item.url;
+    image.loading = 'lazy'; image.decoding = 'async';
     image.alt = item.file.name;
     image.style.cssText = 'display:block;width:100%;height:190px;object-fit:contain;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;filter:' + (item.filter === 'gray' ? 'grayscale(1)' : item.filter === 'bw' ? 'grayscale(1) contrast(2)' : item.filter === 'enhance' ? 'contrast(1.25) brightness(1.04)' : 'none') + ';transform:rotate(' + item.rotation + 'deg)';
     const title = document.createElement('div');
@@ -325,25 +344,41 @@ $('makeScanPdf').addEventListener('click', async () => {
       const item = scanItems[i];
       scanMessage('Preparing page ' + (i+1) + ' of ' + scanItems.length + '…');
       const img = await loadScanImage(item.url);
+      // Cap working resolution to prevent huge phone photos from exhausting browser memory.
+      // 2200px on the long edge is suitable for typical document scans.
+      const baseScale = Math.min(1, 2200 / Math.max(img.width, img.height));
+      const sourceW = Math.max(1, Math.round(img.width * baseScale));
+      const sourceH = Math.max(1, Math.round(img.height * baseScale));
       const rotated = item.rotation % 180 !== 0;
       const canvas = document.createElement('canvas');
-      canvas.width = rotated ? img.height : img.width;
-      canvas.height = rotated ? img.width : img.height;
+      canvas.width = rotated ? sourceH : sourceW;
+      canvas.height = rotated ? sourceW : sourceH;
       const ctx = canvas.getContext('2d', {willReadFrequently: true});
       if (!ctx) throw new Error('Not enough browser memory. Try fewer photos at once.');
       ctx.translate(canvas.width/2, canvas.height/2);
       ctx.rotate(item.rotation * Math.PI / 180);
-      ctx.drawImage(img, -img.width/2, -img.height/2);
-      const processed = processScanCanvas(canvas, item.filter);
+      ctx.drawImage(img, -sourceW/2, -sourceH/2, sourceW, sourceH);
+      let processed = processScanCanvas(canvas, item.filter);
       const orientation = processed.width >= processed.height ? 'landscape' : 'portrait';
       const pageW = processed.width * 72 / 150;
       const pageH = processed.height * 72 / 150;
       if (!doc) doc = new jspdf.jsPDF({orientation, unit:'pt', format:[pageW,pageH], compress:true});
       else doc.addPage([pageW,pageH], orientation);
       const usePng = $('scanquality').value === 'high';
-      const dataUrl = usePng ? processed.toDataURL('image/png') : processed.toDataURL('image/jpeg', 0.88);
+      // Blob encoding is asynchronous and avoids a large synchronous toDataURL pause.
+      const pageBlob = await new Promise((resolve, reject) => processed.toBlob(
+        blob => blob ? resolve(blob) : reject(new Error('Could not encode scan page.')),
+        usePng ? 'image/png' : 'image/jpeg', usePng ? undefined : 0.88
+      ));
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Could not read encoded scan page.'));
+        reader.readAsDataURL(pageBlob);
+      });
       doc.addImage(dataUrl, usePng ? 'PNG' : 'JPEG', 0, 0, pageW, pageH);
       canvas.width = canvas.height = processed.width = processed.height = 1;
+      processed = null;
       await new Promise(resolve => setTimeout(resolve, 0));
     }
     const blob = doc.output('blob');
