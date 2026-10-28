@@ -25,7 +25,7 @@ function drawQuad(){const c=$('cropCanvas'),box=$('cropStage'),dpr=window.device
 function pointerPos(e){const r=$('cropCanvas').getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
 function nearestHandle(p){let best=-1,dist=1e9;state.quad.forEach((q,i)=>{const d=Math.hypot(q.x-p.x,q.y-p.y);if(d<dist){dist=d;best=i}});return dist<64?best:-1}
 function moveCorner(p){const g=cropGeometry(),pad=2;p.x=Math.max(g.x+pad,Math.min(g.x+g.w-pad,p.x));p.y=Math.max(g.y+pad,Math.min(g.y+g.h-pad,p.y));state.quad[state.drag]=p;drawQuad();drawLoupe(p)}
-function drawLoupe(p){const l=$('loupe'),c=$('loupeCanvas'),ctx=c.getContext('2d'),g=cropGeometry(),img=state.cropPreview,scale=2.5,centerX=(p.x-g.x)/g.scale,centerY=(p.y-g.y)/g.scale,sw=c.width/scale,sh=c.height/scale;l.style.display='block';l.style.left=Math.max(0,Math.min($('cropStage').clientWidth-150,p.x-75))+'px';l.style.top=Math.max(0,Math.min($('cropStage').clientHeight-150,p.y-170))+'px';ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(img,Math.max(0,centerX-sw/2),Math.max(0,centerY-sh/2),Math.min(sw,img.width),Math.min(sh,img.height),0,0,c.width,c.height);ctx.strokeStyle='#ff4b63';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(c.width/2-10,c.height/2);ctx.lineTo(c.width/2+10,c.height/2);ctx.moveTo(c.width/2,c.height/2-10);ctx.lineTo(c.width/2,c.height/2+10);ctx.stroke()}
+function drawLoupe(p){const l=$('loupe'),c=$('loupeCanvas'),ctx=c.getContext('2d'),g=cropGeometry(),img=state.cropPreview,scale=3,sw=c.width/scale,sh=c.height/scale;let centerX=(p.x-g.x)/g.scale,centerY=(p.y-g.y)/g.scale;centerX=Math.max(sw/2,Math.min(img.width-sw/2,centerX));centerY=Math.max(sh/2,Math.min(img.height-sh/2,centerY));l.style.display='block';l.style.left=Math.max(0,Math.min($('cropStage').clientWidth-150,p.x-75))+'px';l.style.top=Math.max(0,Math.min($('cropStage').clientHeight-150,p.y-170))+'px';ctx.clearRect(0,0,c.width,c.height);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(img,centerX-sw/2,centerY-sh/2,sw,sh,0,0,c.width,c.height);ctx.strokeStyle='#ff4b63';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(c.width/2-12,c.height/2);ctx.lineTo(c.width/2+12,c.height/2);ctx.moveTo(c.width/2,c.height/2-12);ctx.lineTo(c.width/2,c.height/2+12);ctx.stroke()}
 $('cropCanvas').addEventListener('pointerdown',e=>{const p=pointerPos(e);state.drag=nearestHandle(p);if(state.drag>=0){e.preventDefault();$('cropCanvas').setPointerCapture(e.pointerId);moveCorner(p)}});
 $('cropCanvas').addEventListener('pointermove',e=>{if(state.drag>=0){e.preventDefault();moveCorner(pointerPos(e))}});function endDrag(){state.drag=-1;$('loupe').style.display='none'}$('cropCanvas').addEventListener('pointerup',endDrag);$('cropCanvas').addEventListener('pointercancel',endDrag);
 window.addEventListener('resize',()=>{if($('cropScreen').classList.contains('active')){const old=state.quad.map(p=>p);initQuad();if(old.length===4)drawQuad()}});
@@ -50,19 +50,25 @@ function magicCanvas(source,intensity=65){
  const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(source,0,0);
  const amount=Math.max(0,Math.min(1,intensity/100));if(!amount)return c;
  const image=ctx.getImageData(0,0,c.width,c.height),data=image.data;
- // Estimate uneven paper lighting at low resolution, then gently lift shadows.
- const bg=document.createElement('canvas');bg.width=Math.max(1,Math.ceil(c.width/32));bg.height=Math.max(1,Math.ceil(c.height/32));
+ // Estimate the paper's local lighting, then whiten paper and deepen ink like a document scanner.
+ const bg=document.createElement('canvas');bg.width=Math.max(1,Math.ceil(c.width/40));bg.height=Math.max(1,Math.ceil(c.height/40));
  const bctx=bg.getContext('2d',{willReadFrequently:true});bctx.drawImage(c,0,0,bg.width,bg.height);
  const light=document.createElement('canvas');light.width=c.width;light.height=c.height;
- const lctx=light.getContext('2d',{willReadFrequently:true});lctx.filter='blur('+Math.max(12,Math.round(Math.min(c.width,c.height)/18))+'px)';lctx.drawImage(bg,0,0,c.width,c.height);lctx.filter='none';
+ const lctx=light.getContext('2d',{willReadFrequently:true});lctx.filter='blur('+Math.max(18,Math.round(Math.min(c.width,c.height)/16))+'px)';lctx.drawImage(bg,0,0,c.width,c.height);lctx.filter='none';
  const field=lctx.getImageData(0,0,c.width,c.height).data;
  for(let i=0;i<data.length;i+=4){
    const lum=.299*data[i]+.587*data[i+1]+.114*data[i+2];
    const paper=.299*field[i]+.587*field[i+1]+.114*field[i+2];
-   // Limit correction so local bright spots are not blown out and text remains dark.
-   const shadow=Math.max(0,Math.min(1,(paper-lum-12)/115));
-   const lift=amount*shadow*Math.min(32,Math.max(0,235-paper)*.38);
-   for(let k=0;k<3;k++)data[i+k]=Math.max(0,Math.min(255,data[i+k]+lift));
+   // Compensate uneven illumination conservatively; avoid turning dark text into grey.
+   const corrected=lum+(Math.max(0,Math.min(1,(220-paper)/150))*amount*34);
+   const normalized=Math.max(0,Math.min(255,corrected));
+   const white=Math.max(0,Math.min(1,(normalized-150)/95))*amount;
+   const ink=Math.max(0,Math.min(1,(125-normalized)/125))*amount*.18;
+   for(let k=0;k<3;k++){
+     const channel=data[i+k];
+     const lifted=channel+(255-channel)*white;
+     data[i+k]=Math.max(0,Math.min(255,Math.round(lifted*(1-ink))));
+   }
  }
  ctx.putImageData(image,0,0);return c;
 }
