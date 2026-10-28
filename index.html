@@ -204,12 +204,12 @@ function clean(canvas) {
   const data = image.data;
   let sum = 0;
   let count = 0;
-
   const step = Math.max(
     1,
     Math.floor(Math.sqrt(canvas.width * canvas.height / 10000))
   );
 
+  // Sample the page first so Auto mode can decide whether to invert it.
   for (let y = 0; y < canvas.height; y += step) {
     for (let x = 0; x < canvas.width; x += step) {
       const i = (y * canvas.width + x) * 4;
@@ -223,13 +223,18 @@ function clean(canvas) {
   const invert = mode === 'on' || (mode === 'auto' && average < 125);
   const lift = Number($('ink').value) / 100;
 
+  // Precompute the exact grayscale/ink-lift result for all 256 luminance
+  // values, avoiding repeated lift, clamp and rounding calculations per pixel.
+  const mapped = new Uint8Array(256);
+  for (let value = 0; value < 256; value++) {
+    let output = invert ? 255 - value : value;
+    if (lift > 0 && output < 245) output += (255 - output) * lift;
+    mapped[value] = Math.round(Math.max(0, Math.min(255, output)));
+  }
+
   for (let i = 0; i < data.length; i += 4) {
-    let value = .299 * data[i] + .587 * data[i + 1] + .114 * data[i + 2];
-
-    if (invert) value = 255 - value;
-    if (lift > 0 && value < 245) value += (255 - value) * lift;
-
-    value = Math.round(Math.max(0, Math.min(255, value)));
+    const luminance = Math.round(.299 * data[i] + .587 * data[i + 1] + .114 * data[i + 2]);
+    const value = mapped[luminance];
     data[i] = data[i + 1] = data[i + 2] = value;
   }
 
