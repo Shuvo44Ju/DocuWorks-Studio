@@ -1,5 +1,5 @@
-const CACHE_NAME='ink-saver-paperscan-v10';
-const CORE=['./','./index.html','./scan.html','./style.css','./app.js','./manifest.json','./icon.svg'];
+const CACHE_NAME='ink-saver-paperscan-v11';
+const CORE=['./','./index.html','./scan.html','./cs.html','./style.css','./app.js','./manifest.json','./icon.svg'];
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE_NAME);try{await cache.addAll(CORE)}catch(e){}await self.skipWaiting()})())});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('ink-saver-paperscan-')&&k!==CACHE_NAME).map(k=>caches.delete(k)));await self.clients.claim()})())});
 self.addEventListener('fetch',event=>{
