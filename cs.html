@@ -28,7 +28,7 @@
 <script>
 (()=>{'use strict';
 const $=id=>document.getElementById(id),CACHE='inkSaverCS:cache:v1:',SETTINGS='inkSaverCS:settings:v1';
-const PROMPT=\`Read every page of this User Requirement Specification (URS). Return STRICT JSON only, no Markdown or prose, in this shape:
+const PROMPT=`Read every page of this User Requirement Specification (URS). Return STRICT JSON only, no Markdown or prose, in this shape:
 {"header":{"equipment_name":"","urs_no":"","ref_doc_no":"","version":"","department":""},"sections":[{"title":"1. General Information","rows":[{"requirement":"","description":"","priority":null}]}],"attached_docs":[""]}
 Rules:
 - Ignore approval/signature pages, revision history, headers and footers.
@@ -38,7 +38,7 @@ Rules:
 - Put the "Complies 21 CFR Part 11" document number, if any, in attached_docs.
 - For a software/computerized-system URS with requirement IDs and priority 1/2/3, retain the IDs, fill priority, and set top-level "layout":"software".
 - If tables list multiple capacities or models, return every one as a separate selectable row.
-- Return strict JSON only. Missing metadata should be empty strings.\`;
+- Return strict JSON only. Missing metadata should be empty strings.`;
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 let file=null,bytes=null,pages=[],dataOut=null,rows=[],layout='general',busy=false,lastError='';
 const text=v=>v==null?'':String(v),msg=s=>$('status').textContent=s,bar=n=>$('progressBar').style.width=Math.max(0,Math.min(100,n))+'%';
