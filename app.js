@@ -50,24 +50,27 @@ function magicCanvas(source,intensity=65){
  const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(source,0,0);
  const amount=Math.max(0,Math.min(1,intensity/100));if(!amount)return c;
  const image=ctx.getImageData(0,0,c.width,c.height),data=image.data;
- // Estimate the paper's local lighting, then whiten paper and deepen ink like a document scanner.
- const bg=document.createElement('canvas');bg.width=Math.max(1,Math.ceil(c.width/40));bg.height=Math.max(1,Math.ceil(c.height/40));
+ // Build a smooth local-light estimate to reduce grey paper and camera shadows.
+ const bg=document.createElement('canvas');bg.width=Math.max(1,Math.ceil(c.width/48));bg.height=Math.max(1,Math.ceil(c.height/48));
  const bctx=bg.getContext('2d',{willReadFrequently:true});bctx.drawImage(c,0,0,bg.width,bg.height);
  const light=document.createElement('canvas');light.width=c.width;light.height=c.height;
- const lctx=light.getContext('2d',{willReadFrequently:true});lctx.filter='blur('+Math.max(18,Math.round(Math.min(c.width,c.height)/16))+'px)';lctx.drawImage(bg,0,0,c.width,c.height);lctx.filter='none';
+ const lctx=light.getContext('2d',{willReadFrequently:true});lctx.filter='blur('+Math.max(22,Math.round(Math.min(c.width,c.height)/14))+'px)';lctx.drawImage(bg,0,0,c.width,c.height);lctx.filter='none';
  const field=lctx.getImageData(0,0,c.width,c.height).data;
  for(let i=0;i<data.length;i+=4){
-   const lum=.299*data[i]+.587*data[i+1]+.114*data[i+2];
+   const r=data[i],g=data[i+1],b=data[i+2],lum=.299*r+.587*g+.114*b;
    const paper=.299*field[i]+.587*field[i+1]+.114*field[i+2];
-   // Compensate uneven illumination conservatively; avoid turning dark text into grey.
-   const corrected=lum+(Math.max(0,Math.min(1,(220-paper)/150))*amount*34);
-   const normalized=Math.max(0,Math.min(255,corrected));
-   const white=Math.max(0,Math.min(1,(normalized-150)/95))*amount;
-   const ink=Math.max(0,Math.min(1,(125-normalized)/125))*amount*.18;
+   // Flatten broad shadows, then push near-white paper toward white while preserving ink.
+   const shadow=Math.max(0,Math.min(1,(238-paper)/150));
+   let corrected=lum+shadow*amount*48;
+   corrected=Math.max(0,Math.min(255,corrected));
+   const threshold=150+amount*12;
+   const paperStrength=Math.max(0,Math.min(1,(corrected-threshold)/(245-threshold)));
+   const targetLum=Math.min(255,corrected+(255-corrected)*paperStrength*amount*.94);
+   const contrast=Math.max(0,Math.min(1,(132-corrected)/132))*amount*.28;
    for(let k=0;k<3;k++){
-     const channel=data[i+k];
-     const lifted=channel+(255-channel)*white;
-     data[i+k]=Math.max(0,Math.min(255,Math.round(lifted*(1-ink))));
+     // Neutralize a little color cast in paper without fully desaturating colored marks.
+     const v=data[i+k],neutral=v+(lum-v)*amount*.18;
+     data[i+k]=Math.max(0,Math.min(255,Math.round((neutral+(targetLum-corrected))*(1-contrast))));
    }
  }
  ctx.putImageData(image,0,0);return c;
