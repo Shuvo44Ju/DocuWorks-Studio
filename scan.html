@@ -10,10 +10,9 @@
 <header class="topbar"><a class="brand" href="./index.html" aria-label="Back to Ink Saver PDF"><span class="brandmark">▤</span><span>Document <span class="brandlight">Scanner</span></span></a><div class="topactions"><button id="themeBtn" class="iconbtn" aria-label="Toggle dark mode" title="Toggle theme">☾</button><button id="docsBtn" class="textbtn">My Documents</button></div></header>
 <main>
 <section id="homeScreen" class="screen active">
-<div class="hero"><div class="eyebrow">PRIVATE BY DESIGN</div><h1>Paperwork, <span>made simple.</span></h1><p>Scan documents cleanly. Everything stays on this device.</p></div>
-<div class="actiongrid"><button id="cameraStart" class="actioncard primary"><span class="actionicon">⌾</span><strong>Scan with camera</strong><small>Capture a new page</small></button><button id="uploadBtn" class="actioncard"><span class="actionicon">▧</span><strong>Import photos</strong><small>Select multiple images</small></button><input id="fileInput" type="file" accept="image/*" multiple hidden></div>
-<div class="privacy"><span>✓</span><div><strong>Your files stay private</strong><p>Images are processed locally and saved in this browser only. No image uploads.</p></div></div>
-<div class="sectionhead"><h2>Recent documents</h2><button id="allDocsBtn" class="linkbtn">View all</button></div><div id="recentDocs" class="doclist"><div class="empty">Your saved documents will appear here.</div></div>
+<div class="hero"><div class="eyebrow">DOCUMENT SCANNER</div><h1>Import <span>your document.</span></h1><p>Drop image files here or choose them from your device.</p></div>
+<div id="importDrop" class="import-drop" role="button" tabindex="0" aria-label="Choose or drop document images"><div class="import-symbol">↥</div><strong>Drag and drop images here</strong><p>or</p><button id="uploadBtn" class="primarybtn" type="button">Choose images</button><small>JPG, PNG and other image formats · multiple pages supported</small></div>
+<input id="fileInput" type="file" accept="image/*" multiple hidden>
 </section>
 <section id="cameraScreen" class="screen">
 <div class="screenhead"><button class="backbtn" data-home>←</button><div><h2>Capture page</h2><p>Place the document in the frame</p></div></div>
