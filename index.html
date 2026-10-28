@@ -66,7 +66,7 @@ footer{text-align:center;color:#667085;font-size:13px;padding:8px 18px 28px}
 <p>Improve readability, clean dark backgrounds and reduce printer ink usage.</p>
 </header>
 <main>
-<section class="panel"><h2>Document scanner</h2><p class="note">Turn transferred phone photos into an enhanced, multi-page PDF.</p><button id="openScanner" type="button">Scan pages</button></section>
+<section class="panel"><h2>Document scanner</h2><p class="note">Enhance document photos and download as JPG or PNG.</p><button id="openScanner" type="button">Scan pages</button></section>
 
 <section class="panel">
 <h2>1. Choose your PDFs</h2>
@@ -83,7 +83,7 @@ footer{text-align:center;color:#667085;font-size:13px;padding:8px 18px 28px}
 
 <section class="panel scanner-modal hidden" id="scannerpanel" role="dialog" aria-modal="true" aria-labelledby="scannerheading">
 <div class="scanner-heading"><h2 id="scannerheading">Scan photos into a PDF</h2><button type="button" class="secondary" id="closeScanner">Close scanner</button></div>
-<p class="note">Choose photos transferred from your phone. Arrange pages, rotate them, apply document filters, preview, and export one multi-page PDF. Processing stays in this browser.</p>
+<p class="note">Enhance and crop photos first. Nothing is converted automatically. Choose JPG or PNG when downloading; make a PDF later if you need one.</p>
 <div class="drop" id="scandrop">
 <strong>Drop document photos here</strong>
 <p>Or select multiple images (JPG, PNG, WebP).</p>
@@ -97,14 +97,10 @@ footer{text-align:center;color:#667085;font-size:13px;padding:8px 18px 28px}
 <div class="setting"><label for="scanfilter">Document enhancement</label>
 <select id="scanfilter"><option value="magic">Magic Color (recommended)</option><option value="color">Original color</option><option value="gray">Grayscale</option><option value="bw">Black &amp; white document</option><option value="enhance">Improve contrast</option></select>
 <small>Magic Color boosts document color and contrast while preserving colored text and stamps.</small></div>
-<div class="setting"><label><input id="edgeDetect" type="checkbox" checked> Auto-detect page edges</label>
-<small>Finds the document outline and straightens perspective when a clear four-sided page is visible.</small></div>
-<div class="setting"><label for="scanquality">PDF quality</label>
-<select id="scanquality"><option value="high" selected>High quality</option><option value="balanced">Balanced size</option></select>
-<small>High quality uses lossless PNG page images.</small></div>
+<div class="setting"><label for="scanformat">Download format</label><select id="scanformat"><option value="jpg" selected>JPG — smaller file</option><option value="png">PNG — lossless quality</option></select><small>Choose format at download. Edge detection is available per photo.</small></div>
 </div>
 <div class="actions">
-<button id="makeScanPdf" disabled>Create scanned PDF</button>
+<button id="downloadScans" disabled>Download photos</button>
 <button class="secondary" id="clearScans" type="button">Clear photos</button>
 </div>
 <div class="status" id="scanmsg" role="status" aria-live="polite">Choose photos to start.</div>
@@ -266,248 +262,16 @@ let scanBusy = false;
 
 function scanMessage(text) { $('scanmsg').textContent = text; }
 
-function drawScanPages() {
-  const host = $('scanpages');
-  host.replaceChildren();
-  scanItems.forEach((item, index) => {
-    const card = document.createElement('div');
-    card.className = 'preview';
-    const image = document.createElement('img');
-    image.src = item.url;
-    image.loading = 'lazy'; image.decoding = 'async';
-    image.alt = item.file.name;
-    image.style.cssText = 'display:block;width:100%;height:135px;object-fit:contain;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;filter:' + (item.filter === 'gray' ? 'grayscale(1)' : item.filter === 'bw' ? 'grayscale(1) contrast(2)' : item.filter === 'enhance' ? 'contrast(1.25) brightness(1.04)' : item.filter === 'magic' ? 'saturate(1.22) contrast(1.18) brightness(1.03)' : 'none') + ';transform:rotate(' + item.rotation + 'deg)';
-    const title = document.createElement('div');
-    title.className = 'filename';
-    title.textContent = (index + 1) + '. ' + item.file.name;
-    const controls = document.createElement('div');
-    controls.className = 'actions';
-    const button = (label, action, disabled = false) => {
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'secondary'; b.textContent = label; b.disabled = disabled;
-      b.addEventListener('click', action); controls.append(b);
-    };
-    button('Rotate ↻', () => { item.rotation = (item.rotation + 90) % 360; drawScanPages(); });
-    button('↑', () => { if (index > 0) { [scanItems[index-1], scanItems[index]] = [scanItems[index], scanItems[index-1]]; drawScanPages(); } }, index === 0);
-    button('↓', () => { if (index < scanItems.length-1) { [scanItems[index+1], scanItems[index]] = [scanItems[index], scanItems[index+1]]; drawScanPages(); } }, index === scanItems.length-1);
-    button('Remove', () => { URL.revokeObjectURL(item.url); scanItems.splice(index, 1); drawScanPages(); updateScanStatus(); });
-    card.append(image, title, controls);
-    host.append(card);
-  });
-  $('makeScanPdf').disabled = scanItems.length === 0 || scanBusy;
-}
-function updateScanStatus() {
-  $('scanstatus').textContent = scanItems.length ? scanItems.length + ' photo(s) ready' : 'No photos selected';
-  $('makeScanPdf').disabled = scanItems.length === 0 || scanBusy;
-}
-function addScanFiles(list) {
-  if (scanBusy) return;
-  const picked = Array.from(list || []).filter(f => f.type.startsWith('image/'));
-  if (!picked.length) { scanMessage('Please choose image files such as JPG or PNG.'); return; }
-  picked.forEach(file => scanItems.push({file, url: URL.createObjectURL(file), rotation: 0, filter: $('scanfilter').value}));
-  $('scanresult').classList.add('hidden');
-  drawScanPages(); updateScanStatus();
-  scanMessage('Photos ready. Reorder or rotate pages, then create your PDF.');
-}
-scanInput.addEventListener('change', e => { addScanFiles(e.target.files); scanInput.value = ''; });
-scanDrop.addEventListener('dragover', e => { e.preventDefault(); scanDrop.classList.add('dragover'); });
-scanDrop.addEventListener('dragleave', e => { if (!scanDrop.contains(e.relatedTarget)) scanDrop.classList.remove('dragover'); });
-scanDrop.addEventListener('drop', e => { e.preventDefault(); scanDrop.classList.remove('dragover'); addScanFiles(e.dataTransfer.files); });
-$('scanfilter').addEventListener('change', () => {
-  scanItems.forEach(item => item.filter = $('scanfilter').value);
-  drawScanPages();
-});
-$('clearScans').addEventListener('click', () => {
-  if (scanBusy) return;
-  scanItems.forEach(item => URL.revokeObjectURL(item.url));
-  scanItems = []; drawScanPages(); updateScanStatus();
-  $('scanresult').replaceChildren(); $('scanresult').classList.add('hidden');
-  scanMessage('Photos cleared.');
-});
-
-function loadScanImage(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Could not open one of the selected photos.'));
-    img.src = url;
-  });
-}
-function processScanCanvas(source, filter) {
-  // Work on one canvas to avoid duplicating full-resolution photo buffers.
-  const canvas = source;
-  const ctx = canvas.getContext('2d', {willReadFrequently: true});
-  if (!ctx) throw new Error('Not enough browser memory to process this photo.');
-  if (filter === 'color') return canvas;
-  const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const d = image.data;
-  for (let i = 0; i < d.length; i += 4) {
-    if (filter === 'magic') {
-      const lum = .299*d[i] + .587*d[i+1] + .114*d[i+2];
-      const contrast = 1.16, saturation = 1.18;
-      for (let c = 0; c < 3; c++) {
-        const value = (lum + (d[i+c] - lum) * saturation - 128) * contrast + 128;
-        d[i+c] = Math.max(0, Math.min(255, Math.round(value)));
-      }
-      continue;
-    }
-    let v = Math.round(.299*d[i] + .587*d[i+1] + .114*d[i+2]);
-    if (filter === 'bw') v = v >= 160 ? 255 : 0;
-    else if (filter === 'enhance') v = Math.max(0, Math.min(255, Math.round((v - 128)*1.25 + 128)));
-    d[i] = d[i+1] = d[i+2] = v;
-  }
-  ctx.putImageData(image, 0, 0);
-  return canvas;
-}
-async function loadOpenCv() {
-  if (window.cv && window.cv.Mat) return window.cv;
-  if (!window.__inkSaverCvPromise) {
-    window.__inkSaverCvPromise = new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://docs.opencv.org/4.x/opencv.js';
-      script.async = true;
-      script.onload = () => {
-        const started = Date.now();
-        const check = () => {
-          if (window.cv && window.cv.Mat) resolve(window.cv);
-          else if (Date.now() - started > 15000) reject(new Error('Edge detection library took too long to load.'));
-          else setTimeout(check, 100);
-        };
-        check();
-      };
-      script.onerror = () => reject(new Error('Could not load edge detection. Check your internet connection.'));
-      document.head.appendChild(script);
-    });
-  }
-  return window.__inkSaverCvPromise;
-}
-async function detectAndCropPage(source) {
-  const cv = await loadOpenCv();
-  const src = cv.imread(source);
-  let gray, blur, edges, contours, hierarchy, approx, best = null;
-  try {
-    gray = new cv.Mat(); blur = new cv.Mat(); edges = new cv.Mat();
-    contours = new cv.MatVector(); hierarchy = new cv.Mat();
-    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-    cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
-    cv.Canny(blur, edges, 50, 150);
-    cv.findContours(edges, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
-    const imageArea = src.cols * src.rows;
-    let bestArea = 0;
-    for (let i = 0; i < contours.size(); i++) {
-      const contour = contours.get(i);
-      const perimeter = cv.arcLength(contour, true);
-      approx = new cv.Mat();
-      cv.approxPolyDP(contour, approx, .02 * perimeter, true);
-      const area = Math.abs(cv.contourArea(approx));
-      if (approx.rows === 4 && area > imageArea * .12 && area > bestArea && cv.isContourConvex(approx)) {
-        const pts = [];
-        for (let j = 0; j < 4; j++) pts.push({x:approx.intAt(j,0),y:approx.intAt(j,1)});
-        best = orderQuad(pts); bestArea = area;
-      }
-      approx.delete(); approx = null; contour.delete();
-    }
-    if (!best) return source;
-    const dist = (a,b) => Math.hypot(a.x-b.x,a.y-b.y);
-    const w = Math.round(Math.max(dist(best[0],best[1]),dist(best[3],best[2])));
-    const h = Math.round(Math.max(dist(best[0],best[3]),dist(best[1],best[2])));
-    if (w < 100 || h < 100) return source;
-    const srcPts = cv.matFromArray(4,1,cv.CV_32FC2,best.flatMap(p=>[p.x,p.y]));
-    const dstPts = cv.matFromArray(4,1,cv.CV_32FC2,[0,0,w-1,0,w-1,h-1,0,h-1]);
-    const transform = cv.getPerspectiveTransform(srcPts,dstPts);
-    const output = new cv.Mat();
-    cv.warpPerspective(src,output,transform,new cv.Size(w,h),cv.INTER_LINEAR,cv.BORDER_REPLICATE);
-    const result = document.createElement('canvas');
-    result.width = w; result.height = h;
-    cv.imshow(result,output);
-    srcPts.delete(); dstPts.delete(); transform.delete(); output.delete();
-    return result;
-  } finally {
-    src.delete(); if(gray)gray.delete(); if(blur)blur.delete(); if(edges)edges.delete();
-    if(contours){ for(let i=0;i<contours.size();i++){try{const c=contours.get(i);c.delete()}catch(_){}} contours.delete(); }
-    if(hierarchy)hierarchy.delete(); if(approx)approx.delete();
-  }
-}
-function orderQuad(points) {
-  const sum = p => p.x + p.y, diff = p => p.x - p.y;
-  return [
-    points.reduce((a,p)=>sum(p)<sum(a)?p:a,points[0]),
-    points.reduce((a,p)=>diff(p)>diff(a)?p:a,points[0]),
-    points.reduce((a,p)=>sum(p)>sum(a)?p:a,points[0]),
-    points.reduce((a,p)=>diff(p)<diff(a)?p:a,points[0])
-  ];
-}
-$('makeScanPdf').addEventListener('click', async () => {
-  if (!scanItems.length || scanBusy) return;
-  scanBusy = true; $('makeScanPdf').disabled = true;
-  $('clearScans').disabled = true;
-  $('scanresult').replaceChildren(); $('scanresult').classList.add('hidden');
-  let doc = null;
-  try {
-    for (let i = 0; i < scanItems.length; i++) {
-      const item = scanItems[i];
-      scanMessage('Preparing page ' + (i+1) + ' of ' + scanItems.length + '…');
-      const img = await loadScanImage(item.url);
-      // Cap working resolution to prevent huge phone photos from exhausting browser memory.
-      // 2200px on the long edge is suitable for typical document scans.
-      const baseScale = Math.min(1, 2200 / Math.max(img.width, img.height));
-      const sourceW = Math.max(1, Math.round(img.width * baseScale));
-      const sourceH = Math.max(1, Math.round(img.height * baseScale));
-      const rotated = item.rotation % 180 !== 0;
-      const canvas = document.createElement('canvas');
-      canvas.width = rotated ? sourceH : sourceW;
-      canvas.height = rotated ? sourceW : sourceH;
-      const ctx = canvas.getContext('2d', {willReadFrequently: true});
-      if (!ctx) throw new Error('Not enough browser memory. Try fewer photos at once.');
-      ctx.translate(canvas.width/2, canvas.height/2);
-      ctx.rotate(item.rotation * Math.PI / 180);
-      ctx.drawImage(img, -sourceW/2, -sourceH/2, sourceW, sourceH);
-      let workingCanvas = canvas;
-      if ($('edgeDetect').checked) {
-        scanMessage('Detecting page edges for page ' + (i+1) + '…');
-        try { workingCanvas = await detectAndCropPage(canvas); }
-        catch (edgeError) { scanMessage('Edge detection unavailable; using full photo for page ' + (i+1) + '.'); }
-      }
-      let processed = processScanCanvas(workingCanvas, item.filter);
-      const orientation = processed.width >= processed.height ? 'landscape' : 'portrait';
-      const pageW = processed.width * 72 / 150;
-      const pageH = processed.height * 72 / 150;
-      if (!doc) doc = new jspdf.jsPDF({orientation, unit:'pt', format:[pageW,pageH], compress:true});
-      else doc.addPage([pageW,pageH], orientation);
-      const usePng = $('scanquality').value === 'high';
-      // Blob encoding is asynchronous and avoids a large synchronous toDataURL pause.
-      const pageBlob = await new Promise((resolve, reject) => processed.toBlob(
-        blob => blob ? resolve(blob) : reject(new Error('Could not encode scan page.')),
-        usePng ? 'image/png' : 'image/jpeg', usePng ? undefined : 0.88
-      ));
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error('Could not read encoded scan page.'));
-        reader.readAsDataURL(pageBlob);
-      });
-      doc.addImage(dataUrl, usePng ? 'PNG' : 'JPEG', 0, 0, pageW, pageH);
-      canvas.width = canvas.height = 1;
-      if (processed !== canvas) { processed.width = processed.height = 1; }
-      processed = null;
-      await new Promise(resolve => setTimeout(resolve, 0));
-    }
-    const blob = doc.output('blob');
-    if (!blob || blob.size < 100) throw new Error('PDF creation failed. Please try again.');
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url; link.download = 'scanned-documents.pdf'; link.textContent = 'Download scanned-documents.pdf';
-    link.className = 'filebtn';
-    const note = document.createElement('p'); note.className = 'note'; note.textContent = 'PDF created with ' + scanItems.length + ' page(s). Download when ready.';
-    $('scanresult').append(note, link); $('scanresult').classList.remove('hidden');
-    scanMessage('Done. Your scanned PDF is ready to download.');
-    setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
-  } catch (error) {
-    scanMessage('Could not create PDF: ' + (error.message || 'Unknown error'));
-  } finally {
-    scanBusy = false; $('clearScans').disabled = false; updateScanStatus();
-  }
-});
+function loadScanImage(url){return new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(Error('Could not open photo.'));i.src=url;});}
+function makeScanCanvas(img,item,max=1400){const z=Math.min(1,max/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*z)),h=Math.max(1,Math.round(img.height*z)),rot=item.rotation%180!==0,c=document.createElement('canvas');c.width=rot?h:w;c.height=rot?w:h;const x=c.getContext('2d');if(!x)throw Error('Not enough memory. Try fewer photos.');x.translate(c.width/2,c.height/2);x.rotate(item.rotation*Math.PI/180);x.filter=item.filter==='magic'?'saturate(1.2) contrast(1.16) brightness(1.03)':item.filter==='gray'?'grayscale(1)':item.filter==='bw'?'grayscale(1) contrast(2)':item.filter==='enhance'?'contrast(1.25) brightness(1.04)':'none';x.drawImage(img,-w/2,-h/2,w,h);return c;}
+function orderQuad(p){const s=p.map(q=>q.x+q.y),d=p.map(q=>q.x-q.y);return[p[s.indexOf(Math.min(...s))],p[d.indexOf(Math.max(...d))],p[s.indexOf(Math.max(...s))],p[d.indexOf(Math.min(...d))]];}
+async function detectAndCropPage(canvas){let cv=window.cv;if(!cv||!cv.Mat){if(!window.__scanCv)window.__scanCv=new Promise((ok,no)=>{const sc=document.createElement('script');sc.src='https://docs.opencv.org/4.x/opencv.js';sc.async=true;sc.onload=()=>{let t=Date.now();(function wait(){if(window.cv&&window.cv.Mat)ok(window.cv);else if(Date.now()-t>12000)no(Error('Edge detection timed out.'));else setTimeout(wait,100);})();};sc.onerror=()=>no(Error('Could not load edge detection. Check internet.'));document.head.appendChild(sc);});cv=await window.__scanCv;}const src=cv.imread(canvas);let g,b,e,cs,hi;try{g=new cv.Mat();b=new cv.Mat();e=new cv.Mat();cs=new cv.MatVector();hi=new cv.Mat();cv.cvtColor(src,g,cv.COLOR_RGBA2GRAY);cv.GaussianBlur(g,b,new cv.Size(5,5),0);cv.Canny(b,e,50,140);cv.findContours(e,cs,hi,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE);let best=null,ar0=src.cols*src.rows*.12;for(let i=0;i<cs.size();i++){const c=cs.get(i),ap=new cv.Mat();cv.approxPolyDP(c,ap,.02*cv.arcLength(c,true),true);const ar=Math.abs(cv.contourArea(ap));if(ap.rows===4&&ar>ar0&&cv.isContourConvex(ap)){best=[];for(let j=0;j<4;j++)best.push({x:ap.intAt(j,0),y:ap.intAt(j,1)});best=orderQuad(best);ar0=ar;}ap.delete();c.delete();}if(!best)throw Error('No clear page edges found. Try a photo with visible borders.');const d=(p,q)=>Math.hypot(p.x-q.x,p.y-q.y),w=Math.round(Math.max(d(best[0],best[1]),d(best[3],best[2]))),h=Math.round(Math.max(d(best[0],best[3]),d(best[1],best[2]))),p=cv.matFromArray(4,1,cv.CV_32FC2,best.flatMap(q=>[q.x,q.y])),q=cv.matFromArray(4,1,cv.CV_32FC2,[0,0,w-1,0,w-1,h-1,0,h-1]),m=cv.getPerspectiveTransform(p,q),out=new cv.Mat();cv.warpPerspective(src,out,m,new cv.Size(w,h),cv.INTER_LINEAR,cv.BORDER_REPLICATE);const c=document.createElement('canvas');c.width=w;c.height=h;cv.imshow(c,out);p.delete();q.delete();m.delete();out.delete();return c;}finally{src.delete();if(g)g.delete();if(b)b.delete();if(e)e.delete();if(cs){for(let i=0;i<cs.size();i++){try{cs.get(i).delete()}catch(_){}}cs.delete();}if(hi)hi.delete();}}
+function drawScanPages(){const host=$('scanpages');host.replaceChildren();scanItems.forEach((it,i)=>{const card=document.createElement('div');card.className='preview';const im=document.createElement('img');im.src=it.croppedUrl||it.url;im.loading='lazy';im.style.cssText='width:100%;height:105px;object-fit:contain;filter:'+(it.filter==='magic'?'saturate(1.2) contrast(1.16) brightness(1.03)':it.filter==='gray'?'grayscale(1)':it.filter==='bw'?'grayscale(1) contrast(2)':it.filter==='enhance'?'contrast(1.25) brightness(1.04)':'none')+';transform:rotate('+it.rotation+'deg)';const title=document.createElement('div');title.className='filename';title.textContent=(i+1)+'. '+it.file.name;const row=document.createElement('div');row.className='actions';const btn=(t,fn,dis=false)=>{const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent=t;b.disabled=dis;b.onclick=fn;row.append(b);};btn('Rotate ↻',()=>{it.rotation=(it.rotation+90)%360;drawScanPages();});btn('Detect edges',async()=>{if(scanBusy)return;scanBusy=true;drawScanPages();try{scanMessage('Detecting edges on a small copy…');const img=await loadScanImage(it.url),small=makeScanCanvas(img,it,750),crop=await detectAndCropPage(small),blob=await new Promise((ok,no)=>crop.toBlob(v=>v?ok(v):no(Error('Crop export failed')),'image/png'));if(it.croppedUrl)URL.revokeObjectURL(it.croppedUrl);it.croppedUrl=URL.createObjectURL(blob);scanMessage('Edges detected. Download will use this crop.');}catch(e){scanMessage(e.message||'Edge detection failed.');}finally{scanBusy=false;drawScanPages();updateScanStatus();}},scanBusy);btn('↑',()=>{if(i){[scanItems[i-1],scanItems[i]]=[scanItems[i],scanItems[i-1]];drawScanPages();}},i===0||scanBusy);btn('↓',()=>{if(i<scanItems.length-1){[scanItems[i+1],scanItems[i]]=[scanItems[i],scanItems[i+1]];drawScanPages();}},i===scanItems.length-1||scanBusy);btn('Remove',()=>{URL.revokeObjectURL(it.url);if(it.croppedUrl)URL.revokeObjectURL(it.croppedUrl);scanItems.splice(i,1);drawScanPages();updateScanStatus();},scanBusy);card.append(im,title,row);host.append(card);});$('downloadScans').disabled=!scanItems.length||scanBusy;}
+function updateScanStatus(){$('scanstatus').textContent=scanItems.length?scanItems.length+' photo(s) ready':'No photos selected';$('downloadScans').disabled=!scanItems.length||scanBusy;}
+function addScanFiles(list){if(scanBusy)return;const picked=Array.from(list||[]).filter(f=>f.type.startsWith('image/'));if(!picked.length){scanMessage('Choose JPG, PNG or WebP photos.');return;}picked.forEach(file=>scanItems.push({file,url:URL.createObjectURL(file),rotation:0,filter:$('scanfilter').value,croppedUrl:null}));drawScanPages();updateScanStatus();scanMessage('Photos ready. Nothing converts automatically. Choose JPG or PNG, then Download photos.');}
+scanInput.addEventListener('change',e=>{addScanFiles(e.target.files);scanInput.value='';});scanDrop.addEventListener('dragover',e=>{e.preventDefault();scanDrop.classList.add('dragover');});scanDrop.addEventListener('dragleave',e=>{if(!scanDrop.contains(e.relatedTarget))scanDrop.classList.remove('dragover');});scanDrop.addEventListener('drop',e=>{e.preventDefault();scanDrop.classList.remove('dragover');addScanFiles(e.dataTransfer.files);});$('scanfilter').addEventListener('change',()=>{scanItems.forEach(it=>it.filter=$('scanfilter').value);drawScanPages();});
+$('clearScans').addEventListener('click',()=>{if(scanBusy)return;scanItems.forEach(it=>{URL.revokeObjectURL(it.url);if(it.croppedUrl)URL.revokeObjectURL(it.croppedUrl);});scanItems=[];drawScanPages();updateScanStatus();scanMessage('Photos cleared.');});
+$('downloadScans').addEventListener('click',async()=>{if(!scanItems.length||scanBusy)return;scanBusy=true;$('downloadScans').disabled=true;$('clearScans').disabled=true;try{const fmt=$('scanformat').value;for(let i=0;i<scanItems.length;i++){const it=scanItems[i];scanMessage('Preparing '+(i+1)+' of '+scanItems.length+'…');const img=await loadScanImage(it.croppedUrl||it.url),canvas=makeScanCanvas(img,{...it,rotation:it.croppedUrl?0:it.rotation},1400),blob=await new Promise((ok,no)=>canvas.toBlob(v=>v?ok(v):no(Error('Export failed')),fmt==='png'?'image/png':'image/jpeg',fmt==='png'?undefined:.9)),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(it.file.name.replace(/\.[^.]+$/,'').replace(/[^a-z0-9_-]+/gi,'-')||'scan')+'-scanned.'+fmt;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);canvas.width=canvas.height=1;await new Promise(ok=>setTimeout(ok,100));}scanMessage('Downloaded enhanced images as '+fmt.toUpperCase()+'. Create a PDF later only if you choose.');}catch(e){scanMessage('Download failed: '+(e.message||'Unknown error'));}finally{scanBusy=false;$('clearScans').disabled=false;updateScanStatus();}});
 
 function clean(canvas) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
