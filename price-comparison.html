@@ -79,7 +79,7 @@ document.getElementById('analyze').addEventListener('click',async()=>{
  analyzeBtn.disabled=true;analysisStatus.textContent='Reading quotation files…';
  const extracted=[];
  try{
-  for(const file of quoteFiles){analysisStatus.textContent='Analyzing '+file.name+'…';const raw=await readQuote(file);if(!raw.trim())throw Error(file.name+' has no readable text. If it is a scanned PDF, use OCR or enter values manually.');extracted.push({file,text:raw.replace(/\s+/g,' ').trim()});}
+  for(const file of quoteFiles){analysisStatus.textContent='Analyzing '+file.name+'…';const result=await readQuote(file);if(!result.text.trim())throw Error(file.name+' has no readable text.');extracted.push({file,text:result.text.replace(/\s+/g,' ').trim(),ocrUsed:result.ocrUsed,pages:result.pages});}
   vendors=extracted.map(x=>x.file.name.replace(/\.[^.]+$/,''));
   render();
   const rows=Array.from(body.rows);
