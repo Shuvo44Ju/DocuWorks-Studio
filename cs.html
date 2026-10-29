@@ -4,7 +4,7 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>URS to CS Converter</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col items-center justify-center p-4">
@@ -52,8 +52,100 @@ dropZone.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();drop
 window.addEventListener('dragover',e=>e.preventDefault());window.addEventListener('drop',e=>{if(!dropZone.contains(e.target))e.preventDefault()});
 pdfInput.addEventListener('change',e=>{if(e.target.files?.[0])handleFileSelection(e.target.files[0]);pdfInput.value=''});
 removeFileBtn.addEventListener('click',()=>{selectedFile=null;extractedText='';pdfInput.value='';fileInfo.classList.add('hidden');fileInfo.classList.remove('flex');dropZone.classList.remove('hidden');progressContainer.classList.add('hidden');clearError();setButtonEnabled(false)});
-convertBtn.addEventListener('click',async()=>{if(!selectedFile||convertBtn.disabled)return;clearError();convertBtn.disabled=true;setStatus(10,'Reading PDF content…');try{const buffer=await selectedFile.arrayBuffer();setStatus(25,'Opening PDF…');const pdf=await pdfjsLib.getDocument({data:buffer}).promise;let fullText='';for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);const content=await page.getTextContent();fullText+=content.items.map(item=>item.str).join(' ')+'\n';setStatus(25+Math.round((i/pdf.numPages)*55),'Extracting page '+i+' of '+pdf.numPages+'…')}extractedText=fullText;setStatus(85,'Preparing formatted CS Excel file…');if(!fullText.trim()){showError('No selectable text was found. This may be a scanned PDF; this tool does not include OCR. The template can still be exported, but the PDF content was not extracted.');}setStatus(95,'Creating Excel workbook…');generateAndDownloadExcel();setStatus(100,'Done! Excel file downloaded.');}catch(err){console.error(err);showError('PDF processing failed: '+(err?.message||'Unknown error')+'. Check that the PDF is valid and try again. The template was not silently substituted.');setStatus(0,'Conversion failed.')}finally{setButtonEnabled(!!selectedFile)}});
-function generateAndDownloadExcel(){if(!window.XLSX)throw new Error('Excel export library failed to load. Check your internet connection and retry.');const matrix=defaultCSMatrix.map(row=>row.slice());if(extractedText.trim()){matrix.splice(2,0,['Source PDF text extracted for review','','']);const lines=extractedText.split(/\n+/).map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>8);if(lines.length){matrix.push(['Extracted text from uploaded PDF — verify against original','','']);lines.forEach((line,i)=>matrix.push(['PDF text '+(i+1),line.slice(0,3000),'Review']));}}const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(matrix);ws['!cols']=[{wch:38},{wch:85},{wch:25}];ws['!freeze']={xSplit:0,ySplit:2};XLSX.utils.book_append_sheet(wb,ws,'CS-Digital Cell Analyzer');const base=selectedFile?selectedFile.name.replace(/\.pdf$/i,''):'CS_Digital_Cell_Analyzer';XLSX.writeFile(wb,base+'_CS.xlsx')}
+convertBtn.addEventListener('click',async()=>{if(!selectedFile||convertBtn.disabled)return;clearError();convertBtn.disabled=true;setStatus(10,'Reading PDF content…');try{const buffer=await selectedFile.arrayBuffer();setStatus(25,'Opening PDF…');const pdf=await pdfjsLib.getDocument({data:buffer}).promise;let fullText='';for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);const content=await page.getTextContent();fullText+=content.items.map(item=>item.str).join(' ')+'\n';setStatus(25+Math.round((i/pdf.numPages)*55),'Extracting page '+i+' of '+pdf.numPages+'…')}extractedText=fullText;setStatus(85,'Preparing formatted CS Excel file…');if(!fullText.trim()){showError('No selectable text was found. This may be a scanned PDF; this tool does not include OCR. The template can still be exported, but the PDF content was not extracted.');}setStatus(95,'Creating Excel workbook…');await generateAndDownloadExcel();setStatus(100,'Done! Original-template Excel file downloaded.');}catch(err){console.error(err);showError('PDF processing failed: '+(err?.message||'Unknown error')+'. Check that the PDF is valid and try again. The template was not silently substituted.');setStatus(0,'Conversion failed.')}finally{setButtonEnabled(!!selectedFile)}});
+function normalizeText(s){return String(s||'').toLowerCase().replace(/[\u00d7]/g,'x').replace(/[–—]/g,'-').replace(/\s+/g,' ').trim()}
+function extractRequirements(text){
+ const lines=text.split(/\n+/).map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>8);
+ const rules=[
+  {row:9,keys:['description','purpose','intended use','application'],label:'Description'},
+  {row:10,keys:['sample capacity','samples per hour','throughput','sample analysis capacity'],label:'Sample Analysis Capacity'},
+  {row:19,keys:['sample type','capable samples','cell type','mammalian','eukaryotic'],label:'Capable Samples'},
+  {row:20,keys:['cell culture','adherent','suspension'],label:'Cell Culture Type'},
+  {row:21,keys:['cell size','diameter range','size range'],label:'Capable Cell Size Range'},
+  {row:22,keys:['cell concentration','concentration range','cells/ml','cells per ml'],label:'Cell Concentration Range'},
+  {row:23,keys:['analysis method','measurement principle','image-based','imaging based'],label:'Analysis Method'},
+  {row:24,keys:['sample volume','loading volume','sample loading'],label:'Sample Loading Volume'},
+  {row:25,keys:['viability method','trypan blue','viability measurement'],label:'Viability Method'},
+  {row:26,keys:['slide type','chamber slide','disposable slide'],label:'Slide Type'},
+  {row:27,keys:['measurement parameter','total cell count','viable cell','cell morphology'],label:'Measurement Parameters'},
+  {row:28,keys:['graphical analysis','growth curve','histogram'],label:'Graphical Analysis'},
+  {row:29,keys:['analysis time','measurement time','results within','seconds per sample'],label:'Analysis Time'},
+  {row:30,keys:['data storage','data management','historical data'],label:'Data Storage & Analysis'},
+  {row:31,keys:['export format','pdf export','excel export','data export'],label:'Data Export Format'},
+  {row:32,keys:['imaging system','camera','autofocus','image capture'],label:'Imaging System'},
+  {row:33,keys:['software feature','software shall','software must','software functions'],label:'Software Features'},
+  {row:34,keys:['operating system','windows','compatible os'],label:'Compatible Operating System'},
+  {row:35,keys:['dimension','footprint','equipment size'],label:'Dimensions'},
+  {row:36,keys:['connectivity','usb','ethernet','lan','network interface'],label:'Connectivity'},
+  {row:38,keys:['pc requirement','computer requirement','workstation'],label:'PC'},
+  {row:39,keys:['system control','control software'],label:'System Control'},
+  {row:40,keys:['image processing','imaging control','image acquisition'],label:'Imaging System Control'},
+  {row:41,keys:['startup','shut down','shutdown','restart'],label:'Startup / Shutdown'},
+  {row:42,keys:['operation mode','operating mode','push button'],label:'Operation Mode'},
+  {row:43,keys:['display','touchscreen','monitor'],label:'Display'},
+  {row:45,keys:['cell density calibration','density calibration'],label:'Cell Density Calibration'},
+  {row:46,keys:['viability calibration'],label:'Cell Viability Calibration'},
+  {row:47,keys:['diameter calibration','size calibration'],label:'Cell Diameter Calibration'},
+  {row:49,keys:['alarm','error indication','fault indication'],label:'Standard Alarms / Error Indication'},
+  {row:50,keys:['parameter deviation','deviation alarm','out of range'],label:'Parameter Deviation Alarm'},
+  {row:52,keys:['power failure','power recovery','power interruption','resume after power'],label:'Power Recovery'},
+  {row:54,keys:['material of construction','material compatibility','cleaning agent'],label:'Material Compatibility'},
+  {row:56,keys:['print out','printout','printer','usb print','sd card'],label:'Print Output'},
+  {row:58,keys:['voltage','power supply'],label:'Voltage'},
+  {row:59,keys:['frequency','50 hz','60 hz'],label:'Frequency'},
+  {row:60,keys:['ups','uninterrupted power','backup power'],label:'Uninterrupted Power Supply'},
+  {row:62,keys:['iq/oq','iq-oq','installation qualification','operational qualification'],label:'IQ-OQ Installation'},
+  {row:63,keys:['iq-oq document','validation document','qualification document'],label:'IQ-OQ Documents'},
+  {row:64,keys:['list of components','accessories','components included'],label:'List of Components'},
+  {row:65,keys:['calibration certificate','calibration cert'],label:'Calibration Certificate'},
+  {row:66,keys:['cleaning requirement','cleanability','disinfection'],label:'Cleaning Requirements'},
+  {row:67,keys:['document language','manual language','english version'],label:'Document Language'},
+  {row:70,keys:['installation calibration','calibrated instruments','commissioning'],label:'Calibration During Installation'},
+  {row:71,keys:['technical support','service support','response time','maintenance support'],label:'Technical Support'}
+ ];
+ const mapped=new Map(),unmatched=[];
+ for(const line of lines){
+  const n=normalizeText(line);let best=null,bestScore=0;
+  for(const rule of rules){let score=0;for(const key of rule.keys){const k=normalizeText(key);if(n.includes(k))score=Math.max(score,k.length)}if(score>bestScore){best=rule;bestScore=score}}
+  if(best&&bestScore>=6){if(!mapped.has(best.row))mapped.set(best.row,[]);mapped.get(best.row).push(line)}
+  else unmatched.push(line);
+ }
+ return {mapped,unmatched};
+}
+async function generateAndDownloadExcel(){
+ if(!window.ExcelJS)throw new Error('Excel export library failed to load. Check your internet connection and retry.');
+ setStatus(96,'Loading original CS workbook template…');
+ const response=await fetch('./CS_Digital_Cell_Analyzer.xlsx',{cache:'no-store'});
+ if(!response.ok)throw new Error('Could not load CS_Digital_Cell_Analyzer.xlsx from this project (HTTP '+response.status+'). No substitute workbook was generated.');
+ const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(await response.arrayBuffer());
+ const worksheet=workbook.getWorksheet('CS-Digital Cell Analyzer')||workbook.worksheets[0];
+ if(!worksheet)throw new Error('The original Excel template has no worksheet.');
+ const {mapped,unmatched}=extractRequirements(extractedText);
+ for(const [rowNum,items] of mapped){
+  const cell=worksheet.getCell(rowNum,2);
+  const requirement=items.join('\n');
+  cell.value=requirement.length>3000?requirement.slice(0,2997)+'…':requirement;
+  cell.alignment={...(cell.alignment||{}),vertical:'middle',wrapText:true};
+  if(items.length>1)cell.note='Multiple potentially relevant URS lines were matched. Review for completeness and duplicates.';
+ }
+ if(extractedText.trim()){
+  let review=workbook.getWorksheet('URS Review');
+  if(!review)review=workbook.addWorksheet('URS Review');
+  review.columns=[{header:'URS PDF text requiring manual review',key:'text',width:100},{header:'Review status',key:'status',width:22}];
+  review.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};
+  review.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1F4E78'}};
+  review.getRow(1).alignment={vertical:'middle',wrapText:true};
+  unmatched.forEach((line,i)=>{const row=review.addRow({text:line,status:'Not auto-mapped — review'});row.alignment={vertical:'top',wrapText:true};});
+  review.views=[{state:'frozen',ySplit:1}];
+  review.autoFilter={from:'A1',to:'B'+Math.max(1,review.rowCount)};
+ }
+ setStatus(98,'Writing Excel file with original template styling…');
+ const out=await workbook.xlsx.writeBuffer();
+ const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=(selectedFile?selectedFile.name.replace(/\.pdf$/i,''):'CS_Digital_Cell_Analyzer')+'_CS.xlsx';
+ document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
 </script>
 </body>
 </html>
