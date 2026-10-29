@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#176b55"><meta name="description" content="Private, browser-based document scanner. Your images stay on your device.">
-<link rel="manifest" href="./manifest.json"><link rel="stylesheet" href="./style.css?v=homefix3">
+<link rel="manifest" href="./manifest.json"><link rel="stylesheet" href="./style.css?v=homefix4">
 <title>PaperScan — Private Document Scanner</title>
 </head>
 <body>
-<header class="topbar"><a class="brand" href="./index.html" aria-label="DocuWorks Studio Home"><span class="brandmark">▤</span><span>DocuWorks <span class="brandlight">Studio</span></span></a><div class="topactions"><a href="https://shuvo44ju.github.io/ink-saver-pdf/" aria-label="Return to DocuWorks Studio home" style="position:fixed;top:12px;left:12px;z-index:99999;display:flex;align-items:center;gap:6px;padding:10px 15px;border-radius:10px;background:#176b55;color:#fff;border:2px solid #fff;text-decoration:none;font:700 15px/1.2 system-ui,sans-serif;box-shadow:0 3px 12px #0003">← Home</a><button id="themeBtn" class="iconbtn" aria-label="Toggle dark mode" title="Toggle theme">☾</button><button id="docsBtn" class="textbtn">My Documents</button></div></header>
+<header class="topbar"><a class="brand" href="./index.html" aria-label="DocuWorks Studio Home"><span class="brandmark">▤</span><span>DocuWorks <span class="brandlight">Studio</span></span></a><div class="topactions"><a class="studio-home-link" href="./index.html">← Studio Home</a><button id="themeBtn" class="iconbtn" aria-label="Toggle dark mode" title="Toggle theme">☾</button><button id="docsBtn" class="textbtn">My Documents</button></div></header>
 <main>
 <section id="homeScreen" class="screen active">
 <div class="hero"><div class="eyebrow">DOCUMENT SCANNER</div><h1>Import <span>your document.</span></h1><p>Drop image files here or choose them from your device.</p></div>
@@ -37,5 +37,5 @@
 </main>
 <nav class="bottomnav"><button class="navitem selected" data-nav="homeScreen"><span>⌂</span>Home</button><button class="navitem" data-nav="cameraScreen" id="navScan"><span>⊙</span>Scan</button><button class="navitem" data-nav="documentsScreen"><span>▤</span>Documents</button></nav>
 <div id="toast" class="toast" role="status"></div><div id="modal" class="modal" hidden><div class="modalbox"><h2 id="modalTitle">Rename document</h2><input id="modalInput" maxlength="100" placeholder="Document name"><div class="modalactions"><button id="modalCancel" class="secondary">Cancel</button><button id="modalOk" class="primarybtn">Save</button></div></div></div>
-<script src="./app.js?v=homefix2" defer></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" async></script>
+<script src="./app.js?v=homefix4" defer></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" async></script>
 </body></html>
