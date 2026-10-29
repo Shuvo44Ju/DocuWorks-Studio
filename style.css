@@ -11,3 +11,14 @@
 @media(max-width:520px){.topbar{align-items:flex-start;gap:8px;flex-wrap:wrap}.topactions{width:100%;justify-content:flex-start}.studio-home-link{padding:9px 12px}}
 
 #alwaysHomeLink{position:fixed!important;left:14px;top:14px;z-index:2147483647;display:inline-flex!important;align-items:center;justify-content:center;padding:11px 16px;background:#176b55;color:#fff;text-decoration:none;border-radius:10px;font:800 14px/1.2 system-ui,sans-serif;box-shadow:0 3px 12px #0003;border:2px solid #fff}#alwaysHomeLink:hover{background:#105541}
+
+/* Shared DocuWorks Studio header across all tools */
+.dw-unified-header{min-height:76px;width:100%;padding:12px clamp(16px,calc((100vw - 1080px)/2),40px);display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border-bottom:1px solid #e3e9e6;box-shadow:0 3px 14px #18372b08;position:sticky;top:0;z-index:1000;box-sizing:border-box}
+.dw-unified-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:#182622;font:800 19px/1.2 system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:-.5px;white-space:nowrap}
+.dw-unified-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#176b55;color:#fff;font-size:21px}
+.dw-unified-brand em{font-style:normal;color:#176b55}
+.dw-unified-right{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.dw-feature-name{font:700 13px/1.2 system-ui,sans-serif;color:#65736c;padding-right:7px}
+.dw-unified-home{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;background:#176b55;color:#fff!important;text-decoration:none;border-radius:10px;padding:10px 15px;font:800 13px/1.2 system-ui,sans-serif;border:1px solid #176b55}
+.dw-unified-home:hover{background:#105541}
+@media(max-width:560px){.dw-unified-header{align-items:flex-start;flex-wrap:wrap;min-height:0;padding:12px 14px}.dw-unified-brand{font-size:17px}.dw-unified-right{width:100%;justify-content:space-between}.dw-feature-name{padding-left:2px}}
