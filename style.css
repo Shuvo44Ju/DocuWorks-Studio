@@ -30,6 +30,10 @@
 .dw-unified-brand em{font-style:normal;color:#176b55}
 .dw-unified-right{position:absolute;right:14px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .dw-feature-name{display:none}
-.dw-unified-home{position:fixed;left:14px;top:136px;z-index:1100;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;background:#176b55;color:#fff!important;text-decoration:none;border-radius:10px;padding:11px 16px;font:800 14px/1.2 system-ui,sans-serif;border:2px solid #fff;box-shadow:0 3px 12px #0003}
+.dw-unified-home{position:fixed;left:14px;top:14px;z-index:1100;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;background:#176b55;color:#fff!important;text-decoration:none;border-radius:10px;padding:11px 16px;font:800 14px/1.2 system-ui,sans-serif;border:2px solid #fff;box-shadow:0 3px 12px #0003}
 .dw-unified-home:hover{background:#105541}
-@media(max-width:560px){.dw-unified-header{height:68px;min-height:68px;padding:0 14px 0 118px}.dw-unified-brand{font-size:17px}.dw-unified-mark{width:32px;height:32px}.dw-unified-right{right:8px}.dw-unified-home{left:10px;top:136px;padding:10px 12px}}
+@media(max-width:560px){.dw-unified-header{height:68px;min-height:68px;padding:0 14px 0 118px}.dw-unified-brand{font-size:17px}.dw-unified-mark{width:32px;height:32px}.dw-unified-right{right:8px}.dw-unified-home{left:10px;top:14px;padding:10px 12px}}
+
+/* Keep Home aligned with the header at the top of the viewport */
+.dw-unified-home{top:14px!important}
+@media(max-width:560px){.dw-unified-home{top:14px!important}}
