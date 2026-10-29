@@ -9,3 +9,5 @@
 .studio-home-link:hover{background:#105541}
 .topactions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 @media(max-width:520px){.topbar{align-items:flex-start;gap:8px;flex-wrap:wrap}.topactions{width:100%;justify-content:flex-start}.studio-home-link{padding:9px 12px}}
+
+#alwaysHomeLink{position:fixed!important;left:14px;top:14px;z-index:2147483647;display:inline-flex!important;align-items:center;justify-content:center;padding:11px 16px;background:#176b55;color:#fff;text-decoration:none;border-radius:10px;font:800 14px/1.2 system-ui,sans-serif;box-shadow:0 3px 12px #0003;border:2px solid #fff}#alwaysHomeLink:hover{background:#105541}
