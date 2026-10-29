@@ -1,13 +1,18 @@
 {
-  "name": "PaperScan — Private Document Scanner",
-  "short_name": "PaperScan",
-  "description": "Scan and save documents privately on your device.",
+  "name": "DocuWorks Studio — Document Tools",
+  "short_name": "DocuWorks",
+  "description": "Scan documents, create Control Specification workbooks, and optimize PDFs.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f5f7f6",
-  "theme_color": "#176b55",
+  "background_color": "#f4f7fb",
+  "theme_color": "#14243d",
   "icons": [
-    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ]
 }
