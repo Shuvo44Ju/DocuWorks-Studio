@@ -11,46 +11,51 @@
 const $=id=>document.getElementById(id);
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 let file=null,pdf=null,pages=[],matches=[];
-const currency=/(?:[$€£₹৳¥]|\b(?:USD|EUR|GBP|BDT|INR|AED|CNY|JPY|CAD|AUD|CHF|SGD)\b)/i;
-const amount=/(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,4})?/;
-const priceWords=/\b(unit\s*price|price|rate|amount|total|subtotal|grand\s*total|discount|quoted|quotation\s*value|tax|vat|freight|delivery|shipping|cost|extended|line\s*total|net\s*value|gross\s*value|ex\.?\s*works|cif|fob)\b/i;
+const currency=/(?:[$€£₹৳¥]|\b(?:USD|US\$|EUR|GBP|BDT|INR|AED|CNY|JPY|CAD|AUD|CHF|SGD|Taka|Rupees?)\b)/i;
+const amount=/(?:[$€£₹৳¥]\s*)?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,4})?(?:\s*(?:USD|EUR|GBP|BDT|INR|AED|CNY|JPY|CAD|AUD|CHF|SGD))?/i;
+const priceWords=/\b(unit\s*price|price|rate|amount|total|subtotal|grand\s*total|discount|quoted|quotation\s*value|tax|vat|freight|delivery|shipping|cost|extended|line\s*total|net\s*value|gross\s*value|ex\.?\s*works|cif|fob|unit\s*cost|selling\s*price|offer\s*price|basic\s*price|price\s*per|each|per\s*unit)\b/i;
 const nonPriceWords=/\b(model|part\s*(?:no|number)|catalog(?:ue)?\s*(?:no|number)|item\s*(?:no|number)|serial|phone|fax|email|year|qty|quantity|page|reference|ref\.?|hs\s*code|postal|zip)\b/i;
-function lineKey(it){return Math.round(it.transform[5]/2)*2;}
+function lineKey(it){return Math.round((it.transform?.[5]||0)/3)*3;}
 $('file').addEventListener('change',async e=>{
  file=e.target.files[0];if(!file)return;
  if(!/\.pdf$/i.test(file.name)){$('status').textContent='Please select a PDF file.';return;}
  $('filename').textContent=file.name+' · '+(file.size/1048576).toFixed(2)+' MB';
- $('status').textContent='Deep scan: extracting positioned text from each page…';
+ $('status').textContent='Scanning PDF text and looking for prices…';
  $('review').classList.remove('hidden');$('matches').replaceChildren();pages=[];matches=[];$('make').disabled=true;
  try{
   pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
   for(let n=1;n<=pdf.numPages;n++){
-   const pg=await pdf.getPage(n),tc=await pg.getTextContent({includeMarkedContent:true}),items=tc.items.filter(x=>typeof x.str==='string'&&x.str.trim()).map((x,i)=>({...x,_i:i,_y:x.transform?.[5]||0}));
+   const pg=await pdf.getPage(n),tc=await pg.getTextContent(),items=tc.items.filter(x=>typeof x.str==='string'&&x.str.trim()&&x.transform).map((x,i)=>({...x,_i:i}));
    const groups=new Map();for(const it of items){const k=lineKey(it);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(it);}
-   const lineInfo=new Map();
-   for(const [k,arr] of groups){arr.sort((a,b)=>a.transform[4]-b.transform[4]);const text=arr.map(x=>x.str).join(' ');lineInfo.set(k,{arr,text,hasLabel:priceWords.test(text),hasCurrency:currency.test(text),hasAmount:amount.test(text),blocked:nonPriceWords.test(text)});}
+   const allText=items.map(x=>x.str).join(' '),pageHasPriceContext=priceWords.test(allText)||currency.test(allText);
    const found=[];
-   for(const [k,info] of lineInfo){
-    const {arr,text,hasLabel,hasCurrency,blocked}=info;
+   for(const [k,arr] of groups){
+    arr.sort((a,b)=>a.transform[4]-b.transform[4]);const line=arr.map(x=>x.str).join(' '),hasLabel=priceWords.test(line),hasCurrency=currency.test(line);
+    const rowHasPriceContext=hasLabel||hasCurrency;
     for(let i=0;i<arr.length;i++){
-     const it=arr[i],s=it.str.trim();
-     const isCurrency=currency.test(s)||(/[€£$₹৳¥]/.test(s)&&amount.test(s));
-     const isAmount=amount.test(s)&&/\d/.test(s);
+     const it=arr[i],s=it.str.trim(),numeric=amount.test(s)&&/\d/.test(s);
+     const currencyOnly=currency.test(s)&&!/\d/.test(s);
      const label=priceWords.test(s);
-     const nearCurrency=arr.some(x=>currency.test(x.str)&&Math.abs(x.transform[4]-it.transform[4])<Math.max(120,(it.width||20)*5));
-     const likelyPrice=isCurrency||(isAmount&&(hasLabel||hasCurrency||nearCurrency)&&!nonPriceWords.test(s));
-     if(likelyPrice)found.push({page:n,itemIndex:it._i,item:it,value:s,kind:isCurrency?'Currency marker/amount':hasLabel?'Amount on price-labelled line':'Possible numeric price',line:text,confidence:isCurrency?'High':hasLabel?'Medium':'Review'});
-     if(label)found.push({page:n,itemIndex:it._i,item:it,value:s,kind:'Price-related heading (keep heading)',line:text,confidence:'Review',heading:true});
+     const neighborCurrency=arr.some(x=>x!==it&&currency.test(x.str)&&Math.abs(x.transform[4]-it.transform[4])<Math.max(180,(it.width||20)*8));
+     const contextNearby=arr.some(x=>x!==it&&priceWords.test(x.str)&&Math.abs(x.transform[4]-it.transform[4])<Math.max(260,(it.width||20)*10));
+     let kind='',confidence='';
+     if(numeric&&(currency.test(s)||neighborCurrency)){kind='Currency-coded amount';confidence='High';}
+     else if(numeric&&(rowHasPriceContext||contextNearby)){kind='Amount near price label';confidence='Medium';}
+     else if(numeric&&pageHasPriceContext){kind='Numeric value — review for price';confidence='Low';}
+     else if(numeric){kind='Unclassified numeric value — review';confidence='Low';}
+     if(kind&&!nonPriceWords.test(line))found.push({page:n,itemIndex:it._i,item:it,value:s,kind,line,confidence});
+     if(currencyOnly&&rowHasPriceContext)found.push({page:n,itemIndex:it._i,item:it,value:s,kind:'Currency marker — review',line,confidence:'Review'});
+     if(label)found.push({page:n,itemIndex:it._i,item:it,value:s,kind:'Price heading (do not redact)',line,confidence:'Review',heading:true});
     }
    }
    pages.push({n,pg,items,viewport:pg.getViewport({scale:1}),groups});
    found.forEach(x=>matches.push(x));
   }
-  // Remove duplicate entries for the same text item and page, keeping the most useful candidate.
   const unique=new Map();for(const m of matches){const k=m.page+':'+m.itemIndex;if(!unique.has(k)||(!m.heading&&unique.get(k).heading))unique.set(k,m);}matches=[...unique.values()];
   render();
-  $('status').textContent='Deep scan complete: '+pdf.numPages+' pages · '+matches.filter(m=>!m.heading).length+' possible price values. Review each selection before exporting.';
-  if(!matches.some(m=>!m.heading))$('status').textContent+=' No text-layer matches found. This may be a scanned PDF and needs OCR.';
+  const candidates=matches.filter(m=>!m.heading);
+  $('status').textContent='Scan complete: '+pdf.numPages+' pages · '+candidates.length+' numeric/currency candidates. Low-confidence candidates are included for manual review.';
+  if(!candidates.length)$('status').textContent+=' No selectable text was found. This is probably a scanned/image PDF; OCR must be added to process it.';
  }catch(err){$('status').textContent='Could not scan PDF: '+err.message;}
 });
 function render(){
