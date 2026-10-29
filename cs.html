@@ -4,7 +4,7 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>URS to CS Converter</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
@@ -56,7 +56,7 @@ removeFileBtn.addEventListener('click',()=>{selectedFile=null;extractedText='';p
 convertBtn.addEventListener('click',async()=>{if(!selectedFile||convertBtn.disabled)return;clearError();convertBtn.disabled=true;setStatus(10,'Reading PDF content…');try{const buffer=await selectedFile.arrayBuffer();setStatus(15,'Opening PDF…');const pdf=await pdfjsLib.getDocument({data:buffer}).promise;let fullText='';for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);const content=await page.getTextContent();const items=content.items.filter(x=>x.str&&x.str.trim());const lines=[];let currentY=null,currentLine=[];for(const item of items){const y=Math.round(item.transform?.[5]||0);if(currentY!==null&&Math.abs(y-currentY)>3){if(currentLine.length)lines.push(currentLine.join(' ').trim());currentLine=[];}currentY=y;currentLine.push(item.str.trim());}if(currentLine.length)lines.push(currentLine.join(' ').trim());fullText+=lines.join('\n')+'\n';setStatus(15+Math.round((i/pdf.numPages)*45),'Extracting text from page '+i+' of '+pdf.numPages+'…')}// OCR each page with little/no selectable text, not just when the entire PDF is empty.
 const pageTexts=fullText.split('\n\f');let needsOcr=fullText.replace(/\s/g,'').length<80;
 if(!needsOcr){let textChars=0;for(const p of pageTexts)textChars+=p.replace(/\s/g,'').length;if(textChars<Math.max(80,pdf.numPages*35))needsOcr=true;}
-if(needsOcr){if(!window.Tesseract)throw new Error('OCR engine did not load. Refresh the page and try again.');const worker=await Tesseract.createWorker('eng',1,{logger:m=>{if(m.status==='recognizing text')setStatus(55+Math.round((m.progress||0)*30),'Advanced OCR is reading PDF pages…')}});try{let ocrText='';for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i),viewport=page.getViewport({scale:2.5});const canvas=document.createElement('canvas');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);await page.render({canvasContext:ctx,viewport,background:'rgb(255,255,255)'}).promise;const result=await worker.recognize(canvas);ocrText+='\n--- PAGE '+i+' ---\n'+result.data.text+'\n';setStatus(55+Math.round((i/pdf.numPages)*30),'OCR page '+i+' of '+pdf.numPages+'…');canvas.width=0;canvas.height=0;}if(ocrText.replace(/\s/g,'').length>fullText.replace(/\s/g,'').length)fullText=ocrText;}finally{await worker.terminate();}}extractedText=fullText;setStatus(88,'Matching extracted requirements to CS template…');if(!fullText.trim())throw new Error('No readable text could be extracted from this PDF.');setStatus(95,'Creating Excel workbook…');await generateAndDownloadExcel();setStatus(100,'Done! Original-template Excel file downloaded.');}catch(err){console.error(err);showError('PDF processing failed: '+(err?.message||'Unknown error')+'. Check that the PDF is valid and try again. The template was not silently substituted.');setStatus(0,'Conversion failed.')}finally{setButtonEnabled(!!selectedFile)}});
+if(needsOcr){if(!window.Tesseract)throw new Error('OCR engine did not load. Refresh the page and try again.');const worker=await Tesseract.createWorker('eng',1,{logger:m=>{if(m.status==='recognizing text')setStatus(55+Math.round((m.progress||0)*30),'Advanced OCR is reading PDF pages…')}});try{let ocrText='';for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i),viewport=page.getViewport({scale:2.5});const canvas=document.createElement('canvas');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);await page.render({canvasContext:ctx,viewport,background:'rgb(255,255,255)'}).promise;const result=await worker.recognize(canvas);ocrText+='\n--- PAGE '+i+' ---\n'+result.data.text+'\n';setStatus(55+Math.round((i/pdf.numPages)*30),'OCR page '+i+' of '+pdf.numPages+'…');canvas.width=0;canvas.height=0;}if(ocrText.replace(/\s/g,'').length>fullText.replace(/\s/g,'').length)fullText=ocrText;}finally{await worker.terminate();}}extractedText=fullText;setStatus(88,'Matching extracted requirements to CS template…');if(!fullText.trim())throw new Error('No readable text could be extracted from this PDF.');setStatus(95,'Creating Excel workbook…');await generateAndDownloadCS(extractedText);setStatus(100,'Done! Original-template Excel file downloaded.');}catch(err){console.error(err);showError('PDF processing failed: '+(err?.message||'Unknown error')+'. Check that the PDF is valid and try again. The template was not silently substituted.');setStatus(0,'Conversion failed.')}finally{setButtonEnabled(!!selectedFile)}});
 function normalizeText(s){return String(s||'').toLowerCase().replace(/[×]/g,'x').replace(/[–—−]/g,'-').replace(/\u00a0/g,' ').replace(/[^\p{L}\p{N}%°./+-]+/gu,' ').replace(/\s+/g,' ').trim()}
 function extractRequirements(text){
  const lines=text.split(/\n+/).map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>2);
@@ -116,16 +116,17 @@ function extractRequirements(text){
  }
  return {mapped,audit,lines};
 }
-async function generateAndDownloadExcel(){
+async function generateAndDownloadCS(extractedData){
  if(!window.ExcelJS)throw new Error('Excel export library failed to load. Check your internet connection and retry.');
  setStatus(96,'Loading original CS workbook template…');
- const response=await fetch('./CS_Digital_Cell_Analyzer.xlsx',{cache:'no-store'});
+ const response=await fetch(new URL('CS_Digital_Cell_Analyzer.xlsx', document.baseURI).href,{cache:'no-store'});
  if(!response.ok)throw new Error('Could not load CS_Digital_Cell_Analyzer.xlsx from this project (HTTP '+response.status+'). No substitute workbook was generated.');
  const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(await response.arrayBuffer());
  const worksheet=workbook.getWorksheet('CS-Digital Cell Analyzer')||workbook.worksheets[0];
  if(!worksheet)throw new Error('The original Excel template has no worksheet.');
- const {mapped,audit,lines}=extractRequirements(extractedText);
- if(!extractedText||extractedText.replace(/\s/g,'').length<20)throw new Error('No readable content was extracted. The Excel template was not exported as a substitute.');
+ const sourceText=typeof extractedData==='string'?extractedData:(Array.isArray(extractedData)?extractedData.map(x=>typeof x==='string'?x:(x.text||x.requirement||'')).join('\n'):Object.values(extractedData||{}).filter(v=>typeof v==='string').join('\n'));
+ const {mapped,audit,lines}=extractRequirements(sourceText);
+ if(!sourceText||sourceText.replace(/\s/g,'').length<20)throw new Error('No readable content was extracted. The Excel template was not exported as a substitute.');
 
  // The workbook is a formatting template only: clear all example/specification values
  // before applying values extracted from the uploaded URS PDF.
@@ -138,7 +139,7 @@ async function generateAndDownloadExcel(){
   // Preserve the template cell's original alignment, font, fill, border, number format and protection.
   if(items.length>1)cell.note='Multiple potentially relevant URS lines were matched. Review for completeness and duplicates.';
  }
- if(extractedText.trim()){
+ if(sourceText.trim()){
   let review=workbook.getWorksheet('URS Review');
   if(!review)review=workbook.addWorksheet('URS Review');
   // This is an additional audit sheet; the original template worksheet remains the primary CS sheet.
