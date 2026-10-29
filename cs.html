@@ -14,7 +14,14 @@
 .dw-unified-home{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;background:#176b55;color:#fff!important;text-decoration:none;border-radius:10px;padding:10px 15px;font:800 13px/1.2 system-ui,sans-serif;border:1px solid #176b55}
 .dw-unified-home:hover{background:#105541}
 @media(max-width:560px){.dw-unified-header{align-items:flex-start;flex-wrap:wrap;min-height:0;padding:12px 14px}.dw-unified-brand{font-size:17px}.dw-unified-right{width:100%;justify-content:space-between}.dw-feature-name{padding-left:2px}}
- .dw-unified-home{position:fixed!important;top:14px!important;left:14px!important;z-index:2147483647!important}</style>
+ .dw-unified-home{position:fixed!important;top:14px!important;left:14px!important;z-index:2147483647!important}
+/* Home is part of the header layout, never floating over page content */
+.dw-unified-header{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:16px!important;flex-wrap:nowrap!important;min-height:68px!important;height:auto!important;padding:12px clamp(12px,calc((100vw - 1080px)/2),32px)!important}
+.dw-unified-home{position:static!important;inset:auto!important;transform:none!important;flex:0 0 auto!important;z-index:auto!important;margin:0!important;padding:10px 14px!important;border:1px solid #176b55!important;box-shadow:none!important}
+.dw-unified-brand{flex:0 1 auto!important;margin:0!important}
+.dw-unified-right{position:static!important;inset:auto!important;transform:none!important;margin-left:auto!important;flex:0 0 auto!important}
+@media(max-width:560px){.dw-unified-header{gap:9px!important;padding:10px 12px!important;flex-wrap:wrap!important}.dw-unified-home{order:0!important;padding:9px 11px!important}.dw-unified-brand{order:1!important;font-size:16px!important}.dw-unified-right{order:2!important;width:100%!important;margin-left:0!important;justify-content:flex-end!important}}
+</style>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -31,7 +38,7 @@
 .dw-unified-home:hover{background:#105541}
 @media(max-width:560px){.dw-unified-header{height:68px;min-height:68px;padding:0 14px 0 118px}.dw-unified-brand{font-size:17px}.dw-unified-mark{width:32px;height:32px}.dw-unified-right{right:8px}.dw-unified-home{left:10px;top:14px;padding:10px 12px}}
 </style></head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col items-center p-4"><header class="dw-unified-header"><a class="dw-unified-brand" href="./index.html"><span class="dw-unified-mark">▤</span><span>DocuWorks <em>Studio</em></span></a><div class="dw-unified-right"><span class="dw-feature-name">URS → CS Maker</span><a class="dw-unified-home" href="./index.html">← Home</a></div></header>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col items-center p-4"><header class="dw-unified-header"><a class="dw-unified-home" href="./index.html">← Home</a><a class="dw-unified-brand" href="./index.html"><span class="dw-unified-mark">▤</span><span>DocuWorks <em>Studio</em></span></a><div class="dw-unified-right"><span class="dw-feature-name">URS → CS Maker</span></div></header>
 <main class="w-full max-w-xl bg-white border border-slate-200 rounded-2xl shadow-xl p-8 space-y-6">
 <div class="text-center space-y-2"><div class="inline-flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-xl font-bold text-xl mb-2">▤</div><h1 class="text-2xl font-extrabold text-slate-900">URS to CS Converter</h1><p class="text-sm text-slate-500">Drag & drop your URS PDF to convert it into a formatted Control Specification Excel file.</p><p class="text-xs font-semibold text-blue-700">Converter build: 2026-10-29-fix6</p></div>
 <div id="drop-zone" tabindex="0" role="button" aria-label="Choose or drop a URS PDF" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-8 text-center bg-slate-50 hover:bg-blue-50/50 transition-all cursor-pointer group"><input type="file" id="pdf-input" accept=".pdf,application/pdf" class="hidden"><div class="space-y-3 pointer-events-none"><svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg><p class="text-base font-semibold text-slate-700">Drop your URS PDF file here</p><p class="text-xs text-slate-400 mt-1">or click to browse from your computer</p></div></div>
