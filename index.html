@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#14243d">
-<meta name="description" content="A simple workspace for document scanning, URS-to-CS conversion, and PDF optimization.">
+<meta name="description" content="A workspace for document scanning, URS-to-CS conversion, PDF optimization, and vendor price comparison.">
 <title>DocuWorks Studio</title>
 <style>
 :root{color-scheme:light;--ink:#15243b;--muted:#65738a;--line:#e0e7f0;--panel:#fff;--bg:#f4f7fb;--blue:#2457d6;--teal:#087f8c}
@@ -22,7 +22,7 @@ main{margin-top:-34px;padding-bottom:54px}
 .section-head{display:flex;justify-content:space-between;align-items:end;gap:18px;margin:0 0 18px}
 .section-head h2{font-size:21px;letter-spacing:-.02em;margin:0}
 .section-head p{margin:4px 0 0;color:var(--muted);font-size:14px}
-.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
 .card{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;min-height:300px;box-shadow:0 12px 30px #1227470a;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
 .card:hover{transform:translateY(-3px);box-shadow:0 18px 38px #12274712;border-color:#bdcce1}
 .icon{width:52px;height:52px;display:grid;place-items:center;border-radius:15px;font-size:24px;margin-bottom:20px}
@@ -38,7 +38,7 @@ main{margin-top:-34px;padding-bottom:54px}
 .tip{margin-top:22px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:flex;gap:12px;align-items:flex-start}
 .tip strong{display:block;font-size:14px}.tip p{margin:3px 0 0;color:var(--muted);font-size:13px}
 footer{border-top:1px solid var(--line);padding:20px 0 28px;color:var(--muted);font-size:12px}
-@media(max-width:850px){.cards{grid-template-columns:1fr 1fr}.card:last-child{grid-column:span 2}}
+@media(max-width:850px){.cards{grid-template-columns:1fr 1fr}.card:last-child{grid-column:auto}}
 @media(max-width:580px){.shell{padding:0 16px}header{padding:20px 0}.cards{grid-template-columns:1fr}.card:last-child{grid-column:auto}.card{min-height:0;padding:21px}.section-head{display:block}.topnote{display:none}}
 </style>
 </head>
@@ -73,6 +73,14 @@ footer{border-top:1px solid var(--line);padding:20px 0 28px;color:var(--muted);f
       <p>Improve PDF readability, clean dark backgrounds, and reduce heavy ink coverage before printing.</p>
       <ul><li>Optimize multiple PDFs</li><li>Adjust ink reduction</li><li>Balance text clarity and file size</li></ul>
       <a class="action" href="./ink-saver.html"><span>Open PDF optimizer</span><span>→</span></a>
+    </article>
+
+    <article class="card">
+      <div class="icon blue" aria-hidden="true">⇄</div><div class="tag">Procurement & sourcing</div>
+      <h3>Price Comparison</h3>
+      <p>Compare commercial quotations from multiple vendors using your comparison format.</p>
+      <ul><li>Upload vendor quotations</li><li>Add items and vendor columns</li><li>Export comparison to Excel</li></ul>
+      <a class="action" href="./price-comparison.html"><span>Open price comparison</span><span>→</span></a>
     </article>
   </section>
   <aside class="tip"><p>The current tools process files in your browser. Keep this tab open while a task is running, and download your results when processing finishes.</p></aside>
