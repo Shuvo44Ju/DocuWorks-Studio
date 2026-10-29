@@ -44,20 +44,34 @@ async function readQuote(file){
  if(ext==='pdf'){
   if(!window.pdfjsLib)throw Error('PDF reader library failed to load. Refresh and try again.');
   pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  const doc=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;let pages=[];
-  for(let p=1;p<=doc.numPages;p++){const page=await doc.getPage(p),content=await page.getTextContent();pages.push(content.items.map(x=>x.str).join(' '));}
-  return pages.join('\n');
+  const doc=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;let pages=[],ocrUsed=false;
+  for(let p=1;p<=doc.numPages;p++){
+   const page=await doc.getPage(p),content=await page.getTextContent();
+   const positioned=content.items.filter(x=>x.str&&x.str.trim()).map(x=>({s:x.str.trim(),x:x.transform[4],y:x.transform[5]})).sort((a,b)=>Math.abs(b.y-a.y)>3?b.y-a.y:a.x-b.x);
+   const lines=[];for(const item of positioned){let line=lines.find(l=>Math.abs(l.y-item.y)<=3);if(!line){line={y:item.y,items:[]};lines.push(line);}line.items.push(item);}
+   let text=lines.sort((a,b)=>b.y-a.y).map(l=>l.items.sort((a,b)=>a.x-b.x).map(x=>x.s).join(' | ')).join('\\n');
+   if(text.replace(/[^a-zA-Z0-9]/g,'').length<40){
+    if(!window.Tesseract)throw Error(file.name+' appears scanned, but OCR library did not load.');
+    analysisStatus.textContent='OCR processing '+file.name+' — page '+p+' of '+doc.numPages+'…';
+    const viewport=page.getViewport({scale:1.7}),canvas=document.createElement('canvas');canvas.width=viewport.width;canvas.height=viewport.height;
+    await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+    const result=await Tesseract.recognize(canvas,'eng');text=result.data.text;ocrUsed=true;canvas.width=canvas.height=1;
+   }
+   pages.push(text);
+  }
+  return {text:pages.join('\\n'),ocrUsed,pages:doc.numPages};
  }
  if(ext==='xlsx'||ext==='xls'){
-  if(!window.ExcelJS)throw Error('Excel reader library failed to load.');
-  const wb=new ExcelJS.Workbook();await wb.xlsx.load(await file.arrayBuffer());return wb.worksheets.map(ws=>{let lines=[];ws.eachRow(row=>lines.push(row.values.slice(1).map(v=>typeof v==='object'?(v.text||v.result||''):v).join(' | ')));return lines.join('\n');}).join('\n');
+  if(!window.ExcelJS)throw Error('Spreadsheet reader library failed to load.');
+  const wb=new ExcelJS.Workbook();await wb.xlsx.load(await file.arrayBuffer());
+  return {text:wb.worksheets.map(ws=>{let lines=[];ws.eachRow(row=>lines.push(row.values.slice(1).map(v=>typeof v==='object'?(v.text||v.result||v.hyperlink||'') :v).join(' | ')));return lines.join('\\n');}).join('\\n'),ocrUsed:false,pages:wb.worksheets.length};
  }
  if(ext==='csv'||ext==='txt')return {text:await file.text(),ocrUsed:false,pages:1};
  if(ext==='docx'){
   if(!window.mammoth)throw Error('Word reader library failed to load.');
   return {text:(await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()})).value,ocrUsed:false,pages:1};
  }
- throw Error('This file type is not supported for automatic text extraction: '+file.name+'. Please save it as PDF, XLSX, DOCX, or CSV.');
+ throw Error('Unsupported file type: '+file.name+'. Use PDF, XLSX, DOCX, or CSV.');
 }
 function findValue(text,patterns){for(const p of patterns){const m=text.match(p);if(m&&m[1])return m[1].trim().slice(0,120);}return '';}
 function moneyValues(text){const matches=[...text.matchAll(/(?:USD|US\$|EUR|GBP|BDT|৳|\$|€|£|INR|Rs\.?|Tk\.?)?\s*([0-9]{1,3}(?:[, ][0-9]{3})+(?:\.\d{1,2})?|[0-9]+\.\d{2})\s*(?:USD|EUR|BDT|INR|Tk|৳|\$|€|£)?/gi)];return matches.map(m=>m[0].trim()).filter(s=>/[0-9]/.test(s)).slice(0,30);}
