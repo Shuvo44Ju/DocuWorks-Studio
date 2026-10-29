@@ -19,7 +19,8 @@
 'use strict';
 const fields=['Manufacturer','Local agent','Origin','Model','Unit price','Previous price','Freight / VAT','Grand total price','Total price in BDT','Import duty','Total landed cost','Rebate','Value after rebate','Exchange rate','Comments'];
 let vendors=['Vendor 1','Vendor 2','Vendor 3'];
-const body=document.getElementById('body'),head=document.getElementById('headrow'),status=document.getElementById('status');\nconst metrics=document.getElementById('metrics'),review=document.getElementById('review');
+const body=document.getElementById('body'),head=document.getElementById('headrow'),status=document.getElementById('status');
+const metrics=document.getElementById('metrics'),review=document.getElementById('review');
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function render(){head.innerHTML='<th>Comparison field / item</th>'+vendors.map((v,i)=>'<th><input aria-label="Vendor name '+(i+1)+'" data-vendor="'+i+'" value="'+esc(v)+'" style="width:145px;border:1px solid #d8e0eb;border-radius:6px;padding:7px;font:inherit"><button type="button" class="secondary" data-remove-vendor="'+i+'" style="display:block;margin-top:6px;padding:5px 8px;font-size:12px">Remove vendor</button></th>').join('');body.innerHTML='';fields.forEach((f,i)=>addFieldRow(f,i));document.querySelectorAll('[data-vendor]').forEach(el=>el.addEventListener('change',e=>{vendors[+e.target.dataset.vendor]=e.target.value.trim()||'Vendor '+(+e.target.dataset.vendor+1);status.textContent='Vendor names updated.';}));document.querySelectorAll('[data-remove-vendor]').forEach(el=>el.addEventListener('click',()=>{if(vendors.length<=1){status.textContent='Keep at least one vendor.';return;}vendors.splice(+el.dataset.removeVendor,1);render();}));}
 function addFieldRow(label,index){const tr=document.createElement('tr');tr.dataset.field=label;tr.innerHTML='<td><input value="'+esc(label)+'" aria-label="Comparison field"></td>'+vendors.map((_,j)=>'<td><input aria-label="'+esc(label)+' vendor '+(j+1)+'" placeholder="Enter value"></td>').join('');body.append(tr);}
@@ -34,7 +35,9 @@ function showFiles(){document.getElementById('filelist').textContent=quoteFiles.
 function addFiles(list){const incoming=Array.from(list||[]);for(const f of incoming){if(!quoteFiles.some(x=>x.name===f.name&&x.size===f.size&&x.lastModified===f.lastModified))quoteFiles.push(f);}showFiles();if(quoteFiles.length)analysisStatus.textContent=quoteFiles.length+' quotation file(s) ready. Click Analyze & Compare.';}
 dropzone.addEventListener('click',e=>{if(e.target===quoteInput||e.target.closest('button'))return;quoteInput.click();});
 dropzone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();quoteInput.click();}});
-quoteInput.addEventListener('change',e=>{addFiles(e.target.files);quoteInput.value='';});\ndocument.addEventListener('dragover',e=>e.preventDefault());\ndocument.addEventListener('drop',e=>{if(!dropzone.contains(e.target))e.preventDefault();});
+quoteInput.addEventListener('change',e=>{addFiles(e.target.files);quoteInput.value='';});
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{if(!dropzone.contains(e.target))e.preventDefault();});
 ['dragenter','dragover'].forEach(n=>dropzone.addEventListener(n,e=>{e.preventDefault();e.stopPropagation();dropzone.classList.add('dragover');}));
 ['dragleave','drop'].forEach(n=>dropzone.addEventListener(n,e=>{e.preventDefault();e.stopPropagation();dropzone.classList.remove('dragover');}));
 dropzone.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
