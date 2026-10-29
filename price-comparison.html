@@ -1,16 +1,18 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#14243d"><title>Price Comparison | DocuWorks Studio</title>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
 <style>
-:root{--ink:#15243b;--muted:#65738a;--line:#e0e7f0;--bg:#f4f7fb;--blue:#2457d6}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}header{background:linear-gradient(120deg,#101c32,#1e3e70);color:white;padding:20px 0}.shell{max-width:1200px;margin:auto;padding:0 22px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:14px}.brand{font-weight:800;font-size:19px;letter-spacing:-.02em}.home{color:#fff;text-decoration:none;border:1px solid #ffffff55;border-radius:9px;padding:8px 13px;font-weight:650;font-size:14px}.home:hover{background:#ffffff18}main{padding:26px 0 50px}.intro h1{font-size:clamp(25px,4vw,34px);margin:0 0 5px}.intro p{margin:0;color:var(--muted)}.panel{background:white;border:1px solid var(--line);border-radius:15px;padding:19px;margin-top:18px;box-shadow:0 8px 25px #12274708}.panel h2{font-size:17px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px;margin:0 0 13px}.upload{border:2px dashed #b9c8dd;border-radius:12px;padding:20px;text-align:center;background:#f9fbff}.upload input{max-width:100%}.files{font-size:13px;color:var(--muted);margin-top:10px}.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}button{border:0;border-radius:9px;padding:10px 14px;background:var(--blue);color:white;font:inherit;font-weight:700;cursor:pointer}button.secondary{background:#e8edf5;color:var(--ink)}button:hover{filter:brightness(.96)}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:10px}table{border-collapse:collapse;width:100%;min-width:900px}th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}th{background:#f1f5fb;font-size:12px;white-space:nowrap}td input,td select{width:100%;min-width:110px;border:1px solid #d8e0eb;border-radius:6px;padding:8px;font:inherit;color:var(--ink);background:white}td:first-child input{min-width:180px}.best{background:#e9f8ef}.status{font-size:13px;color:var(--muted);margin-top:10px}.warning{background:#fff8e8;border:1px solid #f1dba6;border-radius:10px;padding:12px;font-size:13px;color:#72521a;margin-top:14px}footer{padding:20px 0 28px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}@media(max-width:600px){.shell{padding:0 14px}.panel{padding:14px}.topbar{align-items:flex-start}.brand{font-size:17px}}
+:root{--ink:#15243b;--muted:#65738a;--line:#e0e7f0;--bg:#f4f7fb;--blue:#2457d6}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}header{background:linear-gradient(120deg,#101c32,#1e3e70);color:white;padding:20px 0}.shell{max-width:1200px;margin:auto;padding:0 22px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:14px}.brand{font-weight:800;font-size:19px;letter-spacing:-.02em}.home{color:#fff;text-decoration:none;border:1px solid #ffffff55;border-radius:9px;padding:8px 13px;font-weight:650;font-size:14px}.home:hover{background:#ffffff18}main{padding:26px 0 50px}.intro h1{font-size:clamp(25px,4vw,34px);margin:0 0 5px}.intro p{margin:0;color:var(--muted)}.panel{background:white;border:1px solid var(--line);border-radius:15px;padding:19px;margin-top:18px;box-shadow:0 8px 25px #12274708}.panel h2{font-size:17px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px;margin:0 0 13px}.upload{border:2px dashed #9db2d0;border-radius:12px;padding:26px 18px;text-align:center;background:#f9fbff;cursor:pointer;transition:.15s}.upload.dragover{border-color:var(--blue);background:#edf3ff}.upload input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.upload strong{display:block;font-size:16px}.upload .pick{display:inline-block;margin-top:12px;background:var(--blue);color:white;border-radius:9px;padding:9px 14px;font-weight:700}.upload .hint{display:block;margin-top:8px;font-size:12px;color:var(--muted)}.files{font-size:13px;color:var(--muted);margin-top:10px}.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}button{border:0;border-radius:9px;padding:10px 14px;background:var(--blue);color:white;font:inherit;font-weight:700;cursor:pointer}button.secondary{background:#e8edf5;color:var(--ink)}button:hover{filter:brightness(.96)}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:10px}table{border-collapse:collapse;width:100%;min-width:900px}th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}th{background:#f1f5fb;font-size:12px;white-space:nowrap}td input,td select{width:100%;min-width:110px;border:1px solid #d8e0eb;border-radius:6px;padding:8px;font:inherit;color:var(--ink);background:white}td:first-child input{min-width:180px}.best{background:#e9f8ef}.status{font-size:13px;color:var(--muted);margin-top:10px}.warning{background:#fff8e8;border:1px solid #f1dba6;border-radius:10px;padding:12px;font-size:13px;color:#72521a;margin-top:14px}footer{padding:20px 0 28px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}@media(max-width:600px){.shell{padding:0 14px}.panel{padding:14px}.topbar{align-items:flex-start}.brand{font-size:17px}}
 </style></head><body>
 <header><div class="shell topbar"><div class="brand">DocuWorks Studio</div><a class="home" href="./index.html">← Home</a></div></header>
 <main class="shell"><section class="intro"><h1>Price Comparison</h1><p>Build a vendor-by-vendor commercial comparison and export it to Excel.</p></section>
-<section class="panel"><h2>1. Vendor quotations</h2><p class="muted">Select multiple quotation files to keep them listed alongside your comparison. File contents are not automatically extracted in this first version; enter and verify quoted values in the editable table below.</p><div class="upload"><input id="quotes" type="file" multiple accept=".pdf,.xlsx,.xls,.doc,.docx,.csv"><div id="filelist" class="files">No quotation files selected.</div></div></section>
+<section class="panel"><h2>1. Vendor quotations</h2><p class="muted">Drop multiple PDF quotations here or click to select them. Then choose “Analyze & Compare”. Text-based PDFs are read in your browser; scanned/image PDFs may need OCR or manual checking.</p><div class="upload" id="dropzone" tabindex="0" role="button" aria-label="Choose or drop multiple quotation files"><input id="quotes" type="file" multiple accept=".pdf,.xlsx,.xls,.doc,.docx,.csv"><strong>Drag and drop multiple quotations here</strong><span>PDF · Excel · Word · CSV</span><span class="pick">Choose quotation files</span><span class="hint">You can select several files at once or add more files by dropping them here.</span><div id="filelist" class="files">No quotation files selected.</div></div><div class="toolbar"><button id="analyze" type="button" disabled>Analyze &amp; Compare</button><button id="clearFiles" class="secondary" type="button">Clear uploads</button></div><p id="analysisStatus" class="status" role="status">Upload quotations to begin.</p></section>
 <section class="panel"><h2>2. Comparison details</h2><p class="muted">Start with the fields in your draft. Add as many item rows and vendor columns as needed. Use one currency consistently for a direct price ranking, or note currency/exchange-rate assumptions in comments.</p>
 <div class="toolbar"><button id="addRow">＋ Add item row</button><button id="addVendor">＋ Add vendor</button><button id="export">↓ Export Excel</button><button id="reset" class="secondary">Reset table</button></div>
 <div class="tablewrap"><table id="comparison"><thead><tr id="headrow"><th>Comparison field / item</th><th>Vendor 1</th><th>Vendor 2</th><th>Vendor 3</th></tr></thead><tbody id="body"></tbody></table></div><p id="status" class="status" role="status">Ready. Values are editable; verify them against the original quotations before making purchasing decisions.</p>
-<div class="warning"><strong>Important:</strong> This version provides the editable comparison structure and Excel export. It does not yet read quotation PDFs/Word/Excel automatically, and it will not guess missing values, taxes, freight, exchange rates, or landed costs.</div></section></main>
+<div class="warning"><strong>Review before use:</strong> The analyzer extracts readable text and attempts to identify common prices and product details. Supplier quotation layouts differ, and scanned PDFs may not contain selectable text. Always verify every extracted figure, currency, tax, freight, and landed-cost calculation against the source documents. Missing values are left blank, not invented.</div></section></main>
 <footer><div class="shell">DocuWorks Studio · by Shuvo</div></footer>
 <script>
 'use strict';
@@ -24,7 +26,64 @@ function addCustomRow(){const tr=document.createElement('tr');tr.innerHTML='<td>
 document.getElementById('addRow').addEventListener('click',addCustomRow);
 document.getElementById('addVendor').addEventListener('click',()=>{vendors.push('Vendor '+(vendors.length+1));render();status.textContent='Vendor column added.';});
 document.getElementById('reset').addEventListener('click',()=>{if(confirm('Reset all comparison values and restore the default fields?')){vendors=['Vendor 1','Vendor 2','Vendor 3'];render();status.textContent='Table reset.';}});
-document.getElementById('quotes').addEventListener('change',e=>{const fs=Array.from(e.target.files||[]);document.getElementById('filelist').textContent=fs.length?fs.map(f=>f.name+' ('+(f.size/1024).toFixed(0)+' KB)').join(' · '):'No quotation files selected.';});
+
+const quoteInput=document.getElementById('quotes'),dropzone=document.getElementById('dropzone'),analyzeBtn=document.getElementById('analyze'),analysisStatus=document.getElementById('analysisStatus');
+let quoteFiles=[];
+function showFiles(){document.getElementById('filelist').textContent=quoteFiles.length?quoteFiles.map(f=>f.name+' ('+(f.size/1024).toFixed(0)+' KB)').join(' · '):'No quotation files selected.';analyzeBtn.disabled=!quoteFiles.length;}
+function addFiles(list){const incoming=Array.from(list||[]);for(const f of incoming){if(!quoteFiles.some(x=>x.name===f.name&&x.size===f.size&&x.lastModified===f.lastModified))quoteFiles.push(f);}showFiles();if(quoteFiles.length)analysisStatus.textContent=quoteFiles.length+' quotation file(s) ready. Click Analyze & Compare.';}
+dropzone.addEventListener('click',e=>{if(e.target.closest('button'))return;quoteInput.click();});
+dropzone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();quoteInput.click();}});
+quoteInput.addEventListener('change',e=>{addFiles(e.target.files);quoteInput.value='';});
+['dragenter','dragover'].forEach(n=>dropzone.addEventListener(n,e=>{e.preventDefault();e.stopPropagation();dropzone.classList.add('dragover');}));
+['dragleave','drop'].forEach(n=>dropzone.addEventListener(n,e=>{e.preventDefault();e.stopPropagation();dropzone.classList.remove('dragover');}));
+dropzone.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
+document.getElementById('clearFiles').addEventListener('click',()=>{quoteFiles=[];showFiles();analysisStatus.textContent='Uploads cleared.';});
+async function readQuote(file){
+ const ext=file.name.split('.').pop().toLowerCase();
+ if(ext==='pdf'){
+  if(!window.pdfjsLib)throw Error('PDF reader library failed to load. Refresh and try again.');
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const doc=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;let pages=[];
+  for(let p=1;p<=doc.numPages;p++){const page=await doc.getPage(p),content=await page.getTextContent();pages.push(content.items.map(x=>x.str).join(' '));}
+  return pages.join('\n');
+ }
+ if(ext==='xlsx'||ext==='xls'){
+  if(!window.ExcelJS)throw Error('Excel reader library failed to load.');
+  const wb=new ExcelJS.Workbook();await wb.xlsx.load(await file.arrayBuffer());return wb.worksheets.map(ws=>{let lines=[];ws.eachRow(row=>lines.push(row.values.slice(1).map(v=>typeof v==='object'?(v.text||v.result||''):v).join(' | ')));return lines.join('\n');}).join('\n');
+ }
+ if(ext==='csv'||ext==='txt')return await file.text();
+ if(ext==='docx'){
+  if(!window.mammoth)throw Error('Word reader library failed to load.');
+  return (await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()})).value;
+ }
+ throw Error('This file type is not supported for automatic text extraction: '+file.name+'. Please save it as PDF, XLSX, DOCX, or CSV.');
+}
+function findValue(text,patterns){for(const p of patterns){const m=text.match(p);if(m&&m[1])return m[1].trim().slice(0,120);}return '';}
+function moneyValues(text){const matches=[...text.matchAll(/(?:USD|US\$|EUR|GBP|BDT|৳|\$|€|£|INR|Rs\.?|Tk\.?)?\s*([0-9]{1,3}(?:[, ][0-9]{3})+(?:\.\d{1,2})?|[0-9]+\.\d{2})\s*(?:USD|EUR|BDT|INR|Tk|৳|\$|€|£)?/gi)];return matches.map(m=>m[0].trim()).filter(s=>/[0-9]/.test(s)).slice(0,30);}
+document.getElementById('analyze').addEventListener('click',async()=>{
+ analyzeBtn.disabled=true;analysisStatus.textContent='Reading quotation files…';
+ const extracted=[];
+ try{
+  for(const file of quoteFiles){analysisStatus.textContent='Analyzing '+file.name+'…';const raw=await readQuote(file);if(!raw.trim())throw Error(file.name+' has no readable text. If it is a scanned PDF, use OCR or enter values manually.');extracted.push({file,text:raw.replace(/\s+/g,' ').trim()});}
+  vendors=extracted.map(x=>x.file.name.replace(/\.[^.]+$/,''));
+  render();
+  const rows=Array.from(body.rows);
+  const set=(field,col,val)=>{const tr=rows.find(r=>r.cells[0]?.querySelector('input')?.value.trim().toLowerCase()===field.toLowerCase());if(tr&&val)tr.cells[col+1].querySelector('input').value=val;};
+  extracted.forEach((item,i)=>{
+   const t=item.text;
+   set('Manufacturer',i,findValue(t,[/(?:manufacturer|manufacturer name|company)\s*[:\-]\s*([^,;|.]{2,90})/i]));
+   set('Origin',i,findValue(t,[/(?:country of origin|origin|made in)\s*[:\-]?\s*([^,;|.]{2,50})/i]));
+   set('Model',i,findValue(t,[/(?:model|model no\.?|catalog(?:ue)? no\.?)\s*[:#\-]?\s*([A-Z0-9][A-Z0-9._\/-]{1,40})/i]));
+   set('Unit price',i,findValue(t,[/(?:unit price|price per unit|unit cost)\s*[:=]?\s*((?:USD|US\$|EUR|GBP|BDT|৳|\$|€|£|INR|Rs\.?|Tk\.?)?\s*[0-9][0-9, .]*(?:\s*(?:USD|EUR|BDT|INR|Tk|৳))?)/i]));
+   set('Grand total price',i,findValue(t,[/(?:grand total|total amount|quotation total|total price|net total)\s*[:=]?\s*((?:USD|US\$|EUR|GBP|BDT|৳|\$|€|£|INR|Rs\.?|Tk\.?)?\s*[0-9][0-9, .]*(?:\s*(?:USD|EUR|BDT|INR|Tk|৳))?)/i]));
+   set('Comments',i,'Source: '+item.file.name+' | Extracted text: '+t.slice(0,1800));
+  });
+  analysisStatus.textContent='Analysis complete for '+extracted.length+' quotation(s). Review the extracted values in the comparison table; long source text is saved in Comments.';
+  status.textContent='Auto-extracted fields are suggestions only. Verify against original quotations before using.';
+ }catch(err){analysisStatus.textContent='Could not complete analysis: '+err.message;status.textContent='Some files may be unsupported or scanned. Try text-based PDF, XLSX, DOCX, or CSV.';}
+ finally{analyzeBtn.disabled=!quoteFiles.length;}
+});
+
 document.getElementById('export').addEventListener('click',async()=>{try{if(!window.ExcelJS)throw Error('Excel export library did not load. Check your internet connection and retry.');const wb=new ExcelJS.Workbook(),ws=wb.addWorksheet('Price Comparison');ws.addRow(['Price Comparison — DocuWorks Studio']);ws.addRow(['Prepared on',new Date().toLocaleDateString()]);const headers=['Comparison field / item',...vendors];ws.addRow(headers);Array.from(body.rows).forEach(tr=>{const vals=Array.from(tr.cells).map(td=>{const input=td.querySelector('input');return input?input.value:'';});ws.addRow(vals);});ws.columns=[{width:30},...vendors.map(()=>({width:22}))];ws.getRow(3).font={bold:true,color:{argb:'FFFFFFFF'}};ws.getRow(3).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1E3E70'}};ws.eachRow(row=>row.eachCell(cell=>{cell.alignment={vertical:'top',wrapText:true};cell.border={bottom:{style:'thin',color:{argb:'FFE0E7F0'}}};}));const buf=await wb.xlsx.writeBuffer(),blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='price-comparison.xlsx';a.click();URL.revokeObjectURL(url);status.textContent='Excel comparison exported. Please verify values against the original quotations.';}catch(e){status.textContent='Export failed: '+e.message;}});
 render();
 </script></body></html>
