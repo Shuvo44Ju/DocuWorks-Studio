@@ -1,97 +1,38 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#176b55"><title>Price Reduction Tool | DocuWorks Studio</title>
-<style>*{box-sizing:border-box}body{margin:0;background:#f3f6fb;color:#182235;font:16px/1.55 system-ui,Segoe UI,sans-serif}header{height:68px;background:#fff;border-bottom:1px solid #e4eae6;display:flex;align-items:center;padding:0 max(16px,calc((100vw - 760px)/2));gap:14px;position:sticky;top:0;z-index:5}header a{background:#176b55;color:#fff;text-decoration:none;padding:9px 13px;border-radius:9px;font-weight:700}header strong{font-size:19px}main{max-width:900px;margin:26px auto;padding:0 16px}.hero{background:linear-gradient(120deg,#101c32,#1e3e70);color:#fff;padding:26px;border-radius:18px}.hero p{color:#dbeafe;margin-bottom:0}.panel{background:#fff;border:1px solid #dce4ef;border-radius:16px;padding:22px;margin:18px 0;box-shadow:0 5px 20px #14233b0a}.drop{border:2px dashed #a9bad4;border-radius:12px;padding:24px;text-align:center;background:#f9fbff}.btn,.filebtn{background:#176b55;color:#fff;border:0;border-radius:9px;padding:11px 16px;font:inherit;font-weight:700;cursor:pointer;display:inline-block}.btn:disabled{opacity:.45}.secondary{background:#e8edf5;color:#182235}.filebtn input{display:none}.status,.note{font-size:14px;color:#667085}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.item{border:1px solid #dce4ef;border-radius:10px;padding:12px;margin:10px 0;overflow-wrap:anywhere}.warning{background:#fff7e6;border:1px solid #f0d59b;border-radius:10px;padding:12px;color:#704c00}.hidden{display:none!important}footer{text-align:center;color:#667085;font-size:13px;padding:20px}</style></head><body>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#176b55"><title>Drag-to-Remove PDF Tool | DocuWorks Studio</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f6fb;color:#182235;font:16px/1.5 system-ui,Segoe UI,sans-serif}header{height:68px;background:#fff;border-bottom:1px solid #e4eae6;display:flex;align-items:center;padding:0 max(16px,calc((100vw - 1000px)/2));gap:14px;position:sticky;top:0;z-index:5}header a{background:#176b55;color:#fff;text-decoration:none;padding:9px 13px;border-radius:9px;font-weight:700}header strong{font-size:19px}main{max-width:1100px;margin:24px auto;padding:0 16px}.hero{background:linear-gradient(120deg,#101c32,#1e3e70);color:#fff;padding:24px;border-radius:18px}.hero p{color:#dbeafe;margin-bottom:0}.panel{background:#fff;border:1px solid #dce4ef;border-radius:16px;padding:20px;margin:18px 0;box-shadow:0 5px 20px #14233b0a}.btn,.filebtn{background:#176b55;color:#fff;border:0;border-radius:9px;padding:10px 15px;font:inherit;font-weight:700;cursor:pointer;display:inline-block}.secondary{background:#e8edf5;color:#182235}.filebtn input{display:none}.status,.note{font-size:14px;color:#667085}.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}.hidden{display:none!important}.viewer{background:#d8dee8;padding:12px;border-radius:12px;overflow:auto;text-align:center;min-height:160px}.pagewrap{position:relative;display:inline-block;max-width:100%;line-height:0;background:white;box-shadow:0 2px 14px #0002}.pagewrap canvas{display:block;max-width:100%;height:auto}.pagewrap.dragmode{cursor:crosshair;touch-action:none}.selection{position:absolute;border:2px solid #dc2626;background:#ef444455;pointer-events:none}.warning{background:#fff7e6;border:1px solid #f0d59b;border-radius:10px;padding:12px;color:#704c00}button:disabled{opacity:.45;cursor:not-allowed}footer{text-align:center;color:#667085;font-size:13px;padding:20px}
+</style></head><body>
 <header><a href="./index.html">← Home</a><strong>DocuWorks <span style="color:#176b55">Studio</span></strong></header><main>
-<section class="hero"><div style="font-size:12px;font-weight:800;letter-spacing:.1em">FEATURE 04</div><h1 style="margin:6px 0">Price Reduction Tool</h1><p>Find and remove quotation prices while keeping technical and supplier information intact.</p></section>
-<section class="panel"><h2>1. Select a quotation PDF</h2><div class="drop"><p>Choose a PDF quotation to inspect it in your browser.</p><label class="filebtn">Choose PDF<input id="file" type="file" accept=".pdf,application/pdf"></label><div id="filename" class="status">No file selected</div></div><p id="status" class="status" role="status">Your file is processed locally in this browser.</p></section>
-<section id="review" class="panel hidden"><h2>2. Automatic price removal</h2><p class="note">Likely prices are selected and removed automatically. Review the output carefully before using it.</p><div id="matches"></div><div class="actions"><button class="btn" id="make" disabled>Create price-removed PDF</button><button class="btn secondary" id="reset">Clear</button></div><p id="result" class="status"></p></section>
-<section class="panel"><h2>Current capabilities</h2><ul><li>Detects selectable PDF text containing common currency symbols/codes and price-related labels.</li><li>Creates a flattened PDF copy; the original file is not changed.</li><li>Files stay in your browser during processing.</li></ul><div class="warning"><strong>Important:</strong> This initial version does not OCR scanned PDFs or reliably detect prices written in words. Review every match and every page before using the output. The exported PDF is image-based, so text search/copy may be lost.</div></section></main><footer>DocuWorks Studio · Feature 04</footer>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="./theme.js?v=2" defer></script>
+<section class="hero"><div style="font-size:12px;font-weight:800;letter-spacing:.1em">FEATURE 04</div><h1 style="margin:6px 0">Drag-to-Remove PDF Tool</h1><p>Choose the removal tool once, then drag over any price or text. Each area is removed as soon as you release.</p></section>
+<section class="panel"><h2>1. Open quotation</h2><label class="filebtn">Choose PDF<input id="file" type="file" accept="application/pdf,.pdf"></label> <span id="filename" class="status">No file selected</span><p id="status" class="status" role="status">Your file stays in this browser. The original is never changed.</p></section>
+<section id="editor" class="panel hidden"><h2>2. Mark areas to remove</h2><div class="toolbar"><button class="btn" id="toggle">Enable drag-to-remove</button><button class="btn secondary" id="prev">← Previous</button><span id="pageinfo">Page —</span><button class="btn secondary" id="next">Next →</button><button class="btn secondary" id="undo">Undo last area</button><button class="btn secondary" id="clear">Clear all areas</button><button class="btn" id="export">Export cleaned PDF</button></div><p id="modehint" class="note">Drag mode is OFF. Turn it on once, then drag across any text/price. Each drag is applied instantly.</p><div class="viewer"><div class="pagewrap" id="pagewrap"><canvas id="canvas"></canvas><div id="selection" class="selection hidden"></div></div></div><p id="result" class="status"></p></section>
+<section class="panel"><h2>How it works</h2><ul><li>Enable drag-to-remove once, then drag over as many areas as you want. Every completed drag is applied immediately.</li><li>Works with selectable-text and scanned/image PDFs because you mark visible areas.</li><li>Export creates a flattened PDF copy. The original is unchanged.</li></ul><div class="warning"><strong>Please check the page before exporting.</strong> Rectangle removal covers everything inside the box, so keep the box tight around the text you want removed. The exported PDF is image-based; text search/copy may be lost.</div></section>
+</main><footer>DocuWorks Studio · Feature 04</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-let file=null,pdf=null,pages=[],matches=[];
-const currency=/(?:[$€£₹৳¥]|\b(?:USD|US\$|EUR|GBP|BDT|INR|AED|CNY|JPY|CAD|AUD|CHF|SGD|Taka|Rupees?)\b)/i;
-const amount=/(?:[$€£₹৳¥]\s*)?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,4})?(?:\s*(?:USD|EUR|GBP|BDT|INR|AED|CNY|JPY|CAD|AUD|CHF|SGD))?/i;
-const priceWords=/\b(unit\s*price|price|rate|amount|total|subtotal|grand\s*total|discount|quoted|quotation\s*value|tax|vat|freight|delivery|shipping|cost|extended|line\s*total|net\s*value|gross\s*value|ex\.?\s*works|cif|fob|unit\s*cost|selling\s*price|offer\s*price|basic\s*price|price\s*per|each|per\s*unit)\b/i;
-const nonPriceWords=/\b(model|part\s*(?:no|number)|catalog(?:ue)?\s*(?:no|number)|item\s*(?:no|number)|serial|phone|fax|email|year|qty|quantity|page|reference|ref\.?|hs\s*code|postal|zip)\b/i;
-function lineKey(it){return Math.round((it.transform?.[5]||0)/3)*3;}
-$('file').addEventListener('change',async e=>{
- file=e.target.files[0];if(!file)return;
- if(!/\.pdf$/i.test(file.name)){$('status').textContent='Please select a PDF file.';return;}
- $('filename').textContent=file.name+' · '+(file.size/1048576).toFixed(2)+' MB';
- $('status').textContent='Scanning PDF text and looking for prices…';
- $('review').classList.remove('hidden');$('matches').replaceChildren();pages=[];matches=[];$('make').disabled=true;
- try{
-  pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
-  for(let n=1;n<=pdf.numPages;n++){
-   const pg=await pdf.getPage(n),tc=await pg.getTextContent(),items=tc.items.filter(x=>typeof x.str==='string'&&x.str.trim()&&x.transform).map((x,i)=>({...x,_i:i}));
-   const groups=new Map();for(const it of items){const k=lineKey(it);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(it);}
-   const allText=items.map(x=>x.str).join(' '),pageHasPriceContext=priceWords.test(allText)||currency.test(allText);
-   const found=[];
-   for(const [k,arr] of groups){
-    arr.sort((a,b)=>a.transform[4]-b.transform[4]);const line=arr.map(x=>x.str).join(' '),hasLabel=priceWords.test(line),hasCurrency=currency.test(line);
-    const rowHasPriceContext=hasLabel||hasCurrency;
-    for(let i=0;i<arr.length;i++){
-     const it=arr[i],s=it.str.trim(),numeric=amount.test(s)&&/\d/.test(s);
-     const currencyOnly=currency.test(s)&&!/\d/.test(s);
-     const label=priceWords.test(s);
-     const neighborCurrency=arr.some(x=>x!==it&&currency.test(x.str)&&Math.abs(x.transform[4]-it.transform[4])<Math.max(180,(it.width||20)*8));
-     const contextNearby=arr.some(x=>x!==it&&priceWords.test(x.str)&&Math.abs(x.transform[4]-it.transform[4])<Math.max(260,(it.width||20)*10));
-     let kind='',confidence='';
-     if(numeric&&(currency.test(s)||neighborCurrency)){kind='Currency-coded amount';confidence='High';}
-     else if(numeric&&(rowHasPriceContext||contextNearby)){kind='Amount near price label';confidence='Medium';}
-     else if(numeric&&pageHasPriceContext){kind='Numeric value — review for price';confidence='Low';}
-     else if(numeric){kind='Unclassified numeric value — review';confidence='Low';}
-     if(kind&&!nonPriceWords.test(s))found.push({page:n,itemIndex:it._i,item:it,value:s,kind,line,confidence});
-     if(currencyOnly&&rowHasPriceContext)found.push({page:n,itemIndex:it._i,item:it,value:s,kind:'Currency marker — review',line,confidence:'Review'});
-     if(label)found.push({page:n,itemIndex:it._i,item:it,value:s,kind:'Price heading (do not redact)',line,confidence:'Review',heading:true});
-    }
-   }
-   pages.push({n,pg,items,viewport:pg.getViewport({scale:1}),groups});
-   found.forEach(x=>matches.push(x));
-  }
-  const unique=new Map();for(const m of matches){const k=m.page+':'+m.itemIndex;if(!unique.has(k)||(!m.heading&&unique.get(k).heading))unique.set(k,m);}matches=[...unique.values()];
-  render();
-  const candidates=matches.filter(m=>!m.heading);
-  $('status').textContent='Scan complete: '+pdf.numPages+' pages · '+candidates.length+' numeric/currency candidates. Low-confidence candidates are included for manual review.';
-  if(!candidates.length){$('status').textContent+=' No selectable text was found. This is probably a scanned/image PDF; OCR is required.';}else{const autoCount=[...$('matches').querySelectorAll('input:checked')].length;if(autoCount){$('status').textContent+=' Auto-selected '+autoCount+' likely price values. Creating the cleaned copy…';setTimeout(()=>$('make').click(),250);}}
- }catch(err){$('status').textContent='Could not scan PDF: '+err.message;}
-});
-function render(){
- const host=$('matches');host.replaceChildren();
- if(!matches.length){host.textContent='No matches found. A scanned PDF may need OCR.';return;}
- matches.forEach((m,i)=>{const row=document.createElement('label');row.className='item';const cb=document.createElement('input');cb.type='checkbox';cb.dataset.index=i;cb.checked=!m.heading&&m.confidence!=='Low';cb.disabled=!!m.heading;const detail=document.createElement('span');detail.textContent=' Page '+m.page+' · '+m.kind+' · '+m.confidence+' confidence: “'+m.value+'”'+(m.heading?' (heading retained)':'');row.append(cb,detail);host.append(row);});
- $('make').disabled=true;
- const help=document.createElement('p');help.className='note';help.textContent='Price candidates are selected automatically. The tool exports likely price values; inspect the output because automatic detection can still miss prices or mistake other numbers for prices.';host.prepend(help);
- host.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.addEventListener('change',()=>{$('make').disabled=!host.querySelector('input:checked');}));
+let file=null,pdf=null,pageNum=1,scale=1.35,dragMode=false,dragStart=null,masks={},pageSizes={};
+const canvas=$('canvas'),ctx=canvas.getContext('2d',{alpha:false}),wrap=$('pagewrap'),selection=$('selection');
+function list(){return masks[pageNum]||(masks[pageNum]=[])}
+function paintMasks(){ctx.save();ctx.fillStyle='#fff';for(const r of list())ctx.fillRect(r.x,r.y,r.w,r.h);ctx.restore()}
+async function showPage(n){
+ if(!pdf)return;pageNum=Math.max(1,Math.min(pdf.numPages,n));const page=await pdf.getPage(pageNum),vp=page.getViewport({scale});
+ canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);canvas.style.width=vp.width+'px';canvas.style.height=vp.height+'px';wrap.style.width=vp.width+'px';wrap.style.height=vp.height+'px';pageSizes[pageNum]={width:vp.width,height:vp.height};
+ await page.render({canvasContext:ctx,viewport:vp}).promise;paintMasks();
+ $('pageinfo').textContent='Page '+pageNum+' of '+pdf.numPages+' · '+Object.values(masks).reduce((a,x)=>a+x.length,0)+' areas marked';$('prev').disabled=pageNum===1;$('next').disabled=pageNum===pdf.numPages;
 }
-$('make').addEventListener('click',async()=>{
- if(!file||!pdf)return;
- const selected=[...$('matches').querySelectorAll('input:checked')].map(x=>matches[+x.dataset.index]);if(!selected.length)return;
- $('make').disabled=true;$('result').textContent='Rendering pages and permanently flattening selected regions…';
- try{
-  const jsPDF=window.jspdf.jsPDF;let doc=null;
-  for(const p of pages){
-   const vp=p.pg.getViewport({scale:2}),canvas=document.createElement('canvas');canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);
-   const ctx=canvas.getContext('2d',{alpha:false});ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
-   await p.pg.render({canvasContext:ctx,viewport:vp}).promise;
-   for(const m of selected.filter(x=>x.page===p.n)){
-    const it=p.items.find(x=>x._i===m.itemIndex);if(!it)continue;
-    const [x,y]=vp.convertToViewportPoint(it.transform[4],it.transform[5]);
-    const h=Math.max(12,Math.hypot(it.transform[2],it.transform[3])*2);
-    const w=Math.max(8,(it.width||Math.max(4,it.str.length*4))*2);
-    // Add a small margin to erase anti-aliased glyph edges.
-    ctx.fillStyle='#fff';ctx.fillRect(Math.max(0,x-2),Math.max(0,y-h-3),Math.min(w+5,canvas.width-Math.max(0,x-2)),h+7);
-   }
-   const pw=p.viewport.width,ph=p.viewport.height;
-   if(!doc)doc=new jsPDF({orientation:pw>ph?'landscape':'portrait',unit:'pt',format:[pw,ph],compress:true});
-   else doc.addPage([pw,ph],pw>ph?'landscape':'portrait');
-   doc.addImage(canvas.toDataURL('image/png'),'PNG',0,0,pw,ph,undefined,'FAST');canvas.width=canvas.height=1;
-  }
-  const url=URL.createObjectURL(doc.output('blob')),a=document.createElement('a');a.href=url;a.download=file.name.replace(/\.pdf$/i,'')+'-prices-removed.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
-  $('result').textContent='Export created. It is image-based, so covered text is not selectable in the output. Check every page carefully; automatic detection cannot guarantee all prices were found.';
- }catch(err){$('result').textContent='Could not create output: '+err.message;}finally{$('make').disabled=!$('matches').querySelector('input:checked');}
-});
-$('reset').addEventListener('click',()=>{file=null;pdf=null;pages=[];matches=[];$('file').value='';$('filename').textContent='No file selected';$('status').textContent='Your file is processed locally in this browser.';$('matches').replaceChildren();$('review').classList.add('hidden');$('result').textContent='';});
-})();</script></body></html>
+$('file').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;if(!/\.pdf$/i.test(f.name)){ $('status').textContent='Please choose a PDF.';return;}file=f;$('filename').textContent=f.name+' · '+(f.size/1048576).toFixed(2)+' MB';$('status').textContent='Opening PDF…';try{pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;pageNum=1;masks={};pageSizes={};$('editor').classList.remove('hidden');await showPage(1);$('status').textContent='PDF ready. Enable drag-to-remove and drag over any area you want removed.';}catch(err){$('status').textContent='Could not open PDF: '+err.message;}});
+$('toggle').addEventListener('click',()=>{dragMode=!dragMode;wrap.classList.toggle('dragmode',dragMode);$('toggle').textContent=dragMode?'Drag-to-remove is ON ✓':'Enable drag-to-remove';$('modehint').textContent=dragMode?'ON: Drag over a price or text and release. It will be removed immediately; keep dragging to mark more areas.':'OFF: Turn on drag-to-remove to mark areas.';});
+function point(e){const r=canvas.getBoundingClientRect();return{x:Math.max(0,Math.min(canvas.width,(e.clientX-r.left)*canvas.width/r.width)),y:Math.max(0,Math.min(canvas.height,(e.clientY-r.top)*canvas.height/r.height))}}
+canvas.addEventListener('pointerdown',e=>{if(!dragMode)return;e.preventDefault();canvas.setPointerCapture(e.pointerId);dragStart=point(e);selection.classList.remove('hidden');selection.style.left=dragStart.x/canvas.width*100+'%';selection.style.top=dragStart.y/canvas.height*100+'%';selection.style.width='0';selection.style.height='0';});
+canvas.addEventListener('pointermove',e=>{if(!dragStart||!dragMode)return;const p=point(e),x=Math.min(p.x,dragStart.x),y=Math.min(p.y,dragStart.y),w=Math.abs(p.x-dragStart.x),h=Math.abs(p.y-dragStart.y);selection.style.left=x/canvas.width*100+'%';selection.style.top=y/canvas.height*100+'%';selection.style.width=w/canvas.width*100+'%';selection.style.height=h/canvas.height*100+'%';});
+canvas.addEventListener('pointerup',e=>{if(!dragStart||!dragMode)return;const p=point(e),x=Math.min(p.x,dragStart.x),y=Math.min(p.y,dragStart.y),w=Math.abs(p.x-dragStart.x),h=Math.abs(p.y-dragStart.y);selection.classList.add('hidden');dragStart=null;if(w<4||h<4)return;list().push({x,y,w,h});ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);$('result').textContent='Area removed immediately. You can keep dragging or export when finished.';$('pageinfo').textContent='Page '+pageNum+' of '+pdf.numPages+' · '+Object.values(masks).reduce((a,x)=>a+x.length,0)+' areas marked';});
+$('prev').addEventListener('click',()=>showPage(pageNum-1));$('next').addEventListener('click',()=>showPage(pageNum+1));
+$('undo').addEventListener('click',async()=>{if(list().length){list().pop();await showPage(pageNum);$('result').textContent='Last marked area undone.';}});
+$('clear').addEventListener('click',async()=>{if(!pdf)return;masks[pageNum]=[];await showPage(pageNum);$('result').textContent='All marked areas on this page cleared.';});
+$('export').addEventListener('click',async()=>{if(!pdf||!file)return;$('export').disabled=true;$('result').textContent='Creating cleaned PDF…';try{const {jsPDF}=window.jspdf;let out=null;for(let n=1;n<=pdf.numPages;n++){const pg=await pdf.getPage(n),vp=pg.getViewport({scale:2}),cv=document.createElement('canvas');cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);const cx=cv.getContext('2d',{alpha:false});cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);await pg.render({canvasContext:cx,viewport:vp}).promise;const orig=pageSizes[n]||(()=>{const z=pg.getViewport({scale});return{width:z.width,height:z.height}})(),sx=vp.width/orig.width,sy=vp.height/orig.height;cx.fillStyle='#fff';for(const r of masks[n]||[])cx.fillRect(r.x*sx,r.y*sy,r.w*sx,r.h*sy);const base=pg.getViewport({scale:1});if(!out)out=new jsPDF({orientation:base.width>base.height?'landscape':'portrait',unit:'pt',format:[base.width,base.height],compress:true});else out.addPage([base.width,base.height],base.width>base.height?'landscape':'portrait');out.addImage(cv.toDataURL('image/jpeg',.92),'JPEG',0,0,base.width,base.height,undefined,'FAST');cv.width=cv.height=1;}const blob=out.output('blob'),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=file.name.replace(/\.pdf$/i,'')+'-cleaned.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);$('result').textContent='Export complete. '+Object.values(masks).reduce((a,x)=>a+x.length,0)+' areas removed. Check the downloaded PDF before sharing.';}catch(err){$('result').textContent='Export failed: '+err.message;}finally{$('export').disabled=false;}});
+})();
+</script></body></html>
