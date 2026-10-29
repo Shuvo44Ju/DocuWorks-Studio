@@ -7,11 +7,86 @@
 <section class="panel"><h2>Current capabilities</h2><ul><li>Detects selectable PDF text containing common currency symbols/codes and price-related labels.</li><li>Creates a flattened PDF copy; the original file is not changed.</li><li>Files stay in your browser during processing.</li></ul><div class="warning"><strong>Important:</strong> This initial version does not OCR scanned PDFs or reliably detect prices written in words. Review every match and every page before using the output. The exported PDF is image-based, so text search/copy may be lost.</div></section></main><footer>DocuWorks Studio · Feature 04</footer>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="./theme.js?v=2" defer></script>
 <script>
-(()=>{'use strict';const $=id=>document.getElementById(id);pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';let file=null,pdf=null,pages=[],matches=[];
-const money=/(?:[$€£₹৳]|\b(?:USD|EUR|GBP|BDT|INR|AED|CNY|JPY)\b)\s?\d[\d,]*(?:\.\d{1,2})?|\d[\d,]*(?:\.\d{1,2})?\s?(?:USD|EUR|GBP|BDT|INR|AED|CNY|JPY)\b/gi;
-const labels=/\b(unit price|price|rate|amount|total price|subtotal|grand total|discount|quoted price|quotation value|tax|vat|freight|delivery charge)\b/gi;
-$('file').addEventListener('change',async e=>{file=e.target.files[0];if(!file)return;$('filename').textContent=file.name+' · '+(file.size/1048576).toFixed(2)+' MB';$('status').textContent='Reading PDF text…';$('review').classList.remove('hidden');$('matches').replaceChildren();pages=[];matches=[];$('make').disabled=true;try{pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;for(let n=1;n<=pdf.numPages;n++){const pg=await pdf.getPage(n),tc=await pg.getTextContent(),items=tc.items.filter(x=>x.str&&x.str.trim()),text=items.map(x=>x.str).join(' ');pages.push({n,pg,items,viewport:pg.getViewport({scale:1})});let m;while((m=money.exec(text))!==null)matches.push({page:n,value:m[0],kind:'Currency amount'});while((m=labels.exec(text))!==null)matches.push({page:n,value:m[0],kind:'Price-related label'});}render();$('status').textContent='Inspection complete: '+pdf.numPages+' page(s), '+matches.length+' possible matches.';if(!matches.length)$('status').textContent+=' No selectable-text price patterns found; scanned pages may need OCR.';}catch(err){$('status').textContent='Could not read PDF: '+err.message;}});
-function render(){const host=$('matches');host.replaceChildren();if(!matches.length){host.textContent='No matches found. This does not prove that the PDF contains no prices.';return;}matches.forEach((m,i)=>{const row=document.createElement('label');row.className='item';const cb=document.createElement('input');cb.type='checkbox';cb.checked=m.kind==='Currency amount';cb.dataset.index=i;cb.addEventListener('change',()=>{$('make').disabled=!host.querySelector('input:checked');});row.append(cb,document.createTextNode(' Page '+m.page+' · '+m.kind+': “'+m.value+'”'));host.append(row);});$('make').disabled=!host.querySelector('input:checked');}
-$('make').addEventListener('click',async()=>{if(!file||!pdf)return;const selected=[...$('matches').querySelectorAll('input:checked')].map(x=>matches[+x.dataset.index]);if(!selected.length)return;$('make').disabled=true;$('result').textContent='Rendering pages and creating a flattened copy…';try{const jsPDF=window.jspdf.jsPDF;let doc=null;for(const p of pages){const vp=p.pg.getViewport({scale:1.8}),canvas=document.createElement('canvas');canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);const ctx=canvas.getContext('2d');await p.pg.render({canvasContext:ctx,viewport:vp}).promise;const chosen=selected.filter(m=>m.page===p.n);for(const m of chosen){const it=p.items.find(x=>x.str&&x.str.includes(m.value));if(it){const t=it.transform,s=1.8,x=t[4]*s,y=canvas.height-t[5]*s,w=Math.max(35,it.width*s),h=Math.max(12,(it.height||10)*s);ctx.fillStyle='#fff';ctx.fillRect(Math.max(0,x-2),Math.max(0,y-h-2),Math.min(w+5,canvas.width-x),h+5);}}const w=p.viewport.width,h=p.viewport.height;if(!doc)doc=new jsPDF({orientation:w>h?'landscape':'portrait',unit:'pt',format:[w,h],compress:true});else doc.addPage([w,h],w>h?'landscape':'portrait');doc.addImage(canvas.toDataURL('image/jpeg',.92),'JPEG',0,0,w,h);canvas.width=canvas.height=1;}const url=URL.createObjectURL(doc.output('blob')),a=document.createElement('a');a.href=url;a.download=file.name.replace(/\.pdf$/i,'')+'-prices-removed.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);$('result').textContent='Copy created. Inspect every page: pattern matches are approximate and the PDF is now image-based.';}catch(err){$('result').textContent='Could not create output: '+err.message;}finally{$('make').disabled=false;}});
-$('reset').addEventListener('click',()=>{file=null;pdf=null;pages=[];matches=[];$('file').value='';$('filename').textContent='No file selected';$('status').textContent='Your file is processed locally in this browser.';$('matches').replaceChildren();$('review').classList.add('hidden');$('result').textContent='';});})();
-</script></body></html>
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let file=null,pdf=null,pages=[],matches=[];
+const currency=/(?:[$€£₹৳¥]|\b(?:USD|EUR|GBP|BDT|INR|AED|CNY|JPY|CAD|AUD|CHF|SGD)\b)/i;
+const amount=/(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,4})?/;
+const priceWords=/\b(unit\s*price|price|rate|amount|total|subtotal|grand\s*total|discount|quoted|quotation\s*value|tax|vat|freight|delivery|shipping|cost|extended|line\s*total|net\s*value|gross\s*value|ex\.?\s*works|cif|fob)\b/i;
+const nonPriceWords=/\b(model|part\s*(?:no|number)|catalog(?:ue)?\s*(?:no|number)|item\s*(?:no|number)|serial|phone|fax|email|year|qty|quantity|page|reference|ref\.?|hs\s*code|postal|zip)\b/i;
+function lineKey(it){return Math.round(it.transform[5]/2)*2;}
+$('file').addEventListener('change',async e=>{
+ file=e.target.files[0];if(!file)return;
+ if(!/\.pdf$/i.test(file.name)){$('status').textContent='Please select a PDF file.';return;}
+ $('filename').textContent=file.name+' · '+(file.size/1048576).toFixed(2)+' MB';
+ $('status').textContent='Deep scan: extracting positioned text from each page…';
+ $('review').classList.remove('hidden');$('matches').replaceChildren();pages=[];matches=[];$('make').disabled=true;
+ try{
+  pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+  for(let n=1;n<=pdf.numPages;n++){
+   const pg=await pdf.getPage(n),tc=await pg.getTextContent({includeMarkedContent:true}),items=tc.items.filter(x=>typeof x.str==='string'&&x.str.trim()).map((x,i)=>({...x,_i:i,_y:x.transform?.[5]||0}));
+   const groups=new Map();for(const it of items){const k=lineKey(it);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(it);}
+   const lineInfo=new Map();
+   for(const [k,arr] of groups){arr.sort((a,b)=>a.transform[4]-b.transform[4]);const text=arr.map(x=>x.str).join(' ');lineInfo.set(k,{arr,text,hasLabel:priceWords.test(text),hasCurrency:currency.test(text),hasAmount:amount.test(text),blocked:nonPriceWords.test(text)});}
+   const found=[];
+   for(const [k,info] of lineInfo){
+    const {arr,text,hasLabel,hasCurrency,blocked}=info;
+    for(let i=0;i<arr.length;i++){
+     const it=arr[i],s=it.str.trim();
+     const isCurrency=currency.test(s)||(/[€£$₹৳¥]/.test(s)&&amount.test(s));
+     const isAmount=amount.test(s)&&/\d/.test(s);
+     const label=priceWords.test(s);
+     const nearCurrency=arr.some(x=>currency.test(x.str)&&Math.abs(x.transform[4]-it.transform[4])<Math.max(120,(it.width||20)*5));
+     const likelyPrice=isCurrency||(isAmount&&(hasLabel||hasCurrency||nearCurrency)&&!nonPriceWords.test(s));
+     if(likelyPrice)found.push({page:n,itemIndex:it._i,item:it,value:s,kind:isCurrency?'Currency marker/amount':hasLabel?'Amount on price-labelled line':'Possible numeric price',line:text,confidence:isCurrency?'High':hasLabel?'Medium':'Review'});
+     if(label)found.push({page:n,itemIndex:it._i,item:it,value:s,kind:'Price-related heading (keep heading)',line:text,confidence:'Review',heading:true});
+    }
+   }
+   pages.push({n,pg,items,viewport:pg.getViewport({scale:1}),groups});
+   found.forEach(x=>matches.push(x));
+  }
+  // Remove duplicate entries for the same text item and page, keeping the most useful candidate.
+  const unique=new Map();for(const m of matches){const k=m.page+':'+m.itemIndex;if(!unique.has(k)||(!m.heading&&unique.get(k).heading))unique.set(k,m);}matches=[...unique.values()];
+  render();
+  $('status').textContent='Deep scan complete: '+pdf.numPages+' pages · '+matches.filter(m=>!m.heading).length+' possible price values. Review each selection before exporting.';
+  if(!matches.some(m=>!m.heading))$('status').textContent+=' No text-layer matches found. This may be a scanned PDF and needs OCR.';
+ }catch(err){$('status').textContent='Could not scan PDF: '+err.message;}
+});
+function render(){
+ const host=$('matches');host.replaceChildren();
+ if(!matches.length){host.textContent='No matches found. A scanned PDF may need OCR.';return;}
+ matches.forEach((m,i)=>{const row=document.createElement('label');row.className='item';const cb=document.createElement('input');cb.type='checkbox';cb.dataset.index=i;cb.checked=false;cb.disabled=!!m.heading;const detail=document.createElement('span');detail.textContent=' Page '+m.page+' · '+m.kind+' · '+m.confidence+' confidence: “'+m.value+'”'+(m.heading?' (heading retained)':'');row.append(cb,detail);host.append(row);});
+ $('make').disabled=true;
+ const help=document.createElement('p');help.className='note';help.textContent='Nothing is selected automatically. Check only actual price values; do not select quantities, model numbers, product codes or headings.';host.prepend(help);
+ host.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.addEventListener('change',()=>{$('make').disabled=!host.querySelector('input:checked');}));
+}
+$('make').addEventListener('click',async()=>{
+ if(!file||!pdf)return;
+ const selected=[...$('matches').querySelectorAll('input:checked')].map(x=>matches[+x.dataset.index]);if(!selected.length)return;
+ $('make').disabled=true;$('result').textContent='Rendering pages and permanently flattening selected regions…';
+ try{
+  const jsPDF=window.jspdf.jsPDF;let doc=null;
+  for(const p of pages){
+   const vp=p.pg.getViewport({scale:2}),canvas=document.createElement('canvas');canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);
+   const ctx=canvas.getContext('2d',{alpha:false});ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+   await p.pg.render({canvasContext:ctx,viewport:vp}).promise;
+   for(const m of selected.filter(x=>x.page===p.n)){
+    const it=p.items.find(x=>x._i===m.itemIndex);if(!it)continue;
+    const [x,y]=vp.convertToViewportPoint(it.transform[4],it.transform[5]);
+    const h=Math.max(12,Math.hypot(it.transform[2],it.transform[3])*2);
+    const w=Math.max(8,(it.width||Math.max(4,it.str.length*4))*2);
+    // Add a small margin to erase anti-aliased glyph edges.
+    ctx.fillStyle='#fff';ctx.fillRect(Math.max(0,x-2),Math.max(0,y-h-3),Math.min(w+5,canvas.width-Math.max(0,x-2)),h+7);
+   }
+   const pw=p.viewport.width,ph=p.viewport.height;
+   if(!doc)doc=new jsPDF({orientation:pw>ph?'landscape':'portrait',unit:'pt',format:[pw,ph],compress:true});
+   else doc.addPage([pw,ph],pw>ph?'landscape':'portrait');
+   doc.addImage(canvas.toDataURL('image/png'),'PNG',0,0,pw,ph,undefined,'FAST');canvas.width=canvas.height=1;
+  }
+  const url=URL.createObjectURL(doc.output('blob')),a=document.createElement('a');a.href=url;a.download=file.name.replace(/\.pdf$/i,'')+'-prices-removed.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
+  $('result').textContent='Export created. It is image-based, so covered text is not selectable in the output. Check every page carefully; automatic detection cannot guarantee all prices were found.';
+ }catch(err){$('result').textContent='Could not create output: '+err.message;}finally{$('make').disabled=!$('matches').querySelector('input:checked');}
+});
+$('reset').addEventListener('click',()=>{file=null;pdf=null;pages=[];matches=[];$('file').value='';$('filename').textContent='No file selected';$('status').textContent='Your file is processed locally in this browser.';$('matches').replaceChildren();$('review').classList.add('hidden');$('result').textContent='';});
+})();</body></html>
