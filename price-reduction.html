@@ -3,7 +3,7 @@
 <header><a href="./index.html">← Home</a><strong>DocuWorks <span style="color:#176b55">Studio</span></strong></header><main>
 <section class="hero"><div style="font-size:12px;font-weight:800;letter-spacing:.1em">FEATURE 04</div><h1 style="margin:6px 0">Price Reduction Tool</h1><p>Find and remove quotation prices while keeping technical and supplier information intact.</p></section>
 <section class="panel"><h2>1. Select a quotation PDF</h2><div class="drop"><p>Choose a PDF quotation to inspect it in your browser.</p><label class="filebtn">Choose PDF<input id="file" type="file" accept=".pdf,application/pdf"></label><div id="filename" class="status">No file selected</div></div><p id="status" class="status" role="status">Your file is processed locally in this browser.</p></section>
-<section id="review" class="panel hidden"><h2>2. Review detected prices</h2><p class="note">Select matches to remove from the exported copy. Detection is pattern-based; verify each page.</p><div id="matches"></div><div class="actions"><button class="btn" id="make" disabled>Create price-removed PDF</button><button class="btn secondary" id="reset">Clear</button></div><p id="result" class="status"></p></section>
+<section id="review" class="panel hidden"><h2>2. Automatic price removal</h2><p class="note">Likely prices are selected and removed automatically. Review the output carefully before using it.</p><div id="matches"></div><div class="actions"><button class="btn" id="make" disabled>Create price-removed PDF</button><button class="btn secondary" id="reset">Clear</button></div><p id="result" class="status"></p></section>
 <section class="panel"><h2>Current capabilities</h2><ul><li>Detects selectable PDF text containing common currency symbols/codes and price-related labels.</li><li>Creates a flattened PDF copy; the original file is not changed.</li><li>Files stay in your browser during processing.</li></ul><div class="warning"><strong>Important:</strong> This initial version does not OCR scanned PDFs or reliably detect prices written in words. Review every match and every page before using the output. The exported PDF is image-based, so text search/copy may be lost.</div></section></main><footer>DocuWorks Studio · Feature 04</footer>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="./theme.js?v=2" defer></script>
 <script>
@@ -55,15 +55,15 @@ $('file').addEventListener('change',async e=>{
   render();
   const candidates=matches.filter(m=>!m.heading);
   $('status').textContent='Scan complete: '+pdf.numPages+' pages · '+candidates.length+' numeric/currency candidates. Low-confidence candidates are included for manual review.';
-  if(!candidates.length)$('status').textContent+=' No selectable text was found. This is probably a scanned/image PDF; OCR must be added to process it.';
+  if(!candidates.length){$('status').textContent+=' No selectable text was found. This is probably a scanned/image PDF; OCR is required.';}else{const autoCount=[...$('matches').querySelectorAll('input:checked')].length;if(autoCount){$('status').textContent+=' Auto-selected '+autoCount+' likely price values. Creating the cleaned copy…';setTimeout(()=>$('make').click(),250);}}
  }catch(err){$('status').textContent='Could not scan PDF: '+err.message;}
 });
 function render(){
  const host=$('matches');host.replaceChildren();
  if(!matches.length){host.textContent='No matches found. A scanned PDF may need OCR.';return;}
- matches.forEach((m,i)=>{const row=document.createElement('label');row.className='item';const cb=document.createElement('input');cb.type='checkbox';cb.dataset.index=i;cb.checked=false;cb.disabled=!!m.heading;const detail=document.createElement('span');detail.textContent=' Page '+m.page+' · '+m.kind+' · '+m.confidence+' confidence: “'+m.value+'”'+(m.heading?' (heading retained)':'');row.append(cb,detail);host.append(row);});
+ matches.forEach((m,i)=>{const row=document.createElement('label');row.className='item';const cb=document.createElement('input');cb.type='checkbox';cb.dataset.index=i;cb.checked=!m.heading&&m.confidence!=='Low';cb.disabled=!!m.heading;const detail=document.createElement('span');detail.textContent=' Page '+m.page+' · '+m.kind+' · '+m.confidence+' confidence: “'+m.value+'”'+(m.heading?' (heading retained)':'');row.append(cb,detail);host.append(row);});
  $('make').disabled=true;
- const help=document.createElement('p');help.className='note';help.textContent='Nothing is selected automatically. Check only actual price values; do not select quantities, model numbers, product codes or headings.';host.prepend(help);
+ const help=document.createElement('p');help.className='note';help.textContent='Price candidates are selected automatically. The tool exports likely price values; inspect the output because automatic detection can still miss prices or mistake other numbers for prices.';host.prepend(help);
  host.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.addEventListener('change',()=>{$('make').disabled=!host.querySelector('input:checked');}));
 }
 $('make').addEventListener('click',async()=>{
