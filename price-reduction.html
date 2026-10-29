@@ -43,7 +43,7 @@ $('file').addEventListener('change',async e=>{
      else if(numeric&&(rowHasPriceContext||contextNearby)){kind='Amount near price label';confidence='Medium';}
      else if(numeric&&pageHasPriceContext){kind='Numeric value — review for price';confidence='Low';}
      else if(numeric){kind='Unclassified numeric value — review';confidence='Low';}
-     if(kind&&!nonPriceWords.test(line))found.push({page:n,itemIndex:it._i,item:it,value:s,kind,line,confidence});
+     if(kind&&!nonPriceWords.test(s))found.push({page:n,itemIndex:it._i,item:it,value:s,kind,line,confidence});
      if(currencyOnly&&rowHasPriceContext)found.push({page:n,itemIndex:it._i,item:it,value:s,kind:'Currency marker — review',line,confidence:'Review'});
      if(label)found.push({page:n,itemIndex:it._i,item:it,value:s,kind:'Price heading (do not redact)',line,confidence:'Review',heading:true});
     }
