@@ -54,64 +54,64 @@ window.addEventListener('dragover',e=>e.preventDefault());window.addEventListene
 pdfInput.addEventListener('change',e=>{if(e.target.files?.[0])handleFileSelection(e.target.files[0]);pdfInput.value=''});
 removeFileBtn.addEventListener('click',()=>{selectedFile=null;extractedText='';pdfInput.value='';fileInfo.classList.add('hidden');fileInfo.classList.remove('flex');dropZone.classList.remove('hidden');progressContainer.classList.add('hidden');clearError();setButtonEnabled(false)});
 convertBtn.addEventListener('click',async()=>{if(!selectedFile||convertBtn.disabled)return;clearError();convertBtn.disabled=true;setStatus(10,'Reading PDF content…');try{const buffer=await selectedFile.arrayBuffer();setStatus(15,'Opening PDF…');const pdf=await pdfjsLib.getDocument({data:buffer}).promise;let fullText='';for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);const content=await page.getTextContent();const items=content.items.filter(x=>x.str&&x.str.trim());const lines=[];let currentY=null,currentLine=[];for(const item of items){const y=Math.round(item.transform?.[5]||0);if(currentY!==null&&Math.abs(y-currentY)>3){if(currentLine.length)lines.push(currentLine.join(' ').trim());currentLine=[];}currentY=y;currentLine.push(item.str.trim());}if(currentLine.length)lines.push(currentLine.join(' ').trim());fullText+=lines.join('\n')+'\n';setStatus(15+Math.round((i/pdf.numPages)*45),'Extracting text from page '+i+' of '+pdf.numPages+'…')}if(fullText.replace(/\s/g,'').length<30){if(!window.Tesseract)throw new Error('This PDF appears to be scanned and OCR could not load. Check your internet connection and try again.');fullText='';const worker=await Tesseract.createWorker('eng',1,{logger:m=>{if(m.status==='recognizing text')setStatus(60+Math.round((m.progress||0)*25),'OCR is reading scanned PDF pages…')}});try{for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i),viewport=page.getViewport({scale:2});const canvas=document.createElement('canvas');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;const result=await worker.recognize(canvas);fullText+=result.data.text+'\n';setStatus(60+Math.round((i/pdf.numPages)*25),'OCR page '+i+' of '+pdf.numPages+'…');canvas.width=0;canvas.height=0;}}finally{await worker.terminate();}}extractedText=fullText;setStatus(88,'Matching extracted requirements to CS template…');if(!fullText.trim())throw new Error('No readable text could be extracted from this PDF.');setStatus(95,'Creating Excel workbook…');await generateAndDownloadExcel();setStatus(100,'Done! Original-template Excel file downloaded.');}catch(err){console.error(err);showError('PDF processing failed: '+(err?.message||'Unknown error')+'. Check that the PDF is valid and try again. The template was not silently substituted.');setStatus(0,'Conversion failed.')}finally{setButtonEnabled(!!selectedFile)}});
-function normalizeText(s){return String(s||'').toLowerCase().replace(/[\u00d7]/g,'x').replace(/[–—]/g,'-').replace(/\s+/g,' ').trim()}
+function normalizeText(s){return String(s||'').toLowerCase().replace(/[×]/g,'x').replace(/[–—−]/g,'-').replace(/\u00a0/g,' ').replace(/[^\p{L}\p{N}%°./+-]+/gu,' ').replace(/\s+/g,' ').trim()}
 function extractRequirements(text){
- const lines=text.split(/\n+/).map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>8);
+ const lines=text.split(/\n+/).map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>2);
  const rules=[
-  {row:9,keys:['description','purpose','intended use','application'],label:'Description'},
-  {row:10,keys:['sample capacity','samples per hour','throughput','sample analysis capacity'],label:'Sample Analysis Capacity'},
-  {row:19,keys:['sample type','capable samples','cell type','mammalian','eukaryotic'],label:'Capable Samples'},
-  {row:20,keys:['cell culture','adherent','suspension'],label:'Cell Culture Type'},
-  {row:21,keys:['cell size','diameter range','size range'],label:'Capable Cell Size Range'},
-  {row:22,keys:['cell concentration','concentration range','cells/ml','cells per ml'],label:'Cell Concentration Range'},
-  {row:23,keys:['analysis method','measurement principle','image-based','imaging based'],label:'Analysis Method'},
-  {row:24,keys:['sample volume','loading volume','sample loading'],label:'Sample Loading Volume'},
-  {row:25,keys:['viability method','trypan blue','viability measurement'],label:'Viability Method'},
-  {row:26,keys:['slide type','chamber slide','disposable slide'],label:'Slide Type'},
-  {row:27,keys:['measurement parameter','total cell count','viable cell','cell morphology'],label:'Measurement Parameters'},
-  {row:28,keys:['graphical analysis','growth curve','histogram'],label:'Graphical Analysis'},
-  {row:29,keys:['analysis time','measurement time','results within','seconds per sample'],label:'Analysis Time'},
-  {row:30,keys:['data storage','data management','historical data'],label:'Data Storage & Analysis'},
-  {row:31,keys:['export format','pdf export','excel export','data export'],label:'Data Export Format'},
-  {row:32,keys:['imaging system','camera','autofocus','image capture'],label:'Imaging System'},
-  {row:33,keys:['software feature','software shall','software must','software functions'],label:'Software Features'},
-  {row:34,keys:['operating system','windows','compatible os'],label:'Compatible Operating System'},
-  {row:35,keys:['dimension','footprint','equipment size'],label:'Dimensions'},
-  {row:36,keys:['connectivity','usb','ethernet','lan','network interface'],label:'Connectivity'},
-  {row:38,keys:['pc requirement','computer requirement','workstation'],label:'PC'},
-  {row:39,keys:['system control','control software'],label:'System Control'},
-  {row:40,keys:['image processing','imaging control','image acquisition'],label:'Imaging System Control'},
-  {row:41,keys:['startup','shut down','shutdown','restart'],label:'Startup / Shutdown'},
-  {row:42,keys:['operation mode','operating mode','push button'],label:'Operation Mode'},
-  {row:43,keys:['display','touchscreen','monitor'],label:'Display'},
-  {row:45,keys:['cell density calibration','density calibration'],label:'Cell Density Calibration'},
-  {row:46,keys:['viability calibration'],label:'Cell Viability Calibration'},
-  {row:47,keys:['diameter calibration','size calibration'],label:'Cell Diameter Calibration'},
-  {row:49,keys:['alarm','error indication','fault indication'],label:'Standard Alarms / Error Indication'},
-  {row:50,keys:['parameter deviation','deviation alarm','out of range'],label:'Parameter Deviation Alarm'},
-  {row:52,keys:['power failure','power recovery','power interruption','resume after power'],label:'Power Recovery'},
-  {row:54,keys:['material of construction','material compatibility','cleaning agent'],label:'Material Compatibility'},
-  {row:56,keys:['print out','printout','printer','usb print','sd card'],label:'Print Output'},
-  {row:58,keys:['voltage','power supply'],label:'Voltage'},
-  {row:59,keys:['frequency','50 hz','60 hz'],label:'Frequency'},
-  {row:60,keys:['ups','uninterrupted power','backup power'],label:'Uninterrupted Power Supply'},
-  {row:62,keys:['iq/oq','iq-oq','installation qualification','operational qualification'],label:'IQ-OQ Installation'},
-  {row:63,keys:['iq-oq document','validation document','qualification document'],label:'IQ-OQ Documents'},
-  {row:64,keys:['list of components','accessories','components included'],label:'List of Components'},
-  {row:65,keys:['calibration certificate','calibration cert'],label:'Calibration Certificate'},
-  {row:66,keys:['cleaning requirement','cleanability','disinfection'],label:'Cleaning Requirements'},
-  {row:67,keys:['document language','manual language','english version'],label:'Document Language'},
-  {row:70,keys:['installation calibration','calibrated instruments','commissioning'],label:'Calibration During Installation'},
-  {row:71,keys:['technical support','service support','response time','maintenance support'],label:'Technical Support'}
- ];
- const mapped=new Map(),unmatched=[];
+ [9,'Description','description|intended use|purpose|application|equipment shall'],
+ [10,'Sample Analysis Capacity','sample capacity|samples per hour|throughput|samples per run'],
+ [19,'Capable Samples','sample type|capable samples|cell type|mammalian cells|eukaryotic cells'],
+ [20,'Cell Culture Type','cell culture|adherent culture|suspension culture'],
+ [21,'Capable Cell Size Range','cell size|diameter range|size range'],
+ [22,'Cell Concentration Range','cell concentration|concentration range|cells/ml|cell density range'],
+ [23,'Analysis Method','analysis method|measurement principle|image based|imaging based'],
+ [24,'Sample Loading Volume','sample volume|loading volume|volume of sample'],
+ [25,'Viability Method','viability method|trypan blue|viability determination'],
+ [26,'Slide Type','slide type|chamber slide|disposable slide|counting slide'],
+ [27,'Measurement Parameters','measurement parameters|total cell count|viable cell count|cell morphology'],
+ [28,'Graphical Analysis','graphical analysis|growth curve|histogram|trend chart'],
+ [29,'Analysis Time','analysis time|measurement time|results within|seconds per sample'],
+ [30,'Data Storage & Analysis','data storage|data management|historical data|database'],
+ [31,'Data Export Format','export format|pdf export|excel export|data export|csv format'],
+ [32,'Imaging System','imaging system|camera|autofocus|image capture|optical system'],
+ [33,'Software Features','software feature|software shall|software functions|user management'],
+ [34,'Compatible Operating System','operating system|windows|compatible os'],
+ [35,'Dimensions','dimensions|footprint|equipment size|weight of equipment'],
+ [36,'Connectivity','connectivity|usb|ethernet|lan port|network interface|wi-fi'],
+ [38,'PC','pc requirement|computer requirement|workstation'],
+ [39,'System Control','system control|control software'],
+ [40,'Imaging System Control','image processing|imaging control|image acquisition'],
+ [41,'Startup / Shutdown','startup|start-up|shut down|shutdown|restart'],
+ [42,'Operation Mode','operation mode|operating mode|push button|automatic mode'],
+ [43,'Display','display|touchscreen|monitor|screen size'],
+ [45,'Cell Density Calibration','cell density calibration|density calibration'],
+ [46,'Cell Viability Calibration','viability calibration|viability accuracy'],
+ [47,'Cell Diameter Calibration','diameter calibration|size calibration'],
+ [49,'Standard Alarms / Error Indication','alarm|error indication|fault indication|warning message'],
+ [50,'Parameter Deviation Alarm','parameter deviation|deviation alarm|out of range'],
+ [52,'Power Recovery','power failure|power recovery|power interruption|power outage'],
+ [54,'Material Compatibility','material of construction|material compatibility|chemical resistance'],
+ [56,'Print Output','print out|printout|printer|usb print|sd card|print report'],
+ [58,'Voltage','voltage|input voltage|power supply'],
+ [59,'Frequency','frequency|50 hz|60 hz'],
+ [60,'Uninterrupted Power Supply','ups|uninterrupted power|backup power'],
+ [62,'IQ-OQ Installation','iq/oq|iq-oq|installation qualification|operational qualification'],
+ [63,'IQ-OQ Documents','validation document|qualification document|iq oq documents'],
+ [64,'List of Components','list of components|accessories|components included'],
+ [65,'Calibration Certificate','calibration certificate|traceable calibration'],
+ [66,'Cleaning Requirements','cleaning requirement|cleanability|disinfection|cleaning procedure'],
+ [67,'Document Language','document language|manual language|english version|user manual'],
+ [70,'Calibration During Installation','installation calibration|calibrated instruments|commissioning'],
+ [71,'Technical Support','technical support|service support|response time|maintenance support|warranty']
+ ].map(([row,label,keys])=>({row,label,keys:keys.split('|')}));
+ const mapped=new Map(),audit=[];
  for(const line of lines){
-  const n=normalizeText(line);let best=null,bestScore=0;
-  for(const rule of rules){let score=0;for(const key of rule.keys){const k=normalizeText(key);if(n.includes(k))score=Math.max(score,k.length)}if(score>bestScore){best=rule;bestScore=score}}
-  if(best&&bestScore>=6){if(!mapped.has(best.row))mapped.set(best.row,[]);mapped.get(best.row).push(line)}
-  else unmatched.push(line);
+  const n=normalizeText(line);let best=null,score=0;
+  for(const rule of rules){for(const key of rule.keys){const k=normalizeText(key);if(n.includes(k)&&k.length>score){best=rule;score=k.length}}}
+  if(best&&score>=5){if(!mapped.has(best.row))mapped.set(best.row,[]);if(!mapped.get(best.row).includes(line))mapped.get(best.row).push(line);audit.push({line,row:best.row,label:best.label,status:'Mapped — verify context'});}
+  else audit.push({line,row:'',label:'',status:'Unmapped — manual review'});
  }
- return {mapped,unmatched};
+ return {mapped,audit,lines};
 }
 async function generateAndDownloadExcel(){
  if(!window.ExcelJS)throw new Error('Excel export library failed to load. Check your internet connection and retry.');
@@ -121,7 +121,7 @@ async function generateAndDownloadExcel(){
  const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(await response.arrayBuffer());
  const worksheet=workbook.getWorksheet('CS-Digital Cell Analyzer')||workbook.worksheets[0];
  if(!worksheet)throw new Error('The original Excel template has no worksheet.');
- const {mapped,unmatched}=extractRequirements(extractedText);
+ const {mapped,audit,lines}=extractRequirements(extractedText);
  // The workbook is a formatting template only: clear all example/specification values
  // before applying values extracted from the uploaded URS PDF.
  const dynamicRows=[9,10,11,12,13,14,15,16,17,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,38,39,40,41,42,43,45,46,47,49,50,52,54,56,58,59,60,62,63,64,65,66,67,70,71];
@@ -136,13 +136,13 @@ async function generateAndDownloadExcel(){
  if(extractedText.trim()){
   let review=workbook.getWorksheet('URS Review');
   if(!review)review=workbook.addWorksheet('URS Review');
-  review.columns=[{header:'URS PDF text requiring manual review',key:'text',width:100},{header:'Review status',key:'status',width:22}];
-  review.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};
-  review.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1F4E78'}};
-  review.getRow(1).alignment={vertical:'middle',wrapText:true};
-  unmatched.forEach((line,i)=>{const row=review.addRow({text:line,status:'Not auto-mapped — review'});row.alignment={vertical:'top',wrapText:true};});
+  review.columns=[{header:'Extracted PDF text (verbatim)',key:'text',width:95},{header:'CS row',key:'row',width:12},{header:'CS requirement',key:'label',width:34},{header:'Mapping status',key:'status',width:28}];
+  review.spliceRows(1,review.rowCount);
+  const header=review.addRow(['Extracted PDF text (verbatim)','CS row','CS requirement','Mapping status']);
+  header.font={bold:true,color:{argb:'FFFFFFFF'}};header.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1F4E78'}};header.alignment={vertical:'middle',wrapText:true};
+  audit.forEach(item=>{const row=review.addRow([item.line,item.row,item.label,item.status]);row.alignment={vertical:'top',wrapText:true};});
   review.views=[{state:'frozen',ySplit:1}];
-  review.autoFilter={from:'A1',to:'B'+Math.max(1,review.rowCount)};
+  review.autoFilter={from:'A1',to:'D'+Math.max(1,review.rowCount)};
  }
  setStatus(98,'Writing Excel file with original template styling…');
  const out=await workbook.xlsx.writeBuffer();
