@@ -5,22 +5,19 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#14243d">
 <meta name="description" content="A simple workspace for document scanning, URS-to-CS conversion, and PDF optimization.">
-<title>DocuWorks Studio | Document Tools</title>
+<title>DocuWorks Studio</title>
 <style>
 :root{color-scheme:light;--ink:#15243b;--muted:#65738a;--line:#e0e7f0;--panel:#fff;--bg:#f4f7fb;--blue:#2457d6;--teal:#087f8c}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
 a{color:inherit}
 .shell{max-width:1120px;margin:auto;padding:0 24px}
-header{background:linear-gradient(120deg,#101c32,#1e3e70);color:#fff;padding:24px 0 68px}
+header{background:linear-gradient(120deg,#101c32,#1e3e70);color:#fff;padding:24px 0}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:18px}
 .brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:-.02em}
 .brandmark{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#ffffff18;border:1px solid #ffffff30;font-size:20px}
 .topnote{font-size:13px;color:#c7d6eb}
-.hero{padding-top:48px;max-width:760px}
-.eyebrow{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:#a9c7ff}
-h1{font-size:clamp(32px,5vw,48px);line-height:1.12;letter-spacing:-.04em;margin:12px 0}
-.hero p{color:#d5e0ef;font-size:17px;max-width:650px;margin:0}
+
 main{margin-top:-34px;padding-bottom:54px}
 .section-head{display:flex;justify-content:space-between;align-items:end;gap:18px;margin:0 0 18px}
 .section-head h2{font-size:21px;letter-spacing:-.02em;margin:0}
@@ -42,20 +39,14 @@ main{margin-top:-34px;padding-bottom:54px}
 .tip strong{display:block;font-size:14px}.tip p{margin:3px 0 0;color:var(--muted);font-size:13px}
 footer{border-top:1px solid var(--line);padding:20px 0 28px;color:var(--muted);font-size:12px}
 @media(max-width:850px){.cards{grid-template-columns:1fr 1fr}.card:last-child{grid-column:span 2}}
-@media(max-width:580px){.shell{padding:0 16px}header{padding:20px 0 58px}.hero{padding-top:34px}.hero p{font-size:15px}.cards{grid-template-columns:1fr}.card:last-child{grid-column:auto}.card{min-height:0;padding:21px}.section-head{display:block}.topnote{display:none}}
+@media(max-width:580px){.shell{padding:0 16px}header{padding:20px 0}.cards{grid-template-columns:1fr}.card:last-child{grid-column:auto}.card{min-height:0;padding:21px}.section-head{display:block}.topnote{display:none}}
 </style>
 </head>
 <body>
 <header>
   <div class="shell">
     <div class="topbar">
-      <div class="brand"><div class="brandmark" aria-hidden="true">▤</div><span>DocuWorks Studio</span></div>
-      <div class="topnote">Your document workspace</div>
-    </div>
-    <div class="hero">
-      <div class="eyebrow">Document productivity tools</div>
-      <h1>Everything you need to work with documents.</h1>
-      <p>Choose one focused tool for the task at hand. Scan paper documents, prepare a Control Specification from a URS, or optimize PDFs for clearer, lighter printing.</p>
+      <div class="brand"><span>DocuWorks Studio</span></div>
     </div>
   </div>
 </header>
