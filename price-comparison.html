@@ -32,9 +32,9 @@ const quoteInput=document.getElementById('quotes'),dropzone=document.getElementB
 let quoteFiles=[];
 function showFiles(){document.getElementById('filelist').textContent=quoteFiles.length?quoteFiles.map(f=>f.name+' ('+(f.size/1024).toFixed(0)+' KB)').join(' · '):'No quotation files selected.';analyzeBtn.disabled=!quoteFiles.length;}
 function addFiles(list){const incoming=Array.from(list||[]);for(const f of incoming){if(!quoteFiles.some(x=>x.name===f.name&&x.size===f.size&&x.lastModified===f.lastModified))quoteFiles.push(f);}showFiles();if(quoteFiles.length)analysisStatus.textContent=quoteFiles.length+' quotation file(s) ready. Click Analyze & Compare.';}
-dropzone.addEventListener('click',e=>{if(e.target.closest('button'))return;quoteInput.click();});
+dropzone.addEventListener('click',e=>{if(e.target===quoteInput||e.target.closest('button'))return;quoteInput.click();});
 dropzone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();quoteInput.click();}});
-quoteInput.addEventListener('change',e=>{addFiles(e.target.files);quoteInput.value='';});
+quoteInput.addEventListener('change',e=>{addFiles(e.target.files);quoteInput.value='';});\ndocument.addEventListener('dragover',e=>e.preventDefault());\ndocument.addEventListener('drop',e=>{if(!dropzone.contains(e.target))e.preventDefault();});
 ['dragenter','dragover'].forEach(n=>dropzone.addEventListener(n,e=>{e.preventDefault();e.stopPropagation();dropzone.classList.add('dragover');}));
 ['dragleave','drop'].forEach(n=>dropzone.addEventListener(n,e=>{e.preventDefault();e.stopPropagation();dropzone.classList.remove('dragover');}));
 dropzone.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
