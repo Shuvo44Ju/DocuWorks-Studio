@@ -121,6 +121,10 @@ async function generateAndDownloadExcel(){
  const worksheet=workbook.getWorksheet('CS-Digital Cell Analyzer')||workbook.worksheets[0];
  if(!worksheet)throw new Error('The original Excel template has no worksheet.');
  const {mapped,unmatched}=extractRequirements(extractedText);
+ // The workbook is a formatting template only: clear all example/specification values
+ // before applying values extracted from the uploaded URS PDF.
+ const dynamicRows=[9,10,11,12,13,14,15,16,17,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,38,39,40,41,42,43,45,46,47,49,50,52,54,56,58,59,60,62,63,64,65,66,67,70,71];
+ for(const rowNum of dynamicRows){worksheet.getCell(rowNum,2).value=null;}
  for(const [rowNum,items] of mapped){
   const cell=worksheet.getCell(rowNum,2);
   const requirement=items.join('\n');
