@@ -10,7 +10,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col items-center justify-center p-4">
 <main class="w-full max-w-xl bg-white border border-slate-200 rounded-2xl shadow-xl p-8 space-y-6">
-<div class="text-center space-y-2"><div class="inline-flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-xl font-bold text-xl mb-2">▤</div><h1 class="text-2xl font-extrabold text-slate-900">URS to CS Converter</h1><p class="text-sm text-slate-500">Drag & drop your URS PDF to convert it into a formatted Control Specification Excel file.</p><p class="text-xs font-semibold text-blue-700">Converter build: 2026-10-29-fix1</p></div>
+<div class="text-center space-y-2"><div class="inline-flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-xl font-bold text-xl mb-2">▤</div><h1 class="text-2xl font-extrabold text-slate-900">URS to CS Converter</h1><p class="text-sm text-slate-500">Drag & drop your URS PDF to convert it into a formatted Control Specification Excel file.</p><p class="text-xs font-semibold text-blue-700">Converter build: 2026-10-29-fix2</p></div>
 <div id="drop-zone" tabindex="0" role="button" aria-label="Choose or drop a URS PDF" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-8 text-center bg-slate-50 hover:bg-blue-50/50 transition-all cursor-pointer group"><input type="file" id="pdf-input" accept=".pdf,application/pdf" class="hidden"><div class="space-y-3 pointer-events-none"><svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg><p class="text-base font-semibold text-slate-700">Drop your URS PDF file here</p><p class="text-xs text-slate-400 mt-1">or click to browse from your computer</p></div></div>
 <div id="file-info" class="hidden bg-slate-50 border border-slate-200 rounded-lg p-4 items-center justify-between"><div class="flex items-center space-x-3 overflow-hidden"><svg class="w-8 h-8 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2zm8-14l3 3h-3V4z"/></svg><div class="truncate"><p id="file-name" class="text-sm font-medium text-slate-800 truncate">document.pdf</p><p id="file-size" class="text-xs text-slate-400">0 KB</p></div></div><button id="remove-file-btn" class="text-xs text-slate-400 hover:text-red-500 p-1">Remove</button></div>
 <div id="progress-container" class="hidden space-y-1.5"><div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div id="progress-bar" class="bg-blue-600 h-2 w-0 transition-all duration-300"></div></div><p id="status-text" class="text-xs text-slate-500 text-center" aria-live="polite">Processing PDF...</p></div>
@@ -24,7 +24,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
 const dropZone=document.getElementById('drop-zone'),pdfInput=document.getElementById('pdf-input'),fileInfo=document.getElementById('file-info'),fileName=document.getElementById('file-name'),fileSize=document.getElementById('file-size'),removeFileBtn=document.getElementById('remove-file-btn'),progressContainer=document.getElementById('progress-container'),progressBar=document.getElementById('progress-bar'),statusText=document.getElementById('status-text'),convertBtn=document.getElementById('convert-btn'),errorText=document.getElementById('error-text');
 let selectedFile=null,extractedText='';
 const defaultCSMatrix=[
-["CS File of Digital Cell Analyzer – Research & Development (R&D)","",""],
+["CS File of Untitled URS Document","",""],
 ["Requirement","Incepta Specification / Description","Vendor Feedback"],
 ["Vendor / Product Information","",""],["Manufacturer","",""],["Local Agent","",""],["Origin","",""],["Model","",""],
 ["1. General Information","",""],
@@ -119,16 +119,22 @@ function extractRequirements(text){
 async function generateAndDownloadCS(extractedData){
  if(!window.ExcelJS)throw new Error('Excel export library failed to load. Check your internet connection and retry.');
  setStatus(96,'Loading original CS workbook template…');
- const templateUrl=new URL('CS_Digital_Cell_Analyzer.xlsx?v=20261029fix1', document.baseURI).href;
+ const templateUrl=new URL('CS_Digital_Cell_Analyzer.xlsx?v=20261029fix2', document.baseURI).href;
  const response=await fetch(templateUrl,{cache:'no-store'});
  if(!response.ok)throw new Error('Could not load CS_Digital_Cell_Analyzer.xlsx from this project (HTTP '+response.status+'). No substitute workbook was generated.');
  const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(await response.arrayBuffer());
  const worksheet=workbook.getWorksheet('CS-Digital Cell Analyzer')||workbook.worksheets[0];
- console.info('[URS-CS build 2026-10-29-fix1] Template loaded:',response.url,'Bytes:',response.headers.get('content-length')||'unknown','Worksheet:',worksheet?.name,'Rows:',worksheet?.rowCount);
+ console.info('[URS-CS build 2026-10-29-fix2] Template loaded:',response.url,'Bytes:',response.headers.get('content-length')||'unknown','Worksheet:',worksheet?.name,'Rows:',worksheet?.rowCount);
  if(!worksheet)throw new Error('The original Excel template has no worksheet.');
  const sourceText=typeof extractedData==='string'?extractedData:(Array.isArray(extractedData)?extractedData.map(x=>typeof x==='string'?x:(x.text||x.requirement||'')).join('\n'):Object.values(extractedData||{}).filter(v=>typeof v==='string').join('\n'));
  const {mapped,audit,lines}=extractRequirements(sourceText);
- console.info('[URS-CS build 2026-10-29-fix1] Extracted lines:',lines.length,'Mapped rows:',mapped.size,'Audit lines:',audit.length);
+ const titleLines=sourceText.split(/\n+/).map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>=5&&s.length<=180);
+ const explicitTitle=titleLines.find(s=>/^(document title|title|equipment name|system name|product name)\s*[:：-]\s*\S/i.test(s));
+ const genericLine=/^(page\s*\d+|version\s*[:#]?|revision\s*[:#]?|date\s*[:#]?|confidential|table of contents|user requirement specification|urs|requirement specification|document number|doc\.?\s*no\.?)/i;
+ const uploadedTitle=explicitTitle?explicitTitle.replace(/^(document title|title|equipment name|system name|product name)\s*[:：-]\s*/i,'').trim():(titleLines.slice(0,35).find(s=>!genericLine.test(s)&&/[A-Za-z]{3}/.test(s))||'Untitled URS Document');
+ worksheet.getCell('A1').value='CS File of '+uploadedTitle;
+ console.info('[URS-CS fix2] Header title:',uploadedTitle);
+ console.info('[URS-CS build 2026-10-29-fix2] Extracted lines:',lines.length,'Mapped rows:',mapped.size,'Audit lines:',audit.length);
  if(mapped.size===0) throw new Error('PDF text was extracted, but no lines matched the CS requirement rules. Check the URS Review sheet / PDF wording; refusing to create a mostly blank CS.');
  if(!sourceText||sourceText.replace(/\s/g,'').length<20)throw new Error('No readable content was extracted. The Excel template was not exported as a substitute.');
 
@@ -161,7 +167,7 @@ async function generateAndDownloadCS(extractedData){
  const url=URL.createObjectURL(blob),a=document.createElement('a');
  a.href=url;a.download=(selectedFile?selectedFile.name.replace(/\.pdf$/i,''):'CS_Digital_Cell_Analyzer')+'_CS.xlsx';
  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
- console.info('[URS-CS build 2026-10-29-fix1] Download triggered:',a.download,'Mapped rows:',mapped.size);
+ console.info('[URS-CS build 2026-10-29-fix2] Download triggered:',a.download,'Mapped rows:',mapped.size);
 }
 </script>
 </body>
