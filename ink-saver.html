@@ -64,12 +64,21 @@ footer{text-align:center;color:#667085;font-size:13px;padding:8px 18px 28px}
 .tool-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
 .tool-nav a{color:#fff;text-decoration:none;border:1px solid #ffffff40;border-radius:9px;padding:8px 12px;font-size:14px}
 .tool-nav a:hover{background:#ffffff18}
+
+/* Shared DocuWorks Studio header across all tools */
+.dw-unified-header{min-height:76px;width:100%;padding:12px clamp(16px,calc((100vw - 1080px)/2),40px);display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border-bottom:1px solid #e3e9e6;box-shadow:0 3px 14px #18372b08;position:sticky;top:0;z-index:1000;box-sizing:border-box}
+.dw-unified-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:#182622;font:800 19px/1.2 system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:-.5px;white-space:nowrap}
+.dw-unified-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#176b55;color:#fff;font-size:21px}
+.dw-unified-brand em{font-style:normal;color:#176b55}
+.dw-unified-right{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.dw-feature-name{font:700 13px/1.2 system-ui,sans-serif;color:#65736c;padding-right:7px}
+.dw-unified-home{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;background:#176b55;color:#fff!important;text-decoration:none;border-radius:10px;padding:10px 15px;font:800 13px/1.2 system-ui,sans-serif;border:1px solid #176b55}
+.dw-unified-home:hover{background:#105541}
+@media(max-width:560px){.dw-unified-header{align-items:flex-start;flex-wrap:wrap;min-height:0;padding:12px 14px}.dw-unified-brand{font-size:17px}.dw-unified-right{width:100%;justify-content:space-between}.dw-feature-name{padding-left:2px}}
 </style>
 </head>
 <body>
-<header><div class="brandline" style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:10px"><strong style="font-size:19px;letter-spacing:-.02em">DocuWorks Studio</strong><a href="./index.html" style="color:#fff;text-decoration:none;border:1px solid #ffffff55;border-radius:9px;padding:8px 13px;font-size:14px;font-weight:650">← Home</a></div><h1>PDF Optimizer</h1>
-<p>Clean up PDF pages, improve readability, and reduce printer ink usage.</p>
-</header>
+<header class="dw-unified-header"><a class="dw-unified-brand" href="./index.html"><span class="dw-unified-mark">▤</span><span>DocuWorks <em>Studio</em></span></a><div class="dw-unified-right"><span class="dw-feature-name">PDF Optimizer</span><a class="dw-unified-home" href="./index.html">← Home</a></div></header>
 <main>
 <section class="panel">
 <h2>1. Choose your PDFs</h2>
