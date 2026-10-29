@@ -45,35 +45,85 @@ function perspectiveWarp(src,quad){
  for(let y=0;y<h;y++){for(let x=0;x<w;x++){const z=m[6]*x+m[7]*y+1,fx=Math.max(0,Math.min(src.width-1,(m[0]*x+m[1]*y+m[2])/z)),fy=Math.max(0,Math.min(src.height-1,(m[3]*x+m[4]*y+m[5])/z)),x0=Math.floor(fx),y0=Math.floor(fy),x1=Math.min(src.width-1,x0+1),y1=Math.min(src.height-1,y0+1),dx=fx-x0,dy=fy-y0,i00=(y0*src.width+x0)*4,i10=(y0*src.width+x1)*4,i01=(y1*src.width+x0)*4,i11=(y1*src.width+x1)*4,di=(y*w+x)*4;for(let k=0;k<3;k++){const top=d[i00+k]*(1-dx)+d[i10+k]*dx,bottom=d[i01+k]*(1-dx)+d[i11+k]*dx;o[di+k]=Math.round(top*(1-dy)+bottom*dy)}o[di+3]=255}}
  octx.putImageData(result,0,0);return out;
 }
-function magicCanvas(source,intensity=65){
- const c=document.createElement('canvas');c.width=source.width;c.height=source.height;
- const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(source,0,0);
- const amount=Math.max(0,Math.min(1,intensity/100));if(!amount)return c;
- const image=ctx.getImageData(0,0,c.width,c.height),data=image.data;
- // Build a smooth local-light estimate to reduce grey paper and camera shadows.
- const bg=document.createElement('canvas');bg.width=Math.max(1,Math.ceil(c.width/48));bg.height=Math.max(1,Math.ceil(c.height/48));
- const bctx=bg.getContext('2d',{willReadFrequently:true});bctx.drawImage(c,0,0,bg.width,bg.height);
- const light=document.createElement('canvas');light.width=c.width;light.height=c.height;
- const lctx=light.getContext('2d',{willReadFrequently:true});lctx.filter='blur('+Math.max(22,Math.round(Math.min(c.width,c.height)/14))+'px)';lctx.drawImage(bg,0,0,c.width,c.height);lctx.filter='none';
- const field=lctx.getImageData(0,0,c.width,c.height).data;
- for(let i=0;i<data.length;i+=4){
-   const r=data[i],g=data[i+1],b=data[i+2],lum=.299*r+.587*g+.114*b;
-   const paper=.299*field[i]+.587*field[i+1]+.114*field[i+2];
-   // Flatten broad shadows, then push near-white paper toward white while preserving ink.
-   const shadow=Math.max(0,Math.min(1,(238-paper)/150));
-   let corrected=lum+shadow*amount*48;
-   corrected=Math.max(0,Math.min(255,corrected));
-   const threshold=150+amount*12;
-   const paperStrength=Math.max(0,Math.min(1,(corrected-threshold)/(245-threshold)));
-   const targetLum=Math.min(255,corrected+(255-corrected)*paperStrength*amount*.94);
-   const contrast=Math.max(0,Math.min(1,(132-corrected)/132))*amount*.28;
-   for(let k=0;k<3;k++){
-     // Neutralize a little color cast in paper without fully desaturating colored marks.
-     const v=data[i+k],neutral=v+(lum-v)*amount*.18;
-     data[i+k]=Math.max(0,Math.min(255,Math.round((neutral+(targetLum-corrected))*(1-contrast))));
+function magicCanvas(source,intensity=100){
+ // OpenCV pipeline: background estimation -> shadow flattening -> levels -> gamma/saturation -> sharpening.
+ // renderPage() already supplies a downscaled canvas for the live preview; exports call this on their export canvas.
+ const amount=Math.max(0,Math.min(1,Number(intensity)/100));
+ const output=document.createElement('canvas');output.width=source.width;output.height=source.height;
+ const ctx=output.getContext('2d',{willReadFrequently:true});ctx.drawImage(source,0,0);
+ if(amount<=0)return output;
+ const cvx=window.cv;
+ if(!cvx||!cvx.Mat||!cvx.imread||!cvx.imshow){
+   // Safe fallback if OpenCV.js is unavailable; keep the app usable rather than returning a blank page.
+   const image=ctx.getImageData(0,0,output.width,output.height),d=image.data;
+   const w=output.width,h=output.height;
+   const bg=document.createElement('canvas');bg.width=Math.max(1,Math.round(w/4));bg.height=Math.max(1,Math.round(h/4));
+   const bx=bg.getContext('2d',{willReadFrequently:true});bx.drawImage(source,0,0,bg.width,bg.height);
+   const blur=document.createElement('canvas');blur.width=w;blur.height=h;const bl=blur.getContext('2d',{willReadFrequently:true});
+   bl.filter='blur(12px)';bl.drawImage(bg,0,0,w,h);bl.filter='none';
+   const b=bl.getImageData(0,0,w,h).data;
+   for(let i=0;i<d.length;i+=4){
+     for(let k=0;k<3;k++){
+       const ratio=Math.min(2.4,d[i+k]/Math.max(35,b[i+k]))*255;
+       let v=Math.max(0,Math.min(255,(ratio-90)*255/125));
+       v=255*Math.pow(v/255,0.9);
+       d[i+k]=Math.round(d[i+k]*(1-amount)+v*amount);
+     }
    }
+   ctx.putImageData(image,0,0);return output;
  }
- ctx.putImageData(image,0,0);return c;
+ const mats=[];
+ const keep=m=>{mats.push(m);return m};
+ try{
+   const src=keep(cvx.imread(source)); // CV_8UC4 (RGBA)
+   const channels=keep(new cvx.MatVector());cvx.split(src,channels);
+   const correctedChannels=keep(new cvx.MatVector());
+   const kernel=keep(cvx.getStructuringElement(cvx.MORPH_RECT,new cvx.Size(15,15)));
+   const originalChannels=[];
+   for(let ch=0;ch<4;ch++){
+     const channel=keep(channels.get(ch));
+     if(ch===3){correctedChannels.push_back(channel);continue}
+     originalChannels.push(channel);
+     const small=keep(new cvx.Mat()),dilated=keep(new cvx.Mat()),median=keep(new cvx.Mat()),background=keep(new cvx.Mat());
+     cvx.resize(channel,small,new cvx.Size(Math.max(1,Math.round(src.cols/4)),Math.max(1,Math.round(src.rows/4))),0,0,cvx.INTER_AREA);
+     cvx.dilate(small,dilated,kernel,new cvx.Point(-1,-1),1,cvx.BORDER_REPLICATE,new cvx.Scalar());
+     cvx.medianBlur(dilated,median,21);
+     cvx.resize(median,background,new cvx.Size(src.cols,src.rows),0,0,cvx.INTER_CUBIC);
+     const flat=keep(new cvx.Mat());
+     cvx.divide(channel,background,flat,255);
+     // Required levels stretch: black=90, white=215.
+     const fd=flat.data;
+     for(let i=0;i<fd.length;i++)fd[i]=Math.max(0,Math.min(255,Math.round((fd[i]-90)*255/125)));
+     // Gamma 0.9.
+     for(let i=0;i<fd.length;i++)fd[i]=Math.max(0,Math.min(255,Math.round(255*Math.pow(fd[i]/255,1/0.9))));
+     correctedChannels.push_back(flat);
+   }
+   const leveled=keep(new cvx.Mat());cvx.merge(correctedChannels,leveled);
+   // Boost saturation in HSV while retaining the corrected luminance and colored marks.
+   const rgb=keep(new cvx.Mat()),hsv=keep(new cvx.Mat());
+   cvx.cvtColor(leveled,rgb,cvx.COLOR_RGBA2RGB);
+   cvx.cvtColor(rgb,hsv,cvx.COLOR_RGB2HSV);
+   const hsvChannels=keep(new cvx.MatVector());cvx.split(hsv,hsvChannels);
+   const sat=keep(hsvChannels.get(1));
+   for(let i=0;i<sat.data.length;i++)sat.data[i]=Math.min(255,Math.round(sat.data[i]*1.25));
+   cvx.merge(hsvChannels,hsv);
+   const vividRGB=keep(new cvx.Mat());cvx.cvtColor(hsv,vividRGB,cvx.COLOR_HSV2RGB);
+   const vividRGBA=keep(new cvx.Mat());cvx.cvtColor(vividRGB,vividRGBA,cvx.COLOR_RGB2RGBA);
+   // Light unsharp mask: sigma=1.0, amount=0.6.
+   const soft=keep(new cvx.Mat()),sharp=keep(new cvx.Mat());
+   cvx.GaussianBlur(vividRGBA,soft,new cvx.Size(0,0),1.0,1.0,cvx.BORDER_DEFAULT);
+   cvx.addWeighted(vividRGBA,1.6,soft,-0.6,0,sharp);
+   // Blend original and processed; at 100% the processed result is used without original-photo bleed-through.
+   const blended=keep(new cvx.Mat());
+   cvx.addWeighted(src,1-amount,sharp,amount,0,blended);
+   cvx.imshow(output,blended);
+   return output;
+ }catch(err){
+   console.error('Magic Color OpenCV processing failed:',err);
+   throw err;
+ }finally{
+   for(let i=mats.length-1;i>=0;i--){try{mats[i].delete()}catch(_){}}
+ }
 }
 function renderPage(page){if(!page)return;$('pagePreview').style.display='block';$('noPage').style.display='none';$('editorBusy').classList.add('show');const img=new Image();img.onload=()=>{try{let c=canvasFromImage(img,2400);if(state.magic)c=magicCanvas(c,state.intensity);$('pagePreview').src=c.toDataURL('image/jpeg',.92)}catch(e){$('pagePreview').src=page.dataURL}finally{$('editorBusy').classList.remove('show')}};img.onerror=()=>{$('editorBusy').classList.remove('show');$('pagePreview').src=page.dataURL};img.src=page.dataURL;$('magicToggle').setAttribute('aria-pressed',String(state.magic));$('intensity').value=state.intensity;$('intensityValue').value=state.intensity+'%'}
 async function acceptCrop(){try{const c=perspectiveWarp(state.sourceImage,state.quad);const blob=await canvasBlob(c,'image/jpeg',.97);const dataURL=await blobToDataURL(blob);const page={id:uid(),name:state.sourceName||'Scanned page',blob,dataURL,rotation:0};if(!state.pages.length){state.pages.push(page);state.selected=0;state.docId=uid();state.docName='Untitled scan'}else{state.pages.push(page);state.selected=state.pages.length-1}URL.revokeObjectURL(state.sourceURL);state.sourceURL=null;if(state.importQueue&&state.importQueue.length){await nextQueuedImport();return}showEditor();toast('Perspective corrected. Scan ready.')}catch(e){toast(e.message||'Could not correct this page.')} }
