@@ -3,13 +3,24 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>URS → CS Maker | DocuWorks Studio</title>
-<style>body{padding-top:0!important}.dw-header{width:100%;background:linear-gradient(120deg,#101c32,#1e3e70);color:#fff;padding:20px max(16px,calc((100% - 1120px)/2));display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:26px}.dw-brand{font-weight:800;font-size:19px;letter-spacing:-.02em}.dw-home{color:#fff;text-decoration:none;border:1px solid #ffffff55;border-radius:9px;padding:8px 13px;font-weight:650;font-size:14px}.dw-home:hover{background:#ffffff18}</style>
+<style>body{padding-top:0!important}.dw-header{width:100%;background:linear-gradient(120deg,#101c32,#1e3e70);color:#fff;padding:20px max(16px,calc((100% - 1120px)/2));display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:26px}.dw-brand{font-weight:800;font-size:19px;letter-spacing:-.02em}.dw-home{color:#fff;text-decoration:none;border:1px solid #ffffff55;border-radius:9px;padding:8px 13px;font-weight:650;font-size:14px}.dw-home:hover{background:#ffffff18}
+/* Shared DocuWorks Studio header across all tools */
+.dw-unified-header{min-height:76px;width:100%;padding:12px clamp(16px,calc((100vw - 1080px)/2),40px);display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border-bottom:1px solid #e3e9e6;box-shadow:0 3px 14px #18372b08;position:sticky;top:0;z-index:1000;box-sizing:border-box}
+.dw-unified-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:#182622;font:800 19px/1.2 system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:-.5px;white-space:nowrap}
+.dw-unified-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#176b55;color:#fff;font-size:21px}
+.dw-unified-brand em{font-style:normal;color:#176b55}
+.dw-unified-right{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.dw-feature-name{font:700 13px/1.2 system-ui,sans-serif;color:#65736c;padding-right:7px}
+.dw-unified-home{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;background:#176b55;color:#fff!important;text-decoration:none;border-radius:10px;padding:10px 15px;font:800 13px/1.2 system-ui,sans-serif;border:1px solid #176b55}
+.dw-unified-home:hover{background:#105541}
+@media(max-width:560px){.dw-unified-header{align-items:flex-start;flex-wrap:wrap;min-height:0;padding:12px 14px}.dw-unified-brand{font-size:17px}.dw-unified-right{width:100%;justify-content:space-between}.dw-feature-name{padding-left:2px}}
+</style>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col items-center p-4"><header class="dw-header"><span class="dw-brand">DocuWorks Studio</span><a class="dw-home" href="./index.html">← Home</a></header>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col items-center p-4"><header class="dw-unified-header"><a class="dw-unified-brand" href="./index.html"><span class="dw-unified-mark">▤</span><span>DocuWorks <em>Studio</em></span></a><div class="dw-unified-right"><span class="dw-feature-name">URS → CS Maker</span><a class="dw-unified-home" href="./index.html">← Home</a></div></header>
 <main class="w-full max-w-xl bg-white border border-slate-200 rounded-2xl shadow-xl p-8 space-y-6">
 <div class="text-center space-y-2"><div class="inline-flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-xl font-bold text-xl mb-2">▤</div><h1 class="text-2xl font-extrabold text-slate-900">URS to CS Converter</h1><p class="text-sm text-slate-500">Drag & drop your URS PDF to convert it into a formatted Control Specification Excel file.</p><p class="text-xs font-semibold text-blue-700">Converter build: 2026-10-29-fix6</p></div>
 <div id="drop-zone" tabindex="0" role="button" aria-label="Choose or drop a URS PDF" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-8 text-center bg-slate-50 hover:bg-blue-50/50 transition-all cursor-pointer group"><input type="file" id="pdf-input" accept=".pdf,application/pdf" class="hidden"><div class="space-y-3 pointer-events-none"><svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg><p class="text-base font-semibold text-slate-700">Drop your URS PDF file here</p><p class="text-xs text-slate-400 mt-1">or click to browse from your computer</p></div></div>
