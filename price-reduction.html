@@ -89,4 +89,4 @@ $('make').addEventListener('click',async()=>{
  }catch(err){$('result').textContent='Could not create output: '+err.message;}finally{$('make').disabled=!$('matches').querySelector('input:checked');}
 });
 $('reset').addEventListener('click',()=>{file=null;pdf=null;pages=[];matches=[];$('file').value='';$('filename').textContent='No file selected';$('status').textContent='Your file is processed locally in this browser.';$('matches').replaceChildren();$('review').classList.add('hidden');$('result').textContent='';});
-})();</body></html>
+})();</script></body></html>
