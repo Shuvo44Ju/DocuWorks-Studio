@@ -212,7 +212,7 @@ async function generateAndDownloadCS(extractedData){
  let worksheet;
  // Prefer the repository template when it exists. If missing (the current HTTP 404),
  // build a usable workbook from the converter's embedded CS matrix rather than failing.
- const templateUrl=new URL('CS_Digital_Cell_Analyzer.xlsx?v=20261029fix6', document.baseURI).href;
+ const templateUrl=new URL('CS.xlsx?v=20261029fix7', document.baseURI).href;
  try {
   const response=await fetch(templateUrl,{cache:'no-store'});
   if(response.ok){
@@ -220,29 +220,12 @@ async function generateAndDownloadCS(extractedData){
    worksheet=workbook.getWorksheet('CS-Digital Cell Analyzer')||workbook.worksheets[0];
    console.info('[URS-CS fix6] Original template loaded:',response.url,'Worksheet:',worksheet?.name);
   } else {
-   console.warn('[URS-CS fix6] Original template unavailable (HTTP '+response.status+'); using embedded CS matrix.');
+   throw new Error('Could not load CS.xlsx from this project (HTTP '+response.status+'). The original template is required; no substitute workbook will be generated.');
   }
  } catch(templateError) {
-  console.warn('[URS-CS fix6] Template fetch failed; using embedded CS matrix.',templateError);
+  throw new Error('Could not load the original CS.xlsx template: '+(templateError.message||templateError)+'. No substitute workbook was generated.');
  }
- if(!worksheet){
-  worksheet=workbook.addWorksheet('Control Specification');
-  worksheet.columns=[{width:42},{width:78},{width:42}];
-  defaultCSMatrix.forEach((row,index)=>{
-   const cells=worksheet.addRow([row[0]||'',row[1]||'',row[2]||'']);
-   cells.height=(index===0||!row[1]&&!row[2])?24:36;
-   cells.eachCell(cell=>{
-    cell.alignment={vertical:'top',wrapText:true};
-    cell.border={top:{style:'thin',color:{argb:'FFD1D5DB'}},left:{style:'thin',color:{argb:'FFD1D5DB'}},bottom:{style:'thin',color:{argb:'FFD1D5DB'}},right:{style:'thin',color:{argb:'FFD1D5DB'}}};
-   });
-   if(index===0){cells.eachCell(cell=>{cell.font={bold:true,size:14,color:{argb:'FFFFFFFF'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1D4ED8'}};});}
-   else if(index===1){cells.eachCell(cell=>{cell.font={bold:true,color:{argb:'FFFFFFFF'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF334155'}};});}
-   else if(!row[1]&&!row[2]){cells.eachCell(cell=>{cell.font={bold:true,color:{argb:'FF1E3A8A'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFDBEAFE'}};});}
-  });
-  worksheet.views=[{state:'frozen',ySplit:2}];
-  worksheet.autoFilter={from:'A2',to:'C'+worksheet.rowCount};
-  console.info('[URS-CS fix6] Embedded fallback workbook created; original template styling is unavailable until the .xlsx is added to the repository.');
- }
+
  if(!worksheet)throw new Error('Could not create a CS worksheet.');
  const sourceText=typeof extractedData==='string'?extractedData:(Array.isArray(extractedData)?extractedData.map(x=>typeof x==='string'?x:(x.text||x.requirement||'')).join('\n'):Object.values(extractedData||{}).filter(v=>typeof v==='string').join('\n'));
  const {mapped,audit,lines}=extractRequirements(sourceText);
