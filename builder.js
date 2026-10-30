@@ -25,16 +25,22 @@ function fillTemplate(wb, model) {
   const last = Math.max(ws.rowCount, 71);
   for (let r = FIRST_BODY_ROW; r <= last; r++) { const row = ws.getRow(r); row.height = undefined; for (let c = 1; c <= 4; c++) { const cell = row.getCell(c); cell.value = null; cell.style = {}; } }
 
-  // 3) write rows
+  // 3) write rows  (column A = the point's own headline; the URS requirement becomes a sub-heading row when it has 2+ labelled points)
   let r = FIRST_BODY_ROW;
-  const put = (a, b) => { const row = ws.getRow(r); [a, b, ''].forEach((v, i) => { const cell = row.getCell(i + 1); cell.value = v === '' ? null : v; cell.style = clone(proto.body[i]); }); r++; };
-  for (const sh of model.sheets) for (const x of sh.rows) {
-    if (x.type === 'section') {
-      const row = ws.getRow(r);
-      [1, 2, 3].forEach(c => { row.getCell(c).style = clone(proto.section[c - 1]); });
-      row.getCell(1).value = x.title; ws.mergeCells(r, 1, r, 3); r++;
-    } else if (x.type === 'sw') put(x.id, x.desc + (x.pri ? '  [Priority ' + x.pri + ']' : ''));
-    else put(x.req, x.desc);
+  const sectionRow = t => { const row = ws.getRow(r); [1, 2, 3].forEach(c => { row.getCell(c).style = clone(proto.section[c - 1]); }); row.getCell(1).value = t; ws.mergeCells(r, 1, r, 3); r++; };
+  const put = (a, b, review) => { const row = ws.getRow(r); [a, b, ''].forEach((v, i) => { const cell = row.getCell(i + 1); cell.value = v === '' ? null : v; cell.style = clone(proto.body[i]); }); if (review) row.getCell(2).note = 'Check against the source PDF (low OCR confidence)'; r++; };
+  for (const sh of model.sheets) {
+    const rows = sh.rows;
+    for (let i = 0; i < rows.length;) {
+      const x = rows[i];
+      if (x.type === 'section') { sectionRow(x.title); i++; continue; }
+      if (x.type === 'sw') { put(x.id, x.desc + (x.pri ? '  [Priority ' + x.pri + ']' : '')); i++; continue; }
+      let j = i; while (j < rows.length && rows[j].type === 'row' && rows[j].parent === x.parent) j++;
+      const grp = rows.slice(i, j), labelled = grp.filter(g => g.label || g.group).length, sub = grp.length >= 2 && labelled >= 2;
+      if (sub) sectionRow(x.parent);
+      for (const g of grp) put(sub ? ([g.group, g.label].filter(Boolean).join(' – ') || g.parent) : g.req, g.desc, g.review);
+      i = j;
+    }
   }
   // 4) review notes (hover comments only; no layout change)
   return ws;
