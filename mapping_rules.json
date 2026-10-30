@@ -1,0 +1,53 @@
+{
+  "_status": "VERIFIED fields come from CS.xlsx; the section/label rules are RECONSTRUCTED from 20+ real Incepta URS files.",
+  "template": {
+    "sheet": "CS",
+    "title_cell": "A1",
+    "title_format": "CS File of <Equipment Name>[ – <Department>][  |  <URS No>]",
+    "header_row": 2,
+    "columns": {
+      "A": "Requirement",
+      "B": "Incepta Specification / Description",
+      "C": "Vendor Feedback (leave empty)"
+    },
+    "vendor_block_rows": "3-7 (untouched)",
+    "first_body_row": 8,
+    "section_row_prototype": 8,
+    "body_row_prototype": 9
+  },
+  "urs_sections_in_order": [
+    "General Information",
+    "Functional/ Operational Requirements",
+    "Utility Services",
+    "Validation Aspects/ Regulatory Requirements",
+    "Maintenance / Yearly calibration"
+  ],
+  "canonical_requirement_labels": [
+    "Description",
+    "Capacity/Memory",
+    "Utilization",
+    "Room condition",
+    "Design parameters/Dimensions",
+    "Controlling system",
+    "Measuring/ Calibration parameters",
+    "Safety & Alarms",
+    "Power failure & recovery",
+    "Material of construction (MOC)",
+    "Ink Jet/ USB/ SD Card supported print out option",
+    "Electrical requirements",
+    "Main services/Utilities",
+    "Qualification documents",
+    "Cleaning requirements",
+    "Complies 21 CFR part 11 or Data integrity",
+    "Document language",
+    "Calibration & Maintenance support"
+  ],
+  "row_rules": [
+    "One URS point -> one row per bullet/(a)(b)/line/'Label: value' pair.",
+    "Column A = '<URS requirement> – <label>' (label dropped if it repeats the requirement). Column B = the value exactly as written.",
+    "Lines ending with ':' are group headings (kept as prefix only if <=4 words); intro lines ending in 'the/of/with' are dropped.",
+    "A bullet heading followed by plain value lines becomes prefix + value rows (e.g. 'External Dimensions (W x D x H)' + '1645 mm x 1057 mm x 2200 mm').",
+    "Never invent values. Unreadable OCR -> keep text and flag review (cell note), do not guess.",
+    "Software-URS tables (ID | Description | Priority): A = ID, B = description + '[Priority n]' (RECONSTRUCTED decision, confirm with the user)."
+  ]
+}

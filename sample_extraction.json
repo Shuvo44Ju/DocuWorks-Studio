@@ -1,0 +1,693 @@
+{
+  "_note": "REAL output of reference/core.js on URS_Biosafety_Cabinet.docx. Row numbers are assigned at write time (row 8 onward).",
+  "meta": {
+    "equipment": "Biosafety Cabinet",
+    "ursNo": "IPV/URS/VBS/336",
+    "refNo": "VAL/SOP/URS-006",
+    "version": "01",
+    "department": "Bulk Production",
+    "docNo": ""
+  },
+  "items": [
+    {
+      "id": "R001",
+      "section": "1. General Information",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Description",
+      "specification": "A Biosafety cabinet is an enclosed system provides safe handling of biohazard materials like virus, cells.",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R002",
+      "section": "1. General Information",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Capacity/Memory – Nominal Size",
+      "specification": "5ft (1.5 meter)",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R003",
+      "section": "1. General Information",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Capacity/Memory – Usable Work Area",
+      "specification": "1.4 m² (15sq-ft)",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R004",
+      "section": "1. General Information",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Capacity/Memory – Tested Opening",
+      "specification": "200 mm",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R005",
+      "section": "1. General Information",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Capacity/Memory – Work Opening",
+      "specification": "200 mm",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R006",
+      "section": "1. General Information",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Utilization",
+      "specification": "The Biosafety Cabinet will be used 90 days per year to ensure safety of from surrounding environment having potentially biohazard materials.",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R007",
+      "section": "1. General Information",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Room condition – Room temperature",
+      "specification": "25±10°C",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R008",
+      "section": "1. General Information",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Room condition – Relative humidity",
+      "specification": "60±20%",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R009",
+      "section": "1. General Information",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Room condition – Zoning",
+      "specification": "Grade B and Grade C",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R010",
+      "section": "1. General Information",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Room condition – Pressure",
+      "specification": "NA",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R011",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Design parameters/ Dimensions – External Dimensions (W x D x H) (Including support stand)",
+      "specification": "1645 mm × 1057 mm × 2200 mm",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R012",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Design parameters/ Dimensions – Gross Internal Dimensions (W x D x H)",
+      "specification": "1525 mm × 805 mm × 880 mm",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R013",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Design parameters/ Dimensions",
+      "specification": "Flap type polycarbonate front windows.",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R014",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Design parameters/ Dimensions",
+      "specification": "Support stand with caster wheel height up to 565 mm",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R015",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Design parameters/ Dimensions",
+      "specification": "Bottom part of the biosafety cabinet should be opened",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R016",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Design parameters/ Dimensions – Sound Emission",
+      "specification": "53.6",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R017",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Design parameters/ Dimensions – Airflow Volume – Inflow",
+      "specification": "432 cmh (254 cfm)",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R018",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Design parameters/ Dimensions – Airflow Volume – Downflow",
+      "specification": "922 cmh (543 cfm)",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R019",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Design parameters/ Dimensions – Airflow Volume – Exhaust",
+      "specification": "432 cmh (254 cfm)",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R020",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Design parameters/ Dimensions – ULPA Filter Typical Efficiency",
+      "specification": ">99.999% at 0.1 to 0.3 micron, ULPA as per IEST-RP-CC001.3 USA",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R021",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Design parameters/ Dimensions – ULPA Filter Typical Efficiency",
+      "specification": ">99.999% at MPPS, H14 as per EN 1822 EU",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R022",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Design parameters/ Dimensions – Fluorescent Lamp Intensity (Lux)",
+      "specification": "1227",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R023",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Design parameters/ Dimensions – Fluorescent Lamp Intensity (foot-candles)",
+      "specification": "114",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R024",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Controlling system",
+      "specification": "NA",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R025",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Measuring/ Calibration parameters – Average Airflow Velocity – Inflow",
+      "specification": "0.45 m/s (90 fpm)",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R026",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Measuring/ Calibration parameters – Average Airflow Velocity – Downflow",
+      "specification": "0.30 m/s (60 fpm)",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R027",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Safety & Alarms",
+      "specification": "Over loaded in current, Circuit breaker will trip.",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R028",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Safety & Alarms",
+      "specification": "Proper earthling should be provided.",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R029",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Safety & Alarms",
+      "specification": "Safety Alarm for air velocity is out of range",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R030",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Safety & Alarms",
+      "specification": "Power failure alarm",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R031",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Power failure & recovery",
+      "specification": "NA",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R032",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Material of construction (MOC)",
+      "specification": "Main body SS304",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R033",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Material of construction (MOC) – Work Zone",
+      "specification": "1.5 mm (0.06\") 16 gauge stainless steel, type 304, with 4B finish",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R034",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Material of construction (MOC)",
+      "specification": "Working surface & backside wall is made of SS, other inside wall is made of glass.",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R035",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Material of construction (MOC)",
+      "specification": "Hydrogen Peroxide Vapour compatible",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R036",
+      "section": "2. Functional/ Operational Requirements",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Ink Jet/ USB/ SD Card supported print out option",
+      "specification": "NA",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R037",
+      "section": "3. Utility Services",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Electrical requirements – Volts",
+      "specification": "220-230 V",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R038",
+      "section": "3. Utility Services",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Electrical requirements – Phase",
+      "specification": "2 phase",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R039",
+      "section": "3. Utility Services",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Electrical requirements – Hz",
+      "specification": "50 HZ +/- 2%",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    },
+    {
+      "id": "R040",
+      "section": "3. Utility Services",
+      "source_text": null,
+      "source_location": null,
+      "requirement": "Electrical requirements – Uninterrupted power Supply",
+      "specification": "Required",
+      "target": {
+        "sheet": "CS",
+        "column_requirement": "A",
+        "column_specification": "B",
+        "column_vendor_feedback": "C (left blank)"
+      },
+      "confidence": null,
+      "validation_status": "verified_from_docx_table",
+      "ambiguity": null
+    }
+  ]
+}
