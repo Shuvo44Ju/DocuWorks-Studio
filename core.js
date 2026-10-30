@@ -67,7 +67,7 @@ function buildRows(parent, items, loc) {
       let j = i + 1;
       while (j < list.length && !list[j].li && !listMarker(list[j].text)) {
         const sv = splitLabelValue(cleanMarker(list[j].text));
-        out.push({ req: [parent, group, sv.label].filter(Boolean).join(' – '), desc: sv.value, raw: list[j].text, loc });
+        out.push({ req: [parent, group, sv.label].filter(Boolean).join(' – '), desc: sv.value, raw: list[j].text, loc, parent, group, label: sv.label });
         j++;
       }
       i = j - 1; group = '';
@@ -75,9 +75,9 @@ function buildRows(parent, items, loc) {
     }
     const sv = splitLabelValue(txt);
     if (sameAs(sv.label, parent)) sv.label = '';
-    out.push({ req: [parent, group, sv.label].filter(Boolean).join(' – '), desc: sv.value, raw: it.text, loc });
+    out.push({ req: [parent, group, sv.label].filter(Boolean).join(' – '), desc: sv.value, raw: it.text, loc, parent, group, label: sv.label });
   }
-  if (!out.length && parent) out.push({ req: parent, desc: '', raw: '', loc });
+  if (!out.length && parent) out.push({ req: parent, desc: '', raw: '', loc, parent, group: '', label: '' });
   // single plain row with label e.g. "Capacity: 620gm" keep as is
   return out;
 }
@@ -172,7 +172,7 @@ function parseDocxDocument(doc) {
       let label = cleanLabel(cells[iReq].textContent);
       if (!label) label = last; else last = label;
       const items = cellItems(cells[iDesc]);
-      buildRows(label, items).forEach(r => out.push({ type: 'row', req: r.req, desc: r.desc }));
+      buildRows(label, items, 'table row').forEach(r => out.push(Object.assign({ type: 'row' }, r)));
     }
     eqRows.push(...out);
   }
@@ -286,7 +286,7 @@ function parsePages(pages) {
       const canon = CANON.some(c => alnum(c) === alnum(label));
       const junk = alRatio(r.desc) < 0.55 || (r.desc && r.desc.length < 2);
       if (!canon && ((junk && label.length < 14) || (conf != null && conf < 60))) return;   // ghost text from the scan background
-      out.push({ type: 'row', req: r.req, desc: r.desc, raw: r.raw, loc: r.loc, conf, review: (conf != null && conf < 80) || junk });
+      out.push({ type: 'row', req: r.req, desc: r.desc, raw: r.raw, loc: r.loc, parent: r.parent, group: r.group, label: r.label, conf, review: (conf != null && conf < 80) || junk });
     });
     cur = null;
   };
