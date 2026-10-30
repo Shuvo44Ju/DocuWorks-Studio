@@ -38,262 +38,76 @@
 .dw-unified-home:hover{background:#105541}
 @media(max-width:560px){.dw-unified-header{height:68px;min-height:68px;padding:0 14px 0 118px}.dw-unified-brand{font-size:17px}.dw-unified-mark{width:32px;height:32px}.dw-unified-right{right:8px}.dw-unified-home{left:10px;top:14px;padding:10px 12px}}
 </style></head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col items-center p-4"><header class="dw-unified-header"><a class="dw-unified-home" href="./index.html">← Home</a><a class="dw-unified-brand" href="./index.html"><span class="dw-unified-mark">▤</span><span>DocuWorks <em>Studio</em></span></a><div class="dw-unified-right"><span class="dw-feature-name">URS → CS Maker</span></div></header>
-<main class="w-full max-w-xl bg-white border border-slate-200 rounded-2xl shadow-xl p-8 space-y-6">
-<div class="text-center space-y-2"><div class="inline-flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-xl font-bold text-xl mb-2">▤</div><h1 class="text-2xl font-extrabold text-slate-900">URS to CS Converter</h1><p class="text-sm text-slate-500">Drag & drop your URS PDF to convert it into a formatted Control Specification Excel file.</p><p class="text-xs font-semibold text-blue-700">Converter build: 2026-10-29-fix6</p></div>
-<div id="drop-zone" tabindex="0" role="button" aria-label="Choose or drop a URS PDF" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-8 text-center bg-slate-50 hover:bg-blue-50/50 transition-all cursor-pointer group"><input type="file" id="pdf-input" accept=".pdf,application/pdf" class="hidden"><div class="space-y-3 pointer-events-none"><svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg><p class="text-base font-semibold text-slate-700">Drop your URS PDF file here</p><p class="text-xs text-slate-400 mt-1">or click to browse from your computer</p></div></div>
-<div id="file-info" class="hidden bg-slate-50 border border-slate-200 rounded-lg p-4 items-center justify-between"><div class="flex items-center space-x-3 overflow-hidden"><svg class="w-8 h-8 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2zm8-14l3 3h-3V4z"/></svg><div class="truncate"><p id="file-name" class="text-sm font-medium text-slate-800 truncate">document.pdf</p><p id="file-size" class="text-xs text-slate-400">0 KB</p></div></div><button id="remove-file-btn" class="text-xs text-slate-400 hover:text-red-500 p-1">Remove</button></div>
-<div id="progress-container" class="hidden space-y-1.5"><div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div id="progress-bar" class="bg-blue-600 h-2 w-0 transition-all duration-300"></div></div><p id="status-text" class="text-xs text-slate-500 text-center" aria-live="polite">Processing PDF...</p></div>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col items-center p-4">
+<header class="dw-unified-header"><a class="dw-unified-home" href="./index.html">← Home</a><a class="dw-unified-brand" href="./index.html"><span class="dw-unified-mark">▤</span><span>DocuWorks <em>Studio</em></span></a><div class="dw-unified-right"></div></header>
+<main class="w-full max-w-xl bg-white border border-slate-200 rounded-2xl shadow-xl p-6 md:p-8 space-y-6">
+<div class="text-center space-y-2"><div class="inline-flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-xl font-bold text-xl mb-2">▤</div><h1 class="text-2xl font-extrabold text-slate-900">URS to CS Converter</h1><p class="text-sm text-slate-500">Upload a URS PDF or Word document and convert its requirements into your original CS Excel template.</p><p class="text-xs font-semibold text-blue-700">Template-preserving conversion engine</p></div>
+<div id="drop-zone" tabindex="0" role="button" aria-label="Choose or drop a URS file" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-8 text-center bg-slate-50 hover:bg-blue-50/50 transition-all cursor-pointer group"><input type="file" id="urs-input" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden"><div class="space-y-3 pointer-events-none"><svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a4 4 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg><p class="text-base font-semibold text-slate-700">Drop your URS PDF or DOCX here</p><p class="text-xs text-slate-400 mt-1">or click to browse</p></div></div>
+<div id="file-info" class="hidden bg-slate-50 border border-slate-200 rounded-lg p-4 items-center justify-between"><div class="min-w-0"><p id="file-name" class="text-sm font-semibold truncate"></p><p id="file-size" class="text-xs text-slate-400"></p></div><button id="remove-file-btn" class="text-xs text-slate-500 hover:text-red-600 p-2">Remove</button></div>
+<div id="progress-container" class="hidden space-y-1.5"><div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div id="progress-bar" class="bg-blue-600 h-2 w-0 transition-all duration-300"></div></div><p id="status-text" class="text-xs text-slate-500 text-center" aria-live="polite">Processing…</p></div>
 <p id="error-text" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3"></p>
-<button id="convert-btn" disabled class="w-full bg-slate-200 text-slate-400 font-bold py-3 px-4 rounded-xl cursor-not-allowed transition-all flex items-center justify-center space-x-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg><span>Convert & Download CS Excel</span></button>
-<p class="text-xs text-center text-slate-400">🔒 Files are processed locally in your browser.</p>
+<button id="convert-btn" disabled class="w-full bg-slate-200 text-slate-400 font-bold py-3 px-4 rounded-xl cursor-not-allowed transition-all">Upload a URS file first</button>
+<p class="text-xs text-center text-slate-400">Files are processed locally in your browser. Review generated requirements before official use.</p>
 </main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+<script src="./core.js?v=20261030-1"></script><script src="./builder.js?v=20261030-1"></script>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const dropZone=document.getElementById('drop-zone'),pdfInput=document.getElementById('pdf-input'),fileInfo=document.getElementById('file-info'),fileName=document.getElementById('file-name'),fileSize=document.getElementById('file-size'),removeFileBtn=document.getElementById('remove-file-btn'),progressContainer=document.getElementById('progress-container'),progressBar=document.getElementById('progress-bar'),statusText=document.getElementById('status-text'),convertBtn=document.getElementById('convert-btn'),errorText=document.getElementById('error-text');
-let selectedFile=null,extractedText='';
-const defaultCSMatrix=[
-["CS File of Untitled URS Document","",""],
-["Requirement","Incepta Specification / Description","Vendor Feedback"],
-["Vendor / Product Information","",""],["Manufacturer","",""],["Local Agent","",""],["Origin","",""],["Model","",""],
-["1. General Information","",""],
-["Description","Cell counter system designed for rapid and accurate determination of cell concentration, viability, and morphology using image-based analysis technology. Supports analysis of suspension and adherent cell cultures with minimal sample volume."],
-["Sample Analysis Capacity","Capable of analyzing viable and total cell concentration, viability, and cell morphology for multiple samples."],
-["Data Storage & Analysis","Data storage and analysis through PC software."],["Utilization – Hours per day","24 hours per day"],["Utilization – Days per week","7 days per week"],["Room Temperature","NMT 27°C"],["Relative Humidity","20–80%"],["Zoning","Grade C area or Laboratory"],["Pressure","10–15 Pa"],
-["2. Functional / Operational Requirements – Design Parameters","",""],["Capable Samples","Mammalian and other eukaryotic cells"],["Cell Culture Type","Suspension or Adherent culture"],["Capable Cell Size Range","5–180 µm"],["Cell Concentration Range","1×10⁴ – 3×10⁷ Cells/mL"],["Analysis Method","Image-based automated cell analysis"],["Sample Loading Volume","10–50 µL"],["Viability Method","Trypan Blue exclusion"],["Slide Type","Disposable 4-chamber slide or more chambers"],["Measurement Parameters","Total cell count, viable cell count, dead cell count, viability, cell diameter, roundness, and aggregation (density) analysis"],["Graphical Analysis","Diameter histogram, aggregation histogram, cultivation time chart, and growth curve analysis"],["Analysis Time","Approximately 10–60 seconds per sample"],["Data Storage & Analysis","PC-based data storage, analysis, retrieval, and export facility"],["Data Export Format","Compatible with PDF, XLS, and image export formats"],["Imaging System","Integrated automated imaging system with autofocus capability"],["Software Features","Histogram analysis, growth curve analysis, overlay comparison, and historical data management"],["Compatible Operating System","Windows-based operating system"],["Dimensions","Benchtop-sized compact design suitable for laboratory use"],["Connectivity","USB / LAN"],
-["2.2 Controlling System","",""],["PC","External PC"],["System Control","System control software"],["Imaging System Control","Automated image capture and processing"],["Startup / Shutdown","Manual startup / shutdown"],["Operation Mode","Switch / Push button operated"],["Display","LED display (Optional)"],
-["2.3 Measuring / Calibration Parameters","",""],["Cell Density Calibration","Required – based on equipment specification"],["Cell Viability Calibration","Required – based on equipment specification"],["Cell Diameter Calibration","Required – based on equipment specification"],
-["2.4 Safety & Alarms","",""],["Standard Alarms / Error Indication","Equipment should show standard alarms or errors (e.g. successful run completion, run failure, equipment malfunction etc.)"],["Parameter Deviation Alarm","Alarm during any deviation from set parameter"],
-["2.5 Power Failure & Recovery","",""],["Power Recovery","Automatic power recovery system at previous set point after a power failure"],
-["2.6 Material of Construction (MOC)","",""],["Material Compatibility","Compatible material for cell culture process and cleaning"],
-["3. Utility Services","",""],["Voltage","100V to 240V, 5W"],["Frequency","50–60 Hz"],["Uninterrupted Power Supply","Required"],
-["4. Validation Aspects / Regulatory Requirements","",""],["IQ-OQ Installation","By suppliers"],["IQ-OQ Documents","Required"],["List of Components","Required"],["Calibration Certificate","Required"],["Cleaning Requirements","Smooth and easily cleanable by using usual cleaning agent"],["Document Language","Documents shall be in English version and each document shall be uniquely traceable"],
-["5. Maintenance / Calibration","",""],["Calibration During Installation","Manufacturer or vendor will bring calibrated instruments and corresponding valid calibration certificate for qualification of equipment"],["Technical Support","Technical support during installation, operation and emergency purpose will be provided by supplier."]
-];
-function setStatus(percent,message){progressContainer.classList.remove('hidden');progressBar.style.width=percent+'%';statusText.textContent=message}
-function showError(message){errorText.textContent=message;errorText.classList.remove('hidden')}
-function clearError(){errorText.textContent='';errorText.classList.add('hidden')}
-function setButtonEnabled(enabled){convertBtn.disabled=!enabled;convertBtn.className=enabled?'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all cursor-pointer flex items-center justify-center space-x-2':'w-full bg-slate-200 text-slate-400 font-bold py-3 px-4 rounded-xl cursor-not-allowed transition-all flex items-center justify-center space-x-2'}
-function handleFileSelection(file){clearError();if(!file)return;if(file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf')){showError('Please upload a PDF file.');return}if(file.size>50*1024*1024){showError('This file is larger than 50 MB. Please choose a smaller PDF.');return}selectedFile=file;extractedText='';fileName.textContent=file.name;fileSize.textContent=(file.size/1024).toFixed(1)+' KB';dropZone.classList.add('hidden');fileInfo.classList.remove('hidden');fileInfo.classList.add('flex');progressContainer.classList.add('hidden');setButtonEnabled(true)}
-dropZone.addEventListener('click',()=>pdfInput.click());dropZone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pdfInput.click()}});
-['dragenter','dragover'].forEach(type=>dropZone.addEventListener(type,e=>{e.preventDefault();e.stopPropagation();if(e.dataTransfer)e.dataTransfer.dropEffect='copy';dropZone.classList.add('border-blue-500','bg-blue-50/50')}));
-['dragleave','dragend'].forEach(type=>dropZone.addEventListener(type,e=>{e.preventDefault();if(!dropZone.contains(e.relatedTarget))dropZone.classList.remove('border-blue-500','bg-blue-50/50')}));
-dropZone.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();dropZone.classList.remove('border-blue-500','bg-blue-50/50');const file=e.dataTransfer?.files?.[0];if(file)handleFileSelection(file);else showError('No file detected. Please try again.')});
-window.addEventListener('dragover',e=>e.preventDefault());window.addEventListener('drop',e=>{if(!dropZone.contains(e.target))e.preventDefault()});
-pdfInput.addEventListener('change',e=>{if(e.target.files?.[0])handleFileSelection(e.target.files[0]);pdfInput.value=''});
-removeFileBtn.addEventListener('click',()=>{selectedFile=null;extractedText='';pdfInput.value='';fileInfo.classList.add('hidden');fileInfo.classList.remove('flex');dropZone.classList.remove('hidden');progressContainer.classList.add('hidden');clearError();setButtonEnabled(false)});
-function textQuality(text){
- const s=String(text||'').trim(); if(!s)return 0;
- const chars=s.replace(/\\s/g,'').length;
- const letters=(s.match(/[A-Za-z0-9]/g)||[]).length;
- const replacement=(s.match(/[�□]/g)||[]).length;
- const words=(s.match(/[A-Za-z]{2,}/g)||[]).length;
- return chars + letters*0.8 + words*2 - replacement*12;
-}
-function orderPdfTextItems(items){
- const usable=items.filter(x=>x.str&&x.str.trim()).map(x=>({text:x.str.trim(),x:Number(x.transform?.[4]||0),y:Number(x.transform?.[5]||0),h:Math.abs(Number(x.height)||10)}));
- usable.sort((a,b)=>Math.abs(b.y-a.y)>2.5?b.y-a.y:a.x-b.x);
- const rows=[];
- for(const item of usable){
-  let row=rows.find(r=>Math.abs(r.y-item.y)<=Math.max(2.5,Math.min(5,item.h*0.35)));
-  if(!row){row={y:item.y,items:[]};rows.push(row);}
-  row.items.push(item);
+const $=id=>document.getElementById(id), zone=$('drop-zone'), input=$('urs-input'), info=$('file-info'), btn=$('convert-btn'), err=$('error-text'), prog=$('progress-container'), bar=$('progress-bar'), status=$('status-text');
+let file=null;
+function error(m){err.textContent=m;err.classList.remove('hidden')}
+function clearError(){err.textContent='';err.classList.add('hidden')}
+function setStatus(p,m){prog.classList.remove('hidden');bar.style.width=p+'%';status.textContent=m}
+function setReady(v){btn.disabled=!v;btn.className='w-full font-bold py-3 px-4 rounded-xl transition-all '+(v?'bg-blue-600 hover:bg-blue-700 text-white':'bg-slate-200 text-slate-400 cursor-not-allowed');btn.textContent=v?'Convert & Download CS Excel':'Upload a URS file first'}
+function choose(f){clearError();if(!f)return;const ext=f.name.toLowerCase().split('.').pop();if(!['pdf','docx'].includes(ext)){error('Please choose a PDF or DOCX file.');return}if(f.size>50*1024*1024){error('File exceeds 50 MB.');return}file=f;$('file-name').textContent=f.name;$('file-size').textContent=(f.size/1024).toFixed(1)+' KB';zone.classList.add('hidden');info.classList.remove('hidden');info.classList.add('flex');prog.classList.add('hidden');setReady(true)}
+zone.addEventListener('click',()=>input.click());zone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click()}});input.addEventListener('change',()=>choose(input.files[0]));
+['dragenter','dragover'].forEach(n=>zone.addEventListener(n,e=>{e.preventDefault();zone.classList.add('border-blue-500','bg-blue-50/50')}));['dragleave','drop'].forEach(n=>zone.addEventListener(n,e=>{e.preventDefault();zone.classList.remove('border-blue-500','bg-blue-50/50')}));zone.addEventListener('drop',e=>choose(e.dataTransfer.files[0]));
+$('remove-file-btn').addEventListener('click',()=>{file=null;input.value='';info.classList.add('hidden');info.classList.remove('flex');zone.classList.remove('hidden');prog.classList.add('hidden');clearError();setReady(false)});
+function titleFromText(t,name){const m=CSCore.extractMeta(t);return m.equipment||m.title||name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').trim()||'Untitled URS Document'}
+async function parsePdf(f){
+ const data=await f.arrayBuffer(), pdf=await pdfjsLib.getDocument({data}).promise, pages=[], textChunks=[];let totalWords=0;
+ for(let n=1;n<=pdf.numPages;n++){
+  setStatus(8+Math.round(48*n/pdf.numPages),'Reading PDF page '+n+' of '+pdf.numPages+'…');
+  const pg=await pdf.getPage(n),vp=pg.getViewport({scale:1}),tc=await pg.getTextContent(),words=[];
+  for(const it of tc.items){if(!it.str||!it.str.trim())continue;const tx=pdfjsLib.Util.transform(vp.transform,it.transform),x=tx[4],y=tx[5],h=Math.max(4,Math.hypot(tx[2],tx[3])||it.height||10),str=it.str.trim(),parts=str.split(/\s+/);let xcur=x;const width=Math.max(1,it.width||str.length*h*.45),unit=width/Math.max(1,str.length);for(const part of parts){const idx=str.indexOf(part,Math.max(0,str.indexOf(part)));const before=str.slice(0,idx).length;words.push({t:part,x0:x+before*unit,x1:x+(before+part.length)*unit,y0:y-h,y1:y,conf:null});}textChunks.push(it.str)}
+  totalWords+=words.length;pages.push({w:vp.width,h:vp.height,words});
  }
- rows.sort((a,b)=>b.y-a.y);
- return rows.map(row=>row.items.sort((a,b)=>a.x-b.x).map(x=>x.text).join(' ').replace(/\\s+/g,' ').trim()).filter(Boolean).join('\\n');
+ if(totalWords<35){
+  setStatus(15,'PDF appears scanned. Running OCR; please wait…');
+  const worker=await Tesseract.createWorker('eng',1,{logger:m=>{if(m.status==='recognizing text')setStatus(15+Math.round((m.progress||0)*45),'OCR: '+Math.round((m.progress||0)*100)+'%')}}).catch(()=>null);
+  if(worker){try{for(let n=1;n<=pdf.numPages;n++){const pg=await pdf.getPage(n),vp=pg.getViewport({scale:1.8}),canvas=document.createElement('canvas');canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;const res=await worker.recognize(canvas);const ws=(res.data.words||[]).map(w=>({t:w.text,x0:w.bbox.x0,x1:w.bbox.x1,y0:w.bbox.y0,y1:w.bbox.y1,conf:w.confidence}));pages[n-1]={w:canvas.width,h:canvas.height,words:ws};} }finally{await worker.terminate()} }
+ }
+ const parsed=CSCore.parsePages(pages);return {sheets:[{layout:'equipment',rows:parsed.rows}],text:parsed.text||textChunks.join('\n'),ocr:totalWords<35};
 }
-async function renderPdfPage(page,scale){
- const viewport=page.getViewport({scale}),canvas=document.createElement('canvas');
- canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
- const ctx=canvas.getContext('2d',{willReadFrequently:true});
- ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
- await page.render({canvasContext:ctx,viewport,background:'rgb(255,255,255)'}).promise;
- return canvas;
+async function parseDocx(f){
+ const ab=await f.arrayBuffer(),res=await mammoth.convertToHtml({arrayBuffer:ab}),doc=new DOMParser().parseFromString(res.value,'text/html');
+ const sheets=CSCore.parseDocxDocument(doc);if(!sheets.length)throw new Error('No supported requirement table was found in this DOCX. The reference parser expects a table with Requirement and Description columns.');return {sheets,text:doc.body.innerText||''};
 }
-convertBtn.addEventListener('click',async()=>{
- if(!selectedFile||convertBtn.disabled)return;
- clearError();convertBtn.disabled=true;setStatus(3,'Opening PDF and preparing page-by-page extraction…');
+btn.addEventListener('click',async()=>{
+ if(!file)return;clearError();setReady(false);
  try{
-  if(!window.pdfjsLib||!window.Tesseract)throw new Error('PDF or OCR library did not load. Check your internet connection, refresh, and retry.');
-  const buffer=await selectedFile.arrayBuffer();
-  const pdf=await pdfjsLib.getDocument({data:buffer,disableAutoFetch:false,disableStream:false}).promise;
-  if(!pdf.numPages)throw new Error('The PDF contains no pages.');
-  const pageResults=[];
-  // First pass: preserve selectable text with coordinate-aware line reconstruction.
-  for(let i=1;i<=pdf.numPages;i++){
-   const page=await pdf.getPage(i),content=await page.getTextContent({includeMarkedContent:true});
-   const text=orderPdfTextItems(content.items||[]);
-   pageResults.push({page:i,text,quality:textQuality(text),source:'PDF text'});
-   setStatus(5+Math.round(i/pdf.numPages*20),'Reading page '+i+' of '+pdf.numPages+' (text/layout pass)…');
-  }
-  // Second pass: OCR every page, not just fully scanned PDFs. Two OCR segmentation modes
-  // help with tables, columns, and mixed text/scanned documents. Keep the better result per page.
-  const worker=await Tesseract.createWorker('eng',1,{logger:m=>{
-   if(m.status==='recognizing text')setStatus(27+Math.round((m.progress||0)*60),'Deep OCR: page '+(m.page||'')+' — '+Math.round((m.progress||0)*100)+'%');
-  }});
-  try{
-   for(let i=1;i<=pdf.numPages;i++){
-    const page=await pdf.getPage(i);
-    let bestText=pageResults[i-1].text,bestQuality=pageResults[i-1].quality;
-    // High-resolution pass for legibility; try block segmentation and sparse-text layout.
-    for(const psm of ['6','11']){
-     await worker.setParameters({tessedit_pageseg_mode:psm,preserve_interword_spaces:'1'});
-     const canvas=await renderPdfPage(page,3);
-     const result=await worker.recognize(canvas);
-     const candidate=String(result.data?.text||'').trim(),quality=textQuality(candidate);
-     if(quality>bestQuality){bestText=candidate;bestQuality=quality;}
-     canvas.width=0;canvas.height=0;
-    }
-    pageResults[i-1]={page:i,text:bestText,quality:bestQuality,source:bestQuality>pageResults[i-1].quality?'OCR / hybrid':'PDF text'};
-    setStatus(27+Math.round(i/pdf.numPages*60),'Deep extraction complete for page '+i+' of '+pdf.numPages+' ('+pageResults[i-1].source+')…');
-   }
-  }finally{await worker.terminate();}
-  const fullText=pageResults.map(p=>'--- PAGE '+p.page+' ['+p.source+'] ---\\n'+p.text).join('\\n\\n');
-  extractedText=fullText;
-  console.info('[URS-CS fix6] Pages:',pdf.numPages,'Per-page extraction:',pageResults.map(p=>({page:p.page,source:p.source,characters:p.text.length,quality:p.quality})));
-  if(!fullText.replace(/\\s/g,'').length)throw new Error('No readable text was found, even after high-resolution OCR on every page.');
-  setStatus(90,'Mapping requirements and building the Excel file…');
-  await generateAndDownloadCS(fullText);
-  setStatus(100,'Done. Page-by-page extraction finished and Excel file downloaded.');
- }catch(err){
-  console.error('[URS-CS fix5] Extraction failed:',err);
-  showError('PDF extraction failed: '+(err?.message||'Unknown error')+'. No output was generated. Try a clearer scan or a text-based PDF.');
-  setStatus(0,'Conversion failed.');
- }finally{setButtonEnabled(!!selectedFile);}
+  if(!window.ExcelJS||!window.CSCore||!window.CSBuilder)throw new Error('A required converter library did not load. Refresh the page and retry.');
+  const ext=file.name.toLowerCase().split('.').pop();setStatus(3,'Extracting requirements…');
+  const parsed=ext==='docx'?await parseDocx(file):await parsePdf(file);
+  const sheets=(parsed.sheets||[]).filter(s=>s.rows&&s.rows.length);
+  const allRows=sheets.flatMap(s=>s.rows);if(!allRows.length)throw new Error('No requirements could be reliably extracted. No Excel file was generated.');
+  const actual=allRows.filter(r=>r.type==='row'||r.type==='sw').length;if(actual<2)throw new Error('Only '+actual+' requirement row(s) were detected. Please check the URS file; refusing to export a likely incomplete CS.');
+  setStatus(65,'Loading the original CS.xlsx template…');
+  const response=await fetch('./CS.xlsx',{cache:'no-store'});if(!response.ok)throw new Error('Could not load the original CS.xlsx template (HTTP '+response.status+').');
+  const template=await response.arrayBuffer(),wb=new ExcelJS.Workbook();await wb.xlsx.load(template);
+  const title=titleFromText(parsed.text||'',file.name);
+  CSBuilder.fillTemplate(wb,{title:'CS File of '+title,sheets});
+  setStatus(88,'Building formatted workbook…');
+  const out=await wb.xlsx.writeBuffer(),blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='CS_'+title.replace(/[^\w.-]+/g,'_').slice(0,70)+'.xlsx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  setStatus(100,'Completed. '+actual+' requirement rows exported. Please review the CS before approval.');
+ }catch(e){console.error(e);error(e&&e.message?e.message:String(e));prog.classList.add('hidden')}
+ finally{setReady(!!file)}
 });
-function normalizeText(s){return String(s||'').toLowerCase().replace(/[×]/g,'x').replace(/[–—−]/g,'-').replace(/\u00a0/g,' ').replace(/[^\p{L}\p{N}%°./+-]+/gu,' ').replace(/\s+/g,' ').trim()}
-function extractRequirements(text){
- const lines=text.split(/\n+/).map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>2);
- const rules=[
- [9,'Description','description|intended use|purpose|application|equipment shall'],
- [10,'Sample Analysis Capacity','sample capacity|samples per hour|throughput|samples per run'],
- [19,'Capable Samples','sample type|capable samples|cell type|mammalian cells|eukaryotic cells'],
- [20,'Cell Culture Type','cell culture|adherent culture|suspension culture'],
- [21,'Capable Cell Size Range','cell size|diameter range|size range'],
- [22,'Cell Concentration Range','cell concentration|concentration range|cells/ml|cell density range'],
- [23,'Analysis Method','analysis method|measurement principle|image based|imaging based'],
- [24,'Sample Loading Volume','sample volume|loading volume|volume of sample'],
- [25,'Viability Method','viability method|trypan blue|viability determination'],
- [26,'Slide Type','slide type|chamber slide|disposable slide|counting slide'],
- [27,'Measurement Parameters','measurement parameters|total cell count|viable cell count|cell morphology'],
- [28,'Graphical Analysis','graphical analysis|growth curve|histogram|trend chart'],
- [29,'Analysis Time','analysis time|measurement time|results within|seconds per sample'],
- [30,'Data Storage & Analysis','data storage|data management|historical data|database'],
- [31,'Data Export Format','export format|pdf export|excel export|data export|csv format'],
- [32,'Imaging System','imaging system|camera|autofocus|image capture|optical system'],
- [33,'Software Features','software feature|software shall|software functions|user management'],
- [34,'Compatible Operating System','operating system|windows|compatible os'],
- [35,'Dimensions','dimensions|footprint|equipment size|weight of equipment'],
- [36,'Connectivity','connectivity|usb|ethernet|lan port|network interface|wi-fi'],
- [38,'PC','pc requirement|computer requirement|workstation'],
- [39,'System Control','system control|control software'],
- [40,'Imaging System Control','image processing|imaging control|image acquisition'],
- [41,'Startup / Shutdown','startup|start-up|shut down|shutdown|restart'],
- [42,'Operation Mode','operation mode|operating mode|push button|automatic mode'],
- [43,'Display','display|touchscreen|monitor|screen size'],
- [45,'Cell Density Calibration','cell density calibration|density calibration'],
- [46,'Cell Viability Calibration','viability calibration|viability accuracy'],
- [47,'Cell Diameter Calibration','diameter calibration|size calibration'],
- [49,'Standard Alarms / Error Indication','alarm|error indication|fault indication|warning message'],
- [50,'Parameter Deviation Alarm','parameter deviation|deviation alarm|out of range'],
- [52,'Power Recovery','power failure|power recovery|power interruption|power outage'],
- [54,'Material Compatibility','material of construction|material compatibility|chemical resistance'],
- [56,'Print Output','print out|printout|printer|usb print|sd card|print report'],
- [58,'Voltage','voltage|input voltage|power supply'],
- [59,'Frequency','frequency|50 hz|60 hz'],
- [60,'Uninterrupted Power Supply','ups|uninterrupted power|backup power'],
- [62,'IQ-OQ Installation','iq/oq|iq-oq|installation qualification|operational qualification'],
- [63,'IQ-OQ Documents','validation document|qualification document|iq oq documents'],
- [64,'List of Components','list of components|accessories|components included'],
- [65,'Calibration Certificate','calibration certificate|traceable calibration'],
- [66,'Cleaning Requirements','cleaning requirement|cleanability|disinfection|cleaning procedure'],
- [67,'Document Language','document language|manual language|english version|user manual'],
- [70,'Calibration During Installation','installation calibration|calibrated instruments|commissioning'],
- [71,'Technical Support','technical support|service support|response time|maintenance support|warranty']
- ].map(([row,label,keys])=>({row,label,keys:keys.split('|')}));
- const mapped=new Map(),audit=[];
- for(const line of lines){
-  const n=normalizeText(line);let best=null,score=0;
-  for(const rule of rules){for(const key of rule.keys){const k=normalizeText(key);if(n.includes(k)&&k.length>score){best=rule;score=k.length}}}
-  // If no exact keyword rule matched, use the strongest overlap with CS field labels
-  // so differently worded URS statements are not silently discarded.
-  if(!best){
-   const words=n.split(' ').filter(w=>w.length>=4);
-   let overlapBest=0;
-   for(const rule of rules){
-    const labelWords=normalizeText(rule.label).split(' ').filter(w=>w.length>=4);
-    const overlap=labelWords.filter(w=>words.includes(w)).length;
-    if(overlap>overlapBest){overlapBest=overlap;best=rule;}
-   }
-   if(overlapBest===0 && /shall|must|required|should|capable|provide|support|include|equipped|operate|range|accuracy|performance|system|software|data|power|safety|alarm|calibration|installation|maintenance|cleaning|document|sample|measurement|analysis/i.test(line)){
-    best=rules.find(r=>r.row===9);
-   }
-  }
-  if(best){if(!mapped.has(best.row))mapped.set(best.row,[]);if(!mapped.get(best.row).includes(line))mapped.get(best.row).push(line);audit.push({line,row:best.row,label:best.label,status:'Mapped — verify context'});}
-  else audit.push({line,row:'',label:'',status:'Non-requirement / heading'});
- }
- return {mapped,audit,lines};
-}
-async function generateAndDownloadCS(extractedData){
- if(!window.ExcelJS)throw new Error('Excel export library failed to load. Check your internet connection and retry.');
- setStatus(96,'Preparing CS workbook…');
- const workbook=new ExcelJS.Workbook();
- let worksheet;
- // Prefer the repository template when it exists. If missing (the current HTTP 404),
- // build a usable workbook from the converter's embedded CS matrix rather than failing.
- const templateUrl=new URL('CS.xlsx?v=20261029fix7', document.baseURI).href;
- try {
-  const response=await fetch(templateUrl,{cache:'no-store'});
-  if(response.ok){
-   await workbook.xlsx.load(await response.arrayBuffer());
-   worksheet=workbook.getWorksheet('CS-Digital Cell Analyzer')||workbook.worksheets[0];
-   console.info('[URS-CS fix6] Original template loaded:',response.url,'Worksheet:',worksheet?.name);
-  } else {
-   throw new Error('Could not load CS.xlsx from this project (HTTP '+response.status+'). The original template is required; no substitute workbook will be generated.');
-  }
- } catch(templateError) {
-  throw new Error('Could not load the original CS.xlsx template: '+(templateError.message||templateError)+'. No substitute workbook was generated.');
- }
-
- if(!worksheet)throw new Error('Could not create a CS worksheet.');
- const sourceText=typeof extractedData==='string'?extractedData:(Array.isArray(extractedData)?extractedData.map(x=>typeof x==='string'?x:(x.text||x.requirement||'')).join('\n'):Object.values(extractedData||{}).filter(v=>typeof v==='string').join('\n'));
- const {mapped,audit,lines}=extractRequirements(sourceText);
- const titleLines=sourceText.split(/\n+/).map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>=5&&s.length<=180);
- const explicitTitle=titleLines.find(s=>/^(document title|title|equipment name|system name|product name)\s*[:：-]\s*\S/i.test(s));
- const genericLine=/^(page\s*\d+|version\s*[:#]?|revision\s*[:#]?|date\s*[:#]?|confidential|table of contents|user requirement specification|urs|requirement specification|document number|doc\.?\s*no\.?)/i;
- const uploadedTitle=explicitTitle?explicitTitle.replace(/^(document title|title|equipment name|system name|product name)\s*[:：-]\s*/i,'').trim():(titleLines.slice(0,35).find(s=>!genericLine.test(s)&&/[A-Za-z]{3}/.test(s))||'Untitled URS Document');
- worksheet.getCell('A1').value='CS File of '+uploadedTitle;
- // Rename the output worksheet to the detected URS document title (Excel sheet names max 31 chars).
- const safeSheetName=(uploadedTitle.replace(/[\\/?*\[\]:]/g,' ').trim()||'URS Specification').slice(0,31);
- worksheet.name=safeSheetName;
- console.info('[URS-CS fix2] Header title:',uploadedTitle);
- console.info('[URS-CS build 2026-10-29-fix6] Extracted lines:',lines.length,'Mapped rows:',mapped.size,'Audit lines:',audit.length);
- if(mapped.size===0) throw new Error('PDF text was extracted, but no lines matched the CS requirement rules. Check the URS Review sheet / PDF wording; refusing to create a mostly blank CS.');
- if(!sourceText||sourceText.replace(/\s/g,'').length<20)throw new Error('No readable content was extracted. The Excel template was not exported as a substitute.');
-
- // The workbook is a formatting template only: clear all example/specification values
- // before applying values extracted from the uploaded URS PDF.
- const dynamicRows=[9,10,11,12,13,14,15,16,17,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,38,39,40,41,42,43,45,46,47,49,50,52,54,56,58,59,60,62,63,64,65,66,67,70,71];
- for(const rowNum of dynamicRows){worksheet.getCell(rowNum,2).value=null;}
- for(const [rowNum,items] of mapped){
-  const cell=worksheet.getCell(rowNum,2);
-  const requirement=items.join('\n');
-  cell.value=requirement.length>3000?requirement.slice(0,2997)+'…':requirement;
-  // Preserve the template cell's original alignment, font, fill, border, number format and protection.
-  if(items.length>1)cell.note='Multiple potentially relevant URS lines were matched. Review for completeness and duplicates.';
- }
- // No extra URS Review worksheet is created; export only the original CS template sheet.
-
- setStatus(98,'Writing Excel file with original template styling…');
- const out=await workbook.xlsx.writeBuffer();
- const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
- const url=URL.createObjectURL(blob),a=document.createElement('a');
- a.href=url;a.download=(selectedFile?selectedFile.name.replace(/\.pdf$/i,''):'CS_Digital_Cell_Analyzer')+'_CS.xlsx';
- document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
- console.info('[URS-CS build 2026-10-29-fix5] Download triggered:',a.download,'Mapped rows:',mapped.size);
-}
 </script>
 <script src="./theme.js?v=2" defer></script>
-</body>
-</html>
+</body></html>
