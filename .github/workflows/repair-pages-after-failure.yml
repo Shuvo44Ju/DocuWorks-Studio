@@ -39,7 +39,7 @@ jobs:
                 per_page: 1
               });
               const latest = statuses.data[0];
-              if (latest && ["in_progress", "queued", "pending"].includes(latest.state)) {
+              if (latest && latest.state !== "inactive" && latest.state !== "failure" && latest.state !== "error") {
                 await github.rest.repos.createDeploymentStatus({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
