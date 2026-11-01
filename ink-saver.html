@@ -276,10 +276,7 @@ $('ink').addEventListener('input', () => {
 });
 
 const scannerPanel = $('scannerpanel');
-$('openScanner').addEventListener('click', () => {
-  scannerPanel.classList.remove('hidden');
-  document.body.classList.add('scanner-open');
-});
+// The scanner launch button is not present in this page, so do not bind a handler to a missing element.
 $('closeScanner').addEventListener('click', () => {
   if (scanBusy) return;
   scannerPanel.classList.add('hidden');
