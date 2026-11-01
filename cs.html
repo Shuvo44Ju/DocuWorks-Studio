@@ -53,7 +53,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-<script src="./core.js?v=20261030-2"></script><script src="./builder.js?v=20261030-2"></script>
+<script src="./core.js?v=20261101-3"></script><script src="./builder.js?v=20261101-3"></script>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -71,36 +71,55 @@ function titleFromText(t,name){const m=CSCore.extractMeta(t);return m.equipment|
 async function parsePdf(f){
  const data=await f.arrayBuffer(), pdf=await pdfjsLib.getDocument({data}).promise, pages=[], textChunks=[];
  let textWords=0, ocrPages=[];
- // First extract selectable text page by page. Mixed PDFs can contain both text and scanned pages.
+ const qualityScore=words=>{
+  if(!words||!words.length)return 0;
+  const t=words.map(w=>w.t||'').join(' '),chars=t.replace(/\s/g,'');
+  const alnum=(t.match(/[A-Za-z0-9]/g)||[]).length;
+  const bad=(t.match(/[\uFFFD\uE000-\uF8FF\u0000-\u0008]/g)||[]).length;
+  const valid=words.filter(w=>/[A-Za-z0-9]/.test(w.t||'')).length;
+  return .55*alnum/Math.max(1,chars.length)+.45*valid/words.length-2*bad/Math.max(1,chars.length);
+ };
+ const wordText=words=>words.map(w=>w.t).join(' ');
  for(let n=1;n<=pdf.numPages;n++){
-  setStatus(5+Math.round(35*n/pdf.numPages),'Reading PDF page '+n+' of '+pdf.numPages+'…');
+  setStatus(5+Math.round(30*n/pdf.numPages),'Reading PDF page '+n+' of '+pdf.numPages+'…');
   const pg=await pdf.getPage(n),vp=pg.getViewport({scale:1}),tc=await pg.getTextContent(),words=[];
   for(const it of tc.items){
    if(!it.str||!it.str.trim())continue;
    const tx=pdfjsLib.Util.transform(vp.transform,it.transform),x=tx[4],y=tx[5],h=Math.max(4,Math.hypot(tx[2],tx[3])||it.height||10),str=it.str.trim();
-   const parts=str.split(/\\s+/),width=Math.max(1,it.width||str.length*h*.45),unit=width/Math.max(1,str.length);
+   const parts=str.split(/\s+/),width=Math.max(1,it.width||str.length*h*.45),unit=width/Math.max(1,str.length);
    let searchFrom=0;
    for(const part of parts){
-    const idx=str.indexOf(part,searchFrom); if(idx<0)continue; searchFrom=idx+part.length;
-    const before=idx;
-    words.push({t:part,x0:x+before*unit,x1:x+(before+part.length)*unit,y0:y-h,y1:y,conf:null});
+    const idx=str.indexOf(part,searchFrom);if(idx<0)continue;searchFrom=idx+part.length;
+    words.push({t:part,x0:x+idx*unit,x1:x+(idx+part.length)*unit,y0:y-h,y1:y,conf:null});
    }
    textChunks.push(it.str);
   }
   textWords+=words.length;
   pages.push({w:vp.width,h:vp.height,words});
-  // OCR only the page with an absent/suspiciously small text layer, not only when the whole PDF is empty.
-  if(words.length<35)ocrPages.push(n-1);
+  const pgText=wordText(words);
+  const rowSignal=words.some(w=>/^\d{1,2}\.\d{1,2}\.?$/.test(w.t)||/^\d{1,2}\.$/.test(w.t));
+  const corruptChars=(pgText.match(/[\uFFFD\uE000-\uF8FF\u0000-\u0008]/g)||[]).length;
+  const compact=pgText.replace(/\s/g,'');
+  const alphaRatio=(pgText.match(/[A-Za-z0-9]/g)||[]).length/Math.max(1,compact.length);
+  if(words.length<35||corruptChars>0||(words.length>50&&alphaRatio<0.42))ocrPages.push(n-1);
+ }
+ const allText=pages.map(p=>wordText(p.words)).join(' ');
+ const hasGlobalHeader=/requirements?/i.test(allText)&&/descriptions?/i.test(allText);
+ if(!hasGlobalHeader){
+  // If the document has numbered table rows but no readable header text, its text layer
+  // may be corrupt or flattened incorrectly. OCR those pages instead of trusting it.
+  pages.forEach((p,i)=>{if(p.words.some(w=>/^\d{1,2}\.\d{1,2}\.?$/.test(w.t))&&!ocrPages.includes(i))ocrPages.push(i)});
  }
  if(ocrPages.length){
-  setStatus(42,'OCR needed on '+ocrPages.length+' page(s)…');
+  setStatus(38,'Checking '+ocrPages.length+' page(s) with OCR…');
   let worker;
   try{
    worker=await Tesseract.createWorker('eng',1,{logger:m=>{
-    if(m.status==='recognizing text')setStatus(42+Math.round((m.progress||0)*43),'OCR: page processing '+Math.round((m.progress||0)*100)+'%');
+    if(m.status==='recognizing text')setStatus(38+Math.round((m.progress||0)*45),'OCR recognition '+Math.round((m.progress||0)*100)+'%');
    }});
+   try{await worker.setParameters({tessedit_pageseg_mode:'6'})}catch(_){}
    for(let k=0;k<ocrPages.length;k++){
-    const i=ocrPages[k],pg=await pdf.getPage(i+1),vp=pg.getViewport({scale:1}),ocrScale=2,ovp=pg.getViewport({scale:ocrScale}),canvas=document.createElement('canvas');
+    const i=ocrPages[k],pg=await pdf.getPage(i+1),vp=pg.getViewport({scale:1}),ocrScale=2.5,ovp=pg.getViewport({scale:ocrScale}),canvas=document.createElement('canvas');
     canvas.width=Math.ceil(ovp.width);canvas.height=Math.ceil(ovp.height);
     await pg.render({canvasContext:canvas.getContext('2d'),viewport:ovp}).promise;
     const res=await worker.recognize(canvas);
@@ -108,18 +127,20 @@ async function parsePdf(f){
      t:w.text.trim(),x0:w.bbox.x0/ocrScale,x1:w.bbox.x1/ocrScale,
      y0:w.bbox.y0/ocrScale,y1:w.bbox.y1/ocrScale,conf:w.confidence
     }));
-    // Replace weak text-layer extraction for this page with OCR coordinates normalized to the same page scale.
-    if(ws.length>pages[i].words.length)pages[i]={w:vp.width,h:vp.height,words:ws};
-    else if(!pages[i].words.length)pages[i]={w:vp.width,h:vp.height,words:ws};
-    setStatus(42+Math.round(43*(k+1)/ocrPages.length),'OCR page '+(i+1)+' of '+pdf.numPages+' complete');
+    const oldScore=qualityScore(pages[i].words),newScore=qualityScore(ws);
+    const forceReplace=pages[i].words.length<35||/[\uFFFD\uE000-\uF8FF\u0000-\u0008]/.test(wordText(pages[i].words))||(!hasGlobalHeader&&ws.length>0);
+    if(ws.length&&(forceReplace||newScore>oldScore+0.04))pages[i]={w:vp.width,h:vp.height,words:ws};
+    setStatus(38+Math.round(45*(k+1)/ocrPages.length),'OCR complete: '+(k+1)+' of '+ocrPages.length+' pages');
    }
   }catch(e){
    console.error('OCR failed:',e);
-   throw new Error('OCR could not finish on one or more scanned pages. Check your internet connection and retry. Details: '+(e.message||e));
+   throw new Error('OCR could not finish on one or more pages. Check your internet connection and retry. Details: '+(e.message||e));
   }finally{if(worker)await worker.terminate()}
  }
  const parsed=CSCore.parsePages(pages);
- return {sheets:[{layout:'equipment',rows:parsed.rows}],text:parsed.text||textChunks.join('\\n'),ocr:ocrPages.length>0,ocrPages:ocrPages.length,textWords};
+ return {sheets:[{layout:'equipment',rows:parsed.rows}],text:parsed.text||textChunks.join('\n'),
+  ocr:ocrPages.length>0,ocrPages:ocrPages.length,pageCount:parsed.pageCount,
+  pagesWithContent:parsed.pagesWithContent,processedPages:parsed.processedPages,textWords};
 }
 async function parseDocx(f){
  const ab=await f.arrayBuffer(),res=await mammoth.convertToHtml({arrayBuffer:ab}),doc=new DOMParser().parseFromString(res.value,'text/html');
@@ -142,7 +163,9 @@ btn.addEventListener('click',async()=>{
   setStatus(88,'Building formatted workbook…');
   const out=await wb.xlsx.writeBuffer(),blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download='CS_'+title.replace(/[^\w.-]+/g,'_').slice(0,70)+'.xlsx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
-  setStatus(100,'Completed. '+actual+' requirement rows exported. Please review the CS before approval.');
+  const reviewCount=allRows.filter(r=>r.review).length;
+  const pdfAudit=ext==='pdf'?' PDF pages: '+parsed.pageCount+'; pages containing extracted table content: '+parsed.pagesWithContent+'; OCR pages: '+parsed.ocrPages+'.':'';
+  setStatus(100,'Completed. '+actual+' requirement rows exported; '+reviewCount+' row(s) flagged for source review.'+pdfAudit+' Please compare the workbook with every source page before approval.');
  }catch(e){console.error(e);error(e&&e.message?e.message:String(e));prog.classList.add('hidden')}
  finally{setReady(!!file)}
 });
