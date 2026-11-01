@@ -243,10 +243,13 @@ function estimateColumns(pagesLines) {
       if (ri >= 0) header2.push(ws[ri].x0 / w);
       if (di >= 0) header3.push(ws[di].x0 / w);
     }
-    if (ws.length < 3 || !ROWNUM.test(ws[0].t) || ws[0].x0 > 0.35 * w) continue;
-    s2.push(ws[1].x0 / w);
+    const rn = rowNumberInfo(ws, w);
+    if (ws.length < 3 || !rn || ws[0].x0 > 0.35 * w) continue;
+    const labelStart = ws[rn.parts];
+    if (!labelStart) continue;
+    s2.push(labelStart.x0 / w);
     let bg = 0, bi = -1;
-    for (let i = 2; i < ws.length; i++) { const g = ws[i].x0 - ws[i - 1].x1; if (g > bg) { bg = g; bi = i; } }
+    for (let i = rn.parts + 1; i < ws.length; i++) { const g = ws[i].x0 - ws[i - 1].x1; if (g > bg) { bg = g; bi = i; } }
     if (bi > 0 && bg > 0.03 * w) s3.push(ws[bi].x0 / w);
   }
   let c2 = header2.length ? median(header2) : median(s2);
