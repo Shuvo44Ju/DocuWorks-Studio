@@ -18,11 +18,12 @@ let file=null,pdf=null,pageNum=1,scale=1.35,dragMode=false,dragStart=null,masks=
 const canvas=$('canvas'),ctx=canvas.getContext('2d',{alpha:false}),wrap=$('pagewrap'),selection=$('selection');
 function list(){return masks[pageNum]||(masks[pageNum]=[])}
 function editList(){return edits[pageNum]||(edits[pageNum]=[])}
+function paintEdits(){ctx.save();ctx.textBaseline="top";for(const e of editList()){ctx.fillStyle="#fff";ctx.fillRect(e.x,e.y,e.w,e.h);ctx.fillStyle="#111";ctx.font=(parseFloat(e.font)||16)+"px Arial";ctx.fillText(e.text,e.x+1,e.y+1,Math.max(10,e.w-2));}ctx.restore()}
 function paintMasks(){ctx.save();ctx.fillStyle='#fff';for(const r of list())ctx.fillRect(r.x,r.y,r.w,r.h);ctx.restore()}
 async function showPage(n){
  if(!pdf)return;pageNum=Math.max(1,Math.min(pdf.numPages,n));const page=await pdf.getPage(pageNum),vp=page.getViewport({scale});
  canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);canvas.style.width=vp.width+'px';canvas.style.height=vp.height+'px';wrap.style.width=vp.width+'px';wrap.style.height=vp.height+'px';pageSizes[pageNum]={width:vp.width,height:vp.height};
- await page.render({canvasContext:ctx,viewport:vp}).promise;paintMasks();
+ await page.render({canvasContext:ctx,viewport:vp}).promise;paintMasks();paintEdits();
  const layer=$('textLayer');layer.innerHTML='';const tc=await page.getTextContent();
  for(const it of tc.items){if(!it.str||!it.str.trim())continue;const tx=pdfjsLib.Util.transform(vp.transform,it.transform),fh=Math.max(8,Math.hypot(tx[2],tx[3])),left=tx[4],top=tx[5]-fh,width=Math.max(8,it.width*scale),height=Math.max(fh,10);const span=document.createElement('span');span.textContent=it.str;Object.assign(span.style,{position:'absolute',left:left+'px',top:top+'px',width:width+'px',height:height+'px',fontSize:fh+'px',fontFamily:'sans-serif',whiteSpace:'pre',overflow:'hidden',color:'transparent',pointerEvents:'auto',cursor:'text'});span.title='Click to edit this text';span.addEventListener('click',ev=>{if(mode!=='edit')return;ev.stopPropagation();pending={x:left,y:top,w:width,h:height,font:fh+'px Arial',text:it.str};$('editbar').classList.remove('hidden');$('replacement').value=it.str;$('replacement').focus();});layer.appendChild(span);}
  layer.style.pointerEvents=mode==='edit'?'auto':'none';
