@@ -53,7 +53,7 @@ function buildRows(parent, items, loc) {
     const it = list[i];
     const txt = cleanMarker(it.text);
     if (!txt) continue;
-    if (!/:/.test(txt) && /\b(the|of|with|in|to|for|and|or|a|an)$/i.test(txt) && txt.split(/\s+/).length > 3) continue;
+    // Preserve incomplete-looking lines; PDF extraction can split real requirements across visual lines.
     // group heading: ends with ':'
     if (/:$/.test(txt)) {
       const h = txt.replace(/:$/, '').trim();
@@ -234,18 +234,26 @@ const SECKEY = /^(general\s*information|functional|utility\s*services|validation
 const median = a => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
 
 function estimateColumns(pagesLines) {
-  const s2 = [], s3 = [];
+  const header2 = [], header3 = [], s2 = [], s3 = [];
   for (const { lines, w } of pagesLines) for (const L of lines) {
-    const ws = L.words; if (ws.length < 3 || !ROWNUM.test(ws[0].t) || ws[0].x0 > 0.35 * w) continue;
+    const ws = L.words;
+    if (/requirement/i.test(L.text) && /description/i.test(L.text)) {
+      const ri = ws.findIndex(x => /^requirements?$/i.test(x.t));
+      const di = ws.findIndex(x => /^descriptions?$/i.test(x.t));
+      if (ri >= 0) header2.push(ws[ri].x0 / w);
+      if (di >= 0) header3.push(ws[di].x0 / w);
+    }
+    if (ws.length < 3 || !ROWNUM.test(ws[0].t) || ws[0].x0 > 0.35 * w) continue;
     s2.push(ws[1].x0 / w);
     let bg = 0, bi = -1;
     for (let i = 2; i < ws.length; i++) { const g = ws[i].x0 - ws[i - 1].x1; if (g > bg) { bg = g; bi = i; } }
     if (bi > 0 && bg > 0.03 * w) s3.push(ws[bi].x0 / w);
   }
-  let c2 = median(s2), c3 = median(s3);
-  if (s2.length < 3 || c2 == null) c2 = null;
-  if (s3.length < 3 || c3 == null) c3 = null;
-  if (c2 == null || c3 == null) {   // histogram fallback on segment starts
+  let c2 = header2.length ? median(header2) : median(s2);
+  let c3 = header3.length ? median(header3) : median(s3);
+  if (s2.length < 3 && !header2.length) c2 = null;
+  if (s3.length < 3 && !header3.length) c3 = null;
+  if (c2 == null || c3 == null) {
     const bins = {};
     for (const { lines, w } of pagesLines) for (const L of lines) {
       let prev = null;
@@ -255,18 +263,28 @@ function estimateColumns(pagesLines) {
     if (c2 == null) { const p = pk.find(([b, c]) => b >= 13 && b <= 40 && c >= 3); c2 = p ? p[0] / 100 : 0.22; }
     if (c3 == null) { const p = pk.find(([b, c]) => b > c2 * 100 + 8 && b <= 70 && c >= 3); c3 = p ? p[0] / 100 : 0.45; }
   }
+  if (c3 <= c2 + 0.08) c3 = Math.min(0.85, c2 + 0.20);
   return { c2, c3 };
 }
 
 const avgConf = ws => { const c = ws.map(x => x.conf).filter(x => x != null); return c.length ? c.reduce((a, b) => a + b, 0) / c.length : null; };
 const alRatio = t => { t = String(t || ''); return t ? (t.match(/[A-Za-z0-9]/g) || []).length / t.length : 0; };
+function rowNumberInfo(words, pageWidth) {
+  if (!words || !words.length) return null;
+  if (ROWNUM.test(words[0].t)) return { parts: 1, value: words[0].t };
+  if (/^\d{1,2}\.$/.test(words[0].t) && words[1] && /^\d{1,2}\.?$/.test(words[1].t) &&
+      words[1].x0 - words[0].x1 < pageWidth * 0.025) {
+    return { parts: 2, value: words[0].t + words[1].t };
+  }
+  return null;
+}
+
 function parsePages(pages) {
-  // pages: [{w,h,words:[{t,x0,y0,x1,y1}]}]
   const pl = pages.map((p, i) => ({ w: p.w, h: p.h, idx: i + 1, lines: groupLines(p.words) }));
   const { c2, c3 } = estimateColumns(pl);
-  const out = [];
-  let cur = null, sec = 0, stop = false;
-  const fullText = [];
+  const out = [], fullText = [], processedPages = [];
+  let cur = null, sec = 0, tableStarted = false, stop = false;
+  const createCurrent = page => ({ num: null, label: [], lines: [], hasLabel: false, page, lastLabelY: null });
   const flush = () => {
     if (!cur) return;
     const label = snapLabel(cleanLabel(cur.label.join(' ')));
@@ -282,69 +300,106 @@ function parsePages(pages) {
     }
     const confs = cur.lines.map(l => l.conf).filter(x => x != null);
     const conf = confs.length ? Math.round(confs.reduce((a, b) => a + b, 0) / confs.length) : null;
+    const minConf = confs.length ? Math.round(Math.min(...confs)) : null;
     buildRows(label, items.map(i => ({ text: i.text, li: i.li })), 'page ' + cur.page).forEach(r => {
-      const canon = CANON.some(c => alnum(c) === alnum(label));
       const junk = alRatio(r.desc) < 0.55 || (r.desc && r.desc.length < 2);
-      if (!canon && ((junk && label.length < 14) || (conf != null && conf < 60))) return;   // ghost text from the scan background
-      out.push({ type: 'row', req: r.req, desc: r.desc, raw: r.raw, loc: r.loc, parent: r.parent, group: r.group, label: r.label, conf, review: (conf != null && conf < 80) || junk });
+      out.push({ type: 'row', req: r.req, desc: r.desc, raw: r.raw, loc: r.loc,
+        parent: r.parent, group: r.group, label: r.label, conf, minConf,
+        review: (minConf != null && minConf < 80) || junk });
     });
     cur = null;
   };
+
   for (const pg of pl) {
     const { w, h, lines } = pg;
     lines.forEach(L => fullText.push(L.text));
-    if (stop) continue;
-    // cut above table header
-    let cut = -1;
+    if (stop || !lines.length) continue;
+
     const hi = lines.findIndex(L => /requirement/i.test(L.text) && /description/i.test(L.text));
-    if (hi >= 0) cut = lines[hi].y1;
-    else { const vi = lines.findIndex(L => /version/i.test(L.text) && L.yc < 0.3 * h); if (vi >= 0) cut = lines[vi].y1; }
-    const hasTable = hi >= 0 || lines.some(L => ROWNUM.test(L.words[0].t) && L.words[0].x0 < 0.35 * w);
-    if (!hasTable) continue;
+    const hasNumberedRow = lines.some(L => {
+      const rn = rowNumberInfo(L.words, w);
+      return !!rn && L.words[0].x0 < 0.35 * w;
+    });
+    if (hi >= 0 || hasNumberedRow) tableStarted = true;
+    // A continued table page may have neither a repeated header nor row number.
+    if (!tableStarted) continue;
+
+    let cut = hi >= 0 ? lines[hi].y1 : -1;
+    if (hi < 0) {
+      const vi = lines.findIndex(L => /version/i.test(L.text) && L.yc < 0.3 * h);
+      if (vi >= 0 && !hasNumberedRow) cut = lines[vi].y1;
+    }
     const b1 = (c2 - 0.02) * w, b2 = (c3 - 0.02) * w;
-    const body = lines.filter(L => L.y0 > cut - 1 && !/^format\s*no/i.test(L.text) && !(L.yc > 0.94 * h && /page|format/i.test(L.text)));
-    // right edge of description column
+    const body = lines.filter(L => L.y0 > cut - 1 && !/^format\s*no/i.test(L.text) &&
+      !(L.yc > 0.94 * h && /page|format/i.test(L.text)));
+    const continuationLines = body.filter(L => {
+      const rn = rowNumberInfo(L.words, w);
+      return !!rn || L.words.some(x => x.x0 >= b1);
+    });
+    if (hi < 0 && !hasNumberedRow && !continuationLines.length) continue;
+    processedPages.push(pg.idx);
+
     const rs = body.flatMap(L => L.words.filter(x => x.x0 >= b2).map(x => x.x1)).sort((a, b) => a - b);
     const R = rs.length ? rs[Math.floor(rs.length * 0.95)] : w * 0.95;
+    const lineHeights = body.flatMap(L => L.words.map(x => x.h)).filter(x => x > 0).sort((a, b) => a - b);
+    const typicalLineHeight = lineHeights.length ? lineHeights[Math.floor(lineHeights.length / 2)] : 10;
+
     for (const L of body) {
       if (/revision\s*history/i.test(L.text)) { flush(); stop = true; break; }
+      if (/^(prepared\s*by|reviewed\s*by|approved\s*by|authorised\s*by|authorized\s*by)\b/i.test(L.text) && !rowNumberInfo(L.words, w)) continue;
+
       const ws = L.words;
-      const c1 = ws.filter(x => x.x0 < b1), c2w = ws.filter(x => x.x0 >= b1 && x.x0 < b2), c3w = ws.filter(x => x.x0 >= b2);
       const first = ws[0];
-      // section heading
-      const restText = ws.slice(1).map(x => x.t).join(' ');
-      const maxGap = ws.reduce((m, x, i) => i ? Math.max(m, x.x0 - ws[i - 1].x1) : 0, 0);
+      const rn = rowNumberInfo(ws, w);
+      const hasNum = !!rn && first.x0 < b1;
+      const col2w = ws.filter(x => x.x0 >= b1 && x.x0 < b2);
+      const c3w = ws.filter(x => x.x0 >= b2);
+      const col2 = col2w.map(x => x.t).join(' ');
+
+      const restText = ws.slice(rn ? rn.parts : 1).map(x => x.t).join(' ');
       const numTok = /^\d{1,2}\.?$/.test(first.t) && first.x0 < b1;
       const secKey = first.x0 < b1 && (SECKEY.test(L.text) || (numTok && SECKEY.test(restText)));
-      if (secKey || (numTok && !ROWNUM.test(first.t) && restText && /^[A-Z]/.test(ws[1] ? ws[1].t : '') && maxGap < 0.05 * w && c3w.length === 0 || (numTok && secKey))) {
+      if (secKey || (numTok && !ROWNUM.test(first.t) && restText && /^[A-Z]/.test(ws[1] ? ws[1].t : '') && c3w.length === 0)) {
         flush();
         let title = L.text.replace(/[\s\.:]+$/, '').replace(/^\d{1,2}\.?\s*/, '');
         title = title.replace(/\s*\/\s*/g, '/ ').replace(/\/ $/, '/').replace(/\s+/g, ' ');
-        const km = title.match(/(general information|functional\/?\s*operational\s*requirements|utility services|validation aspects\/?\s*regulatory requirements|maintenance\s*\/?\s*(?:yearly\s*)?calibration|after sales support)/i);
-        if (km) title = km[1].replace(/\s*\/\s*/g, '/ ').replace(/\/ $/, '/');
-        out.push({ type: 'section', title: (++sec) + '. ' + title }); continue;
+        const km = title.match(/(general\s*information|functional\/?\s*operational\s*requirements|utility\s*services|validation\s*aspects\/?\s*regulatory\s*requirements|maintenance\s*\/?\s*(?:yearly\s*)?calibration|after\s*sales\s*support)/i);
+        if (km) title = km[1].replace(/\s*\/\s*/g, '/ ').replace(/\/ $/, '/').replace(/\s+/g, ' ');
+        out.push({ type: 'section', title: (++sec) + '. ' + title });
+        continue;
       }
-      const hasNum = ws.length && ROWNUM.test(first.t) && first.x0 < b1;
-      const col2 = c2w.map(x => x.t).join(' ');
+
       const labelAnchor = col2 && startsLikeCanon(col2);
-      if (!cur && (hasNum || labelAnchor || c3w.length || col2)) cur = { num: null, label: [], lines: [], hasLabel: false, page: pg.idx };
       if (hasNum) {
-        if (cur && (cur.num || (col2 && cur.hasLabel))) { flush(); cur = { num: null, label: [], lines: [], hasLabel: false, page: pg.idx }; }
-        cur.num = first.t;
+        if (cur && (cur.num || cur.hasLabel || cur.lines.length)) flush();
+        cur = createCurrent(pg.idx);
+        cur.num = rn.value;
+      } else {
+        const pageBoundaryLabel = !!(cur && cur.page < pg.idx && col2 && cur.hasLabel);
+        const separatedLabel = !!(cur && col2 && cur.hasLabel && cur.lines.length &&
+          cur.lastLabelY != null && (L.y0 - cur.lastLabelY) > typicalLineHeight * 1.55);
+        if (cur && col2 && cur.hasLabel && (labelAnchor || pageBoundaryLabel || separatedLabel)) flush();
       }
-      if (labelAnchor && cur.hasLabel && !hasNum) { flush(); cur = { num: null, label: [], lines: [], hasLabel: false, page: pg.idx }; }
-      if (col2) { cur.label.push(col2); if (labelAnchor || !cur.hasLabel) cur.hasLabel = true; }
+
+      if (!cur && (hasNum || col2 || c3w.length)) cur = createCurrent(pg.idx);
+      if (!cur) continue;
+      if (col2) {
+        cur.label.push(col2);
+        cur.hasLabel = true;
+        cur.lastLabelY = L.y0;
+      }
       if (c3w.length) {
-        // bullet glyph detection
         let bullet = false, tw = c3w.slice();
-        if (tw.length > 1 && tw[0].t.length === 1 && /^[^A-Za-z0-9\(]$|^[eo©®»«]$/.test(tw[0].t) && (tw[0].x1 - tw[0].x0) < 0.025 * w && tw[1].x0 - tw[0].x1 < 0.04 * w) { bullet = true; tw = tw.slice(1); }
+        if (tw.length > 1 && tw[0].t.length === 1 && /^[^A-Za-z0-9\(]$|^[eo©®»«]$/.test(tw[0].t) &&
+            (tw[0].x1 - tw[0].x0) < 0.025 * w && tw[1].x0 - tw[0].x1 < 0.04 * w) { bullet = true; tw = tw.slice(1); }
         const txt = tw.map(x => x.t).join(' ').replace(/^[\|\-–—_]+\s*/, '');
         if (txt) cur.lines.push({ text: txt, x1: Math.max(...tw.map(x => x.x1)), bullet, R, w, conf: avgConf(tw) });
       }
     }
   }
   flush();
-  return { rows: out, text: fullText.join('\n') };
+  return { rows: out, text: fullText.join('\n'), pageCount: pages.length,
+    processedPages, pagesWithContent: processedPages.length, stoppedAtRevisionHistory: stop };
 }
 
 root.CSCore = { NORM, ONE, buildRows, splitLabelValue, cleanLabel, extractMeta, prepHtml, parseDocxDocument, parsePages, estimateColumns, groupLines, snapLabel };
