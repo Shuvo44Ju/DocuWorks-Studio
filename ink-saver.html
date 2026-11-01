@@ -455,21 +455,28 @@ async function processOne(file, index, total) {
           $('previewpanel').classList.remove('hidden');
         }
 
-        const width = page.view[2] - page.view[0];
-        const height = page.view[3] - page.view[1];
+        // Use the rendered viewport dimensions for the output page. This avoids
+        // invalid/zero custom page sizes on PDFs with unusual page boxes.
+        const width = Math.max(1, viewport.width);
+        const height = Math.max(1, viewport.height);
+        const orientation = width >= height ? 'landscape' : 'portrait';
+        const pageFormat = [width, height];
 
         if (!doc) {
           doc = new jspdf.jsPDF({
-            orientation: width >= height ? 'landscape' : 'portrait',
+            orientation,
             unit: 'pt',
-            format: [width, height],
-            compress: true
+            format: pageFormat,
+            compress: true,
+            hotfixes: ['px_scaling']
           });
         } else {
-          doc.addPage([width, height], width >= height ? 'landscape' : 'portrait');
+          doc.addPage(pageFormat, orientation);
         }
 
-        doc.addImage(canvas, imageFormat, 0, 0, width, height);
+        // Convert explicitly to a data URL for consistent jsPDF compatibility.
+        const imageData = canvas.toDataURL(isClear ? 'image/png' : 'image/jpeg', isClear ? undefined : 0.82);
+        doc.addImage(imageData, isClear ? 'PNG' : 'JPEG', 0, 0, width, height);
       } finally {
         if (canvas) {
           canvas.width = 1;
@@ -529,7 +536,15 @@ function addResult(item) {
 }
 
 async function run() {
-  if (!files.length || busy) return;
+  if (busy) return;
+  if (!files.length) {
+    msg('Please select at least one PDF before optimizing.');
+    return;
+  }
+  if (!window.pdfjsLib || !window.jspdf || !window.jspdf.jsPDF) {
+    msg('PDF libraries did not load. Check your internet connection, then refresh the page and try again.');
+    return;
+  }
 
   busy = true;
   $('go').disabled = true;
