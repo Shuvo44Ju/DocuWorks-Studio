@@ -28,17 +28,30 @@ function fillTemplate(wb, model) {
   // 3) write rows  (column A = the point's own headline; the URS requirement becomes a sub-heading row when it has 2+ labelled points)
   let r = FIRST_BODY_ROW;
   const sectionRow = t => { const row = ws.getRow(r); [1, 2, 3].forEach(c => { row.getCell(c).style = clone(proto.section[c - 1]); }); row.getCell(1).value = t; ws.mergeCells(r, 1, r, 3); r++; };
-  const put = (a, b, review) => { const row = ws.getRow(r); [a, b, ''].forEach((v, i) => { const cell = row.getCell(i + 1); cell.value = v === '' ? null : v; cell.style = clone(proto.body[i]); }); if (review) row.getCell(2).note = 'Check against the source PDF (low OCR confidence)'; r++; };
+  const put = (a, b, review, source) => {
+    const row = ws.getRow(r);
+    [a, b, ''].forEach((v, i) => { const cell = row.getCell(i + 1); cell.value = v === '' ? null : v; cell.style = clone(proto.body[i]); });
+    if (review) {
+      const details = [
+        'Review against the original URS source.',
+        source && source.loc ? 'Location: ' + source.loc : '',
+        source && source.minConf != null ? 'Minimum OCR confidence: ' + source.minConf + '%' : '',
+        source && source.raw ? 'Extracted source text: ' + String(source.raw).slice(0, 800) : ''
+      ].filter(Boolean);
+      row.getCell(2).note = details.join('\\n');
+    }
+    r++;
+  };
   for (const sh of model.sheets) {
     const rows = sh.rows;
     for (let i = 0; i < rows.length;) {
       const x = rows[i];
       if (x.type === 'section') { sectionRow(x.title); i++; continue; }
-      if (x.type === 'sw') { put(x.id, x.desc + (x.pri ? '  [Priority ' + x.pri + ']' : '')); i++; continue; }
+      if (x.type === 'sw') { put(x.id, x.desc + (x.pri ? '  [Priority ' + x.pri + ']' : ''), false, null); i++; continue; }
       let j = i; while (j < rows.length && rows[j].type === 'row' && rows[j].parent === x.parent) j++;
       const grp = rows.slice(i, j), labelled = grp.filter(g => g.label || g.group).length, sub = grp.length >= 2 && labelled >= 2;
       if (sub) sectionRow(x.parent);
-      for (const g of grp) put(sub ? ([g.group, g.label].filter(Boolean).join(' – ') || g.parent) : g.req, g.desc, g.review);
+      for (const g of grp) put(sub ? ([g.group, g.label].filter(Boolean).join(' – ') || g.parent) : g.req, g.desc, g.review, g);
       i = j;
     }
   }
