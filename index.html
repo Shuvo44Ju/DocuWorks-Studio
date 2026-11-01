@@ -12,9 +12,9 @@
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
 a{color:inherit}
 .shell{max-width:1120px;margin:auto;padding:0 24px}
-header{background:linear-gradient(120deg,#101c32,#1e3e70);color:#fff;padding:14px 0}
+header{background:linear-gradient(120deg,#101c32,#1e3e70);color:#fff;padding:12px 0}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:18px}
-.brand{display:flex;align-items:center;gap:0;text-decoration:none;line-height:0}.brand-logo{display:block;width:292px;max-width:min(76vw,292px);height:auto;object-fit:contain}
+.brand{display:inline-flex;align-items:center;gap:0;text-decoration:none;line-height:0;max-width:100%}.brand-logo{display:block;width:430px;max-width:min(92vw,430px);height:auto;aspect-ratio:573/140;object-fit:contain;object-position:left center}
 .brandmark{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#ffffff18;border:1px solid #ffffff30;font-size:20px}
 .topnote{font-size:13px;color:#c7d6eb}
 
@@ -39,7 +39,7 @@ main{margin-top:0;padding-bottom:54px}
 .tip strong{display:block;font-size:14px}.tip p{margin:3px 0 0;color:var(--muted);font-size:13px}
 footer{border-top:1px solid var(--line);padding:20px 0 28px;color:var(--muted);font-size:12px}
 @media(max-width:850px){.cards{grid-template-columns:1fr 1fr}.card:last-child{grid-column:auto}}
-@media(max-width:580px){.shell{padding:0 16px}header{padding:12px 0}.brand-logo{width:238px;max-width:78vw}.cards{grid-template-columns:1fr}.card:last-child{grid-column:auto}.card{min-height:0;padding:21px}.section-head{display:block}.topnote{display:none}}
+@media(max-width:580px){.shell{padding:0 16px}header{padding:10px 0}.brand-logo{width:320px;max-width:calc(100vw - 32px)}.cards{grid-template-columns:1fr}.card:last-child{grid-column:auto}.card{min-height:0;padding:21px}.section-head{display:block}.topnote{display:none}}
 </style>
 </head>
 <body>
