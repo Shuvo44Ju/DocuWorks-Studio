@@ -12,14 +12,14 @@
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
 a{color:inherit}
 .shell{max-width:1120px;margin:auto;padding:0 24px}
-header{background:linear-gradient(120deg,#101c32,#1e3e70);color:#fff;padding:24px 0}
+header{background:linear-gradient(120deg,#101c32,#1e3e70);color:#fff;padding:14px 0}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:18px}
-.brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:-.02em}
+.brand{display:flex;align-items:center;gap:0;text-decoration:none;line-height:0}.brand-logo{display:block;width:292px;max-width:min(76vw,292px);height:auto;object-fit:contain}
 .brandmark{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#ffffff18;border:1px solid #ffffff30;font-size:20px}
 .topnote{font-size:13px;color:#c7d6eb}
 
-main{margin-top:-34px;padding-bottom:54px}
-.section-head{display:flex;justify-content:space-between;align-items:end;gap:18px;margin:0 0 18px}
+main{margin-top:0;padding-bottom:54px}
+.section-head{display:flex;justify-content:space-between;align-items:end;gap:18px;margin:24px 0 18px}
 .section-head h2{font-size:21px;letter-spacing:-.02em;margin:0}
 .section-head p{margin:4px 0 0;color:var(--muted);font-size:14px}
 .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
@@ -39,14 +39,14 @@ main{margin-top:-34px;padding-bottom:54px}
 .tip strong{display:block;font-size:14px}.tip p{margin:3px 0 0;color:var(--muted);font-size:13px}
 footer{border-top:1px solid var(--line);padding:20px 0 28px;color:var(--muted);font-size:12px}
 @media(max-width:850px){.cards{grid-template-columns:1fr 1fr}.card:last-child{grid-column:auto}}
-@media(max-width:580px){.shell{padding:0 16px}header{padding:20px 0}.cards{grid-template-columns:1fr}.card:last-child{grid-column:auto}.card{min-height:0;padding:21px}.section-head{display:block}.topnote{display:none}}
+@media(max-width:580px){.shell{padding:0 16px}header{padding:12px 0}.brand-logo{width:238px;max-width:78vw}.cards{grid-template-columns:1fr}.card:last-child{grid-column:auto}.card{min-height:0;padding:21px}.section-head{display:block}.topnote{display:none}}
 </style>
 </head>
 <body>
 <header>
   <div class="shell">
     <div class="topbar">
-      <div class="brand"><span>DocuWorks Studio</span></div>
+      <a class="brand" href="./index.html" aria-label="DocuWorks Studio home"><img class="brand-logo" src="./assets/docuworks-logo-dark.svg" alt="DocuWorks Studio"></a>
     </div>
   </div>
 </header>
