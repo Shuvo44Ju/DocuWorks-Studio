@@ -41,12 +41,14 @@ th{font-size:10pt!important;background:#eaf0f7!important}
 #table td{padding:5px 5px!important}
 #table input,#table select,#itemTable input{width:100%;min-width:0!important;max-width:100%;font:inherit!important;font-size:12pt!important;padding:0!important;margin:0!important;min-height:0!important;border:0!important;border-radius:0!important;appearance:none;background:transparent!important;color:#14243d!important}
 #table button{display:none!important}
-#table .line-subtotal td{font-size:10pt!important;padding-top:5px!important;padding-bottom:5px!important;background:#f1f5f9!important}
-.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3mm}
-.vendor-card{padding:3mm;border:1px solid #dbe3ee;border-radius:2mm;break-inside:avoid}
-.total{font-size:14pt}
-.muted{font-size:9.5pt}
-#comments textarea{width:100%;min-height:0;height:auto;resize:none;border:0;background:transparent;font:inherit;white-space:pre-wrap}
+#table .line-subtotal td{font-size:11.5pt!important;padding-top:5px!important;padding-bottom:5px!important;background:#f1f5f9!important}
+#results.cards,#comments.cards{display:grid;grid-template-columns:repeat(var(--vendor-count,3),minmax(0,1fr));gap:2mm;padding-left:17%;align-items:stretch}
+.vendor-card{min-width:0;padding:3mm;border:1px solid #dbe3ee;border-radius:2mm;break-inside:avoid;overflow-wrap:anywhere}
+#results .vendor-card b,#comments .vendor-card b{font-size:12pt!important}
+#results .total{font-size:17pt}
+.muted{font-size:11pt}
+#comments label{font-size:11pt}
+#comments textarea{width:100%;min-height:0;height:auto;resize:none;border:0;background:transparent;font-size:11pt!important;line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere}
 #comments .vendor-card{padding:3mm}
 input,select,textarea{color:#000!important}
 }
@@ -108,7 +110,7 @@ function calculate(){
   var table=$('#table'),ts=totals(),valid=ts.map(function(x){return x.total;}).filter(function(x){return x>0;}),min=valid.length?Math.min.apply(null,valid):null,max=valid.length?Math.max.apply(null,valid):null;
   state.items.forEach(function(it,i){var itemLabel=table.querySelector('[data-item-label="'+i+'"]'),subtotalLabel=table.querySelector('[data-subtotal-label="'+i+'"]'),displayName=it.name&&it.name.trim()?it.name.trim():'Item '+(i+1);if(itemLabel)itemLabel.textContent=displayName;if(subtotalLabel)subtotalLabel.textContent='Subtotal — '+displayName;state.vendors.forEach(function(v,j){var cell=table.tBodies[0].rows[i*2].cells[1+j],subtotalCell=table.tBodies[0].rows[i*2+1].cells[1+j];cell.classList.remove('lowest');var p=+it.prices[j]||0;subtotalCell.textContent=fmt(p*(+it.qty||0));var prices=state.vendors.map(function(vv,k){var q=+it.prices[k]||0;return q>0?(isBDT()&&vv.incl?q/(1+(+state.vat||0)/100):q):null;}).filter(function(x){return x!==null;});var compare=isBDT()&&v.incl?p/(1+(+state.vat||0)/100):p;if(p>0&&prices.length>1&&compare===Math.min.apply(null,prices))cell.classList.add('lowest');});});
   ts.forEach(function(x,j){var subtotalRow=0,extraRow=1,totalRow=2;table.tFoot.rows[subtotalRow].cells[1+j].textContent=fmt(x.subtotal);table.tFoot.rows[extraRow].cells[1+j].textContent=isBDT()?fmt(x.vat):fmt(x.freight);table.tFoot.rows[totalRow].cells[1+j].textContent=fmt(x.total);if(min!==null&&x.total>0&&x.total===min)table.tFoot.rows[totalRow].cells[1+j].classList.add('lowest');else table.tFoot.rows[totalRow].cells[1+j].classList.remove('lowest');});
-  $('#results').innerHTML=state.vendors.map(function(v,j){var x=ts[j],best=min!==null&&x.total>0&&x.total===min;return '<div class="vendor-card'+(best?' best':'')+'"><b>'+esc(v.manufacturer||'Manufacturer not entered')+'</b><div class="muted">Local agent: '+esc(v.localAgent||'—')+'<br>Origin: '+esc(v.origin||'—')+'<br>Model: '+esc(v.model||'—')+'</div>'+(best?'<span class="badge">Lowest</span>':'')+'<div class="total">'+money(x.total)+'</div></div>';}).join('');
+  $('#results').style.setProperty('--vendor-count',state.vendors.length);$('#comments').style.setProperty('--vendor-count',state.vendors.length);$('#results').innerHTML=state.vendors.map(function(v,j){var x=ts[j],best=min!==null&&x.total>0&&x.total===min;return '<div class="vendor-card'+(best?' best':'')+'"><b>'+esc(v.manufacturer||'Manufacturer not entered')+'</b><div class="muted">Local agent: '+esc(v.localAgent||'—')+'<br>Origin: '+esc(v.origin||'—')+'<br>Model: '+esc(v.model||'—')+'</div>'+(best?'<span class="badge">Lowest</span>':'')+'<div class="total">'+money(x.total)+'</div></div>';}).join('');
   $('#comments').innerHTML=state.vendors.map(function(v,j){return '<div class="vendor-card"><b>'+esc(v.manufacturer||v.localAgent||('Vendor '+(j+1)))+'</b><label style="margin-top:10px">Comments</label><textarea data-comment="'+j+'" rows="3" style="width:100%;resize:vertical" placeholder="Enter comments for this manufacturer">'+esc(v.comments||'')+'</textarea></div>';}).join('');
   persist();
 }
