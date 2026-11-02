@@ -149,7 +149,7 @@ $('#export').onclick=async function(){
   [['Subtotal','subtotal'],['Freight','freight']].concat(state.vendors.some(function(v){return isBDT(v);})?[['VAT','vat']]:[]).concat([['Grand total','total'],['Grand total (BDT)','totalBDT']]).forEach(function(pair){var row=['',pair[0],'',''];ts.forEach(function(x){row.push('',x[pair[1]]);});ws.addRow(row).font={bold:true};});
   ws.getColumn(2).width=34;ws.getColumn(3).width=10;ws.getColumn(4).width=10;state.vendors.forEach(function(v,j){ws.getColumn(5+j*2).width=18;ws.getColumn(6+j*2).width=18;});
   ws.eachRow(function(row){row.eachCell(function(cell){if(typeof cell.value==='number'&&cell.col>4)cell.numFmt='#,##0.00';});});
-  var blob=await wb.xlsx.writeBuffer(),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([blob],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download='Quotation_Comparison.xlsx';a.click();URL.revokeObjectURL(a.href);
+  var blob=await wb.xlsx.writeBuffer(),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([blob],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));var headerName='Price Comparison of '+((state.items[0]&&state.items[0].name.trim())||'')+', '+((state.area&&state.area.trim())||'')+', '+((state.cerNumber&&state.cerNumber.trim())||'');headerName=headerName.replace(/\s+/g,' ').replace(/\s*,\s*/g,', ').replace(/^(Price Comparison of\s*)[, ]+|[, ]+$/g,'').trim();var fileBase=headerName.length<=100?headerName:'Price Comparison';fileBase=fileBase.replace(/[\\/:*?"<>|\u0000-\u001F]/g,' ').replace(/\s+/g,' ').trim().replace(/[. ]+$/,'');if(!fileBase)fileBase='Price Comparison';a.download=fileBase+'.xlsx';a.click();URL.revokeObjectURL(a.href);
 };
 render();
 })();
