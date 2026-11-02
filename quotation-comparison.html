@@ -25,7 +25,7 @@ tfoot td{font-weight:700;background:#f8fafc}.lowest{background:var(--green)}.car
 <option value="BDT">BDT (৳)</option><option value="USD">USD ($)</option><option value="GBP">GBP (£)</option><option value="EUR">EUR (€)</option><option value="CHF">CHF</option><option value="INR">INR (₹)</option><option value="CNY">CNY (¥)</option><option value="JPY">JPY (¥)</option><option value="CAD">CAD ($)</option><option value="AUD">AUD ($)</option><option value="AED">AED (د.إ)</option>
 </select></div>
 <div id="vatWrap"><label>VAT (%)</label><input id="vat" type="number" min="0" step="0.01" style="width:90px"></div>
-<button class="secondary" id="addItem">+ Item</button><button class="secondary" id="addVendor">+ Vendor</button><button id="export">Download Excel</button><button class="secondary" id="print">Print / PDF</button><button class="secondary" id="clear">Clear all</button>
+<button class="secondary" id="addItem">+ Item</button><button class="secondary" id="addVendor">+ Vendor</button><button id="export">Download Excel</button><button class="secondary" id="clear">Clear all</button>
 </div>
 </div>
 <div class="card"><h3 style="margin:0 0 8px">Manufacturer Comparison</h3><div class="wrap"><table id="table"></table></div></div>
@@ -82,13 +82,12 @@ $('#itemTable').addEventListener('click',function(e){var d=e.target.dataset;if(d
 $('#table').addEventListener('click',function(e){var d=e.target.dataset;if(d.removeVendor!==undefined&&state.vendors.length>1){var j=+d.removeVendor;state.vendors.splice(j,1);state.items.forEach(function(it){it.prices.splice(j,1);});render();}});
 $('#addItem').onclick=function(){state.items.push({name:'',qty:1,unit:'pcs',prices:state.vendors.map(function(){return 0;})});render();};
 $('#addVendor').onclick=function(){if(state.vendors.length>=8){alert('Maximum 8 vendors.');return;}state.vendors.push({manufacturer:'',localAgent:'Local agent '+String.fromCharCode(65+state.vendors.length),origin:'',model:'',freight:0,incl:0});state.items.forEach(function(it){it.prices.push(0);});render();};
-$('#print').onclick=function(){window.print();};
 $('#clear').onclick=function(){if(confirm('Clear all quotation data from this browser?')){localStorage.removeItem('dw-quote');location.reload();}};
 $('#export').onclick=async function(){
   if(!window.ExcelJS){alert('Excel export library did not load. Check your internet connection.');return;}
   var wb=new ExcelJS.Workbook(),ws=wb.addWorksheet('Comparison'),ts=totals();
-  ws.addRow([(state.items[0]&&state.items[0].name.trim())||'Quotation comparison']).font={bold:true,size:14};
-  ws.addRow(['Area: '+(state.area||'—'),'CER Number: '+(state.cerNumber||'—')]);
+  var titleRow=ws.addRow(['Item / description: '+((state.items[0]&&state.items[0].name.trim())||'—'),'Area: '+(state.area||'—'),'CER Number: '+(state.cerNumber||'—')]);
+  titleRow.font={bold:true,size:14};
   ws.addRow(['Currency: '+state.currency+(isBDT()?' | VAT: '+state.vat+'%':' | Freight entered per vendor')]);
   ws.addRow([]);
   var header=['#','Item','Qty','Unit'];state.vendors.forEach(function(v){var label=[v.manufacturer,v.localAgent,v.origin,v.model].filter(Boolean).join(' / ')||'Vendor';header.push(label+' unit price',label+' total');});
