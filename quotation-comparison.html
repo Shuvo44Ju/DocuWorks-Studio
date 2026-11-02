@@ -47,10 +47,18 @@ th{font-size:10pt!important;background:#eaf0f7!important}
 #comments textarea{width:100%;min-height:0;height:auto;resize:none;border:0;background:transparent;font:inherit;white-space:pre-wrap}
 #comments .vendor-card{padding:3mm}
 input,select,textarea{color:#000!important}
+.print-heading{display:none}
+@media print{
+  .print-heading{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8mm;align-items:center;border-bottom:2px solid #14243d;padding:0 0 4mm;margin:0 0 5mm;break-inside:avoid}
+  .print-heading div{min-width:0}
+  .print-heading span{display:block;font-size:9pt;font-weight:700;letter-spacing:.5px;color:#51617a;margin-bottom:1.5mm}
+  .print-heading strong{display:block;font-size:15pt;line-height:1.2;overflow-wrap:anywhere;color:#14243d}
+}
 }
 </style></head>
 <body><header><h1>Quotation Comparison</h1><a href="index.html">← DocuWorks Studio</a></header>
 <main>
+<div id="printHeading" class="print-heading"><div><span>ITEM NAME</span><strong id="printItemName">—</strong></div><div><span>AREA</span><strong id="printArea">—</strong></div><div><span>CER NUMBER</span><strong id="printCerNumber">—</strong></div></div>
 <div class="card no-print">
 <h3 style="margin:0 0 10px">Item Details</h3>
 <div class="wrap"><table id="itemTable"></table></div>
@@ -87,6 +95,7 @@ function money(n){return (symbols[state.currency]||state.currency)+' '+fmt(n);}
 function totals(){return state.vendors.map(function(v,j){var raw=state.items.reduce(function(sum,it){return sum+(+it.qty||0)*(+it.prices[j]||0);},0);var rate=(+state.vat||0)/100;var subtotal=isBDT()&&v.incl?raw/(1+rate):raw;var vat=isBDT()?(v.incl?raw-subtotal:subtotal*rate):0;var freight=isBDT()?0:(+v.freight||0);return {subtotal:subtotal,vat:vat,freight:freight,total:Math.round((subtotal+vat+freight)*100)/100};});}
 function persist(){try{localStorage.setItem('dw-quote',JSON.stringify(state));}catch(e){}}
 function render(){
+  $('#printItemName').textContent=(state.items[0]&&state.items[0].name.trim())||'—';$('#printArea').textContent=state.area||'—';$('#printCerNumber').textContent=state.cerNumber||'—';
   $('#currency').value=state.currency;$('#vat').value=state.vat;
   $('#vatWrap').style.display=isBDT()?'':'none';
   var itemHtml='<thead><tr><th style="min-width:180px">Item / description</th><th style="width:65px">Qty</th><th style="width:75px">Unit</th><th style="min-width:125px">Area</th><th style="min-width:125px">CER Number</th><th class="no-print"></th></tr></thead><tbody>';
@@ -107,11 +116,11 @@ function calculate(){
   $('#comments').innerHTML=state.vendors.map(function(v,j){return '<div class="vendor-card"><b>'+esc(v.manufacturer||v.localAgent||('Vendor '+(j+1)))+'</b><label style="margin-top:10px">Comments</label><textarea data-comment="'+j+'" rows="3" style="width:100%;resize:vertical" placeholder="Enter comments for this manufacturer">'+esc(v.comments||'')+'</textarea></div>';}).join('');
   persist();
 }
-$('#itemTable').addEventListener('input',function(e){if(e.target.id==='area'){state.area=e.target.value;calculate();}else if(e.target.id==='cerNumber'){state.cerNumber=e.target.value;calculate();}});
+$('#itemTable').addEventListener('input',function(e){if(e.target.id==='area'){state.area=e.target.value;$('#printArea').textContent=state.area||'—';calculate();}else if(e.target.id==='cerNumber'){state.cerNumber=e.target.value;$('#printCerNumber').textContent=state.cerNumber||'—';calculate();}});
 $('#currency').addEventListener('change',function(e){state.currency=e.target.value;render();});
 $('#vat').addEventListener('input',function(e){state.vat=+e.target.value||0;calculate();});
 $('#comments').addEventListener('input',function(e){var j=e.target.dataset.comment;if(j!==undefined){state.vendors[+j].comments=e.target.value;persist();}});
-$('#itemTable').addEventListener('input',function(e){var el=e.target,d=el.dataset;if(d.itemName!==undefined)state.items[+d.itemName].name=el.value;else if(d.qty!==undefined)state.items[+d.qty].qty=+el.value||0;else if(d.unit!==undefined)state.items[+d.unit].unit=el.value;calculate();});
+$('#itemTable').addEventListener('input',function(e){var el=e.target,d=el.dataset;if(d.itemName!==undefined){state.items[+d.itemName].name=el.value;if(+d.itemName===0)$('#printItemName').textContent=el.value.trim()||'—';}else if(d.qty!==undefined)state.items[+d.qty].qty=+el.value||0;else if(d.unit!==undefined)state.items[+d.unit].unit=el.value;calculate();});
 $('#table').addEventListener('input',function(e){var el=e.target,d=el.dataset;if(d.vmanufacturer!==undefined)state.vendors[+d.vmanufacturer].manufacturer=el.value;else if(d.vagent!==undefined)state.vendors[+d.vagent].localAgent=el.value;else if(d.vorigin!==undefined)state.vendors[+d.vorigin].origin=el.value;else if(d.vmodel!==undefined)state.vendors[+d.vmodel].model=el.value;else if(d.incl!==undefined)state.vendors[+d.incl].incl=+el.value;else if(d.freight!==undefined)state.vendors[+d.freight].freight=+el.value||0;else if(d.price!==undefined){var a=d.price.split(',');state.items[+a[0]].prices[+a[1]]=+el.value||0;}calculate();});
 $('#itemTable').addEventListener('click',function(e){var d=e.target.dataset;if(d.removeItem!==undefined&&state.items.length>1){state.items.splice(+d.removeItem,1);render();}});
 $('#table').addEventListener('click',function(e){var d=e.target.dataset;if(d.removeVendor!==undefined&&state.vendors.length>1){var j=+d.removeVendor;state.vendors.splice(j,1);state.items.forEach(function(it){it.prices.splice(j,1);});render();}});
