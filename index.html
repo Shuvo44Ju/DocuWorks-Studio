@@ -13,35 +13,35 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
 a{color:inherit}
-.shell{max-width:1120px;margin:auto;padding:0 24px}
-header{background:#fff;color:var(--ink);padding:16px 0;border-bottom:1px solid var(--line)}
+.shell{max-width:1180px;margin:auto;padding:0 24px}
+header{background:#fff;color:var(--ink);padding:11px 0;border-bottom:1px solid var(--line)}
 .topbar{display:flex;align-items:center;justify-content:flex-start;gap:18px}
-.brand{display:inline-flex;align-items:center;gap:13px;text-decoration:none;line-height:1.1;max-width:100%;color:var(--ink)}.brand-mark{display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;border-radius:13px;background:linear-gradient(145deg,#23406b,#0c1727);box-shadow:0 4px 12px #14243d20}.brand-mark svg{width:29px;height:29px;display:block}.brand-copy{display:flex;flex-direction:column;gap:3px}.brand-title{font-size:clamp(22px,3.2vw,31px);font-weight:850;letter-spacing:-.055em;white-space:nowrap}.brand-subtitle{font-size:10px;font-weight:800;letter-spacing:.23em;text-transform:uppercase;color:#087f8c}
+.brand{display:inline-flex;align-items:center;gap:13px;text-decoration:none;line-height:1.1;max-width:100%;color:var(--ink)}.brand-mark{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:13px;background:linear-gradient(145deg,#23406b,#0c1727);box-shadow:0 4px 12px #14243d20}.brand-mark svg{width:25px;height:25px;display:block}.brand-copy{display:flex;flex-direction:column;gap:3px}.brand-title{font-size:clamp(21px,2.7vw,27px);font-weight:850;letter-spacing:-.055em;white-space:nowrap}.brand-subtitle{font-size:10px;font-weight:800;letter-spacing:.23em;text-transform:uppercase;color:#087f8c}
 .brandmark{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#ffffff18;border:1px solid #ffffff30;font-size:20px}
 .topnote{font-size:13px;color:#c7d6eb}
 
-main{margin-top:0;padding-bottom:54px}
-.section-head{display:flex;justify-content:space-between;align-items:end;gap:18px;margin:24px 0 18px}
-.section-head h2{font-size:21px;letter-spacing:-.02em;margin:0}
+main{margin-top:0;padding-bottom:30px}
+.section-head{display:flex;justify-content:space-between;align-items:end;gap:18px;margin:18px 0 13px}
+.section-head h2{font-size:18px;letter-spacing:-.02em;margin:0}
 .section-head p{margin:4px 0 0;color:var(--muted);font-size:14px}
-.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
-.card{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;min-height:300px;box-shadow:0 12px 30px #1227470a;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.card{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:17px;min-height:208px;box-shadow:0 5px 16px #12274708;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
 .card:hover{transform:translateY(-3px);box-shadow:0 18px 38px #12274712;border-color:#bdcce1}
-.icon{width:52px;height:52px;display:grid;place-items:center;border-radius:15px;font-size:24px;margin-bottom:20px}
+.icon{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;font-size:20px;margin-bottom:12px}
 .icon.blue{background:#eaf0ff;color:#2457d6}.icon.teal{background:#e4f7f5;color:#087f8c}.icon.amber{background:#fff3dc;color:#9a5b00}
 .tag{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.card h3{font-size:21px;letter-spacing:-.025em;margin:7px 0}
-.card p{color:var(--muted);font-size:14px;margin:0 0 20px}
-.card ul{padding-left:18px;margin:0 0 24px;color:#44536a;font-size:13px}
+.card h3{font-size:18px;letter-spacing:-.025em;margin:5px 0}
+.card p{color:var(--muted);font-size:13px;line-height:1.45;margin:0 0 14px}
+.card ul{display:none;padding-left:18px;margin:0 0 24px;color:#44536a;font-size:13px}
 .card li{margin:5px 0}
-.action{margin-top:auto;display:flex;align-items:center;justify-content:space-between;background:var(--ink);color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 14px;border-radius:10px}
+.action{margin-top:auto;display:flex;align-items:center;justify-content:space-between;background:var(--ink);color:#fff;text-decoration:none;font-weight:700;font-size:13px;padding:9px 12px;border-radius:9px}
 .action span:last-child{font-size:20px;line-height:1}
 .action:hover{background:#244b85}
 .tip{margin-top:22px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:flex;gap:12px;align-items:flex-start}
 .tip strong{display:block;font-size:14px}.tip p{margin:3px 0 0;color:var(--muted);font-size:13px}
 footer{border-top:1px solid var(--line);padding:20px 0 28px;color:var(--muted);font-size:12px}
-@media(max-width:850px){.cards{grid-template-columns:1fr 1fr}.card:last-child{grid-column:auto}}
-@media(max-width:580px){.shell{padding:0 16px}header{padding:12px 0}.brand{width:100%}.brand-title{font-size:24px}.brand-mark{flex-basis:44px;width:44px;height:44px}.cards{grid-template-columns:1fr}.card:last-child{grid-column:auto}.card{min-height:0;padding:21px}.section-head{display:block}.topnote{display:none}}
+@media(max-width:850px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.card:last-child{grid-column:auto}}
+@media(max-width:580px){.shell{padding:0 14px}header{padding:9px 0}.brand{width:100%}.brand-title{font-size:22px}.brand-mark{flex-basis:38px;width:38px;height:38px}.cards{grid-template-columns:1fr;gap:9px}.card:last-child{grid-column:auto}.card{min-height:0;padding:14px;display:grid;grid-template-columns:38px minmax(0,1fr);column-gap:12px;align-items:start}.card .icon{grid-row:1 / span 3;margin:0}.card .tag{align-self:end}.card h3{font-size:16px;margin:3px 0}.card p{grid-column:2;margin:0 0 10px}.card .action{grid-column:2;margin-top:0;padding:8px 10px}.section-head{display:block}.topnote{display:none}}
 </style>
 </head>
 <body>
@@ -53,7 +53,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 28px;color:var(--muted);f
   </div>
 </header>
 <main class="shell">
-  <div class="section-head"><div><h2>Choose a workspace</h2></div></div>
+  <div class="section-head"><div><h2>Document tools</h2><p>Choose a tool to get started.</p></div></div>
   <section class="cards" aria-label="Document tools">
     <article class="card">
       <div class="icon teal" aria-hidden="true">▧</div><div class="tag">Capture & export</div>
