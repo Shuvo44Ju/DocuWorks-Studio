@@ -29,7 +29,8 @@ tfoot td{font-weight:700;background:#f8fafc}.lowest{background:var(--green)}.car
 </div>
 </div>
 <div class="card"><h3 style="margin:0 0 8px">Manufacturer Comparison</h3><div class="wrap"><table id="table"></table></div></div>
-<div class="card"><h3 style="margin:0 0 8px">Result</h3><div class="cards" id="results"></div><p class="muted no-print"></p></div>
+<div class="card"><h3 style="margin:0 0 8px">Result</h3><div class="cards" id="results"></div></div>
+<div class="card"><h3 style="margin:0 0 8px">Comments</h3><div class="cards" id="comments"></div></div>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script>
@@ -68,7 +69,8 @@ function calculate(){
   var table=$('#table'),ts=totals(),valid=ts.map(function(x){return x.total;}).filter(function(x){return x>0;}),min=valid.length?Math.min.apply(null,valid):null,max=valid.length?Math.max.apply(null,valid):null;
   state.items.forEach(function(it,i){state.vendors.forEach(function(v,j){var cell=table.tBodies[0].rows[i].cells[1+j];cell.classList.remove('lowest');var p=+it.prices[j]||0;cell.querySelector('small').textContent=p?'= '+fmt(p*(+it.qty||0)):'';var prices=state.vendors.map(function(vv,k){var q=+it.prices[k]||0;return q>0?(isBDT()&&vv.incl?q/(1+(+state.vat||0)/100):q):null;}).filter(function(x){return x!==null;});var compare=isBDT()&&v.incl?p/(1+(+state.vat||0)/100):p;if(p>0&&prices.length>1&&compare===Math.min.apply(null,prices))cell.classList.add('lowest');});});
   ts.forEach(function(x,j){var subtotalRow=0,extraRow=1,totalRow=2;table.tFoot.rows[subtotalRow].cells[1+j].textContent=fmt(x.subtotal);table.tFoot.rows[extraRow].cells[1+j].textContent=isBDT()?fmt(x.vat):fmt(x.freight);table.tFoot.rows[totalRow].cells[1+j].textContent=fmt(x.total);if(min!==null&&x.total>0&&x.total===min)table.tFoot.rows[totalRow].cells[1+j].classList.add('lowest');else table.tFoot.rows[totalRow].cells[1+j].classList.remove('lowest');});
-  $('#results').innerHTML=state.vendors.map(function(v,j){var x=ts[j],best=min!==null&&x.total>0&&x.total===min;return '<div class="vendor-card'+(best?' best':'')+'"><b>'+esc(v.manufacturer||'Manufacturer not entered')+'</b><div class="muted">Local agent: '+esc(v.localAgent||'—')+'<br>Origin: '+esc(v.origin||'—')+'<br>Model: '+esc(v.model||'—')+'</div>'+(best?'<span class="badge">Lowest</span>':'')+'<div class="total">'+money(x.total)+'</div><label style="margin-top:10px">Comments</label><textarea data-comment="'+j+'" rows="3" style="width:100%;resize:vertical" placeholder="Enter comments for this manufacturer">'+esc(v.comments||'')+'</textarea></div>';}).join('');
+  $('#results').innerHTML=state.vendors.map(function(v,j){var x=ts[j],best=min!==null&&x.total>0&&x.total===min;return '<div class="vendor-card'+(best?' best':'')+'"><b>'+esc(v.manufacturer||'Manufacturer not entered')+'</b><div class="muted">Local agent: '+esc(v.localAgent||'—')+'<br>Origin: '+esc(v.origin||'—')+'<br>Model: '+esc(v.model||'—')+'</div>'+(best?'<span class="badge">Lowest</span>':'')+'<div class="total">'+money(x.total)+'</div></div>';}).join('');
+  $('#comments').innerHTML=state.vendors.map(function(v,j){return '<div class="vendor-card"><b>'+esc(v.manufacturer||v.localAgent||('Vendor '+(j+1)))+'</b><label style="margin-top:10px">Comments</label><textarea data-comment="'+j+'" rows="3" style="width:100%;resize:vertical" placeholder="Enter comments for this manufacturer">'+esc(v.comments||'')+'</textarea></div>';}).join('');
   persist();
 }
 $('#itemTable').addEventListener('input',function(e){if(e.target.id==='area'){state.area=e.target.value;calculate();}else if(e.target.id==='cerNumber'){state.cerNumber=e.target.value;calculate();}});
