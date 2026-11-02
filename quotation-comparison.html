@@ -1,0 +1,124 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#14243d"><title>Quotation Comparison – DocuWorks Studio</title><style>:root{--n:#14243d;--g:#dcfce7}*{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,"Segoe UI","Nirmala UI","Noto Sans Bengali",sans-serif;background:#f3f6fa;color:#14243d}header{background:var(--n);color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:10px}header a{color:#5eead4;text-decoration:none;font-size:13px}h1{font-size:18px;margin:0}main{max-width:1250px;margin:18px auto;padding:0 14px}.card{background:#fff;border:1px solid #dbe3ee;border-radius:12px;padding:14px;margin-bottom:14px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}label{font-size:12px;color:#51617a;display:block}input,select{font:inherit;padding:6px 8px;border:1px solid #c5d0df;border-radius:7px;background:#fff;color:inherit;max-width:100%}button{font:inherit;padding:7px 12px;border:0;border-radius:8px;background:var(--n);color:#fff;cursor:pointer}button.s{background:#e6edf6;color:var(--n)}button.x{background:0 0;color:#b42318;padding:2px 6px;font-size:16px}.wrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:640px}td,th{border:1px solid #dbe3ee;padding:5px 6px;vertical-align:top}th{background:#eef3f9;font-size:12px;text-align:left}td input,th input,th select{width:100%;margin-bottom:3px}.num{text-align:right}small{display:block;color:#51617a;font-size:11px;text-align:right;min-height:14px}.low{background:var(--g)}.tot td{font-weight:700;background:#f8fafc}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}.vc{border:1px solid #dbe3ee;border-radius:12px;padding:12px}.vc.best{border-color:#16a34a;background:#f0fdf4}.big{font-size:20px;font-weight:700}.b{display:inline-block;background:#16a34a;color:#fff;border-radius:99px;padding:1px 9px;font-size:11px;margin-left:6px}.w{font-size:12.5px;color:#334155;margin-top:6px}.mut{font-size:12px;color:#51617a}@media print{.no-print,header{display:none!important}body{background:#fff}.card{border:0;padding:0}input,select{border:0;padding:0;appearance:none;background:0 0}}</style></head><body><header><h1>Quotation Comparison</h1><a href="index.html">← DocuWorks Studio</a></header><main><div class="card no-print row"><div><label>Title / tender name</label><input id="ti" size="30" placeholder="e.g. Analytical balance"></div><div><label>Currency</label><input id="cu" size="4"></div><div><label>VAT / tax %</label><input id="vt" type="number" step="0.01" min="0" style="width:90px"></div><button class="s" id="ai">+ Item</button><button class="s" id="av">+ Vendor</button><button id="xl">Download Excel</button><button class="s" id="pr">Print / PDF</button><button class="s" id="rs">Clear all</button></div><div class="card"><h3 id="ph" style="margin:0 0 8px"></h3><div class="wrap"><table id="t"></table></div></div><div class="card"><h3 style="margin:0 0 8px">Result</h3><div class="cards" id="cd"></div><p class="mut no-print">Green = lowest price per item and lowest grand total. A vendor marked "incl. VAT" is converted to ex-VAT before comparing. Amounts in words are shown for Taka (৳). Check them before using in an official document. Your data stays in this browser.</p></div></main><script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" defer="defer"></script><script>const $=s=>document.querySelector(s), t=$('#t');
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=n=>(+n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+let S;
+try{S=JSON.parse(localStorage.getItem('dw-quote')||'null')}catch(e){}
+S=S||{title:'',cur:'৳',vat:15,vendors:[{n:'Vendor A',incl:0},{n:'Vendor B',incl:0},{n:'Vendor C',incl:0}],items:[{n:'',q:1,u:'pcs',p:[0,0,0]}]};
+/* ---------- amount in words ---------- */
+const O=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+const TN=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+const e2=n=>n<20?O[n]:TN[n/10|0]+(n%10?'-'+O[n%10]:'');
+function en(n){
+  if(n>=1e7) return en(Math.floor(n/1e7))+' Crore'+(n%1e7?' '+en(n%1e7):'');
+  const p=[],l=n/1e5|0,th=(n%1e5)/1e3|0,h=(n%1e3)/100|0,r=n%100;
+  if(l)p.push(e2(l)+' Lakh'); if(th)p.push(e2(th)+' Thousand'); if(h)p.push(O[h]+' Hundred'); if(r)p.push(e2(r));
+  return p.join(' ');
+}
+const enW=g=>{const c=Math.round(g*100),T=Math.floor(c/100),P=c%100;return (T?en(T)+' Taka':'')+(T&&P?' and ':'')+(P?en(P)+' Paisa':'')+' Only'};
+const B='শূন্য,এক,দুই,তিন,চার,পাঁচ,ছয়,সাত,আট,নয়,দশ,এগারো,বারো,তেরো,চৌদ্দ,পনেরো,ষোলো,সতেরো,আঠারো,ঊনিশ,বিশ,একুশ,বাইশ,তেইশ,চব্বিশ,পঁচিশ,ছাব্বিশ,সাতাশ,আটাশ,ঊনত্রিশ,ত্রিশ,একত্রিশ,বত্রিশ,তেত্রিশ,চৌত্রিশ,পঁয়ত্রিশ,ছত্রিশ,সাঁইত্রিশ,আটত্রিশ,ঊনচল্লিশ,চল্লিশ,একচল্লিশ,বিয়াল্লিশ,তেতাল্লিশ,চুয়াল্লিশ,পঁয়তাল্লিশ,ছেচল্লিশ,সাতচল্লিশ,আটচল্লিশ,ঊনপঞ্চাশ,পঞ্চাশ,একান্ন,বায়ান্ন,তিপ্পান্ন,চুয়ান্ন,পঞ্চান্ন,ছাপ্পান্ন,সাতান্ন,আটান্ন,ঊনষাট,ষাট,একষট্টি,বাষট্টি,তেষট্টি,চৌষট্টি,পঁয়ষট্টি,ছেষট্টি,সাতষট্টি,আটষট্টি,ঊনসত্তর,সত্তর,একাত্তর,বাহাত্তর,তিয়াত্তর,চুয়াত্তর,পঁচাত্তর,ছিয়াত্তর,সাতাত্তর,আটাত্তর,ঊনআশি,আশি,একাশি,বিরাশি,তিরাশি,চুরাশি,পঁচাশি,ছিয়াশি,সাতাশি,অষ্টাশি,ঊননব্বই,নব্বই,একানব্বই,বিরানব্বই,তিরানব্বই,চুরানব্বই,পঁচানব্বই,ছিয়ানব্বই,সাতানব্বই,আটানব্বই,নিরানব্বই'.split(',');
+function bn(n){
+  const p=[];
+  if(n>=1e7){p.push(bn(Math.floor(n/1e7))+' কোটি');n%=1e7}
+  const l=n/1e5|0,th=(n%1e5)/1e3|0,h=(n%1e3)/100|0,r=n%100;
+  if(l)p.push(B[l]+' লক্ষ'); if(th)p.push(B[th]+' হাজার'); if(h)p.push(B[h]+' শত'); if(r)p.push(B[r]);
+  return p.join(' ');
+}
+const bnW=g=>{const c=Math.round(g*100),T=Math.floor(c/100),P=c%100;return (T?bn(T)+' টাকা':'')+(T&&P?' ও ':'')+(P?bn(P)+' পয়সা':'')+' মাত্র'};
+const isTaka=()=>/৳|tk|bdt|taka/i.test(S.cur);
+/* ---------- calculations ---------- */
+const tot=()=>{const r=S.vat/100;return S.vendors.map((v,j)=>{const s=S.items.reduce((a,it)=>a+(+it.q||0)*(it.p[j]||0),0),b=v.incl?s/(1+r):s,vat=b*r;return{b,vat,g:Math.round((b+vat)*100)/100}})};
+const low=it=>{const r=S.vat/100,e=it.p.map((p,j)=>p>0?(S.vendors[j].incl?p/(1+r):p):null),v=e.filter(x=>x!=null),m=v.length>1?Math.min(...v):null;return e.map(x=>m!=null&&x!=null&&x<=m+1e-9)};
+function render(){
+  const V=S.vendors;
+  t.innerHTML='<thead><tr><th>#</th><th style="min-width:170px">Item / description</th><th style="width:70px">Qty</th><th style="width:70px">Unit</th>'
+  +V.map((v,j)=>`<th style="min-width:150px"><input class="vn" data-j="${j}" value="${esc(v.n)}"><select data-j="${j}"><option value="0"${v.incl?'':' selected'}>Prices excl. VAT</option><option value="1"${v.incl?' selected':''}>Prices incl. VAT</option></select><button class="x no-print" data-dv="${j}" title="Remove vendor">×</button></th>`).join('')
+  +'<th class="no-print"></th></tr></thead><tbody>'
+  +S.items.map((it,i)=>`<tr data-i="${i}"><td>${i+1}</td><td><input data-k="n" value="${esc(it.n)}"></td><td><input type="number" class="num" data-k="q" min="0" step="any" value="${it.q}"></td><td><input data-k="u" value="${esc(it.u)}"></td>${V.map((v,j)=>`<td><input type="number" class="num" data-p="${j}" min="0" step="any" value="${it.p[j]||''}"><small></small></td>`).join('')}<td class="no-print"><button class="x" data-di="${i}" title="Remove item">×</button></td></tr>`).join('')
+  +'</tbody><tfoot>'+['Subtotal (ex-VAT)','VAT / tax','Grand total'].map(l=>`<tr class="tot"><td colspan="4">${l}</td>${V.map(()=>'<td class="num"></td>').join('')}<td class="no-print"></td></tr>`).join('')+'</tfoot>';
+  calc();
+}
+function calc(){
+  const V=S.vendors,T=tot(),tf=t.tFoot;
+  [...t.tBodies[0].rows].forEach((tr,i)=>{
+    const it=S.items[i],lw=low(it);
+    it.p.forEach((p,j)=>{const td=tr.cells[4+j];td.classList.toggle('low',lw[j]);td.querySelector('small').textContent=p>0?'= '+fmt(p*it.q):''});
+  });
+  const gs=T.map(x=>x.g).filter(x=>x>0),mn=gs.length>1?Math.min(...gs):null,mx=gs.length>1?Math.max(...gs):null;
+  T.forEach((x,j)=>{
+    tf.rows[0].cells[1+j].textContent=fmt(x.b);
+    tf.rows[1].cells[1+j].textContent=fmt(x.vat);
+    tf.rows[2].cells[1+j].textContent=fmt(x.g);
+    tf.rows[2].cells[1+j].classList.toggle('low',mn!=null&&x.g>0&&x.g<=mn);
+  });
+  $('#cd').innerHTML=V.map((v,j)=>{
+    const g=T[j].g,best=mn!=null&&g>0&&g<=mn;
+    return `<div class="vc${best?' best':''}"><b>${esc(v.n)}</b>${best?'<span class="b">Lowest</span>':''}<div class="big">${esc(S.cur)} ${fmt(g)}</div>`
+    +`<div class="mut">Ex-VAT ${fmt(T[j].b)} + VAT ${fmt(T[j].vat)}`
+    +(mn!=null&&g>mn?` · ${fmt(g-mn)} (${(100*(g-mn)/mn).toFixed(1)}%) above lowest`:'')
+    +(best&&mx!=null&&mx>g?` · saves ${fmt(mx-g)} vs highest`:'')+'</div>'
+    +(g>0&&isTaka()?`<div class="w">${enW(g)}</div><div class="w">${bnW(g)}</div>`:'')+'</div>';
+  }).join('');
+  $('#ph').textContent=(S.title||'Quotation comparison')+' – '+new Date().toLocaleDateString('en-GB');
+  try{localStorage.setItem('dw-quote',JSON.stringify(S))}catch(e){}
+}
+/* ---------- events ---------- */
+t.addEventListener('input',e=>{
+  const el=e.target,d=el.dataset;
+  if(el.tagName==='SELECT') S.vendors[+d.j].incl=+el.value;
+  else if(el.classList.contains('vn')) S.vendors[+d.j].n=el.value;
+  else{
+    const i=+el.closest('tr').dataset.i;
+    if(d.k) S.items[i][d.k]=d.k==='q'?(+el.value||0):el.value;
+    else if(d.p!==undefined) S.items[i].p[+d.p]=+el.value||0;
+  }
+  calc();
+});
+t.addEventListener('click',e=>{
+  const d=e.target.dataset;
+  if(d.di!==undefined&&S.items.length>1){S.items.splice(+d.di,1);render()}
+  if(d.dv!==undefined&&S.vendors.length>2){const j=+d.dv;S.vendors.splice(j,1);S.items.forEach(it=>it.p.splice(j,1));render()}
+});
+$('#ti').oninput=e=>{S.title=e.target.value;calc()};
+$('#cu').oninput=e=>{S.cur=e.target.value;calc()};
+$('#vt').oninput=e=>{S.vat=+e.target.value||0;calc()};
+$('#ai').onclick=()=>{S.items.push({n:'',q:1,u:'pcs',p:S.vendors.map(()=>0)});render()};
+$('#av').onclick=()=>{if(S.vendors.length>=8)return;S.vendors.push({n:'Vendor '+String.fromCharCode(65+S.vendors.length),incl:0});S.items.forEach(it=>it.p.push(0));render()};
+$('#pr').onclick=()=>window.print();
+$('#rs').onclick=()=>{if(confirm('Clear everything?')){localStorage.removeItem('dw-quote');location.reload()}};
+$('#xl').onclick=async()=>{
+  if(!window.ExcelJS) return alert('The Excel library could not load (check your internet). Use Print / PDF instead.');
+  const wb=new ExcelJS.Workbook(),ws=wb.addWorksheet('Comparison'),V=S.vendors,T=tot();
+  const green={type:'pattern',pattern:'solid',fgColor:{argb:'FFDCFCE7'}};
+  ws.addRow([S.title||'Quotation comparison']).font={bold:true,size:14};
+  ws.addRow([`VAT / tax: ${S.vat}%   |   Date: ${new Date().toLocaleDateString('en-GB')}`]);
+  ws.addRow([]);
+  const hd=['#','Item','Qty','Unit'];
+  V.forEach(v=>hd.push(`${v.n} (${v.incl?'incl.':'excl.'} VAT) unit price`,`${v.n} total`));
+  const h=ws.addRow(hd);
+  h.font={bold:true,color:{argb:'FFFFFFFF'}};
+  h.eachCell(c=>{c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF14243D'}};c.alignment={wrapText:true,vertical:'middle'}});
+  S.items.forEach((it,i)=>{
+    const lw=low(it),row=[i+1,it.n,it.q,it.u];
+    V.forEach((v,j)=>{const p=it.p[j];row.push(p||null,p?p*it.q:null)});
+    const R=ws.addRow(row);
+    V.forEach((v,j)=>{if(lw[j]){R.getCell(5+2*j).fill=green;R.getCell(6+2*j).fill=green}});
+  });
+  const gs=T.map(x=>x.g).filter(x=>x>0),mn=gs.length>1?Math.min(...gs):null;
+  [['Subtotal (ex-VAT)','b'],['VAT / tax','vat'],['Grand total','g']].forEach(([l,k])=>{
+    const row=['',l,'',''];V.forEach((v,j)=>row.push('',T[j][k]));
+    const R=ws.addRow(row);R.font={bold:true};
+    if(k==='g')V.forEach((v,j)=>{if(mn!=null&&T[j].g>0&&T[j].g<=mn)R.getCell(6+2*j).fill=green});
+  });
+  if(isTaka()){
+    ws.addRow([]);
+    V.forEach((v,j)=>{if(T[j].g>0){ws.addRow([`${v.n}: ${enW(T[j].g)}`]);ws.addRow([`${v.n}: ${bnW(T[j].g)}`])}});
+  }
+  ws.getColumn(2).width=34;ws.getColumn(3).width=8;ws.getColumn(4).width=8;
+  V.forEach((v,j)=>{ws.getColumn(5+2*j).width=18;ws.getColumn(6+2*j).width=16});
+  ws.eachRow(r=>r.eachCell(c=>{if(typeof c.value==='number'&&c.col>4)c.numFmt='#,##0.00'}));
+  const buf=await wb.xlsx.writeBuffer(),a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  a.download='Quotation_Comparison.xlsx';a.click();
+};
+$('#ti').value=S.title;$('#cu').value=S.cur;$('#vt').value=S.vat;
+render();</script></body></html>
