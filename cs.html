@@ -53,7 +53,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-<script src="./core.js?v=20261101-3"></script><script src="./builder.js?v=20261101-3"></script>
+<script src="./core.js?v=20261103-ocr2"></script><script src="./builder.js?v=20261103-ocr2"></script>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -68,9 +68,33 @@ zone.addEventListener('click',()=>input.click());zone.addEventListener('keydown'
 ['dragenter','dragover'].forEach(n=>zone.addEventListener(n,e=>{e.preventDefault();zone.classList.add('border-blue-500','bg-blue-50/50')}));['dragleave','drop'].forEach(n=>zone.addEventListener(n,e=>{e.preventDefault();zone.classList.remove('border-blue-500','bg-blue-50/50')}));zone.addEventListener('drop',e=>choose(e.dataTransfer.files[0]));
 $('remove-file-btn').addEventListener('click',()=>{file=null;input.value='';info.classList.add('hidden');info.classList.remove('flex');zone.classList.remove('hidden');prog.classList.add('hidden');clearError();setReady(false)});
 function titleFromText(t,name){const m=CSCore.extractMeta(t);return m.equipment||m.title||name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').trim()||'Untitled URS Document'}
+function preprocessOcrCanvas(source, makeBinary) {
+ const out=document.createElement('canvas');out.width=source.width;out.height=source.height;
+ const ctx=out.getContext('2d',{willReadFrequently:true}),imgCtx=source.getContext('2d',{willReadFrequently:true});
+ const image=imgCtx.getImageData(0,0,source.width,source.height),px=image.data,hist=new Uint32Array(256);
+ for(let i=0;i<px.length;i+=4){const g=Math.round(.299*px[i]+.587*px[i+1]+.114*px[i+2]);px[i]=px[i+1]=px[i+2]=g;hist[g]++}
+ const total=px.length/4,at=p=>{const target=total*p;let n=0;for(let i=0;i<256;i++){n+=hist[i];if(n>=target)return i}return 255};
+ const lo=at(.012),hi=Math.max(lo+1,at(.988)),stretch=new Uint32Array(256),h2=new Uint32Array(256);
+ for(let i=0;i<256;i++){const v=Math.max(0,Math.min(255,Math.round((i-lo)*255/(hi-lo))));stretch[i]=v;h2[v]+=hist[i]}
+ let sum=0;for(let i=0;i<256;i++)sum+=i*h2[i];
+ let sumB=0,wB=0,max=-1,threshold=150;
+ for(let i=0;i<256;i++){wB+=h2[i];if(!wB)continue;const wF=total-wB;if(!wF)break;sumB+=i*h2[i];const mB=sumB/wB,mF=(sum-sumB)/wF,between=wB*wF*(mB-mF)*(mB-mF);if(between>max){max=between;threshold=i}}
+ for(let i=0;i<px.length;i+=4){let v=stretch[px[i]];if(makeBinary)v=v>threshold?255:0;else{if(v>250)v=255;else if(v<4)v=0}px[i]=px[i+1]=px[i+2]=v;px[i+3]=255}
+ ctx.putImageData(image,0,0);return out;
+}
+function ocrCandidateStats(words) {
+ if(!words.length)return {score:0,meanConfidence:0};
+ const txt=words.map(w=>w.t||'').join(' '),compact=txt.replace(/\s/g,'');
+ const alpha=(txt.match(/[A-Za-z0-9]/g)||[]).length/Math.max(1,compact.length);
+ const valid=words.filter(w=>/[A-Za-z0-9]/.test(w.t||'')).length/words.length;
+ const confs=words.map(w=>w.conf).filter(v=>v!=null&&Number.isFinite(v));
+ const meanConfidence=confs.length?confs.reduce((a,b)=>a+b,0)/confs.length:55;
+ const countQuality=Math.min(1,Math.log1p(words.length)/Math.log(81));
+ return {score:.50*meanConfidence/100+.18*alpha+.17*valid+.15*countQuality,meanConfidence};
+}
 async function parsePdf(f){
- const data=await f.arrayBuffer(), pdf=await pdfjsLib.getDocument({data}).promise, pages=[], textChunks=[];
- let textWords=0, ocrPages=[];
+ const data=await f.arrayBuffer(),pdf=await pdfjsLib.getDocument({data}).promise,pages=[],textChunks=[];
+ let textWords=0,ocrPages=[];
  const qualityScore=words=>{
   if(!words||!words.length)return 0;
   const t=words.map(w=>w.t||'').join(' '),chars=t.replace(/\s/g,'');
@@ -94,42 +118,56 @@ async function parsePdf(f){
    }
    textChunks.push(it.str);
   }
-  textWords+=words.length;
-  pages.push({w:vp.width,h:vp.height,words});
-  const pgText=wordText(words);
-  const rowSignal=words.some(w=>/^\d{1,2}\.\d{1,2}\.?$/.test(w.t)||/^\d{1,2}\.$/.test(w.t));
+  textWords+=words.length;pages.push({w:vp.width,h:vp.height,words});
+  const pgText=wordText(words),compact=pgText.replace(/\s/g,'');
   const corruptChars=(pgText.match(/[\uFFFD\uE000-\uF8FF\u0000-\u0008]/g)||[]).length;
-  const compact=pgText.replace(/\s/g,'');
   const alphaRatio=(pgText.match(/[A-Za-z0-9]/g)||[]).length/Math.max(1,compact.length);
-  if(words.length<35||corruptChars>0||(words.length>50&&alphaRatio<0.42))ocrPages.push(n-1);
+  const tableSignal=(/requirements?/i.test(pgText)&&/descriptions?/i.test(pgText))||words.some(w=>/^\d{1,2}\.\d{1,2}\.?$/.test(w.t));
+  if(words.length<35||(tableSignal&&words.length<55)||corruptChars>0||(words.length>50&&alphaRatio<.42))ocrPages.push(n-1);
  }
  const allText=pages.map(p=>wordText(p.words)).join(' ');
  const hasGlobalHeader=/requirements?/i.test(allText)&&/descriptions?/i.test(allText);
  if(!hasGlobalHeader){
-  // If the document has numbered table rows but no readable header text, its text layer
-  // may be corrupt or flattened incorrectly. OCR those pages instead of trusting it.
   pages.forEach((p,i)=>{if(p.words.some(w=>/^\d{1,2}\.\d{1,2}\.?$/.test(w.t))&&!ocrPages.includes(i))ocrPages.push(i)});
  }
  if(ocrPages.length){
-  setStatus(38,'Checking '+ocrPages.length+' page(s) with OCR…');
+  setStatus(38,'Preparing higher-resolution OCR for '+ocrPages.length+' page(s)…');
   let worker;
   try{
    worker=await Tesseract.createWorker('eng',1,{logger:m=>{
     if(m.status==='recognizing text')setStatus(38+Math.round((m.progress||0)*45),'OCR recognition '+Math.round((m.progress||0)*100)+'%');
    }});
-   try{await worker.setParameters({tessedit_pageseg_mode:'6'})}catch(_){}
+   try{await worker.setParameters({preserve_interword_spaces:'1',user_defined_dpi:'300'})}catch(_){}
    for(let k=0;k<ocrPages.length;k++){
-    const i=ocrPages[k],pg=await pdf.getPage(i+1),vp=pg.getViewport({scale:1}),ocrScale=2.5,ovp=pg.getViewport({scale:ocrScale}),canvas=document.createElement('canvas');
+    const i=ocrPages[k],pg=await pdf.getPage(i+1),vp=pg.getViewport({scale:1});
+    const longest=Math.max(vp.width,vp.height),area=vp.width*vp.height;
+    const ocrScale=Math.min(4,3600/longest,Math.sqrt(12000000/area));
+    const ovp=pg.getViewport({scale:ocrScale}),canvas=document.createElement('canvas');
     canvas.width=Math.ceil(ovp.width);canvas.height=Math.ceil(ovp.height);
-    await pg.render({canvasContext:canvas.getContext('2d'),viewport:ovp}).promise;
-    const res=await worker.recognize(canvas);
-    const ws=(res.data.words||[]).filter(w=>w.text&&w.text.trim()).map(w=>({
-     t:w.text.trim(),x0:w.bbox.x0/ocrScale,x1:w.bbox.x1/ocrScale,
-     y0:w.bbox.y0/ocrScale,y1:w.bbox.y1/ocrScale,conf:w.confidence
-    }));
+    const cctx=canvas.getContext('2d',{willReadFrequently:true});cctx.fillStyle='#fff';cctx.fillRect(0,0,canvas.width,canvas.height);
+    await pg.render({canvasContext:cctx,viewport:ovp,background:'rgb(255,255,255)'}).promise;
+    const gray=preprocessOcrCanvas(canvas,false),binary=preprocessOcrCanvas(canvas,true);
+    const recognize=async(image,psm)=>{
+     await worker.setParameters({tessedit_pageseg_mode:String(psm),preserve_interword_spaces:'1',user_defined_dpi:'300'});
+     const res=await worker.recognize(image);
+     return (res.data.words||[]).filter(w=>w.text&&w.text.trim()).map(w=>({
+      t:w.text.trim(),x0:w.bbox.x0/ocrScale,x1:w.bbox.x1/ocrScale,
+      y0:w.bbox.y0/ocrScale,y1:w.bbox.y1/ocrScale,conf:Number.isFinite(w.confidence)?w.confidence:null
+     }));
+    };
+    setStatus(38+Math.round(45*k/ocrPages.length),'OCR page '+(k+1)+' of '+ocrPages.length+' — detailed text pass…');
+    const first=await recognize(gray,6);
+    setStatus(38+Math.round(45*(k+.5)/ocrPages.length),'OCR page '+(k+1)+' of '+ocrPages.length+' — recovery pass…');
+    const second=await recognize(binary,11);
+    const firstStats=ocrCandidateStats(first),secondStats=ocrCandidateStats(second);
+    const ws=secondStats.score>firstStats.score+.015?second:first;
+    const bestStats=secondStats.score>firstStats.score+.015?secondStats:firstStats;
     const oldScore=qualityScore(pages[i].words),newScore=qualityScore(ws);
-    const forceReplace=pages[i].words.length<35||/[\uFFFD\uE000-\uF8FF\u0000-\u0008]/.test(wordText(pages[i].words))||(!hasGlobalHeader&&ws.length>0);
-    if(ws.length&&(forceReplace||newScore>oldScore+0.04))pages[i]={w:vp.width,h:vp.height,words:ws};
+    const nativeCount=pages[i].words.length;
+    const recovered=ws.length>=Math.max(nativeCount+8,Math.ceil(nativeCount*1.18))&&bestStats.meanConfidence>=72;
+    const forceReplace=nativeCount<35||/[\uFFFD\uE000-\uF8FF\u0000-\u0008]/.test(wordText(pages[i].words))||(!hasGlobalHeader&&ws.length>0);
+    if(ws.length&&(forceReplace||newScore>oldScore+.04||recovered))pages[i]={w:vp.width,h:vp.height,words:ws};
+    canvas.width=canvas.height=gray.width=gray.height=binary.width=binary.height=1;
     setStatus(38+Math.round(45*(k+1)/ocrPages.length),'OCR complete: '+(k+1)+' of '+ocrPages.length+' pages');
    }
   }catch(e){
