@@ -211,37 +211,21 @@ function startsLikeCanon(s) {          // does this col2 text begin a canonical 
 }
 
 function groupLines(words) {
-  const ws = words.filter(w => w.t && String(w.t).trim() &&
-    [w.x0,w.x1,w.y0,w.y1].every(v => Number.isFinite(Number(v))))
-    .map(w => ({ t: String(w.t).trim(), conf: (w.conf == null ? null : w.conf),
-      x0: Number(w.x0), x1: Number(w.x1), y0: Number(w.y0), y1: Number(w.y1),
-      yc: (Number(w.y0) + Number(w.y1)) / 2, h: Math.max(1,Number(w.y1)-Number(w.y0)) }));
+  const ws = words.filter(w => w.t && String(w.t).trim()).map(w => ({ t: String(w.t).trim(), conf: (w.conf == null ? null : w.conf), x0: w.x0, x1: w.x1, y0: w.y0, y1: w.y1, yc: (w.y0 + w.y1) / 2, h: w.y1 - w.y0 }));
   if (!ws.length) return [];
   const hs = ws.map(w => w.h).sort((a, b) => a - b), hm = hs[Math.floor(hs.length / 2)] || 10;
   ws.sort((a, b) => a.yc - b.yc);
   const lines = [];
   for (const w of ws) {
     const L = lines[lines.length - 1];
-    const lh = L ? (L.mh || hm) : hm;
-    const overlap = L ? Math.max(0,Math.min(w.y1,L.y1)-Math.max(w.y0,L.y0)) : 0;
-    const overlapRatio = overlap / Math.max(1,Math.min(w.h,lh));
-    const centerGap = L ? Math.abs(w.yc-L.yc) : Infinity;
-    const sameLine = !!L && (overlapRatio >= 0.32 || centerGap <= Math.min(w.h,lh)*0.42);
-    if (sameLine) {
-      L.words.push(w);
-      const heights=L.words.map(x=>x.h).sort((a,b)=>a-b);
-      L.mh=heights[Math.floor(heights.length/2)]||hm;
-      L.yc=L.words.reduce((s,x)=>s+x.yc,0)/L.words.length;
-      L.y0=Math.min(L.y0,w.y0);L.y1=Math.max(L.y1,w.y1);
-    } else {
-      lines.push({words:[w],yc:w.yc,y0:w.y0,y1:w.y1,mh:w.h});
-    }
+    if (L && Math.abs(w.yc - L.yc) <= hm * 0.6) { L.words.push(w); L.yc = L.words.reduce((s, x) => s + x.yc, 0) / L.words.length; }
+    else lines.push({ words: [w], yc: w.yc });
   }
   for (const L of lines) {
-    L.words.sort((a,b)=>a.x0-b.x0);
-    L.y0=Math.min(...L.words.map(w=>w.y0));L.y1=Math.max(...L.words.map(w=>w.y1));
-    L.x0=L.words[0].x0;L.x1=Math.max(...L.words.map(w=>w.x1));
-    L.text=L.words.map(w=>w.t).join(' ');
+    L.words.sort((a, b) => a.x0 - b.x0);
+    L.y0 = Math.min(...L.words.map(w => w.y0)); L.y1 = Math.max(...L.words.map(w => w.y1));
+    L.x0 = L.words[0].x0; L.x1 = Math.max(...L.words.map(w => w.x1));
+    L.text = L.words.map(w => w.t).join(' ');
   }
   return lines;
 }
