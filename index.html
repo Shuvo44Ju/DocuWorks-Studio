@@ -32,6 +32,31 @@
 @media(max-width:850px){.app{grid-template-columns:205px minmax(0,1fr)}.workspace{padding:25px 22px}.hero{padding:25px}.secure-label{display:none}.tool{padding:18px}}
 @media(max-width:680px){.app{grid-template-columns:minmax(0,1fr);grid-template-rows:62px auto auto}.topbar{grid-row:1;padding:0 15px;gap:11px}.menu-button{display:grid;flex:none}.brand-mark{width:35px;height:35px}.brand-name{font-size:15px}.brand-sub{font-size:8px}.sidebar{display:none;grid-column:1;grid-row:2;min-height:0;border-right:0;border-bottom:1px solid var(--line);padding:12px 15px;gap:4px}.sidebar.open{display:flex}.sidebar-note{display:none}.workspace{grid-column:1;grid-row:3;padding:19px 15px 25px}.hero{padding:24px 21px;margin-bottom:24px}.hero-side{display:none}.hero:before{right:-125px}.tool-list{grid-template-columns:minmax(0,1fr);gap:11px}.tool{min-height:0;padding:17px}.tool-count{padding:5px 8px}.footer{font-size:9px}}
 @media(max-width:430px){.tool{padding:15px;grid-template-columns:42px minmax(0,1fr);column-gap:12px}.tool-icon{width:41px;height:41px}.tool-action{grid-column:2}.tool-desc{font-size:11px}.hero h1{font-size:26px}.section-subtitle{max-width:230px}.hero{padding:22px 18px}}
+
+/* Refined tool surfaces: stronger hierarchy, clearer actions, less generic card styling */
+.tool{min-height:204px;padding:23px 23px 20px;border-radius:13px;border-color:#dce4ef;background:linear-gradient(150deg,#fff 0%,#fff 72%,#f6f8fd 100%);box-shadow:0 2px 3px rgba(17,39,77,.025);grid-template-columns:50px minmax(0,1fr);column-gap:16px;row-gap:19px}
+.tool:before{width:4px;opacity:1;transform:scaleY(.18);transform-origin:center;transition:transform .2s}
+.tool:hover:before{transform:scaleY(1)}
+.tool:after{position:absolute;right:19px;top:19px;font-size:9px;letter-spacing:.12em;font-weight:800;color:#a0aec2}
+.tool:nth-child(1):after{content:"01 / SCAN"}
+.tool:nth-child(2):after{content:"02 / DOCUMENTS"}
+.tool:nth-child(3):after{content:"03 / PDF"}
+.tool:nth-child(4):after{content:"04 / QUOTATIONS"}
+.tool:nth-child(5):after{content:"05 / PROCUREMENT"}
+.tool-icon{width:50px;height:50px;border-radius:12px;background:#f0f4fc;border:1px solid #e1e8f4;color:#2b5fc5;box-shadow:none;transition:background .2s,color .2s,transform .2s}
+.tool:hover .tool-icon{background:#2458d3;color:#fff;transform:translateY(-2px)}
+.tool-title{font-size:15px;line-height:1.35;padding-right:8px}
+.tool-desc{font-size:12px;line-height:1.6;margin-top:8px;color:#72819a}
+.tool-action{grid-column:2;align-self:end;min-height:33px;gap:9px;padding:0 12px;border:1px solid #dbe5f7;border-radius:7px;background:#f6f8fe;color:#2458d3;transition:background .18s,color .18s,border-color .18s}
+.tool-action svg{width:14px;height:14px}
+.tool:hover .tool-action{background:#2458d3;border-color:#2458d3;color:white}
+.tool:hover .tool-action svg{transform:translateX(2px)}
+.tool:focus-visible{outline:3px solid #8baafa;outline-offset:3px}
+.tool-list{gap:14px}
+@media(max-width:850px){.tool{padding:19px;min-height:195px}}
+@media(max-width:680px){.tool{padding:17px;min-height:0}.tool:after{right:14px;top:15px;font-size:8px}.tool-title{padding-right:0}}
+@media(max-width:430px){.tool{padding:15px}.tool:after{right:12px;top:12px}.tool-icon{width:42px;height:42px}.tool-action{grid-column:2}}
+
 </style>
 </head>
 <body>
