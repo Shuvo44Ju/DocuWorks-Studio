@@ -1,29 +1,37 @@
-# DocuWorks Studio - AI-powered URS to CS setup
+# DocuWorks Studio - Claude-powered URS to CS
 
-This equipment-agnostic backend sends the uploaded document to Claude's document-understanding API, receives schema-validated extraction, and lets the existing ExcelJS/CSBuilder code populate the original CS.xlsx template. It contains no example requirements for any particular machine.
+The app uses an equipment-agnostic Claude extraction API. No API key belongs in GitHub or browser JavaScript.
 
-## Deploy once with Cloudflare Pages
+## Cloudflare Workers deployment
 
-1. In Cloudflare, create a Pages project connected to GitHub repository Shuvo44Ju/DocuWorks-Studio.
-2. Choose the no-framework/static deployment configuration. Set build command blank and output directory to the repository root (often entered as / or . depending on the dashboard). The functions/api/convert.js file is the Pages Function.
-3. In Settings > Variables and Secrets, add the encrypted secret ANTHROPIC_API_KEY using an API key from Anthropic. Never put this key in cs.html, ai-config.js, or another public repository file.
-4. Optional: set ANTHROPIC_MODEL to a supported Claude model ID. Default: claude-sonnet-5.
-5. Deploy. The endpoint is https://YOUR-PAGES-DOMAIN.pages.dev/api/convert; GET is a health check.
-6. Before exposing a paid AI endpoint publicly, add a Cloudflare WAF rate-limiting rule for /api/convert and monitor provider usage. CORS is not authentication and does not stop direct HTTP clients.
-7. Open the Pages URL and test with URS_456.pdf. The frontend uses /api/convert automatically on a .pages.dev hostname.
+This repository is configured for Workers Static Assets plus a Worker API handler. It is not deployed as a Pages Functions project. The deploy command is:
 
-## Keep GitHub Pages as the visible URL (optional)
+\`npx wrangler deploy\`
 
-If the frontend must remain on GitHub Pages, set window.DOCUWORKS_AI_ENDPOINT in ai-config.js to the full Pages Function URL, e.g. https://YOUR-PAGES-DOMAIN.pages.dev/api/convert. This is a public endpoint URL, not a secret. The backend allows the GitHub Pages origin.
+The root \`wrangler.jsonc\` declares the Worker entry point, static assets binding, and routing so this command does not try to auto-detect/migrate a Pages Functions project.
 
-## Behavior
+### 1. Deploy from Cloudflare
 
-- PDF is sent as a PDF document block so Claude can use page visuals and extracted text.
-- DOCX is converted to table-preserving HTML in the browser and interpreted by Claude.
-- The API returns metadata, ordered sections, requirement/specification pairs, source pages, a short source excerpt, confidence, and review flags.
-- Existing CS.xlsx is used in the browser; vendor compliance and vendor remarks stay blank.
-- Unreadable or ambiguous items are flagged rather than guessed.
+Use the current Cloudflare build/deploy setup and keep the deploy command as \`npx wrangler deploy\`. Ensure the build environment checks out the latest main-branch commit with \`wrangler.jsonc\`, \`worker.js\`, and \`.assetsignore\`.
 
-## Privacy and cost
+The Worker is named \`docuworks-studio-urs-cs\`. Cloudflare assigns its Workers URL under your account's workers.dev subdomain if workers.dev is enabled.
 
-The uploaded document is sent to this backend and then to the configured AI provider. This is different from the old local-only OCR flow. API usage may incur charges. Configure billing limits and rate limiting before routine use.
+### 2. Add the API key securely
+
+In Cloudflare Dashboard, open **Workers & Pages → docuworks-studio-urs-cs → Settings → Variables and Secrets → Add**. Create a secret named \`ANTHROPIC_API_KEY\` and paste the key into Cloudflare's secret-value field. Never put the value in GitHub, in \`cs.html\`, or in \`ai-config.js\`.
+
+Optional: add \`ANTHROPIC_MODEL\` as a text variable to override the default model, \`claude-sonnet-5\`.
+
+### 3. Verify the service
+
+Open \`https://YOUR-WORKER-URL/api/convert\`. The GET endpoint returns JSON with \`configured: true\` after the secret is available. A false value means the secret is missing or attached to another environment.
+
+Upload the sample URS PDF at \`https://YOUR-WORKER-URL/cs.html\`. The app sends the PDF to Claude for full-document interpretation and uses the response to fill the existing \`CS.xlsx\` template. Vendor response columns remain blank. Ambiguous items are marked for source review.
+
+### 4. Keep using the old GitHub Pages URL (optional)
+
+If the user-facing website must remain at \`https://shuvo44ju.github.io/DocuWorks-Studio/cs.html\`, set \`window.DOCUWORKS_AI_ENDPOINT\` in \`ai-config.js\` to the deployed Worker's full API URL, such as \`https://YOUR-WORKER-URL/api/convert\`. This is an endpoint URL, not a secret. The endpoint explicitly allows the GitHub Pages origin. The configuration file is public, so do not add a key there.
+
+### Privacy, usage, protection
+
+Uploaded documents are sent to the Worker and then to Anthropic for AI processing; this is not local-only processing. API calls may incur charges. Set provider spending/usage limits and configure Cloudflare rate limiting before routine use. CORS is not authentication and does not prevent direct HTTP requests.
