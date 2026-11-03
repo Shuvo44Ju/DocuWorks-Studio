@@ -53,7 +53,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-<script src="./core.js?v=columns-20261103"></script><script src="./builder.js?v=columns-20261103"></script><script src="./ai-config.js?v=20261103-ai1"></script>
+<script src="./core.js?v=columns-20261103"></script><script src="./builder.js?v=columns-20261103"></script><script src="./ai-config.js?v=20261103-worker"></script>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -188,7 +188,7 @@ function getAIEndpoint(){
  const configured=String(window.DOCUWORKS_AI_ENDPOINT||'').trim();
  if(configured)return configured;
  const host=location.hostname.toLowerCase();
- if(host.endsWith('.pages.dev')||host==='localhost'||host==='127.0.0.1')return new URL('./api/convert',location.href).href;
+ if(host.endsWith('.pages.dev')||host.endsWith('.workers.dev')||host==='localhost'||host==='127.0.0.1')return new URL('./api/convert',location.href).href;
  return '';
 }
 async function extractWithAI(sourceFile){
