@@ -234,42 +234,62 @@ const SECKEY = /^(general\s*information|functional|utility\s*services|validation
 const median = a => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
 
 function estimateColumns(pagesLines) {
-  const header2 = [], header3 = [], s2 = [], s3 = [];
+  const s2 = [], s3 = [], bins = {};
+  const tablePages = pagesLines.filter(pg => {
+    const t = pg.lines.map(L => L.text).join(' ');
+    return /requirements?/i.test(t) && /descriptions?/i.test(t);
+  });
+  const serialHeader = tablePages.some(pg => {
+    const hi = pg.lines.findIndex(L => /requirements?/i.test(L.text) && /descriptions?/i.test(L.text));
+    const nearby = pg.lines.slice(Math.max(0,hi-2),Math.min(pg.lines.length,hi+4)).map(L=>L.text).join(' ');
+    return /\b(?:sl|sr)\.?\b|\bserial\b/i.test(nearby);
+  });
+  const ruled = tablePages.map(pg=>pg.columns).filter(c =>
+    c && Number.isFinite(c.numberEnd) && Number.isFinite(c.requirementEnd) &&
+    c.requirementEnd-c.numberEnd>0.07 && c.numberEnd>0.10 && c.requirementEnd<0.75
+  );
+  if (serialHeader && ruled.length) {
+    // Header words are centered; use actual vertical table rules instead of their x-positions.
+    const numberEnd=median(ruled.map(c=>c.numberEnd));
+    const requirementEnd=median(ruled.map(c=>c.requirementEnd));
+    return {c2:numberEnd+0.02,c3:requirementEnd+0.02};
+  }
   for (const { lines, w } of pagesLines) for (const L of lines) {
-    const ws = L.words;
-    if (/requirement/i.test(L.text) && /description/i.test(L.text)) {
-      const ri = ws.findIndex(x => /^requirements?$/i.test(x.t));
-      const di = ws.findIndex(x => /^descriptions?$/i.test(x.t));
-      if (ri >= 0) header2.push(ws[ri].x0 / w);
-      if (di >= 0) header3.push(ws[di].x0 / w);
+    const ws=L.words;
+    const rn=rowNumberInfo(ws,w);
+    if (rn && ws.length>=3 && ws[0].x0 < 0.35*w) {
+      const labelStart=ws[rn.parts];
+      if (labelStart) s2.push(labelStart.x0/w);
+      let bg=0,bi=-1;
+      for(let i=rn.parts+1;i<ws.length;i++){
+        const gap=ws[i].x0-ws[i-1].x1;
+        if(gap>bg){bg=gap;bi=i;}
+      }
+      if(bi>0 && bg>0.025*w) s3.push(ws[bi].x0/w);
     }
-    const rn = rowNumberInfo(ws, w);
-    if (ws.length < 3 || !rn || ws[0].x0 > 0.35 * w) continue;
-    const labelStart = ws[rn.parts];
-    if (!labelStart) continue;
-    s2.push(labelStart.x0 / w);
-    let bg = 0, bi = -1;
-    for (let i = rn.parts + 1; i < ws.length; i++) { const g = ws[i].x0 - ws[i - 1].x1; if (g > bg) { bg = g; bi = i; } }
-    if (bi > 0 && bg > 0.03 * w) s3.push(ws[bi].x0 / w);
-  }
-  let c2 = header2.length ? median(header2) : median(s2);
-  let c3 = header3.length ? median(header3) : median(s3);
-  if (s2.length < 3 && !header2.length) c2 = null;
-  if (s3.length < 3 && !header3.length) c3 = null;
-  if (c2 == null || c3 == null) {
-    const bins = {};
-    for (const { lines, w } of pagesLines) for (const L of lines) {
-      let prev = null;
-      for (const wd of L.words) { if (prev == null || wd.x0 - prev > 0.03 * w) { const b = Math.round(wd.x0 / w * 100); bins[b] = (bins[b] || 0) + 1; } prev = wd.x1; }
+    let prev=null;
+    for(const wd of ws){
+      if(prev==null || wd.x0-prev>0.03*w){
+        const b=Math.round(wd.x0/w*100);
+        bins[b]=(bins[b]||0)+1;
+      }
+      prev=wd.x1;
     }
-    const pk = Object.entries(bins).map(([b, c]) => [+b, c]).sort((a, b) => b[1] - a[1]);
-    if (c2 == null) { const p = pk.find(([b, c]) => b >= 13 && b <= 40 && c >= 3); c2 = p ? p[0] / 100 : 0.22; }
-    if (c3 == null) { const p = pk.find(([b, c]) => b > c2 * 100 + 8 && b <= 70 && c >= 3); c3 = p ? p[0] / 100 : 0.45; }
   }
-  if (c3 <= c2 + 0.08) c3 = Math.min(0.85, c2 + 0.20);
-  return { c2, c3 };
+  let c2=s2.length?median(s2):null;
+  let c3=s3.length?median(s3):null;
+  const pk=Object.entries(bins).map(([b,c])=>[+b,c]).sort((a,b)=>b[1]-a[1]);
+  if(c2==null){
+    const p=pk.find(([b,c])=>b>=13&&b<=40&&c>=3);
+    c2=p?p[0]/100:0.22;
+  }
+  if(c3==null){
+    const p=pk.find(([b,c])=>b>c2*100+8&&b<=72&&c>=3);
+    c3=p?p[0]/100:0.45;
+  }
+  if(c3<=c2+0.08)c3=Math.min(0.85,c2+0.20);
+  return {c2,c3};
 }
-
 const avgConf = ws => { const c = ws.map(x => x.conf).filter(x => x != null); return c.length ? c.reduce((a, b) => a + b, 0) / c.length : null; };
 const alRatio = t => { t = String(t || ''); return t ? (t.match(/[A-Za-z0-9]/g) || []).length / t.length : 0; };
 function rowNumberInfo(words, pageWidth) {
@@ -283,7 +303,7 @@ function rowNumberInfo(words, pageWidth) {
 }
 
 function parsePages(pages) {
-  const pl = pages.map((p, i) => ({ w: p.w, h: p.h, idx: i + 1, lines: groupLines(p.words) }));
+  const pl = pages.map((p, i) => ({ w: p.w, h: p.h, idx: i + 1, columns: p.columns || null, lines: groupLines(p.words) }));
   const { c2, c3 } = estimateColumns(pl);
   const out = [], fullText = [], processedPages = [];
   let cur = null, sec = 0, tableStarted = false, stop = false;
