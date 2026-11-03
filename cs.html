@@ -53,7 +53,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-<script src="./core.js?v=columns-20261103"></script><script src="./builder.js?v=columns-20261103"></script><script src="./ai-config.js?v=20261103-production-worker"></script>
+<script src="./core.js?v=columns-20261103"></script><script src="./builder.js?v=columns-20261103"></script><script src="./ai-config.js?v=20261103-worker-config"></script>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -193,7 +193,7 @@ function getAIEndpoint(){
 }
 async function extractWithAI(sourceFile){
  const endpoint=getAIEndpoint();
- if(!endpoint)throw new Error('AI document understanding is not connected to this GitHub Pages deployment yet. To avoid producing another incorrectly mapped CS, conversion has been stopped. Deploy this repository to Cloudflare Pages and configure the ANTHROPIC_API_KEY server secret. See AI_BACKEND_SETUP.md.');
+ if(!endpoint)throw new Error('AI document understanding is not connected to this GitHub Pages deployment yet. To avoid producing another incorrectly mapped CS, conversion has been stopped. Connect this page to the deployed docuworks-studio Worker and configure ANTHROPIC_API_KEY under Workers & Pages > docuworks-studio > Settings > Variables and Secrets. See AI_BACKEND_SETUP.md.');
  setStatus(8,'Preparing document for AI interpretation…');
  const ext=sourceFile.name.toLowerCase().split('.').pop(),form=new FormData();
  form.append('fileName',sourceFile.name);
