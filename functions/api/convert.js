@@ -1,4 +1,4 @@
-const MODEL = "claude-sonnet-5-5";
+const MODEL = "claude-sonnet-5";
 const MAX_FILE_BYTES = 24 * 1024 * 1024;
 const API_URL = "https://api.anthropic.com/v1/messages";
 
@@ -92,7 +92,7 @@ async function handlePost({ request, env }) {
   const origin = request.headers.get("Origin") || "";
   if (!isAllowedOrigin(origin)) return jsonResponse({ error: "Origin is not allowed." },403,origin);
   if (!env.ANTHROPIC_API_KEY) return jsonResponse({
-    error: "AI conversion is not configured. Add ANTHROPIC_API_KEY as a server-side secret in Cloudflare Pages."
+    error: "AI conversion is not configured. Add ANTHROPIC_API_KEY as a Secret under Workers & Pages > docuworks-studio > Settings > Variables and Secrets, then select Deploy."
   },503,origin);
   let form;
   try { form = await request.formData(); }
