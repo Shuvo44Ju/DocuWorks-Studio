@@ -14,11 +14,11 @@ The root \`wrangler.jsonc\` declares the Worker entry point, static assets bindi
 
 Use the current Cloudflare build/deploy setup and keep the deploy command as \`npx wrangler deploy\`. Ensure the build environment checks out the latest main-branch commit with \`wrangler.jsonc\`, \`worker.js\`, and \`.assetsignore\`.
 
-The Worker is named \`docuworks-studio-urs-cs\`. Cloudflare assigns its Workers URL under your account's workers.dev subdomain if workers.dev is enabled.
+The Worker is named \`docuworks-studio\`. Cloudflare assigns its Workers URL under your account's workers.dev subdomain if workers.dev is enabled.
 
 ### 2. Add the API key securely
 
-In Cloudflare Dashboard, open **Workers & Pages → docuworks-studio-urs-cs → Settings → Variables and Secrets → Add**. Create a secret named \`ANTHROPIC_API_KEY\` and paste the key into Cloudflare's secret-value field. Never put the value in GitHub, in \`cs.html\`, or in \`ai-config.js\`.
+In Cloudflare Dashboard, open **Workers & Pages → docuworks-studio → Settings → Variables and Secrets → Add**. Create a secret named \`ANTHROPIC_API_KEY\` and paste the key into Cloudflare's secret-value field. Never put the value in GitHub, in \`cs.html\`, or in \`ai-config.js\`.
 
 Optional: add \`ANTHROPIC_MODEL\` as a text variable to override the default model, \`claude-sonnet-5\`.
 
