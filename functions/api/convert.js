@@ -1,4 +1,4 @@
-const MODEL = "claude-sonnet-5";
+const MODEL = "claude-sonnet-5-5";
 const MAX_FILE_BYTES = 24 * 1024 * 1024;
 const API_URL = "https://api.anthropic.com/v1/messages";
 
