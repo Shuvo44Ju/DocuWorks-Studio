@@ -47,13 +47,13 @@
 <div id="progress-container" class="hidden space-y-1.5"><div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div id="progress-bar" class="bg-blue-600 h-2 w-0 transition-all duration-300"></div></div><p id="status-text" class="text-xs text-slate-500 text-center" aria-live="polite">Processing…</p></div>
 <p id="error-text" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3"></p>
 <button id="convert-btn" disabled class="w-full bg-slate-200 text-slate-400 font-bold py-3 px-4 rounded-xl cursor-not-allowed transition-all">Upload a URS file first</button>
-<p class="text-xs text-center text-slate-400">Files are processed locally in your browser. Review generated requirements before official use.</p>
+<p class="text-xs text-center text-slate-400">AI-assisted extraction sends your URS to the configured secure AI service. Vendor response fields stay blank; review the generated CS against the source before official use.</p>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-<script src="./core.js?v=columns-20261103"></script><script src="./builder.js?v=columns-20261103"></script>
+<script src="./core.js?v=columns-20261103"></script><script src="./builder.js?v=columns-20261103"></script><script src="./ai-config.js?v=20261103-ai1"></script>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -184,26 +184,96 @@ async function parseDocx(f){
  const ab=await f.arrayBuffer(),res=await mammoth.convertToHtml({arrayBuffer:ab}),doc=new DOMParser().parseFromString(res.value,'text/html');
  const sheets=CSCore.parseDocxDocument(doc);if(!sheets.length)throw new Error('No supported requirement table was found in this DOCX. The reference parser expects a table with Requirement and Description columns.');return {sheets,text:doc.body.innerText||''};
 }
+function getAIEndpoint(){
+ const configured=String(window.DOCUWORKS_AI_ENDPOINT||'').trim();
+ if(configured)return configured;
+ const host=location.hostname.toLowerCase();
+ if(host.endsWith('.pages.dev')||host==='localhost'||host==='127.0.0.1')return new URL('./api/convert',location.href).href;
+ return '';
+}
+async function extractWithAI(sourceFile){
+ const endpoint=getAIEndpoint();
+ if(!endpoint)throw new Error('AI document understanding is not connected to this GitHub Pages deployment yet. To avoid producing another incorrectly mapped CS, conversion has been stopped. Deploy this repository to Cloudflare Pages and configure the ANTHROPIC_API_KEY server secret. See AI_BACKEND_SETUP.md.');
+ setStatus(8,'Preparing document for AI interpretation…');
+ const ext=sourceFile.name.toLowerCase().split('.').pop(),form=new FormData();
+ form.append('fileName',sourceFile.name);
+ if(ext==='pdf')form.append('file',sourceFile,sourceFile.name);
+ else if(ext==='docx'){
+  if(!window.mammoth)throw new Error('The DOCX reader did not load. Refresh and retry.');
+  const res=await mammoth.convertToHtml({arrayBuffer:await sourceFile.arrayBuffer()});
+  if(!res.value||!res.value.trim())throw new Error('No readable content was found in the DOCX.');
+  form.append('documentHtml',res.value);
+ } else throw new Error('Please upload a PDF or DOCX file.');
+ setStatus(15,'AI is reading the full URS and matching table rows…');
+ let response;
+ try{response=await fetch(endpoint,{method:'POST',body:form})}
+ catch(e){throw new Error('Could not connect to the AI extraction service. Check the backend URL and deployment.')}
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(data.error||('AI extraction failed (HTTP '+response.status+').'));
+ if(!Array.isArray(data.sections)||!data.sections.length)throw new Error('The AI returned no usable requirement sections. No Excel file was generated.');
+ const rows=[];
+ for(const section of data.sections){
+  const sectionTitle=String(section.title||'').trim();
+  if(sectionTitle)rows.push({type:'section',title:sectionTitle});
+  for(const item of (Array.isArray(section.requirements)?section.requirements:[])){
+   const req=String(item.requirement||'').trim(),desc=String(item.specification||'').trim();
+   if(!req&&!desc)continue;
+   const confidence=Number.isFinite(Number(item.confidence))?Math.max(0,Math.min(1,Number(item.confidence))):0;
+   const pages=Array.isArray(item.sourcePages)?item.sourcePages.filter(n=>Number.isInteger(n)&&n>0):[];
+   rows.push({
+    type:'row',
+    req:req||'UNRESOLVED REQUIREMENT — REVIEW SOURCE',
+    desc,
+    parent:sectionTitle,
+    group:'',
+    label:'',
+    raw:String(item.sourceQuote||''),
+    loc:pages.length?'Source page(s): '+pages.join(', '):'Source location not identified',
+    minConf:Math.round(confidence*100),
+    conf:Math.round(confidence*100),
+    review:Boolean(item.reviewRequired)||confidence<0.8||!req,
+    reviewReason:String(item.reviewReason||'')
+   });
+  }
+ }
+ const actual=rows.filter(r=>r.type==='row').length;
+ if(actual<1)throw new Error('AI extraction returned no requirement rows. No Excel file was generated.');
+ const metadata=[data.equipmentName,data.ursNumber,data.referenceDocumentNumber,data.version,data.department].filter(Boolean).join('\n');
+ return {
+  sheets:[{layout:'equipment',rows}],
+  text:metadata,
+  equipmentName:String(data.equipmentName||data.title||'').trim(),
+  warnings:Array.isArray(data.warnings)?data.warnings:[],
+  rowCount:actual,
+  ai:true,
+  model:data.model||''
+ };
+}
 btn.addEventListener('click',async()=>{
  if(!file)return;clearError();setReady(false);
  try{
-  if(!window.ExcelJS||!window.CSCore||!window.CSBuilder)throw new Error('A required converter library did not load. Refresh the page and retry.');
-  const ext=file.name.toLowerCase().split('.').pop();setStatus(3,'Extracting requirements…');
-  const parsed=ext==='docx'?await parseDocx(file):await parsePdf(file);
+  if(!window.ExcelJS||!window.CSBuilder)throw new Error('A required workbook library did not load. Refresh the page and retry.');
+  const ext=file.name.toLowerCase().split('.').pop();
+  setStatus(3,'Starting AI-powered URS extraction…');
+  const parsed=await extractWithAI(file);
   const sheets=(parsed.sheets||[]).filter(s=>s.rows&&s.rows.length);
-  const allRows=sheets.flatMap(s=>s.rows);if(!allRows.length)throw new Error('No requirements could be reliably extracted. No Excel file was generated.');
-  const actual=allRows.filter(r=>r.type==='row'||r.type==='sw').length;if(actual<2)throw new Error('Only '+actual+' requirement row(s) were detected. Please check the URS file; refusing to export a likely incomplete CS.');
-  setStatus(65,'Loading the original CS.xlsx template…');
-  const response=await fetch('./CS.xlsx',{cache:'no-store'});if(!response.ok)throw new Error('Could not load the original CS.xlsx template (HTTP '+response.status+').');
-  const template=await response.arrayBuffer(),wb=new ExcelJS.Workbook();await wb.xlsx.load(template);
-  const title=titleFromText(parsed.text||'',file.name);
+  const allRows=sheets.flatMap(s=>s.rows);
+  if(!allRows.length)throw new Error('No requirements could be extracted. No Excel file was generated.');
+  const actual=allRows.filter(r=>r.type==='row'||r.type==='sw').length;
+  setStatus(60,'Loading the original CS.xlsx template…');
+  const response=await fetch('./CS.xlsx',{cache:'no-store'});
+  if(!response.ok)throw new Error('Could not load the original CS.xlsx template (HTTP '+response.status+').');
+  const template=await response.arrayBuffer(),wb=new ExcelJS.Workbook();
+  await wb.xlsx.load(template);
+  const title=parsed.equipmentName||titleFromText(parsed.text||'',file.name);
   CSBuilder.fillTemplate(wb,{title:'CS File of '+title,sheets});
-  setStatus(88,'Building formatted workbook…');
+  setStatus(86,'Building the formatted CS workbook…');
   const out=await wb.xlsx.writeBuffer(),blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download='CS_'+title.replace(/[^\w.-]+/g,'_').slice(0,70)+'.xlsx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  a.href=url;a.download='CS_'+title.replace(/[^\w.-]+/g,'_').slice(0,70)+'.xlsx';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
   const reviewCount=allRows.filter(r=>r.review).length;
-  const pdfAudit=ext==='pdf'?' PDF pages: '+parsed.pageCount+'; pages containing extracted table content: '+parsed.pagesWithContent+'; OCR pages: '+parsed.ocrPages+'.':'';
-  setStatus(100,'Completed. '+actual+' requirement rows exported; '+reviewCount+' row(s) flagged for source review.'+pdfAudit+' Please compare the workbook with every source page before approval.');
+  const warningText=parsed.warnings.length?' AI warnings: '+parsed.warnings.slice(0,3).join(' | '):'';
+  setStatus(100,'Completed using AI document understanding: '+actual+' requirement rows exported; '+reviewCount+' row(s) flagged for source review.'+warningText+' Please verify against every source page before approval.');
  }catch(e){console.error(e);error(e&&e.message?e.message:String(e));prog.classList.add('hidden')}
  finally{setReady(!!file)}
 });
