@@ -53,7 +53,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-<script src="./core.js?v=rollback-20261103"></script><script src="./builder.js?v=rollback-20261103"></script>
+<script src="./core.js?v=columns-20261103"></script><script src="./builder.js?v=columns-20261103"></script>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -68,6 +68,35 @@ zone.addEventListener('click',()=>input.click());zone.addEventListener('keydown'
 ['dragenter','dragover'].forEach(n=>zone.addEventListener(n,e=>{e.preventDefault();zone.classList.add('border-blue-500','bg-blue-50/50')}));['dragleave','drop'].forEach(n=>zone.addEventListener(n,e=>{e.preventDefault();zone.classList.remove('border-blue-500','bg-blue-50/50')}));zone.addEventListener('drop',e=>choose(e.dataTransfer.files[0]));
 $('remove-file-btn').addEventListener('click',()=>{file=null;input.value='';info.classList.add('hidden');info.classList.remove('flex');zone.classList.remove('hidden');prog.classList.add('hidden');clearError();setReady(false)});
 function titleFromText(t,name){const m=CSCore.extractMeta(t);return m.equipment||m.title||name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').trim()||'Untitled URS Document'}
+function detectTableColumnRules(canvas) {
+ try {
+  const ctx=canvas.getContext('2d',{willReadFrequently:true}),w=canvas.width,h=canvas.height;
+  if(!ctx||w<300||h<300)return null;
+  const data=ctx.getImageData(0,0,w,h).data;
+  const y0=Math.floor(h*0.14),y1=Math.floor(h*0.91),scores=new Uint32Array(w);
+  const minX=Math.floor(w*0.10),maxX=Math.floor(w*0.72);
+  for(let y=y0;y<y1;y++){
+   const row=y*w*4;
+   for(let x=minX;x<maxX;x++){
+    const p=row+x*4;
+    if((data[p]*.299+data[p+1]*.587+data[p+2]*.114)<215)scores[x]++;
+   }
+  }
+  const peak=(lo,hi)=>{
+   let bestX=-1,bestScore=0;
+   for(let x=Math.floor(w*lo);x<=Math.floor(w*hi);x++){
+    let score=0;for(let d=-2;d<=2;d++)if(x+d>=0&&x+d<w)score+=scores[x+d];
+    if(score>bestScore){bestScore=score;bestX=x;}
+   }
+   return {x:bestX,score:bestScore};
+  };
+  // Keep the serial-number divider separate from the requirement/description divider.
+  const number=peak(.13,.30),requirement=peak(.30,.62),span=y1-y0;
+  if(number.x<0||requirement.x<0||number.score<span*.24||requirement.score<span*.24||
+     requirement.x-number.x<w*.075)return null;
+  return {numberEnd:number.x/w,requirementEnd:requirement.x/w};
+ } catch(e) { console.warn('Table-rule detection skipped:',e); return null; }
+}
 async function parsePdf(f){
  const data=await f.arrayBuffer(), pdf=await pdfjsLib.getDocument({data}).promise, pages=[], textChunks=[];
  let textWords=0, ocrPages=[];
@@ -97,6 +126,14 @@ async function parsePdf(f){
   textWords+=words.length;
   pages.push({w:vp.width,h:vp.height,words});
   const pgText=wordText(words);
+  if(/requirements?/i.test(pgText)&&/descriptions?/i.test(pgText)){
+   const ruleScale=1.5,ruleVp=pg.getViewport({scale:ruleScale}),ruleCanvas=document.createElement('canvas');
+   ruleCanvas.width=Math.ceil(ruleVp.width);ruleCanvas.height=Math.ceil(ruleVp.height);
+   const ruleCtx=ruleCanvas.getContext('2d');ruleCtx.fillStyle='#fff';ruleCtx.fillRect(0,0,ruleCanvas.width,ruleCanvas.height);
+   await pg.render({canvasContext:ruleCtx,viewport:ruleVp,background:'rgb(255,255,255)'}).promise;
+   pages[pages.length-1].columns=detectTableColumnRules(ruleCanvas);
+   ruleCanvas.width=ruleCanvas.height=1;
+  }
   const rowSignal=words.some(w=>/^\d{1,2}\.\d{1,2}\.?$/.test(w.t)||/^\d{1,2}\.$/.test(w.t));
   const corruptChars=(pgText.match(/[\uFFFD\uE000-\uF8FF\u0000-\u0008]/g)||[]).length;
   const compact=pgText.replace(/\s/g,'');
@@ -129,7 +166,7 @@ async function parsePdf(f){
     }));
     const oldScore=qualityScore(pages[i].words),newScore=qualityScore(ws);
     const forceReplace=pages[i].words.length<35||/[\uFFFD\uE000-\uF8FF\u0000-\u0008]/.test(wordText(pages[i].words))||(!hasGlobalHeader&&ws.length>0);
-    if(ws.length&&(forceReplace||newScore>oldScore+0.04))pages[i]={w:vp.width,h:vp.height,words:ws};
+    if(ws.length&&(forceReplace||newScore>oldScore+0.04))pages[i]={w:vp.width,h:vp.height,words:ws,columns:pages[i].columns||null};
     setStatus(38+Math.round(45*(k+1)/ocrPages.length),'OCR complete: '+(k+1)+' of '+ocrPages.length+' pages');
    }
   }catch(e){
