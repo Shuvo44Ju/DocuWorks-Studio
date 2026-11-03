@@ -1,0 +1,15 @@
+.git/
+.github/
+functions/
+worker.js
+wrangler.jsonc
+.assetsignore
+AI_BACKEND_SETUP.md
+conversion_method.md
+conversion_prompt.txt
+mapping_rules.json
+sample_extraction.json
+test_cases.md
+validate_template.py
+*.zip
+*.py
