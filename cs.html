@@ -159,6 +159,7 @@ async function parsePdf(f){
     const i=ocrPages[k],pg=await pdf.getPage(i+1),vp=pg.getViewport({scale:1}),ocrScale=2.5,ovp=pg.getViewport({scale:ocrScale}),canvas=document.createElement('canvas');
     canvas.width=Math.ceil(ovp.width);canvas.height=Math.ceil(ovp.height);
     await pg.render({canvasContext:canvas.getContext('2d'),viewport:ovp}).promise;
+    const ocrColumns=detectTableColumnRules(canvas);
     const res=await worker.recognize(canvas);
     const ws=(res.data.words||[]).filter(w=>w.text&&w.text.trim()).map(w=>({
      t:w.text.trim(),x0:w.bbox.x0/ocrScale,x1:w.bbox.x1/ocrScale,
@@ -166,7 +167,7 @@ async function parsePdf(f){
     }));
     const oldScore=qualityScore(pages[i].words),newScore=qualityScore(ws);
     const forceReplace=pages[i].words.length<35||/[\uFFFD\uE000-\uF8FF\u0000-\u0008]/.test(wordText(pages[i].words))||(!hasGlobalHeader&&ws.length>0);
-    if(ws.length&&(forceReplace||newScore>oldScore+0.04))pages[i]={w:vp.width,h:vp.height,words:ws,columns:pages[i].columns||null};
+    if(ws.length&&(forceReplace||newScore>oldScore+0.04))pages[i]={w:vp.width,h:vp.height,words:ws,columns:pages[i].columns||ocrColumns||null};else if(!pages[i].columns&&ocrColumns)pages[i].columns=ocrColumns;
     setStatus(38+Math.round(45*(k+1)/ocrPages.length),'OCR complete: '+(k+1)+' of '+ocrPages.length+' pages');
    }
   }catch(e){
