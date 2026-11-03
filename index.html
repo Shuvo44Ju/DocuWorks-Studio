@@ -159,7 +159,6 @@
     <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M9 3.8h10l6 6V26a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5.8a2 2 0 0 1 2-2Z" fill="currentColor" opacity=".2"/><path d="M9 3.8h10l6 6V26a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5.8a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7"/><path d="M19 4v5a1 1 0 0 0 1 1h5M11 15h10M11 19h10M11 23h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
     <span class="brand-copy"><span class="brand-name">DocuWorks Studio</span><span class="brand-sub">Built by Shuvo</span></span>
   </a>
-  <div class="top-right"><div class="secure-label"><span class="secure-dot"></span>Workspace ready</div></div>
 </header>
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="nav-label">Workspace</div>
@@ -197,6 +196,5 @@ settingsButton.addEventListener('click',()=>{settingsPanel.classList.toggle('vis
 densityButton.addEventListener('click',()=>{const compact=app.classList.toggle('compact');densityButton.textContent=compact?'Turn off':'Turn on';densityButton.setAttribute('aria-pressed',String(compact));});
 search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();let shown=0;tools.forEach(tool=>{const match=(tool.dataset.search+' '+tool.innerText).toLowerCase().includes(q);tool.style.display=match?'grid':'none';if(match)shown++;});emptyState.style.display=shown?'none':'block';});
 </script>
-<script src="./theme.js?v=2" defer></script>
 </body>
 </html>
