@@ -122,7 +122,14 @@ async function handlePost({ request, env }) {
   if (extension === "pdf") {
     let pageImages;
     try { pageImages = JSON.parse(pageImagesRaw); }
-    catch { return jsonResponse({error:"PDF page images were not prepared. Refresh the page and upload the PDF again."},400,origin); }
+    catch {
+      const legacyPdf = form.get("file");
+      return jsonResponse({
+        error: legacyPdf
+          ? "This browser is using an older URS converter page. Close the old converter tab, open the latest page at https://shuvo44ju.github.io/DocuWorks-Studio/cs.html?ai=free-20261104, press Ctrl+Shift+R, and select the PDF again."
+          : "PDF page images are missing. Open the latest converter page at https://shuvo44ju.github.io/DocuWorks-Studio/cs.html?ai=free-20261104 and select the PDF again."
+      },409,origin);
+    }
     if (!Array.isArray(pageImages) || !pageImages.length) return jsonResponse({
       error:"No PDF pages were supplied for AI reading. Please retry the upload."
     },400,origin);
