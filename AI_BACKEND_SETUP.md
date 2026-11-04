@@ -22,6 +22,18 @@ In Cloudflare Dashboard, open **Workers & Pages → docuworks-studio → Setting
 
 Optional: add \`ANTHROPIC_MODEL\` as a text variable to override the default model, \`claude-sonnet-5\`.
 
+### 2A. Force-attach the secret to the live Worker (recommended if health says false)
+
+From the repository root (the folder containing `wrangler.jsonc`), run:
+
+```bash
+npx wrangler secret put ANTHROPIC_API_KEY
+```
+
+Wrangler will prompt for the secret value. Paste the Anthropic key into that prompt only; do not put it in the command, a source file, or GitHub. This command attaches the secret to the Worker selected by `wrangler.jsonc` (\`docuworks-studio\`) and deploys a new Worker version immediately. If Wrangler asks to authenticate, run `npx wrangler login` first and repeat the command.
+
+The repository's Wrangler config now declares `ANTHROPIC_API_KEY` as required, so future Wrangler deployments validate that the secret exists rather than silently deploying without it.
+
 ### 3. Verify the service
 
 Open \`https://YOUR-WORKER-URL/api/convert\`. The GET endpoint returns JSON with \`configured: true\` after the secret is available. A false value means the secret is missing or attached to another environment.
