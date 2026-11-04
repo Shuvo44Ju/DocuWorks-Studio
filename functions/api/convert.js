@@ -276,7 +276,7 @@ export async function onRequestGet({request,env}) {
     architecture:"Mixture of Experts (4B active parameters)",
     reasoningEffort:"medium",
     diagnostic:{
-      build:"cloudflare-workers-ai-gemma4-fast-20261104",
+      build:"cloudflare-workers-ai-gemma4-thinking-disabled-20261104",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
