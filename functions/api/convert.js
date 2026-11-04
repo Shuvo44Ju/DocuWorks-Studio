@@ -250,6 +250,7 @@ export async function onRequestGet({request,env}) {
     model:MODEL,
     billing:"Cloudflare Workers AI free daily allocation (10,000 neurons/day; subject to model usage)",
     reasoningEffort:"medium",
+    reasoningEffort:"medium",
     diagnostic:{
       build:"cloudflare-workers-ai-medium-reasoning-20261104",
       workersAIBindingPresent:bindingPresent,
