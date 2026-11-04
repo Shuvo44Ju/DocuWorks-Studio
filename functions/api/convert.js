@@ -99,7 +99,7 @@ function extractJson(value) {
       value = message.content ?? choice?.text ?? value.output_text ?? value.response;
     } else if (value.output && Array.isArray(value.output)) {
       const parts = value.output.flatMap(item => Array.isArray(item?.content) ? item.content : [item]);
-      value = parts.map(part => part?.text || part?.content || "").filter(Boolean).join("\\n");
+      value = parts.map(part => part?.text || part?.content || "").filter(Boolean).join("\n");
     } else if (value.response && typeof value.response === "object") {
       value = value.response;
     } else {
@@ -115,14 +115,14 @@ function extractJson(value) {
 
   // Message content can occasionally be returned as typed text parts.
   if (Array.isArray(value)) {
-    value = value.map(part => typeof part === "string" ? part : (part?.text || part?.content || "")).filter(Boolean).join("\\n");
+    value = value.map(part => typeof part === "string" ? part : (part?.text || part?.content || "")).filter(Boolean).join("\n");
   }
   if (typeof value !== "string") {
     const shape = value && typeof value === "object" ? Object.keys(value).slice(0,12).join(", ") : typeof value;
     throw new Error("The AI model returned an unsupported response structure (" + shape + ").");
   }
-  let text = value.trim().replace(/^\\uFEFF/, "");
-  text = text.replace(/^\\`\\`\\`(?:json)?\\s*/i, "").replace(/\\s*\\`\\`\\`$/, "").trim();
+  let text = value.trim().replace(/^\uFEFF/, "");
+  text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
   const first = text.indexOf("{"), last = text.lastIndexOf("}");
   if (first < 0 || last <= first) throw new Error("The AI response did not contain valid JSON. Returned text begins: " + text.slice(0,180));
   return JSON.parse(text.slice(first, last + 1));
