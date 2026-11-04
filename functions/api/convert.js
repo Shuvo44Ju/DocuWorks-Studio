@@ -206,7 +206,7 @@ async function handlePost({ request, env }) {
         {role:"user",content:userContent}
       ],
       max_completion_tokens:7000,
-      reasoning_effort:"low",
+      reasoning_effort:"medium",
       temperature:0.1,
       top_p:0.85
     });
@@ -249,8 +249,9 @@ export async function onRequestGet({request,env}) {
     configured:bindingPresent,
     model:MODEL,
     billing:"Cloudflare Workers AI free daily allocation (10,000 neurons/day; subject to model usage)",
+    reasoningEffort:"medium",
     diagnostic:{
-      build:"cloudflare-workers-ai-response-parser-20261104",
+      build:"cloudflare-workers-ai-medium-reasoning-20261104",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
