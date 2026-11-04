@@ -1,11 +1,16 @@
-const CACHE_NAME='docuworks-studio-v13';
+const CACHE_NAME='docuworks-studio-v14-ai-free';
 const CORE=['./','./index.html','./scan.html','./cs.html','./ink-saver.html','./style.css','./app.js','./manifest.json','./icon.svg'];
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE_NAME);try{await cache.addAll(CORE)}catch(e){}await self.skipWaiting()})())});
-self.addEventListener('activate',event=>{event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('ink-saver-paperscan-')&&k!==CACHE_NAME).map(k=>caches.delete(k)));await self.clients.claim()})())});
+self.addEventListener('activate',event=>{event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>(k.startsWith('ink-saver-paperscan-')||k.startsWith('docuworks-studio-v'))&&k!==CACHE_NAME).map(k=>caches.delete(k)));await self.clients.claim()})())});
 self.addEventListener('fetch',event=>{
  const req=event.request;if(req.method!=='GET')return;
  const url=new URL(req.url);
  if(url.origin!==self.location.origin)return;
+ // The URS converter must never fall back to a cached pre-AI page: the live page renders PDF pages for vision extraction.
+ if(url.pathname.endsWith('/cs.html')){
+   event.respondWith(fetch(req,{cache:'no-store'}));
+   return;
+ }
  // Network-first for site files so GitHub Pages updates appear instead of stale cached HTML/JS/CSS.
  event.respondWith((async()=>{
    try{
