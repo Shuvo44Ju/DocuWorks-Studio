@@ -216,7 +216,23 @@ async function handlePost({ request, env }) {
       ],
       max_tokens:7000,
       temperature:0.2,
-      top_p:0.9
+      top_p:0.9,
+      // Gemma 4 has a built-in thinking channel. Disable it so the token
+      // budget is used for the final JSON payload rather than hidden reasoning.
+      chat_template_kwargs:{enable_thinking:false}
+    });
+    const firstChoice = result?.choices?.[0];
+    const firstMessage = firstChoice?.message || {};
+    console.log("Workers AI URS response summary", {
+      resultType: result === null ? "null" : typeof result,
+      topLevelKeys: result && typeof result === "object" ? Object.keys(result).slice(0,16) : [],
+      choicesCount: Array.isArray(result?.choices) ? result.choices.length : null,
+      firstChoiceKeys: firstChoice && typeof firstChoice === "object" ? Object.keys(firstChoice).slice(0,12) : [],
+      messageKeys: firstMessage && typeof firstMessage === "object" ? Object.keys(firstMessage).slice(0,12) : [],
+      contentType: firstMessage.content === null ? "null" : typeof firstMessage.content,
+      contentLength: typeof firstMessage.content === "string" ? firstMessage.content.length : null,
+      finishReason: firstChoice?.finish_reason || null,
+      usage: result?.usage || null
     });
     console.log("Workers AI URS extraction completed", {
       model: MODEL,
