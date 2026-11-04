@@ -168,14 +168,25 @@ async function handlePost({ request, env }) {
 
   let result;
   try {
+    const startedAt = Date.now();
+    console.log("Workers AI URS extraction started", {
+      model: MODEL,
+      pageCount: extension === "pdf" ? JSON.parse(pageImagesRaw).length : 0,
+      inputChars: extension === "docx" ? documentHtml.length : pageImagesRaw.length
+    });
     result = await env.AI.run(MODEL,{
       messages:[
         {role:"system",content:SYSTEM_PROMPT},
         {role:"user",content:userContent}
       ],
-      max_tokens:18000,
+      max_completion_tokens:7000,
+      reasoning_effort:"low",
       temperature:0.1,
-      top_p:0.9
+      top_p:0.85
+    });
+    console.log("Workers AI URS extraction completed", {
+      model: MODEL,
+      elapsedMs: Date.now() - startedAt
     });
   } catch(e) {
     console.error("Workers AI inference error:",e);
