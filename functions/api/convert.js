@@ -1,6 +1,6 @@
-const MODEL = "claude-sonnet-5";
-const MAX_FILE_BYTES = 24 * 1024 * 1024;
-const API_URL = "https://api.anthropic.com/v1/messages";
+const MODEL = "@cf/qwen/qwen3.8-27b";
+const MAX_HTML_CHARS = 12 * 1024 * 1024;
+const MAX_PAGE_COUNT = 30;
 
 const OUTPUT_SCHEMA = {
   type: "object", additionalProperties: false,
@@ -88,85 +88,132 @@ function validateExtraction(value) {
   if (safe.rowCount < 1) throw new Error("No requirement/specification rows could be extracted; no workbook was created.");
   return safe;
 }
+
+function extractJson(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    if (value.response && typeof value.response === "object") return value.response;
+    value = value.response ?? value.result ?? value.output_text ?? value;
+  }
+  if (typeof value !== "string") throw new Error("The AI model returned an unexpected response.");
+  let text = value.trim().replace(/^﻿/, "");
+  text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  const first = text.indexOf("{"), last = text.lastIndexOf("}");
+  if (first < 0 || last <= first) throw new Error("The AI response did not contain valid JSON.");
+  return JSON.parse(text.slice(first, last + 1));
+}
+
 async function handlePost({ request, env }) {
   const origin = request.headers.get("Origin") || "";
   if (!isAllowedOrigin(origin)) return jsonResponse({ error: "Origin is not allowed." },403,origin);
-  if (!env.ANTHROPIC_API_KEY) return jsonResponse({
-    error: "AI conversion is not configured. Add ANTHROPIC_API_KEY as a Secret under Workers & Pages > docuworks-studio > Settings > Variables and Secrets, then select Deploy."
+  if (!env?.AI || typeof env.AI.run !== "function") return jsonResponse({
+    error: "Cloudflare Workers AI is not connected. Deploy the latest Worker configuration with the AI binding enabled."
   },503,origin);
+
   let form;
   try { form = await request.formData(); }
   catch { return jsonResponse({ error: "Upload must use multipart form data." },400,origin); }
-  const file = form.get("file");
-  const fileName = String(form.get("fileName") || (file && file.name) || "URS document").slice(0,180);
+  const fileName = String(form.get("fileName") || "URS document").slice(0,180);
   const documentHtml = String(form.get("documentHtml") || "");
+  const pageImagesRaw = String(form.get("pageImages") || "");
   const extension = fileName.toLowerCase().split(".").pop();
-  const content = [];
-  let description = "";
-  if (file && typeof file.arrayBuffer === "function" && file.size > 0) {
-    if (file.size > MAX_FILE_BYTES) return jsonResponse({ error:"PDF exceeds the 24 MB AI upload limit. Compress it or use a smaller source file." },413,origin);
-    if (extension !== "pdf" && file.type !== "application/pdf") return jsonResponse({
-      error:"For DOCX files send table-preserving HTML in documentHtml. The file field is for PDFs."
-    },415,origin);
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    let binary = "";
-    for (let i=0;i<bytes.length;i+=0x8000) binary += String.fromCharCode(...bytes.subarray(i,Math.min(i+0x8000,bytes.length)));
-    content.push({ type:"document", source:{ type:"base64", media_type:"application/pdf", data:btoa(binary) } });
-    description = "Filename: " + fileName + "\nRead every page of this PDF, including scanned tables and images.";
-  } else if (documentHtml.trim()) {
-    if (documentHtml.length > 12*1024*1024) return jsonResponse({ error:"DOCX content exceeds the 12 MB HTML limit." },413,origin);
-    const text = htmlToPlain(documentHtml);
-    if (!text) return jsonResponse({ error:"No readable text was extracted from the DOCX." },422,origin);
-    description = "Filename: " + fileName + "\nDOCX table-preserving HTML:\n" + documentHtml + "\n\nPlain text:\n" + text;
-  } else return jsonResponse({ error:"Please upload a PDF or DOCX document." },400,origin);
+  let userContent = [];
+  let description = "Filename: " + fileName + "\n";
 
-  content.push({ type:"text", text: description + "\n\nExtract all substantive URS requirements. Correctly map each requirement to its own specification. Source accuracy and row association are more important than brevity." });
-  let response;
+  if (extension === "pdf") {
+    let pageImages;
+    try { pageImages = JSON.parse(pageImagesRaw); }
+    catch { return jsonResponse({error:"PDF page images were not prepared. Refresh the page and upload the PDF again."},400,origin); }
+    if (!Array.isArray(pageImages) || !pageImages.length) return jsonResponse({
+      error:"No PDF pages were supplied for AI reading. Please retry the upload."
+    },400,origin);
+    if (pageImages.length > MAX_PAGE_COUNT) return jsonResponse({
+      error:"This free conversion currently supports up to " + MAX_PAGE_COUNT + " PDF pages per file."
+    },413,origin);
+    for (let i=0;i<pageImages.length;i++) {
+      const page = pageImages[i];
+      if (!page || !Number.isInteger(page.page) || page.page < 1 ||
+          typeof page.image !== "string" ||
+          !/^data:image\/(?:jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(page.image)) {
+        return jsonResponse({error:"A rendered PDF page image is invalid. Please retry the upload."},400,origin);
+      }
+    }
+    description += "The user supplied " + pageImages.length + " rendered PDF page images. Read every page in order. Page numbers are supplied before each image.";
+    userContent.push({type:"text",text:description});
+    for (const p of pageImages) {
+      userContent.push({type:"text",text:"SOURCE PDF PAGE " + p.page});
+      userContent.push({type:"image_url",image_url:{url:p.image}});
+    }
+  } else if (extension === "docx") {
+    if (!documentHtml.trim()) return jsonResponse({error:"The DOCX file did not produce readable content."},422,origin);
+    if (documentHtml.length > MAX_HTML_CHARS) return jsonResponse({error:"DOCX content exceeds the 12 MB limit."},413,origin);
+    const text = htmlToPlain(documentHtml);
+    if (!text) return jsonResponse({error:"No readable text was extracted from the DOCX."},422,origin);
+    userContent.push({type:"text",text:description + "DOCX table-preserving HTML:\n" + documentHtml + "\n\nPlain text:\n" + text});
+  } else return jsonResponse({error:"Please upload a PDF or DOCX document."},415,origin);
+
+  const prompt = "\n\n" +
+    "Extract every substantive URS requirement and its correct corresponding specification from this source. " +
+    "Preserve source order, values, units, tolerances and table row associations. " +
+    "Return ONLY one JSON object matching this schema exactly; do not add markdown fences or commentary. " +
+    "If uncertain, preserve the source text and set reviewRequired=true. Never invent data.\n\n" +
+    "JSON schema:\n" + JSON.stringify(OUTPUT_SCHEMA);
+  userContent[0].text += prompt;
+
+  let result;
   try {
-    response = await fetch(API_URL,{
-      method:"POST",
-      headers:{"Content-Type":"application/json","x-api-key":env.ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01"},
-      body:JSON.stringify({
-        model:env.ANTHROPIC_MODEL || MODEL, max_tokens:18000, system:SYSTEM_PROMPT,
-        messages:[{role:"user",content}],
-        output_config:{format:{type:"json_schema",schema:OUTPUT_SCHEMA}}
-      })
+    result = await env.AI.run(MODEL,{
+      messages:[
+        {role:"system",content:SYSTEM_PROMPT},
+        {role:"user",content:userContent}
+      ],
+      max_tokens:18000,
+      temperature:0.1,
+      top_p:0.9
     });
   } catch(e) {
-    return jsonResponse({error:"Could not reach the AI provider. Check backend connectivity and retry."},502,origin);
+    console.error("Workers AI inference error:",e);
+    const msg=String(e?.message||e||"");
+    if (/daily free allocation|neurons|quota/i.test(msg)) return jsonResponse({
+      error:"The Cloudflare AI free daily allowance has been used. Please try again after the daily quota resets (00:00 UTC)."
+    },429,origin);
+    if (/model agreement|5016|acceptable use|license/i.test(msg)) return jsonResponse({
+      error:"Cloudflare requires acceptance of the model's license and acceptable-use policy before first use. Please review the model terms in Cloudflare Workers AI and retry."
+    },403,origin);
+    return jsonResponse({error:"Cloudflare Workers AI could not process this document. Please retry later. " + msg.slice(0,240)},502,origin);
   }
-  const payload=await response.json().catch(()=>({}));
-  if(!response.ok) return jsonResponse({
-    error:payload?.error?.message || "The AI provider rejected the conversion request.",
-    providerStatus:response.status
-  },502,origin);
-  const textBlock=Array.isArray(payload.content)?payload.content.find(x=>x.type==="text"):null;
-  if(!textBlock?.text) return jsonResponse({error:"The AI provider returned no structured extraction."},502,origin);
+
   try {
-    const data=validateExtraction(JSON.parse(textBlock.text));
-    data.model=env.ANTHROPIC_MODEL || MODEL;
-    data.usage=payload.usage?{inputTokens:payload.usage.input_tokens||0,outputTokens:payload.usage.output_tokens||0}:null;
+    const raw = result?.response ?? result?.result ?? result?.output_text ?? result;
+    const extracted = extractJson(raw);
+    const data = validateExtraction(extracted);
+    data.model = MODEL;
+    data.usage = result?.usage || null;
+    data.provider = "Cloudflare Workers AI (free daily allocation)";
     return jsonResponse(data,200,origin);
-  } catch(e) { return jsonResponse({error:e.message || "The AI extraction result was invalid."},422,origin); }
+  } catch(e) {
+    console.error("Workers AI extraction validation error:",e);
+    return jsonResponse({error:e.message || "The AI extraction result was invalid. No workbook was created."},422,origin);
+  }
 }
+
 export async function onRequestGet({request,env}) {
   const origin=request.headers.get("Origin")||"";
-  const bindings = env && typeof env === "object" ? Object.keys(env) : [];
-  const apiKey = env?.ANTHROPIC_API_KEY;
-  const configured = typeof apiKey === "string" && apiKey.trim().length > 0;
+  const bindingPresent=Boolean(env?.AI && typeof env.AI.run==="function");
   return jsonResponse({
     status:"ok",
     service:"DocuWorks URS AI extraction",
-    configured,
-    model:env?.ANTHROPIC_MODEL||MODEL,
+    configured:bindingPresent,
+    model:MODEL,
+    billing:"Cloudflare Workers AI free daily allocation (10,000 neurons/day; subject to model usage)",
     diagnostic:{
-      build:"worker-env-diagnostic-20261104",
-      expectedBindingPresent:bindings.includes("ANTHROPIC_API_KEY"),
-      anthropicBindingNames:bindings.filter(name=>/anthropic/i.test(name)),
-      assetsBindingPresent:Boolean(env?.ASSETS)
+      build:"cloudflare-workers-ai-free-20261104",
+      workersAIBindingPresent:bindingPresent,
+      assetsBindingPresent:Boolean(env?.ASSETS),
+      anthropicApiKeyRequired:false
     }
   },200,origin);
 }
+
 export async function onRequestOptions({request}) {
   const origin=request.headers.get("Origin")||"";
   if(!isAllowedOrigin(origin)) return new Response(null,{status:403});
@@ -175,11 +222,12 @@ export async function onRequestOptions({request}) {
     "Access-Control-Allow-Headers":"Content-Type","Access-Control-Max-Age":"86400","Vary":"Origin"
   }});
 }
+
 export async function onRequestPost(context) {
   try { return await handlePost(context); }
   catch(e) {
     console.error("URS AI conversion error:",e);
     const origin=context.request.headers.get("Origin")||"";
-    return jsonResponse({error:"The document could not be processed. Retry with the source file or check backend configuration."},500,origin);
+    return jsonResponse({error:"The document could not be processed. Retry with the source file or check the Cloudflare AI binding."},500,origin);
   }
 }
