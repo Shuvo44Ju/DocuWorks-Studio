@@ -6,8 +6,9 @@ The converter uses Cloudflare Workers AI. It does not use the Anthropic API and 
 
 - PDF pages are rendered to JPEG images in the browser using PDF.js, so visual tables and scanned pages are available to the vision model.
 - DOCX files are converted to table-preserving HTML in the browser.
-- The Cloudflare Worker calls `@cf/qwen/qwen3.8-27b` through the Workers AI binding.
+- The Cloudflare Worker calls `@cf/google/gemma-4-26b-a4b-it` through the Workers AI binding.
 - The AI returns requirement/specification pairs and source-review flags. The existing `CS.xlsx` template is then filled in the browser.
+- The model is Gemma 4 26B A4B, a mixture-of-experts model with 4B active parameters per forward pass. Cloudflare describes it as running almost as fast as a 4B model; it supports document/PDF parsing, vision, OCR and handwriting recognition.
 
 ## Free usage
 
@@ -34,7 +35,7 @@ Open:
 A correctly deployed Worker should return:
 
 - `configured: true`
-- `model: "@cf/qwen/qwen3.8-27b"`
+- `model: "@cf/google/gemma-4-26b-a4b-it"`
 - `diagnostic.workersAIBindingPresent: true`
 
 If the binding is false or absent, deploy the latest commit with the `ai` binding in `wrangler.jsonc`.
