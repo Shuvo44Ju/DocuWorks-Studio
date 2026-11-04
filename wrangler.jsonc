@@ -10,5 +10,10 @@
     "run_worker_first": [
       "/api/*"
     ]
+  },
+  "secrets": {
+    "required": [
+      "ANTHROPIC_API_KEY"
+    ]
   }
 }
