@@ -90,41 +90,50 @@ function validateExtraction(value) {
 }
 
 function extractJson(value) {
-  // Cloudflare Workers AI chat-completion response:
-  // { choices: [{ message: { content: "..." } }] }
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    if (Array.isArray(value.choices) && value.choices.length) {
-      const choice = value.choices[0];
-      const message = choice?.message || choice?.delta || {};
-      value = message.content ?? choice?.text ?? value.output_text ?? value.response;
-    } else if (value.output && Array.isArray(value.output)) {
-      const parts = value.output.flatMap(item => Array.isArray(item?.content) ? item.content : [item]);
-      value = parts.map(part => part?.text || part?.content || "").filter(Boolean).join("\n");
-    } else if (value.response && typeof value.response === "object") {
-      value = value.response;
-    } else {
-      value = value.response ?? value.result ?? value.output_text ?? value;
+  // Workers AI model responses vary by model/runtime version. Walk only
+  // recognized response fields and accept direct structured JSON as well.
+  const seen = new Set();
+  function findPayload(input, depth = 0) {
+    if (depth > 6 || input == null) return null;
+    if (typeof input === "string") return input.trim() ? input : null;
+    if (Array.isArray(input)) {
+      const parts = input.map(part => {
+        if (typeof part === "string") return part;
+        if (part && typeof part === "object") return part.text ?? part.content ?? null;
+        return null;
+      }).filter(x => typeof x === "string" && x.trim());
+      return parts.length ? parts.join("\n") : null;
     }
+    if (typeof input !== "object" || seen.has(input)) return null;
+    seen.add(input);
+    if (Array.isArray(input.sections)) return input;
+    const keys = [
+      "response", "result", "output_text", "generated_text",
+      "text", "content", "output", "choices", "message", "delta"
+    ];
+    for (const key of keys) {
+      if (!(key in input)) continue;
+      const found = findPayload(input[key], depth + 1);
+      if (found !== null) return found;
+    }
+    return null;
   }
 
-  // Some Workers AI models return JSON-mode objects directly.
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    if (Array.isArray(value.sections)) return value;
-    if (value.content && typeof value.content === "string") value = value.content;
-  }
-
-  // Message content can occasionally be returned as typed text parts.
-  if (Array.isArray(value)) {
-    value = value.map(part => typeof part === "string" ? part : (part?.text || part?.content || "")).filter(Boolean).join("\n");
-  }
+  value = findPayload(value);
+  if (value && typeof value === "object" && !Array.isArray(value) &&
+      Array.isArray(value.sections)) return value;
   if (typeof value !== "string") {
-    const shape = value && typeof value === "object" ? Object.keys(value).slice(0,12).join(", ") : typeof value;
-    throw new Error("The AI model returned an unsupported response structure (" + shape + ").");
+    const shape = value && typeof value === "object"
+      ? Object.keys(value).slice(0, 12).join(", ")
+      : (value === null ? "null/empty" : typeof value);
+    throw new Error("The AI model returned no readable text payload (response shape: " + shape + "). Please retry; no workbook was created.");
   }
   let text = value.trim().replace(/^\uFEFF/, "");
-  text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  text = text.replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/, "").trim();
   const first = text.indexOf("{"), last = text.lastIndexOf("}");
-  if (first < 0 || last <= first) throw new Error("The AI response did not contain valid JSON. Returned text begins: " + text.slice(0,180));
+  if (first < 0 || last <= first) {
+    throw new Error("The AI response did not contain valid JSON. Returned text begins: " + text.slice(0, 180));
+  }
   return JSON.parse(text.slice(first, last + 1));
 }
 
