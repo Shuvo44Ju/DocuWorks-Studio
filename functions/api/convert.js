@@ -1,4 +1,4 @@
-const MODEL = "@cf/qwen/qwen3.8-27b";
+const MODEL = "@cf/google/gemma-4-26b-a4b-it";
 const MAX_HTML_CHARS = 12 * 1024 * 1024;
 const MAX_PAGE_COUNT = 30;
 
@@ -205,10 +205,9 @@ async function handlePost({ request, env }) {
         {role:"system",content:SYSTEM_PROMPT},
         {role:"user",content:userContent}
       ],
-      max_completion_tokens:7000,
-      reasoning_effort:"medium",
-      temperature:0.1,
-      top_p:0.85
+      max_tokens:7000,
+      temperature:0.2,
+      top_p:0.9
     });
     console.log("Workers AI URS extraction completed", {
       model: MODEL,
@@ -249,10 +248,10 @@ export async function onRequestGet({request,env}) {
     configured:bindingPresent,
     model:MODEL,
     billing:"Cloudflare Workers AI free daily allocation (10,000 neurons/day; subject to model usage)",
-    reasoningEffort:"medium",
+    architecture:"Mixture of Experts (4B active parameters)",
     reasoningEffort:"medium",
     diagnostic:{
-      build:"cloudflare-workers-ai-medium-reasoning-20261104",
+      build:"cloudflare-workers-ai-gemma4-fast-20261104",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
