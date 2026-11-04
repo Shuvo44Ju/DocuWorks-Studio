@@ -151,7 +151,21 @@ async function handlePost({ request, env }) {
 }
 export async function onRequestGet({request,env}) {
   const origin=request.headers.get("Origin")||"";
-  return jsonResponse({status:"ok",service:"DocuWorks URS AI extraction",configured:Boolean(env.ANTHROPIC_API_KEY),model:env.ANTHROPIC_MODEL||MODEL},200,origin);
+  const bindings = env && typeof env === "object" ? Object.keys(env) : [];
+  const apiKey = env?.ANTHROPIC_API_KEY;
+  const configured = typeof apiKey === "string" && apiKey.trim().length > 0;
+  return jsonResponse({
+    status:"ok",
+    service:"DocuWorks URS AI extraction",
+    configured,
+    model:env?.ANTHROPIC_MODEL||MODEL,
+    diagnostic:{
+      build:"worker-env-diagnostic-20261104",
+      expectedBindingPresent:bindings.includes("ANTHROPIC_API_KEY"),
+      anthropicBindingNames:bindings.filter(name=>/anthropic/i.test(name)),
+      assetsBindingPresent:Boolean(env?.ASSETS)
+    }
+  },200,origin);
 }
 export async function onRequestOptions({request}) {
   const origin=request.headers.get("Origin")||"";
