@@ -1,49 +1,51 @@
-# DocuWorks Studio - Claude-powered URS to CS
+# DocuWorks Studio — Free URS to CS AI backend
 
-The app uses an equipment-agnostic Claude extraction API. No API key belongs in GitHub or browser JavaScript.
+The converter uses Cloudflare Workers AI. It does not use the Anthropic API and does not require an Anthropic API key or paid Anthropic credits.
 
-## Cloudflare Workers deployment
+## How it works
 
-This repository is configured for Workers Static Assets plus a Worker API handler. It is not deployed as a Pages Functions project. The deploy command is:
+- PDF pages are rendered to JPEG images in the browser using PDF.js, so visual tables and scanned pages are available to the vision model.
+- DOCX files are converted to table-preserving HTML in the browser.
+- The Cloudflare Worker calls `@cf/qwen/qwen3.8-27b` through the Workers AI binding.
+- The AI returns requirement/specification pairs and source-review flags. The existing `CS.xlsx` template is then filled in the browser.
 
-\`npx wrangler deploy\`
+## Free usage
 
-The root \`wrangler.jsonc\` declares the Worker entry point, static assets binding, and routing so this command does not try to auto-detect/migrate a Pages Functions project.
+Cloudflare Workers AI currently includes a free allocation of 10,000 neurons per day. This is a shared daily allowance, not unlimited usage. It resets at 00:00 UTC. When the allowance is exhausted, the converter will report that the quota has been used and you can retry after it resets. Some models require paid access; the selected Qwen model is not among the models identified by Cloudflare as paid-plan-only in the current model catalogue.
 
-### 1. Deploy from Cloudflare
+The model is listed with vision support and zero data retention by Cloudflare. Output quality can differ from Claude Sonnet, so check the generated workbook against the original URS before official use. Low-confidence or uncertain rows should be reviewed.
 
-Use the current Cloudflare build/deploy setup and keep the deploy command as \`npx wrangler deploy\`. Ensure the build environment checks out the latest main-branch commit with \`wrangler.jsonc\`, \`worker.js\`, and \`.assetsignore\`.
+## Cloudflare deployment
 
-The Worker is named \`docuworks-studio\`. Cloudflare assigns its Workers URL under your account's workers.dev subdomain if workers.dev is enabled.
+This repository uses Workers Static Assets plus a Worker API handler. The root `wrangler.jsonc` includes:
 
-### 2. Add the API key securely
+- Worker name: `docuworks-studio`
+- Static assets binding: `ASSETS`
+- Workers AI binding: `AI`
 
-In Cloudflare Dashboard, open **Workers & Pages → docuworks-studio → Settings → Variables and Secrets → Add**. Create a secret named \`ANTHROPIC_API_KEY\` and paste the key into Cloudflare's secret-value field. Never put the value in GitHub, in \`cs.html\`, or in \`ai-config.js\`.
+Deploy the latest repository version from the Cloudflare Worker deployment setup. The Wrangler config binds Workers AI as `env.AI`; no API key or secret needs to be created for this model.
 
-Optional: add \`ANTHROPIC_MODEL\` as a text variable to override the default model, \`claude-sonnet-5\`.
+## Verify the service
 
-### 2A. Force-attach the secret to the live Worker (recommended if health says false)
+Open:
 
-From the repository root (the folder containing `wrangler.jsonc`), run:
+`https://docuworks-studio.shuvokh97.workers.dev/api/convert`
 
-```bash
-npx wrangler secret put ANTHROPIC_API_KEY
-```
+A correctly deployed Worker should return:
 
-Wrangler will prompt for the secret value. Paste the Anthropic key into that prompt only; do not put it in the command, a source file, or GitHub. This command attaches the secret to the Worker selected by `wrangler.jsonc` (\`docuworks-studio\`) and deploys a new Worker version immediately. If Wrangler asks to authenticate, run `npx wrangler login` first and repeat the command.
+- `configured: true`
+- `model: "@cf/qwen/qwen3.8-27b"`
+- `diagnostic.workersAIBindingPresent: true`
 
-The repository's Wrangler config now declares `ANTHROPIC_API_KEY` as required, so future Wrangler deployments validate that the secret exists rather than silently deploying without it.
+If the binding is false or absent, deploy the latest commit with the `ai` binding in `wrangler.jsonc`.
 
-### 3. Verify the service
+## Use the converter
 
-Open \`https://YOUR-WORKER-URL/api/convert\`. The GET endpoint returns JSON with \`configured: true\` after the secret is available. A false value means the secret is missing or attached to another environment.
+Open `https://shuvo44ju.github.io/DocuWorks-Studio/cs.html`, press Ctrl+F5, and upload a PDF or DOCX. PDF uploads are currently limited to 30 pages per file. The service sends document content to Cloudflare Workers AI for processing; do not upload documents unless your organisation permits that processing.
 
-Upload the sample URS PDF at \`https://YOUR-WORKER-URL/cs.html\`. The app sends the PDF to Claude for full-document interpretation and uses the response to fill the existing \`CS.xlsx\` template. Vendor response columns remain blank. Ambiguous items are marked for source review.
+## Billing and privacy notes
 
-### 4. Keep using the old GitHub Pages URL (optional)
-
-If the user-facing website must remain at \`https://shuvo44ju.github.io/DocuWorks-Studio/cs.html\`, set \`window.DOCUWORKS_AI_ENDPOINT\` in \`ai-config.js\` to the deployed Worker's full API URL, such as \`https://YOUR-WORKER-URL/api/convert\`. This is an endpoint URL, not a secret. The endpoint explicitly allows the GitHub Pages origin. The configuration file is public, so do not add a key there.
-
-### Privacy, usage, protection
-
-Uploaded documents are sent to the Worker and then to Anthropic for AI processing; this is not local-only processing. API calls may incur charges. Set provider spending/usage limits and configure Cloudflare rate limiting before routine use. CORS is not authentication and does not prevent direct HTTP requests.
+- No Anthropic API credits are used by this backend.
+- Free Workers AI usage is limited to 10,000 neurons per day; exceeding the limit stops further model requests until the daily reset.
+- The selected model is marked as zero data retention in Cloudflare's model catalogue. Review current Cloudflare and model-provider terms for your organisation's requirements.
+- The old `ANTHROPIC_API_KEY` secret is no longer used and may be removed from the Worker settings after the new AI binding is active.
