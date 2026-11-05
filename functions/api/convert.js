@@ -234,6 +234,7 @@ async function handlePost({ request, env }) {
   const prompt = "\n\n" +
     "Extract every substantive URS requirement and its correct corresponding specification from this source. " +
     "Preserve source order, values, units, tolerances and table row associations. " +
+    "Separate every distinct labeled parameter:value pair into its own requirement object, even when several pairs appear in one source cell and are separated by semicolons or line breaks. Do not combine multiple parameters into one specification. Keep a compound value such as L: 140±20, W: 400±20 together under its Platform Size parameter. " +
     "Return ONLY one JSON object matching this schema exactly; do not add markdown fences or commentary. " +
     "If uncertain, preserve the source text and set reviewRequired=true. Never invent data.\n\n" +
     "JSON schema:\n" + JSON.stringify(OUTPUT_SCHEMA);
@@ -313,7 +314,7 @@ export async function onRequestGet({request,env}) {
     architecture:"Mixture of Experts (4B active parameters)",
     reasoningEffort:"medium",
     diagnostic:{
-      build:"cloudflare-workers-ai-gemma4-response-parser-fix-20261105",
+      build:"cloudflare-workers-ai-gemma4-parameter-rows-20261105",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
