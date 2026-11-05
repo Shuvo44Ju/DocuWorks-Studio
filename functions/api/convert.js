@@ -66,14 +66,34 @@ function htmlToPlain(html) {
     .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
+function splitInlineParameterPairs(text) {
+  const source = String(text || "").trim();
+  if (!/[;\\n]/.test(source)) return [];
+  // Split only when the next segment looks like another named parameter.
+  // Colons inside a value (for example, L: 140±20, W: 400±20) remain intact.
+  const parts = source.split(/(?:;\\s*|\\n+)(?=[A-Za-z][A-Za-z0-9&/().,+ _-]{1,85}\\s*:)/g)
+    .map(part => part.trim()).filter(Boolean);
+  if (parts.length < 2) return [];
+  const pairs = parts.map(part => {
+    const colon = part.indexOf(":");
+    if (colon < 2) return null;
+    const label = part.slice(0, colon).trim().replace(/^[•*\\-–]+\\s*/, "");
+    const specification = part.slice(colon + 1).trim();
+    if (!label || !specification || label.length > 90 || label.split(/\\s+/).length > 12) return null;
+    if (/[.!?]$/.test(label) || /\\b(shall|should|must|will|whereas|therefore)\\b/i.test(label)) return null;
+    return { label, specification, sourceQuote: part };
+  });
+  return pairs.every(Boolean) && pairs.length >= 2 ? pairs : [];
+}
+
 function validateExtraction(value) {
   if (!value || !Array.isArray(value.sections)) throw new Error("The AI response did not include a section list.");
   const safe = { ...value, warnings: Array.isArray(value.warnings) ? value.warnings : [] };
   safe.sections = safe.sections.map((section, si) => ({
     title: String(section?.title || ("Section " + (si + 1))).trim(),
-    requirements: (Array.isArray(section?.requirements) ? section.requirements : []).map(item => {
+    requirements: (Array.isArray(section?.requirements) ? section.requirements : []).flatMap(item => {
       const c = Number(item?.confidence);
-      return {
+      const base = {
         requirement: String(item?.requirement || "").trim(),
         specification: String(item?.specification || "").trim(),
         sourcePages: Array.isArray(item?.sourcePages) ? item.sourcePages.filter(n => Number.isInteger(n) && n > 0).slice(0,100) : [],
@@ -82,6 +102,20 @@ function validateExtraction(value) {
         reviewRequired: Boolean(item?.reviewRequired) || !Number.isFinite(c) || c < 0.8,
         reviewReason: String(item?.reviewReason || "").slice(0,1000)
       };
+      // A source cell can contain multiple labeled parameter/value pairs.
+      // Expand these into separate rows instead of leaving a semicolon list.
+      const pairs = splitInlineParameterPairs(base.specification);
+      if (pairs.length >= 2) {
+        return pairs.map(pair => ({
+          ...base,
+          requirement: pair.label,
+          specification: pair.specification,
+          parentRequirement: base.requirement,
+          parameterized: true,
+          sourceQuote: pair.sourceQuote.slice(0,1200)
+        }));
+      }
+      return [{ ...base, parameterized: false }];
     }).filter(x => x.requirement || x.specification)
   })).filter(s => s.requirements.length || s.title);
   safe.rowCount = safe.sections.reduce((n,s)=>n+s.requirements.length,0);
