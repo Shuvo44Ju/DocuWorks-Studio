@@ -68,19 +68,19 @@ function htmlToPlain(html) {
 }
 function splitInlineParameterPairs(text) {
   const source = String(text || "").trim();
-  if (!/[;\\n]/.test(source)) return [];
+  if (!/[;\n]/.test(source)) return [];
   // Split only when the next segment looks like another named parameter.
   // Colons inside a value (for example, L: 140±20, W: 400±20) remain intact.
-  const parts = source.split(/(?:;\\s*|\\n+)(?=[A-Za-z][A-Za-z0-9&/().,+ _-]{1,85}\\s*:)/g)
+  const parts = source.split(/(?:;\s*|\n+)(?=[A-Za-z][A-Za-z0-9&/().,+ _-]{1,85}\s*:)/g)
     .map(part => part.trim()).filter(Boolean);
   if (parts.length < 2) return [];
   const pairs = parts.map(part => {
     const colon = part.indexOf(":");
     if (colon < 2) return null;
-    const label = part.slice(0, colon).trim().replace(/^[•*\\-–]+\\s*/, "");
+    const label = part.slice(0, colon).trim().replace(/^[•*\-–]+\s*/, "");
     const specification = part.slice(colon + 1).trim();
-    if (!label || !specification || label.length > 90 || label.split(/\\s+/).length > 12) return null;
-    if (/[.!?]$/.test(label) || /\\b(shall|should|must|will|whereas|therefore)\\b/i.test(label)) return null;
+    if (!label || !specification || label.length > 90 || label.split(/\s+/).length > 12) return null;
+    if (/[.!?]$/.test(label) || /\b(shall|should|must|will|whereas|therefore)\b/i.test(label)) return null;
     return { label, specification, sourceQuote: part };
   });
   return pairs.every(Boolean) && pairs.length >= 2 ? pairs : [];
