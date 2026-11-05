@@ -254,11 +254,14 @@ async function extractWithAI(sourceFile){
   for(const item of (Array.isArray(section.requirements)?section.requirements:[])){
    const req=String(item.requirement||'').trim(),desc=String(item.specification||'').trim();
    if(!req&&!desc)continue;
+   const parameterized=Boolean(item.parameterized);
+   const parentRequirement=String(item.parentRequirement||'').trim();
    const confidence=Number.isFinite(Number(item.confidence))?Math.max(0,Math.min(1,Number(item.confidence))):0;
    const pages=Array.isArray(item.sourcePages)?item.sourcePages.filter(n=>Number.isInteger(n)&&n>0):[];
    rows.push({
     type:'row',req:req||'UNRESOLVED REQUIREMENT — REVIEW SOURCE',desc,
-    parent:sectionTitle,group:'',label:'',raw:String(item.sourceQuote||''),
+    parent:parameterized?(parentRequirement||sectionTitle):sectionTitle,
+    group:'',label:parameterized?req:'',raw:String(item.sourceQuote||''),
     loc:pages.length?'Source page(s): '+pages.join(', '):'Source location not identified',
     minConf:Math.round(confidence*100),conf:Math.round(confidence*100),
     review:Boolean(item.reviewRequired)||confidence<0.8||!req,
