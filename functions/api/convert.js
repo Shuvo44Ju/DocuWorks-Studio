@@ -90,26 +90,28 @@ function validateExtraction(value) {
 }
 
 function extractJson(value) {
-  // Workers AI model responses vary by model/runtime version. Walk only
-  // recognized response fields and accept direct structured JSON as well.
+  // Cloudflare chat-completion responses commonly place the generated
+  // text at choices[0].message.content. Keep walking nested objects/arrays
+  // so wrappers and typed content parts are not accidentally discarded.
   const seen = new Set();
   function findPayload(input, depth = 0) {
-    if (depth > 6 || input == null) return null;
+    if (depth > 10 || input == null) return null;
     if (typeof input === "string") return input.trim() ? input : null;
     if (Array.isArray(input)) {
-      const parts = input.map(part => {
-        if (typeof part === "string") return part;
-        if (part && typeof part === "object") return part.text ?? part.content ?? null;
-        return null;
-      }).filter(x => typeof x === "string" && x.trim());
+      const parts = input.map(item => findPayload(item, depth + 1))
+        .filter(item => typeof item === "string" && item.trim());
       return parts.length ? parts.join("\n") : null;
     }
     if (typeof input !== "object" || seen.has(input)) return null;
     seen.add(input);
+
+    // Already-decoded JSON object from a model/runtime wrapper.
     if (Array.isArray(input.sections)) return input;
+
+    // Check common Workers AI / OpenAI chat response containers in priority order.
     const keys = [
       "response", "result", "output_text", "generated_text",
-      "text", "content", "output", "choices", "message", "delta"
+      "choices", "message", "delta", "text", "content", "output"
     ];
     for (const key of keys) {
       if (!(key in input)) continue;
@@ -119,15 +121,17 @@ function extractJson(value) {
     return null;
   }
 
-  value = findPayload(value);
+  const root = value;
+  value = findPayload(root);
   if (value && typeof value === "object" && !Array.isArray(value) &&
       Array.isArray(value.sections)) return value;
   if (typeof value !== "string") {
-    const shape = value && typeof value === "object"
-      ? Object.keys(value).slice(0, 12).join(", ")
-      : (value === null ? "null/empty" : typeof value);
-    throw new Error("The AI model returned no readable text payload (response shape: " + shape + "). Please retry; no workbook was created.");
+    const shape = root && typeof root === "object"
+      ? Object.keys(root).slice(0, 12).join(", ")
+      : (root === null ? "null" : typeof root);
+    throw new Error("The AI response contained no text at its expected content fields (top-level response keys: " + (shape || "none") + "). Please retry; no workbook was created.");
   }
+
   let text = value.trim().replace(/^\uFEFF/, "");
   text = text.replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/, "").trim();
   const first = text.indexOf("{"), last = text.lastIndexOf("}");
@@ -251,8 +255,7 @@ async function handlePost({ request, env }) {
   }
 
   try {
-    const raw = result?.response ?? result?.result ?? result?.output_text ?? result;
-    const extracted = extractJson(raw);
+    const extracted = extractJson(result);
     const data = validateExtraction(extracted);
     data.model = MODEL;
     data.usage = result?.usage || null;
