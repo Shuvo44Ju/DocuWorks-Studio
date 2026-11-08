@@ -53,7 +53,7 @@ function fillTemplate(wb, model) {
       label = cleaned;
       break;
     }
-    const result = tidy(label || parent || (source && source.req) || fallback);
+    const result = tidy(label || (source && source.req) || parent || fallback);
     return isMarker(result) ? '' : result;
   };
   const removeLeadingListMarker = value => {
