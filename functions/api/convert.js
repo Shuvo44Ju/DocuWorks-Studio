@@ -66,15 +66,18 @@ function htmlToPlain(html) {
     .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
-function splitInlineParameterPairs(text) {
+function splitInlineParameterPairs(text, parentRequirement = "") {
   const source = String(text || "").trim();
-  if (!/[;\n]/.test(source)) return [];
-  // Split only when the next segment looks like another named parameter.
-  // Colons inside a value (for example, L: 140±20, W: 400±20) remain intact.
-  const parts = source.split(/(?:;\s*|\n+)(?=[A-Za-z][A-Za-z0-9&/().,+ _-]{1,85}\s*:)/g)
-    .map(part => part.trim()).filter(Boolean);
-  if (parts.length < 2) return [];
-  const pairs = parts.map(part => {
+  if (!source) return [];
+
+  // Split on semicolons/new lines only when the next segment looks like a
+  // new label:value pair. Colons inside values (L: 140, W: 400) are retained.
+  const parts = /[;\n]/.test(source)
+    ? source.split(/(?:;\s*|\n+)(?=[A-Za-z][A-Za-z0-9&/().,+ _-]{1,85}\s*:)/g)
+        .map(part => part.trim()).filter(Boolean)
+    : [source];
+
+  const parsePair = part => {
     const colon = part.indexOf(":");
     if (colon < 2) return null;
     const label = part.slice(0, colon).trim().replace(/^[•*\-–]+\s*/, "");
@@ -82,8 +85,21 @@ function splitInlineParameterPairs(text) {
     if (!label || !specification || label.length > 90 || label.split(/\s+/).length > 12) return null;
     if (/[.!?]$/.test(label) || /\b(shall|should|must|will|whereas|therefore)\b/i.test(label)) return null;
     return { label, specification, sourceQuote: part };
-  });
-  return pairs.every(Boolean) && pairs.length >= 2 ? pairs : [];
+  };
+
+  const pairs = parts.map(parsePair);
+  if (!pairs.length || pairs.some(pair => !pair)) return [];
+
+  // Multi-parameter cells are an unambiguous parent/child group. Also handle
+  // one labelled pair when the AI puts the parent heading in the requirement
+  // field and the actual child label in the specification (for example,
+  // "Dimensions" + "Maximum Capacity: 320 g"). A normal "Capacity" + "620 gm"
+  // row is not changed because its specification has no label:value boundary.
+  if (pairs.length >= 2) return pairs;
+  const parent = String(parentRequirement || "").trim();
+  const normalize = value => String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!parent || normalize(parent) === normalize(pairs[0].label)) return [];
+  return pairs;
 }
 
 function validateExtraction(value) {
@@ -104,7 +120,7 @@ function validateExtraction(value) {
       };
       // A source cell can contain multiple labeled parameter/value pairs.
       // Expand these into separate rows instead of leaving a semicolon list.
-      const pairs = splitInlineParameterPairs(base.specification);
+      const pairs = splitInlineParameterPairs(base.specification, base.requirement);
       if (pairs.length >= 2) {
         return pairs.map(pair => ({
           ...base,
