@@ -44,18 +44,25 @@ function fillTemplate(wb, model) {
       /\b(?:shall|should|must|will|would|can|may|is|are|was|were|has|have|had)\b/i.test(text);
   };
   const requirementText = (fallback, source) => {
-    const parent = source && (source.parentDisplay || source.parent || source.parentRequirement) || '';
-    const candidates = source ? [fallback, source.label, source.group] : [fallback];
+    const parent = source && (source.parentDisplay || source.parentRequirement || source.parent || '') || '';
+    const isChild = Boolean(parent);
+    // A child row must never fall back to its parent or to an uncleaned raw
+    // requirement. Check every possible label source through the same guard.
+    const candidates = source
+      ? [fallback, source.label, source.group, source.req]
+      : [fallback];
     let label = '';
     for (const candidate of candidates) {
       const raw = String(candidate == null ? '' : candidate).trim();
       const cleaned = stripParentPrefix(tidy(raw), parent);
       if (!cleaned || isMarker(raw) || isSentence(cleaned) ||
-          cleaned.toLowerCase() === tidy(parent).toLowerCase()) continue;
+          (parent && cleaned.toLowerCase() === tidy(parent).toLowerCase())) continue;
       label = cleaned;
       break;
     }
-    const result = tidy(label || (source && source.req) || parent || '');
+    // For a child, blank is safer than accidentally writing the parent title
+    // into Column A. The merged parent heading is written separately.
+    const result = isChild ? label : tidy(label || (source && source.req) || '');
     return isMarker(result) ? '' : result;
   };
   const removeLeadingListMarker = value => {
@@ -114,17 +121,16 @@ function fillTemplate(wb, model) {
   const rowParent = source => source && source.parentDisplay || parentInfo(source).title;
   const rowParentKey = source => source && source.parentKey || parentInfo(source).key;
   const stripParentPrefix = (label, parent) => {
-    const child = tidy(label);
+    let child = tidy(label);
     const parentText = tidy(parent);
     if (!child || !parentText) return child;
-    const lowerChild = child.toLowerCase();
-    const lowerParent = parentText.toLowerCase();
-    if (lowerChild === lowerParent) return '';
-    if (lowerChild.startsWith(lowerParent)) {
-      const remainder = child.slice(parentText.length)
-        .replace(/^[\s.:/\\|–—-]+/, '')
-        .trim();
-      return remainder || '';
+    // Strip repeated parent prefixes and common hierarchy separators. This
+    // rule is generic and does not depend on any particular URS heading.
+    while (child.toLowerCase().startsWith(parentText.toLowerCase())) {
+      const remainder = child.slice(parentText.length);
+      if (remainder && !/^[\\s.:/\\\\|>→–—-]/.test(remainder)) break;
+      child = remainder.replace(/^[\\s.:/\\\\|>→–—-]+/, '').trim();
+      if (!child) return '';
     }
     return child;
   };
