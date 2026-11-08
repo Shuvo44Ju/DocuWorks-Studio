@@ -60,6 +60,77 @@ function fillTemplate(wb, model) {
     if (typeof value !== 'string') return value;
     return value.replace(/^\s*(?:\([A-Za-z0-9]{1,3}\)|[A-Za-z][.)]|[ivx]{1,4}[.)]|\d{1,3}[.)]|[•·●○◦▪■□◆◇❖➢➤➔►▶◊*]|[-–—])\s+/, '');
   };
+  const isRealLabel = (value, parent) => {
+    const raw = String(value == null ? '' : value).trim();
+    const cleaned = tidy(raw);
+    if (!cleaned || isMarker(raw) || isSentence(raw) ||
+        cleaned.toLowerCase() === tidy(parent).toLowerCase() ||
+        cleaned.split(/\s+/).filter(Boolean).length > 10) return '';
+    return cleaned;
+  };
+  const labelledPairs = value => {
+    const text = String(value == null ? '' : value).trim();
+    if (!text) return [];
+    // Semicolons and label-led new lines are the only split boundaries.
+    // Commas and additional colons inside a value remain untouched.
+    const parts = text.split(/;\s*|\r?\n(?=[^:\r\n]{2,90}\s*:)/)
+      .map(part => part.trim()).filter(Boolean);
+    const pairs = parts.map(part => {
+      const colon = part.indexOf(':');
+      if (colon < 2) return null;
+      const label = isRealLabel(part.slice(0, colon), '');
+      const specification = part.slice(colon + 1).trim();
+      return label && specification ? { label, specification } : null;
+    });
+    return pairs.length && pairs.every(Boolean) ? pairs : [];
+  };
+  const rowParent = source => {
+    if (!source) return '';
+    const explicitParent = source.parentRequirement || source.parent || '';
+    // In this AI-output layout, parent is often the broader document section,
+    // while req is the more specific numbered requirement (for example 2.1).
+    if (source.parameterized || source.label || source.group) {
+      return tidy(explicitParent || source.req || '');
+    }
+    return tidy(source.req || explicitParent || '');
+  };
+  const rowLabel = source => {
+    if (!source) return '';
+    return isRealLabel(source.label, source.parent) ||
+      isRealLabel(source.group, source.parent) || '';
+  };
+  const prepareRows = inputRows => {
+    const output = [];
+    for (const source of inputRows || []) {
+      if (!source || source.type !== 'row') {
+        output.push(source);
+        continue;
+      }
+      const pairs = labelledPairs(source.desc);
+      if (!pairs.length) {
+        output.push(source);
+        continue;
+      }
+      const parent = rowParent(source);
+      if (!parent) {
+        output.push(source);
+        continue;
+      }
+      for (const pair of pairs) {
+        output.push({
+          ...source,
+          req: pair.label,
+          desc: pair.specification,
+          parent,
+          parentRequirement: parent,
+          group: '',
+          label: pair.label,
+          parameterized: pairs.length > 1 || Boolean(source.parameterized)
+        });
+      }
+    }
+    return output;
+  };
   const put = (a, b, review, source) => {
     const row = ws.getRow(r);
     const columnA = requirementText(a, source);
@@ -77,39 +148,35 @@ function fillTemplate(wb, model) {
     r++;
   };
   for (const sh of model.sheets) {
-    const rows = sh.rows;
+    const rows = prepareRows(sh.rows);
     for (let i = 0; i < rows.length;) {
       const x = rows[i];
       if (x.type === 'section') { sectionRow(x.title); i++; continue; }
       if (x.type === 'sw') { put(x.id, x.desc + (x.pri ? '  [Priority ' + x.pri + ']' : ''), false, null); i++; continue; }
-      // Group only labelled child points that belong to the same parent.
-      // Ordinary single-value requirements must stay as normal rows.
-      const hasLabel = g => Boolean(String(g.label || '').trim() || String(g.group || '').trim());
-      if (hasLabel(x) && x.parent) {
+
+      const label = rowLabel(x);
+      const parent = rowParent(x);
+      if (label && parent) {
         let j = i + 1;
         while (j < rows.length &&
           rows[j].type === 'row' &&
-          rows[j].parent === x.parent &&
-          hasLabel(rows[j])) j++;
-        const grp = rows.slice(i, j);
-        if (grp.length >= 2) {
-          sectionRow(x.parent);
-          for (const g of grp) {
-            const ownLabel = [g.group, g.label].filter(Boolean).join(' – ') || g.req;
-            put(ownLabel, g.desc, g.review, g);
-          }
+          rowParent(rows[j]).toLowerCase() === parent.toLowerCase() &&
+          rowLabel(rows[j])) j++;
+        const group = rows.slice(i, j);
+        if (group.length >= 2) {
+          // One merged parent heading, followed by each point's own label.
+          sectionRow(tidy(parent));
+          for (const item of group) put(rowLabel(item), item.desc, item.review, item);
         } else {
-          // A lone labelled point is not a sub-heading group. Keep its parent
-          // and point label together in one ordinary requirement row.
-          const point = [x.group, x.label].filter(Boolean).join(' – ') || x.req;
-          const fullRequirement = [x.parent, point].filter(Boolean).join(' – ');
-          put(fullRequirement, x.desc, x.review, x);
+          // A single labelled value remains a normal row; no parent heading.
+          put(label, x.desc, x.review, x);
         }
         i = j;
         continue;
       }
 
-      put(x.req, x.desc, x.review, x);
+      // For a normal one-value requirement, use its own requirement name.
+      put(x.req || x.parent || '', x.desc, x.review, x);
       i++;
     }
   }
