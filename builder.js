@@ -39,7 +39,9 @@ function fillTemplate(wb, model) {
   const isMarker = value => /^(?:\([A-Za-z0-9]{1,3}\)|[A-Za-z][.)]|\(?[ivx]{1,4}\)?[.)]?|\d{1,3}[.)]|[•\-–—*])$/i.test(String(value || '').trim());
   const isSentence = value => {
     const text = String(value || '').trim();
-    return text.split(/\s+/).filter(Boolean).length > 10 || /\.$/.test(text);
+    return text.split(/\s+/).filter(Boolean).length > 10 ||
+      /[.!?]$/.test(text) ||
+      /\b(?:shall|should|must|will|would|can|may|is|are|was|were|has|have|had)\b/i.test(text);
   };
   const requirementText = (fallback, source) => {
     const parent = source && (source.parent || source.parentRequirement) || '';
@@ -78,9 +80,20 @@ function fillTemplate(wb, model) {
     const pairs = parts.map(part => {
       const colon = part.indexOf(':');
       if (colon < 2) return null;
-      const label = isRealLabel(part.slice(0, colon), '');
-      const specification = part.slice(colon + 1).trim();
-      return label && specification ? { label, specification } : null;
+      const firstLabel = isRealLabel(part.slice(0, colon), '');
+      const firstValue = part.slice(colon + 1).trim();
+      if (firstLabel && firstValue) return { label: firstLabel, specification: firstValue };
+
+      // A sentence-like introduction may precede a real pair in the same
+      // cell, such as "The room ... environment: Room temperature: NMT 25°C".
+      // Discard only that non-label introduction and retain the actual pair.
+      const nestedColon = firstValue.indexOf(':');
+      if (nestedColon > 1) {
+        const nestedLabel = isRealLabel(firstValue.slice(0, nestedColon), '');
+        const nestedValue = firstValue.slice(nestedColon + 1).trim();
+        if (nestedLabel && nestedValue) return { label: nestedLabel, specification: nestedValue };
+      }
+      return null;
     });
     return pairs.length && pairs.every(Boolean) ? pairs : [];
   };
