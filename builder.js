@@ -58,7 +58,7 @@ function fillTemplate(wb, model) {
   };
   const removeLeadingListMarker = value => {
     if (typeof value !== 'string') return value;
-    return value.replace(/^\s*(?:\([A-Za-z0-9]{1,3}\)|[A-Za-z][.)]|\(?[ivx]{1,4}\)?[.)]?|\d{1,3}[.)]|[•·●○◦▪■□◆◇❖➢➤➔►▶◊*]|[-–—])\s+/, '');
+    return value.replace(/^\s*(?:\([A-Za-z0-9]{1,3}\)|[A-Za-z][.)]|[ivx]{1,4}[.)]|\d{1,3}[.)]|[•·●○◦▪■□◆◇❖➢➤➔►▶◊*]|[-–—])\s+/, '');
   };
   const put = (a, b, review, source) => {
     const row = ws.getRow(r);
