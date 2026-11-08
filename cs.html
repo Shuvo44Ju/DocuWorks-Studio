@@ -281,13 +281,13 @@ async function extractWithAI(sourceFile){
    if(!parameterized&&!parentRequirement&&req&&desc){
     const colon=desc.indexOf(':');
     if(colon>1){
-     const childLabel=desc.slice(0,colon).trim().replace(/^[•*\\-–]+\\s*/,'');
+     const childLabel=desc.slice(0,colon).trim().replace(/^[•*\-–]+\s*/,'');
      const childValue=desc.slice(colon+1).trim();
      const norm=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-     const labelWords=childLabel.split(/\\s+/).filter(Boolean);
+     const labelWords=childLabel.split(/\s+/).filter(Boolean);
      const looksLikeLabel=childLabel.length<=90&&labelWords.length<=12&&
        !/[.!?]$/.test(childLabel)&&
-       !/\\b(shall|should|must|will|whereas|therefore)\\b/i.test(childLabel);
+       !/\b(shall|should|must|will|whereas|therefore)\b/i.test(childLabel);
      if(looksLikeLabel&&childValue&&norm(req)!==norm(childLabel)){
       parentRequirement=req;
       req=childLabel;
