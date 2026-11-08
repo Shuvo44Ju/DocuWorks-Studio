@@ -113,10 +113,28 @@ function fillTemplate(wb, model) {
   };
   const rowParent = source => source && source.parentDisplay || parentInfo(source).title;
   const rowParentKey = source => source && source.parentKey || parentInfo(source).key;
+  const stripParentPrefix = (label, parent) => {
+    const child = tidy(label);
+    const parentText = tidy(parent);
+    if (!child || !parentText) return child;
+    const lowerChild = child.toLowerCase();
+    const lowerParent = parentText.toLowerCase();
+    if (lowerChild === lowerParent) return '';
+    if (lowerChild.startsWith(lowerParent)) {
+      const remainder = child.slice(parentText.length)
+        .replace(/^[\s.:/\\|–—-]+/, '')
+        .trim();
+      return remainder || '';
+    }
+    return child;
+  };
   const rowLabel = source => {
     if (!source) return '';
-    return isRealLabel(source.label, source.parent) ||
-      isRealLabel(source.group, source.parent) || '';
+    const parent = source.parentDisplay || source.parentRequirement || source.parent || parentInfo(source).title;
+    return stripParentPrefix(
+      isRealLabel(source.label, parent) || isRealLabel(source.group, parent) || '',
+      parent
+    );
   };
   const prepareRows = inputRows => {
     const output = [];
