@@ -180,7 +180,7 @@ function extractJson(value) {
       const ch = text[end];
       if (inString) {
         if (escaped) escaped = false;
-        else if (ch === "\\\\") escaped = true;
+        else if (ch.charCodeAt(0) === 92) escaped = true;
         else if (ch === '"') inString = false;
         continue;
       }
