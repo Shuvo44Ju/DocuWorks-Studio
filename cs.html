@@ -308,6 +308,7 @@ async function extractWithAI(sourceFile){
 }
 btn.addEventListener('click',async()=>{
  if(!file)return;clearError();setReady(false);
+ progressValue=0;bar.style.width='0%';bar.setAttribute('aria-valuenow','0');pct.textContent='0%';elapsedLabel.textContent='';
  try{
   if(!window.ExcelJS||!window.CSBuilder)throw new Error('A required workbook library did not load. Refresh the page and retry.');
   const ext=file.name.toLowerCase().split('.').pop();
