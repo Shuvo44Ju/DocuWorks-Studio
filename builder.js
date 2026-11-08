@@ -152,7 +152,7 @@ function fillTemplate(wb, model) {
       if (!source || source.type !== 'row' || source.parameterized ||
           source.parentDisplay || source.parentRequirement || source.label || source.group) return null;
       const raw = String(source.req || '').trim();
-      const match = raw.match(/^(.+?)\s+(?:[-–—]|→|>|[|]|\.)\s+(.+)$/);
+      const match = raw.match(/^(.+?)(?:\s+[-–—]|\s*[→>|]|\.)\s+(.+)$/);
       if (!match) return null;
       const parent = tidy(match[1]);
       const child = isRealLabel(match[2], parent);
