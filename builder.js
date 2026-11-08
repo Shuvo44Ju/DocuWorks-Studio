@@ -44,18 +44,18 @@ function fillTemplate(wb, model) {
       /\b(?:shall|should|must|will|would|can|may|is|are|was|were|has|have|had)\b/i.test(text);
   };
   const requirementText = (fallback, source) => {
-    const parent = source && (source.parent || source.parentRequirement) || '';
-    const candidates = source ? [source.label, source.group] : [];
+    const parent = source && (source.parentDisplay || source.parent || source.parentRequirement) || '';
+    const candidates = source ? [fallback, source.label, source.group] : [fallback];
     let label = '';
     for (const candidate of candidates) {
       const raw = String(candidate == null ? '' : candidate).trim();
-      const cleaned = tidy(raw);
-      if (!cleaned || isMarker(raw) || isSentence(raw) ||
+      const cleaned = stripParentPrefix(tidy(raw), parent);
+      if (!cleaned || isMarker(raw) || isSentence(cleaned) ||
           cleaned.toLowerCase() === tidy(parent).toLowerCase()) continue;
       label = cleaned;
       break;
     }
-    const result = tidy(label || (source && source.req) || parent || fallback);
+    const result = tidy(label || (source && source.req) || parent || '');
     return isMarker(result) ? '' : result;
   };
   const removeLeadingListMarker = value => {
