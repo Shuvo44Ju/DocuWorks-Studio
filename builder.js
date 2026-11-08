@@ -34,7 +34,7 @@ function fillTemplate(wb, model) {
   const tidy = value => stripNum(value)
     .replace(/\.\s*\/\s*/g, '/')
     .replace(/[\s.:]+$/, '')
-    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
   const isMarker = value => /^(?:\([A-Za-z0-9]{1,3}\)|[A-Za-z][.)]|\(?[ivx]{1,4}\)?[.)]?|\d{1,3}[.)]|[•\-–—*])$/i.test(String(value || '').trim());
   const isSentence = value => {
@@ -53,7 +53,8 @@ function fillTemplate(wb, model) {
       label = cleaned;
       break;
     }
-    return tidy(label || parent || (source && source.req) || fallback);
+    const result = tidy(label || parent || (source && source.req) || fallback);
+    return isMarker(result) ? '' : result;
   };
   const removeLeadingListMarker = value => {
     if (typeof value !== 'string') return value;
