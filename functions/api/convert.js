@@ -168,11 +168,43 @@ function extractJson(value) {
 
   let text = value.trim().replace(/^\uFEFF/, "");
   text = text.replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/, "").trim();
-  const first = text.indexOf("{"), last = text.lastIndexOf("}");
-  if (first < 0 || last <= first) {
-    throw new Error("The AI response did not contain valid JSON. Returned text begins: " + text.slice(0, 180));
+  // Extract complete JSON objects one at a time. Do not take everything
+  // from the first "{" to the last "}", because Gemma may append commentary
+  // or another block after the JSON and make that combined slice invalid.
+  let lastParseError = null;
+  for (let start = text.indexOf("{"); start >= 0; start = text.indexOf("{", start + 1)) {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let end = start; end < text.length; end++) {
+      const ch = text[end];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === "\\\\") escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') { inString = true; continue; }
+      if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) {
+          const candidate = text.slice(start, end + 1);
+          try {
+            const parsed = JSON.parse(candidate);
+            if (parsed && typeof parsed === "object" && Array.isArray(parsed.sections)) {
+              return parsed;
+            }
+          } catch (error) {
+            lastParseError = error;
+          }
+          break;
+        }
+      }
+    }
   }
-  return JSON.parse(text.slice(first, last + 1));
+  const detail = lastParseError && lastParseError.message ? " Last JSON parse issue: " + lastParseError.message : "";
+  throw new Error("The AI response did not contain a complete valid extraction JSON object. Extra text outside the JSON is ignored; no usable sections were found." + detail);
 }
 
 async function handlePost({ request, env }) {
@@ -314,7 +346,7 @@ export async function onRequestGet({request,env}) {
     architecture:"Mixture of Experts (4B active parameters)",
     reasoningEffort:"medium",
     diagnostic:{
-      build:"cloudflare-workers-ai-gemma4-parameter-rows-20261105",
+      build:"cloudflare-workers-ai-gemma4-json-boundary-fix-20261108",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
