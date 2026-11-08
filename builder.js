@@ -147,23 +147,100 @@ function fillTemplate(wb, model) {
   };
   const prepareRows = inputRows => {
     const output = [];
-    for (const source of inputRows || []) {
+    const rows = inputRows || [];
+    const hierarchyPrefix = source => {
+      if (!source || source.type !== 'row' || source.parameterized ||
+          source.parentDisplay || source.parentRequirement || source.label || source.group) return null;
+      const raw = String(source.req || '').trim();
+      const match = raw.match(/^(.+?)\s+(?:[-–—]|→|>|[|])\s+(.+)$/);
+      if (!match) return null;
+      const parent = tidy(match[1]);
+      const child = isRealLabel(match[2], parent);
+      if (!parent || !child || parent.split(/\s+/).length > 12) return null;
+      return {
+        parent,
+        child,
+        key: parent.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+      };
+    };
+    const makeChild = (source, parent, child, key) => ({
+      ...source,
+      req: child,
+      label: child,
+      group: '',
+      parent,
+      parentDisplay: parent,
+      parentRequirement: parent,
+      parentKey: 'inferred:' + key,
+      parameterized: true
+    });
+    const isContinuationPair = source => {
+      if (!source || source.type !== 'row' || source.parameterized ||
+          source.parentDisplay || source.parentRequirement || source.label || source.group) return false;
+      const label = tidy(source.req || '');
+      const value = String(source.desc == null ? '' : source.desc).trim();
+      const words = value.split(/\s+/).filter(Boolean);
+      if (!label || !value || label.split(/\s+/).length > 7 || words.length > 10) return false;
+      if (/\b(shall|should|must|will|would|can|may|is|are|was|were|has|have|had|ensures?|requires?|provides?)\b/i.test(value)) return false;
+      return true;
+    };
+
+    // Some AI responses flatten a hierarchy into repeated "Parent - Child"
+    // requirement strings. Rebuild the parent only when the same prefix is
+    // repeated in at least two adjacent rows, so ordinary hyphenated labels
+    // remain untouched.
+    for (let i = 0; i < rows.length;) {
+      const first = hierarchyPrefix(rows[i]);
+      if (!first) {
+        output.push(rows[i]);
+        i++;
+        continue;
+      }
+      let j = i;
+      const group = [];
+      while (j < rows.length) {
+        const candidate = hierarchyPrefix(rows[j]);
+        if (!candidate || candidate.key !== first.key) break;
+        group.push({ source: rows[j], child: candidate.child });
+        j++;
+      }
+      if (group.length < 2) {
+        output.push(rows[i]);
+        i++;
+        continue;
+      }
+
+      for (const item of group) output.push(makeChild(item.source, first.parent, item.child, first.key));
+
+      // A parent cell may continue on the next page with blank serial/requirement
+      // cells. Keep concise label/value continuation rows under that parent
+      // until the next full prose requirement or another parent group.
+      while (j < rows.length && isContinuationPair(rows[j]) && !hierarchyPrefix(rows[j])) {
+        const next = rows[j];
+        output.push(makeChild(next, first.parent, tidy(next.req), first.key));
+        j++;
+      }
+      i = j;
+    }
+
+    const prepared = [];
+    for (const source of output) {
       if (!source || source.type !== 'row') {
-        output.push(source);
+        prepared.push(source);
         continue;
       }
       const pairs = labelledPairs(source.desc);
       if (!pairs.length) {
-        output.push(source);
+        prepared.push(source);
         continue;
       }
       const info = parentInfo(source);
       if (!info.title) {
-        output.push(source);
+        prepared.push(source);
         continue;
       }
       for (const pair of pairs) {
-        output.push({
+        prepared.push({
           ...source,
           req: pair.label,
           desc: pair.specification,
@@ -177,7 +254,7 @@ function fillTemplate(wb, model) {
         });
       }
     }
-    return output;
+    return prepared;
   };
   const put = (a, b, review, source) => {
     const row = ws.getRow(r);
