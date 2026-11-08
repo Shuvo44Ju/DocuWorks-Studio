@@ -37,3 +37,13 @@
 /* Keep Home aligned with the header at the top of the viewport */
 .dw-unified-home{top:14px!important}
 @media(max-width:560px){.dw-unified-home{top:14px!important}}
+
+/* CamScanner-style scanner workflow additions */
+.import-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.crop-tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0 2px}
+.detect-status{font-size:11px;color:var(--muted)}
+.mode-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}
+.mode-chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:8px 11px;font-size:11px;font-weight:700}
+.mode-chip.active{background:var(--green2);border-color:var(--green);color:var(--green)}
+#intensityRow{transition:opacity .15s}
+@media(max-width:420px){.mode-row{gap:5px}.mode-chip{padding:8px 9px;font-size:10px}.import-actions{width:100%}.import-actions button{flex:1}}
