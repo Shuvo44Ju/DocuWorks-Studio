@@ -48,11 +48,35 @@ function fillTemplate(wb, model) {
       const x = rows[i];
       if (x.type === 'section') { sectionRow(x.title); i++; continue; }
       if (x.type === 'sw') { put(x.id, x.desc + (x.pri ? '  [Priority ' + x.pri + ']' : ''), false, null); i++; continue; }
-      let j = i; while (j < rows.length && rows[j].type === 'row' && rows[j].parent === x.parent) j++;
-      const grp = rows.slice(i, j), labelled = grp.filter(g => g.label || g.group).length, sub = grp.length >= 2 && labelled >= 2;
-      if (sub) sectionRow(x.parent);
-      for (const g of grp) put(sub ? ([g.group, g.label].filter(Boolean).join(' – ') || g.parent) : g.req, g.desc, g.review, g);
-      i = j;
+      // Group only labelled child points that belong to the same parent.
+      // Ordinary single-value requirements must stay as normal rows.
+      const hasLabel = g => Boolean(String(g.label || '').trim() || String(g.group || '').trim());
+      if (hasLabel(x) && x.parent) {
+        let j = i + 1;
+        while (j < rows.length &&
+          rows[j].type === 'row' &&
+          rows[j].parent === x.parent &&
+          hasLabel(rows[j])) j++;
+        const grp = rows.slice(i, j);
+        if (grp.length >= 2) {
+          sectionRow(x.parent);
+          for (const g of grp) {
+            const ownLabel = [g.group, g.label].filter(Boolean).join(' – ') || g.req;
+            put(ownLabel, g.desc, g.review, g);
+          }
+        } else {
+          // A lone labelled point is not a sub-heading group. Keep its parent
+          // and point label together in one ordinary requirement row.
+          const point = [x.group, x.label].filter(Boolean).join(' – ') || x.req;
+          const fullRequirement = [x.parent, point].filter(Boolean).join(' – ');
+          put(fullRequirement, x.desc, x.review, x);
+        }
+        i = j;
+        continue;
+      }
+
+      put(x.req, x.desc, x.review, x);
+      i++;
     }
   }
   // 4) review notes (hover comments only; no layout change)
