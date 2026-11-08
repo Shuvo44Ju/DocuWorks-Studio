@@ -84,16 +84,22 @@ function fillTemplate(wb, model) {
     });
     return pairs.length && pairs.every(Boolean) ? pairs : [];
   };
-  const rowParent = source => {
-    if (!source) return '';
+  const parentInfo = source => {
+    if (!source) return { title: '', key: '' };
     const explicitParent = source.parentRequirement || source.parent || '';
-    // In this AI-output layout, parent is often the broader document section,
-    // while req is the more specific numbered requirement (for example 2.1).
-    if (source.parameterized || source.label || source.group) {
-      return tidy(explicitParent || source.req || '');
-    }
-    return tidy(source.req || explicitParent || '');
+    // In the AI output, req may be the numbered requirement while parent is
+    // only the broader document section. Use the explicit parent for known
+    // child rows, otherwise use the row's own requirement name.
+    const rawTitle = source.parameterized || source.label || source.group
+      ? (explicitParent || source.req || '')
+      : (source.req || explicitParent || '');
+    const title = tidy(rawTitle);
+    const numberSource = String(rawTitle || '');
+    const number = numberSource.match(/^\\s*(\\d{1,3}(?:\\.\\d{1,3})+)[.)]?\\s+/);
+    return { title, key: number ? 'number:' + number[1] : 'title:' + title.toLowerCase() };
   };
+  const rowParent = source => source && source.parentDisplay || parentInfo(source).title;
+  const rowParentKey = source => source && source.parentKey || parentInfo(source).key;
   const rowLabel = source => {
     if (!source) return '';
     return isRealLabel(source.label, source.parent) ||
@@ -111,8 +117,8 @@ function fillTemplate(wb, model) {
         output.push(source);
         continue;
       }
-      const parent = rowParent(source);
-      if (!parent) {
+      const info = parentInfo(source);
+      if (!info.title) {
         output.push(source);
         continue;
       }
@@ -121,8 +127,10 @@ function fillTemplate(wb, model) {
           ...source,
           req: pair.label,
           desc: pair.specification,
-          parent,
-          parentRequirement: parent,
+          parent: info.title,
+          parentDisplay: info.title,
+          parentKey: info.key,
+          parentRequirement: info.title,
           group: '',
           label: pair.label,
           parameterized: pairs.length > 1 || Boolean(source.parameterized)
@@ -156,16 +164,19 @@ function fillTemplate(wb, model) {
 
       const label = rowLabel(x);
       const parent = rowParent(x);
+      const parentKey = rowParentKey(x);
       if (label && parent) {
         let j = i + 1;
         while (j < rows.length &&
           rows[j].type === 'row' &&
-          rowParent(rows[j]).toLowerCase() === parent.toLowerCase() &&
+          rowParentKey(rows[j]) === parentKey &&
           rowLabel(rows[j])) j++;
         const group = rows.slice(i, j);
         if (group.length >= 2) {
-          // One merged parent heading, followed by each point's own label.
-          sectionRow(tidy(parent));
+          // Use the most informative available parent title when the same
+          // numbered requirement continues on another page with a shorter title.
+          const heading = group.map(rowParent).sort((a, b) => b.length - a.length)[0] || parent;
+          sectionRow(tidy(heading));
           for (const item of group) put(rowLabel(item), item.desc, item.review, item);
         } else {
           // A single labelled value remains a normal row; no parent heading.
