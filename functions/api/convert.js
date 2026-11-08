@@ -17,6 +17,7 @@ const OUTPUT_SCHEMA = {
           type: "object", additionalProperties: false,
           properties: {
             requirement: { type: "string" }, specification: { type: "string" },
+            parentRequirement: { type: "string" },
             sourcePages: { type: "array", items: { type: "integer" } },
             sourceQuote: { type: "string" }, confidence: { type: "number" },
             reviewRequired: { type: "boolean" }, reviewReason: { type: "string" }
@@ -33,7 +34,7 @@ const OUTPUT_SCHEMA = {
 const SYSTEM_PROMPT = "You are a careful document-extraction engine for pharmaceutical User Requirement Specifications (URS). Read each uploaded document as a document, not as a machine-specific template from memory.\n\n" +
 "Extract source-grounded data only. Never invent a requirement, specification, value, unit, model, limit, standard, or missing text. Preserve units, tolerances, inequality signs, decimal places, punctuation, and multi-line meaning. If unreadable, mark reviewRequired=true and explain why.\n\n" +
 "Identify the actual requirement/specification structure dynamically. Headings may say Requirement/Description, Requirements/Descriptions, Item/Specification, Parameter/Acceptance criteria, or use another layout. Use row boundaries, column headers, visual table rules, section numbering, and nearby context together. Do not use a centered heading's x-position as the column boundary. Carry multi-page tables across pages without duplicating headers.\n\n" +
-"Return meaningful sections in source order. Put the true requirement in requirement, and its corresponding acceptance value or source description in specification. Do not concatenate unrelated rows. Keep long prose requirements intact. For labeled sub-requirements and specification matrices, expand into separate pairs only when the source supports it; use actual row/column labels to associate each cell with its correct parameter. Do not copy a neighbouring column into the requirement field. Exclude approval signatures, document-control headers, repeated page headers/footers, and revision history unless the URS makes them requirements.\n\n" +
+"Return meaningful sections in source order. Put the true requirement in requirement, and its corresponding acceptance value or source description in specification. Do not concatenate unrelated rows. Keep long prose requirements intact. For labeled sub-requirements and specification matrices, expand into separate pairs only when the source supports it; use actual row/column labels to associate each cell with its correct parameter. Do not copy a neighbouring column into the requirement field. When multiple child parameters belong to one parent requirement, set parentRequirement to that exact parent title on every child row, and put only the child's own label in requirement. Preserve this relationship for continuation rows across pages when the serial-number and requirement cells are blank but the table structure shows they still belong to the same parent. Omit parentRequirement for standalone requirements. Exclude approval signatures, document-control headers, repeated page headers/footers, and revision history unless the URS makes them requirements.\n\n" +
 "Use PDF page visuals and embedded text together; PDFs may be scanned or mixed. DOCX HTML preserves table boundaries. Include sourcePages as 1-based page numbers and a short sourceQuote for each pair. Confidence is an estimate from 0 to 1. Set reviewRequired when text is blurry, a table association ambiguous, a matrix cell uncertain, or content unreadable. Vendor compliance and vendor remarks must remain outside the extracted fields and will be blank in the CS workbook.\n\n" +
 "Do not assume any equipment type. Extract the machine described by this upload, preserve substantive requirements in order, and never use hardcoded example machine data.";
 
@@ -96,6 +97,7 @@ function validateExtraction(value) {
       const base = {
         requirement: String(item?.requirement || "").trim(),
         specification: String(item?.specification || "").trim(),
+        parentRequirement: String(item?.parentRequirement || "").trim(),
         sourcePages: Array.isArray(item?.sourcePages) ? item.sourcePages.filter(n => Number.isInteger(n) && n > 0).slice(0,100) : [],
         sourceQuote: String(item?.sourceQuote || "").slice(0,1200),
         confidence: Number.isFinite(c) ? Math.max(0,Math.min(1,c)) : 0,
@@ -110,12 +112,12 @@ function validateExtraction(value) {
           ...base,
           requirement: pair.label,
           specification: pair.specification,
-          parentRequirement: base.requirement,
+          parentRequirement: base.parentRequirement || base.requirement,
           parameterized: true,
           sourceQuote: pair.sourceQuote.slice(0,1200)
         }));
       }
-      return [{ ...base, parameterized: false }];
+      return [{ ...base, parameterized: Boolean(base.parentRequirement) }];
     }).filter(x => x.requirement || x.specification)
   })).filter(s => s.requirements.length || s.title);
   safe.rowCount = safe.sections.reduce((n,s)=>n+s.requirements.length,0);
