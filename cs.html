@@ -64,7 +64,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-<script src="./core.js?v=columns-20261103"></script><script src="./builder.js?v=parent-points-output-v11-20261108"></script><script src="./ai-config.js?v=20261104-cloudflare-ai-speedfix"></script>
+<script src="./core.js?v=columns-20261103"></script><script src="./builder.js?v=parent-points-output-v12-20261108"></script><script src="./ai-config.js?v=20261104-cloudflare-ai-speedfix"></script>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -273,29 +273,8 @@ async function extractWithAI(sourceFile){
    let desc=String(item.specification||'').trim();
    let parameterized=Boolean(item.parameterized);
    let parentRequirement=String(item.parentRequirement||'').trim();
+   const hasParent=parameterized||Boolean(parentRequirement);
 
-   // Final browser-side guard for a single labelled parameter/value pair.
-   // Older Worker builds only expanded cells containing 2+ pairs, so a row
-   // such as requirement="Design parameters/Dimensions" and
-   // specification="Maximum Capacity: 320 g" otherwise lost its hierarchy.
-   if(!parameterized&&!parentRequirement&&req&&desc){
-    const colon=desc.indexOf(':');
-    if(colon>1){
-     const childLabel=desc.slice(0,colon).trim().replace(/^[•*\-–]+\s*/,'');
-     const childValue=desc.slice(colon+1).trim();
-     const norm=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-     const labelWords=childLabel.split(/\s+/).filter(Boolean);
-     const looksLikeLabel=childLabel.length<=90&&labelWords.length<=12&&
-       !/[.!?]$/.test(childLabel)&&
-       !/\b(shall|should|must|will|whereas|therefore)\b/i.test(childLabel);
-     if(looksLikeLabel&&childValue&&norm(req)!==norm(childLabel)){
-      parentRequirement=req;
-      req=childLabel;
-      desc=childValue;
-      parameterized=true;
-     }
-    }
-   }
    // Remove a repeated subsection heading from the start of the requirement label.
    // The heading is already emitted once as its own section row in the CS sheet.
    const repeatedPrefixes=[parentRequirement,sectionTitle].filter(Boolean).sort((a,b)=>b.length-a.length);
@@ -310,12 +289,14 @@ async function extractWithAI(sourceFile){
    const pages=Array.isArray(item.sourcePages)?item.sourcePages.filter(n=>Number.isInteger(n)&&n>0):[];
    rows.push({
     type:'row',req:req||'UNRESOLVED REQUIREMENT — REVIEW SOURCE',desc,
-    parent:parameterized?(parentRequirement||sectionTitle):sectionTitle,
-    group:'',label:parameterized?req:'',raw:String(item.sourceQuote||''),
+    parent:hasParent?(parentRequirement||sectionTitle):sectionTitle,
+    parentDisplay:hasParent?(parentRequirement||sectionTitle):'',
+    group:'',label:hasParent?req:'',
     loc:pages.length?'Source page(s): '+pages.join(', '):'Source location not identified',
     minConf:Math.round(confidence*100),conf:Math.round(confidence*100),
     review:Boolean(item.reviewRequired)||confidence<0.8||!req,
-    reviewReason:String(item.reviewReason||'')
+    reviewReason:String(item.reviewReason||''),
+    parameterized:hasParent
    });
   }
  }
