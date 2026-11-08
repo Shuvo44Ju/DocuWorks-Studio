@@ -28,18 +28,18 @@ function fillTemplate(wb, model) {
   // 3) write rows  (column A = the point's own headline; the URS requirement becomes a sub-heading row when it has 2+ labelled points)
   let r = FIRST_BODY_ROW;
   const sectionRow = t => { const row = ws.getRow(r); [1, 2, 3].forEach(c => { row.getCell(c).style = clone(proto.section[c - 1]); }); row.getCell(1).value = t; ws.mergeCells(r, 1, r, 3); r++; };
-  // Normalize only the text written to the two requirement columns.
+  // Normalize only the text written into Requirement (A) and Description (B).
   const stripNum = value => String(value == null ? '' : value)
-    .replace(/^\\s*\\d{1,3}(?:\\.\\d{1,3})*[.)]?\\s+/, '');
+    .replace(/^\s*\d{1,3}(?:\.\d{1,3})*[.)]?\s+/, '');
   const tidy = value => stripNum(value)
-    .replace(/\\.\\s*\\/\\s*/g, '/')
-    .replace(/[\\s.:]+$/, '')
-    .replace(/\\s{2,}/g, ' ')
+    .replace(/\.\s*\/\s*/g, '/')
+    .replace(/[\s.:]+$/, '')
+    .replace(/\s{2,}/g, ' ')
     .trim();
-  const isMarker = value => /^(?:\\([A-Za-z0-9]{1,3}\\)|[A-Za-z]{1,3}[.)]|\\(?[ivx]{1,4}\\)?[.)]?|\\d{1,3}\\.|[•\\-–—*])$/i.test(String(value || '').trim());
+  const isMarker = value => /^(?:\([A-Za-z0-9]{1,3}\)|[A-Za-z][.)]|\(?[ivx]{1,4}\)?[.)]?|\d{1,3}[.)]|[•\-–—*])$/i.test(String(value || '').trim());
   const isSentence = value => {
     const text = String(value || '').trim();
-    return text.split(/\\s+/).filter(Boolean).length > 10 || /\\.$/.test(text);
+    return text.split(/\s+/).filter(Boolean).length > 10 || /\.$/.test(text);
   };
   const requirementText = (fallback, source) => {
     const parent = source && (source.parent || source.parentRequirement) || '';
@@ -48,7 +48,8 @@ function fillTemplate(wb, model) {
     for (const candidate of candidates) {
       const raw = String(candidate == null ? '' : candidate).trim();
       const cleaned = tidy(raw);
-      if (!cleaned || isMarker(raw) || isSentence(raw) || cleaned.toLowerCase() === tidy(parent).toLowerCase()) continue;
+      if (!cleaned || isMarker(raw) || isSentence(raw) ||
+          cleaned.toLowerCase() === tidy(parent).toLowerCase()) continue;
       label = cleaned;
       break;
     }
@@ -56,7 +57,7 @@ function fillTemplate(wb, model) {
   };
   const removeLeadingListMarker = value => {
     if (typeof value !== 'string') return value;
-    return value.replace(/^\\s*(?:\\([A-Za-z0-9]{1,3}\\)|[A-Za-z]{1,3}[.)]|\\d{1,3}[.)]|[•·●○◦▪■□◆◇❖➢➤➔►▶◊*]|[-–—])\\s+/, '');
+    return value.replace(/^\s*(?:\([A-Za-z0-9]{1,3}\)|[A-Za-z][.)]|\(?[ivx]{1,4}\)?[.)]?|\d{1,3}[.)]|[•·●○◦▪■□◆◇❖➢➤➔►▶◊*]|[-–—])\s+/, '');
   };
   const put = (a, b, review, source) => {
     const row = ws.getRow(r);
