@@ -30,7 +30,7 @@ function fillTemplate(wb, model) {
   const sectionRow = t => { const row = ws.getRow(r); [1, 2, 3].forEach(c => { row.getCell(c).style = clone(proto.section[c - 1]); }); row.getCell(1).value = t; ws.mergeCells(r, 1, r, 3); r++; };
   // Normalize only the text written into Requirement (A) and Description (B).
   const stripNum = value => String(value == null ? '' : value)
-    .replace(/^\s*\d{1,3}(?:\.\d{1,3})*[.)]?\s+/, '');
+    .replace(/^\s*(?:\d{1,3}(?:\.\d{1,3})+[.)]?|\d{1,3}[.)])\s+/, '');
   const tidy = value => stripNum(value)
     .replace(/\.\s*\/\s*/g, '/')
     .replace(/[\s.:]+$/, '')
