@@ -252,10 +252,20 @@ async function extractWithAI(sourceFile){
   const sectionTitle=String(section.title||'').trim();
   if(sectionTitle)rows.push({type:'section',title:sectionTitle});
   for(const item of (Array.isArray(section.requirements)?section.requirements:[])){
-   const req=String(item.requirement||'').trim(),desc=String(item.specification||'').trim();
-   if(!req&&!desc)continue;
+   let req=String(item.requirement||'').trim();
+   const desc=String(item.specification||'').trim();
    const parameterized=Boolean(item.parameterized);
    const parentRequirement=String(item.parentRequirement||'').trim();
+   // Remove a repeated subsection heading from the start of the requirement label.
+   // The heading is already emitted once as its own section row in the CS sheet.
+   const repeatedPrefixes=[parentRequirement,sectionTitle].filter(Boolean).sort((a,b)=>b.length-a.length);
+   for(const prefix of repeatedPrefixes){
+    if(req.slice(0,prefix.length).toLowerCase()===prefix.toLowerCase()){
+     const remainder=req.slice(prefix.length).replace(/^[\\s:|–—-]+/,'').trim();
+     if(remainder){req=remainder;break;}
+    }
+   }
+   if(!req&&!desc)continue;
    const confidence=Number.isFinite(Number(item.confidence))?Math.max(0,Math.min(1,Number(item.confidence))):0;
    const pages=Array.isArray(item.sourcePages)?item.sourcePages.filter(n=>Number.isInteger(n)&&n>0):[];
    rows.push({
