@@ -108,7 +108,7 @@ function fillTemplate(wb, model) {
       : (source.req || explicitParent || '');
     const title = tidy(rawTitle);
     const numberSource = String(rawTitle || '');
-    const number = numberSource.match(/^\\s*(\\d{1,3}(?:\\.\\d{1,3})+)[.)]?\\s+/);
+    const number = numberSource.match(/^\s*(\d{1,3}(?:\.\d{1,3})+)[.)]?\s+/);
     return { title, key: number ? 'number:' + number[1] : 'title:' + title.toLowerCase() };
   };
   const rowParent = source => source && source.parentDisplay || parentInfo(source).title;
