@@ -128,8 +128,8 @@ function fillTemplate(wb, model) {
     // rule is generic and does not depend on any particular URS heading.
     while (child.toLowerCase().startsWith(parentText.toLowerCase())) {
       const remainder = child.slice(parentText.length);
-      if (remainder && !/^[\\s.:/\\\\|>→–—-]/.test(remainder)) break;
-      child = remainder.replace(/^[\\s.:/\\\\|>→–—-]+/, '').trim();
+      if (remainder && !/^[\s.:/\\|>→–—-]/.test(remainder)) break;
+      child = remainder.replace(/^[\s.:/\\|>→–—-]+/, '').trim();
       if (!child) return '';
     }
     return child;
