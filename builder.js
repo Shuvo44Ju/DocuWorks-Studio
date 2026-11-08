@@ -126,10 +126,13 @@ function fillTemplate(wb, model) {
     if (!child || !parentText) return child;
     // Strip repeated parent prefixes and common hierarchy separators. This
     // rule is generic and does not depend on any particular URS heading.
+    const separators = ' \t.:/\\|>→–—-';
     while (child.toLowerCase().startsWith(parentText.toLowerCase())) {
       const remainder = child.slice(parentText.length);
-      if (remainder && !/^[\s.:/\\|>→–—-]/.test(remainder)) break;
-      child = remainder.replace(/^[\s.:/\\|>→–—-]+/, '').trim();
+      if (remainder && !separators.includes(remainder[0])) break;
+      let offset = 0;
+      while (offset < remainder.length && separators.includes(remainder[offset])) offset++;
+      child = remainder.slice(offset).trim();
       if (!child) return '';
     }
     return child;
