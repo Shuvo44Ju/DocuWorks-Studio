@@ -30,7 +30,7 @@
 <main>
 <section id="homeScreen" class="screen active">
 <div class="hero"><div class="eyebrow">DOCUMENT SCANNER</div><h1>Import <span>your document.</span></h1><p>Drop image files here or choose them from your device.</p></div>
-<div id="importDrop" class="import-drop" role="button" tabindex="0" aria-label="Choose or drop document images"><div class="import-symbol">↥</div><strong>Drag and drop images here</strong><p>or</p><button id="uploadBtn" class="primarybtn" type="button">Choose images</button><small>JPG, PNG and other image formats · multiple pages supported</small></div>
+<div id="importDrop" class="import-drop" role="button" tabindex="0" aria-label="Choose or drop document images"><div class="import-symbol">↥</div><strong>Drag and drop images here</strong><p>or</p><div class="import-actions"><button id="uploadBtn" class="primarybtn" type="button">Choose images</button><button id="cameraStart" class="secondary" type="button">Use camera</button></div><small>JPG, PNG and other image formats · multiple pages supported</small></div>
 <input id="fileInput" type="file" accept="image/*" multiple hidden>
 </section>
 <section id="cameraScreen" class="screen">
@@ -41,13 +41,13 @@
 <section id="cropScreen" class="screen">
 <div class="screenhead"><button class="backbtn" data-home>←</button><div><h2>Adjust corners</h2><p>Drag each handle to fit the page</p></div></div>
 <div id="cropStage" class="crop-stage"><img id="cropImage" alt="Document crop preview"><canvas id="cropCanvas"></canvas></div>
-<div class="hint">Move all four corners onto the document edges. Pinch/zoom your screen if needed.</div>
+<div class="crop-tools"><button id="autoDetectBtn" class="secondary" type="button">✧ Auto-detect edges</button><span id="detectStatus" class="detect-status">Adjust corners manually if needed</span></div><div class="hint">Move all four corners onto the document edges. Pinch/zoom your screen if needed.</div>
 <div class="wideactions"><button id="cropCancel" class="secondary">Cancel</button><button id="cropDone" class="primarybtn">Done · Correct perspective</button></div>
 </section>
 <section id="editorScreen" class="screen">
 <div class="screenhead"><button class="backbtn" data-home>←</button><div><h2 id="editorTitle">Your document</h2><p id="pageCount">0 pages</p></div><button id="renameDocBtn" class="iconbtn" aria-label="Rename document">✎</button></div>
 <div class="preview-card"><div id="editorBusy" class="busy"><span class="spinner"></span><p>Preparing scan…</p></div><img id="pagePreview" alt="Scanned page preview"><div id="noPage" class="empty">Add a page to get started.</div></div>
-<div class="filter-panel"><div class="filter-title"><div><strong>Magic Color</strong><small>Bright paper, clear ink</small></div><button id="magicToggle" class="toggle" aria-pressed="true"><span></span></button></div><div class="sliderrow"><label for="intensity">Intensity</label><input id="intensity" type="range" min="0" max="100" value="65"><output id="intensityValue">65%</output></div></div>
+<div class="filter-panel"><div class="filter-title"><div><strong>Scan enhancement</strong><small>Choose the best finish for this page</small></div></div><div class="mode-row" id="scanModes"><button class="mode-chip" data-mode="original">Original</button><button class="mode-chip active" data-mode="auto">Auto</button><button class="mode-chip" data-mode="color">Color</button><button class="mode-chip" data-mode="gray">Grayscale</button><button class="mode-chip" data-mode="bw">B&amp;W</button></div><div class="sliderrow" id="intensityRow"><label for="intensity">Enhancement</label><input id="intensity" type="range" min="0" max="100" value="38"><output id="intensityValue">38%</output></div></div>
 <div class="rotate-row"><button id="rotateLeft" class="secondary">↶ Rotate left</button><button id="rotateRight" class="secondary">↷ Rotate right</button><button id="retakeBtn" class="secondary">Retake / recrop</button></div>
 <div class="sectionhead"><h2>Pages</h2><button id="addPageBtn" class="linkbtn">＋ Add page</button></div><div id="pagesStrip" class="pages-strip"></div>
 <div class="export-panel"><h2>Export document</h2><p>Save all pages together as a PDF, or download the selected page.</p><button id="pdfBtn" class="primarybtn full">↓ Export all pages as PDF</button><div class="exportrow"><button id="jpgBtn" class="secondary">Download JPG</button><button id="pngBtn" class="secondary">Download PNG</button></div><button id="saveDocBtn" class="secondary full">Save to My Documents</button></div>
@@ -56,6 +56,6 @@
 </main>
 <nav class="bottomnav"><button class="navitem selected" data-nav="homeScreen"><span>⌂</span>Home</button><button class="navitem" data-nav="cameraScreen" id="navScan"><span>⊙</span>Scan</button><button class="navitem" data-nav="documentsScreen"><span>▤</span>Documents</button></nav>
 <div id="toast" class="toast" role="status"></div><div id="modal" class="modal" hidden><div class="modalbox"><h2 id="modalTitle">Rename document</h2><input id="modalInput" maxlength="100" placeholder="Document name"><div class="modalactions"><button id="modalCancel" class="secondary">Cancel</button><button id="modalOk" class="primarybtn">Save</button></div></div></div>
-<script src="./app.js?v=fullpage3" defer></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" async></script>
+<script>window.Module={onRuntimeInitialized(){window.__opencvReady=true;document.dispatchEvent(new Event("opencv-ready"));}};</script><script async src="https://docs.opencv.org/4.x/opencv.js"></script><script src="./app.js?v=camscanner-upgrade1" defer></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" async></script>
 <script src="./theme.js?v=2" defer></script>
 </body></html>
