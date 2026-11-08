@@ -362,7 +362,7 @@ export async function onRequestGet({request,env}) {
     architecture:"Mixture of Experts (4B active parameters)",
     reasoningEffort:"medium",
     diagnostic:{
-      build:"cloudflare-workers-ai-gemma4-json-boundary-fix-20261108",
+      build:"single-labelled-child-pair-parent-grouping-20261108",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
