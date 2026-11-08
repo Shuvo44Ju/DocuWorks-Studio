@@ -45,7 +45,7 @@ function fillTemplate(wb, model) {
   };
   const requirementText = (fallback, source) => {
     const parent = source && (source.parentDisplay || source.parentRequirement || source.parent || '') || '';
-    const isChild = Boolean(parent);
+    const isChild = Boolean(source && (source.parentDisplay || source.parameterized));
     // A child row must never fall back to its parent or to an uncleaned raw
     // requirement. Check every possible label source through the same guard.
     const candidates = source
