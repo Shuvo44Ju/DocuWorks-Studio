@@ -261,7 +261,7 @@ async function extractWithAI(sourceFile){
    const repeatedPrefixes=[parentRequirement,sectionTitle].filter(Boolean).sort((a,b)=>b.length-a.length);
    for(const prefix of repeatedPrefixes){
     if(req.slice(0,prefix.length).toLowerCase()===prefix.toLowerCase()){
-     const remainder=req.slice(prefix.length).replace(/^[\\s:|–—-]+/,'').trim();
+     const remainder=req.slice(prefix.length).replace(/^[\s:|–—-]+/,'').trim();
      if(remainder){req=remainder;break;}
     }
    }
