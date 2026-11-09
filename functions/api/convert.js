@@ -210,6 +210,7 @@ function extractJson(value) {
 }
 
 async function handlePost({ request, env }) {
+  const requestStartedAt = Date.now();
   const origin = request.headers.get("Origin") || "";
   if (!isAllowedOrigin(origin)) return jsonResponse({ error: "Origin is not allowed." },403,origin);
   if (!env?.AI || typeof env.AI.run !== "function") return jsonResponse({
@@ -219,6 +220,7 @@ async function handlePost({ request, env }) {
   let form;
   try { form = await request.formData(); }
   catch { return jsonResponse({ error: "Upload must use multipart form data." },400,origin); }
+  const formParsedAt = Date.now();
   const fileName = String(form.get("fileName") || "URS document").slice(0,180);
   const documentHtml = String(form.get("documentHtml") || "");
   const pageImagesRaw = String(form.get("pageImages") || "");
@@ -273,8 +275,10 @@ async function handlePost({ request, env }) {
     "If uncertain, preserve the source text and set reviewRequired=true. Never invent data.\n\n" +
     "JSON schema:\n" + JSON.stringify(OUTPUT_SCHEMA);
   userContent[0].text += prompt;
+  const inputPreparedAt = Date.now();
 
   let result;
+  let inferenceMs = 0;
   try {
     const startedAt = Date.now();
     console.log("Workers AI URS extraction started", {
@@ -297,6 +301,7 @@ async function handlePost({ request, env }) {
       // budget is used for the final JSON payload rather than hidden reasoning.
       chat_template_kwargs:{enable_thinking:false}
     });
+    inferenceMs = Date.now() - startedAt;
     const firstChoice = result?.choices?.[0];
     const firstMessage = firstChoice?.message || {};
     console.log("Workers AI URS response summary", {
@@ -312,7 +317,7 @@ async function handlePost({ request, env }) {
     });
     console.log("Workers AI URS extraction completed", {
       model: MODEL,
-      elapsedMs: Date.now() - startedAt
+      elapsedMs: inferenceMs
     });
   } catch(e) {
     console.error("Workers AI inference error:",e);
@@ -327,11 +332,20 @@ async function handlePost({ request, env }) {
   }
 
   try {
+    const validationStartedAt = Date.now();
     const extracted = extractJson(result);
     const data = validateExtraction(extracted);
+    const validationMs = Date.now() - validationStartedAt;
     data.model = MODEL;
     data.usage = result?.usage || null;
     data.provider = "Cloudflare Workers AI (free daily allocation)";
+    data.diagnostics = {
+      formParseMs: formParsedAt - requestStartedAt,
+      inputPreparationMs: inputPreparedAt - formParsedAt,
+      inferenceMs,
+      validationMs,
+      workerTotalMs: Date.now() - requestStartedAt
+    };
     return jsonResponse(data,200,origin);
   } catch(e) {
     console.error("Workers AI extraction validation error:",e);
