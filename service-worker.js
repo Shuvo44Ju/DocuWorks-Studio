@@ -1,4 +1,4 @@
-const CACHE_NAME='docuworks-studio-v27-scan-zoom-text-sharpen';
+const CACHE_NAME='docuworks-studio-v28-pdf-page-selection';
 const CORE=['./','./index.html','./scan.html','./cs.html','./ink-saver.html','./style.css','./app.js','./manifest.json','./icon.svg','./scanner-pro.css','./scanner-pro.js'];
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE_NAME);try{await cache.addAll(CORE)}catch(e){}await self.skipWaiting()})())});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>(k.startsWith('ink-saver-paperscan-')||k.startsWith('docuworks-studio-v'))&&k!==CACHE_NAME).map(k=>caches.delete(k)));await self.clients.claim()})())});
