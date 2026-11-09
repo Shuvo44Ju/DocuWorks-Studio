@@ -232,3 +232,67 @@ async function sendMessage() {
 }
 
 document.addEventListener("DOMContentLoaded", makeUI);
+
+/* Conservative local review: hierarchy metadata only; never rewrites source text. */
+async function reviewCSRows(sheets) {
+  await ensureEngine();
+  if (!dwAiEngine) return { sheets, reviewed: false, reason: "Local AI unavailable." };
+  const resultSheets = sheets.map(sheet => ({ ...sheet, rows: sheet.rows.map(row => ({ ...row })) }));
+  let applied = 0;
+  for (let si = 0; si < resultSheets.length; si++) {
+    const rows = resultSheets[si].rows;
+    const targets = rows.map((row, ri) => ({ ri, row }))
+      .filter(x => x.row?.type === "row" && !x.row.parentDisplay && !x.row.parentRequirement && !x.row.parameterized && x.row.req);
+    const suggestions = new Map();
+    for (let start = 0; start < targets.length; start += 6) {
+      const batch = targets.slice(start, start + 6);
+      const prompt = "Review these extracted URS requirement labels. Find only obvious repeated parent-heading groups. Never invent a heading. For every input row return index, parent and child. Use empty parent/child if uncertain or standalone. Child is the label with the parent prefix removed. Do not rewrite source text or specifications. Return ONLY a JSON array. Rows: " +
+        JSON.stringify(batch.map((x, index) => ({ index, requirement: String(x.row.req || "").slice(0, 220) })));
+      try {
+        const response = await dwAiEngine.chat.completions.create({
+          model: dwAiEngine.modelId?.[0] || DW_AI_MODEL,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.1, max_tokens: 768
+        });
+        const raw = response?.choices?.[0]?.message?.content || "";
+        const match = raw.match(/\[[\s\S]*\]/);
+        if (!match) continue;
+        const parsed = JSON.parse(match[0]);
+        if (!Array.isArray(parsed)) continue;
+        for (const item of parsed) {
+          if (!Number.isInteger(item.index) || item.index < 0 || item.index >= batch.length) continue;
+          const parent = String(item.parent || "").trim(), child = String(item.child || "").trim();
+          if (!parent || !child || parent.length > 120 || child.length > 180 || parent.toLowerCase() === child.toLowerCase()) continue;
+          suggestions.set(batch[item.index].ri, { parent, child });
+        }
+      } catch (error) { console.warn("Local AI review batch skipped:", error); }
+    }
+    // Apply only adjacent groups of at least two rows sharing exactly one parent.
+    for (let i = 0; i < rows.length;) {
+      const first = suggestions.get(i);
+      if (!first) { i++; continue; }
+      const key = first.parent.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      let j = i + 1;
+      while (j < rows.length) {
+        const next = suggestions.get(j);
+        if (!next || next.parent.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() !== key) break;
+        j++;
+      }
+      if (j - i >= 2) {
+        for (let k = i; k < j; k++) {
+          const suggestion = suggestions.get(k), row = rows[k];
+          row.parent = suggestion.parent;
+          row.parentDisplay = suggestion.parent;
+          row.parentRequirement = suggestion.parent;
+          row.parentKey = "local-ai:" + key;
+          row.label = suggestion.child;
+          row.parameterized = true;
+          applied++;
+        }
+      }
+      i = Math.max(i + 1, j);
+    }
+  }
+  return { sheets: resultSheets, reviewed: true, applied };
+}
+window.DWLocalAIReviewCS = reviewCSRows;
