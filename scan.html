@@ -1,9 +1,245 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#176b55"><meta name="description" content="DocuWorks Studio professional document scanner"><title>Document Scanner — DocuWorks Studio</title><link rel="stylesheet" href="./scanner-pro.css?v=1"><link rel="manifest" href="./manifest.json"></head><body><div class="app"><header class="top"><div class="brand"><span class="logo">▤</span><span>DocuWorks <em>Studio</em></span></div><div class="top-actions"><button class="btn" onclick="location.href='./index.html'">← <span class="label">Home</span></button><button class="btn icon" id="themeToggle" aria-label="Toggle theme">☾</button></div></header><main class="wrap">
-<section class="view active" id="homeView"><div class="hero"><div class="eyebrow">SMART DOCUMENT SCANNER</div><h1 class="heading">Your pocket document office.</h1><p class="sub">Scan, enhance, organize, recognize text and export documents.</p></div><div class="quick"><button id="startCamera"><div class="ico">▣</div><b>Camera Scan</b><small>Capture paper documents</small></button><button id="pickFiles"><div class="ico">＋</div><b>Import Images</b><small>Photos and multiple pages</small></button><button data-goto="libraryView"><div class="ico">▤</div><b>My Documents</b><small>Browse saved scans</small></button><button data-goto="toolsView"><div class="ico">⚒</div><b>PDF Tools</b><small>Merge and split files</small></button></div><div class="panel"><div class="panelhead"><h2>Start scanning</h2><span class="eyebrow">PRIVATE · ON DEVICE</span></div><div class="drop" id="dropZone"><div class="big">⇧</div><b>Drop images or PDFs here</b><p>Import documents, receipts, notes, forms and books.</p><button class="btn primary" id="pickFiles2" onclick="document.getElementById('uploadInput').click()">Choose files</button><p class="status">JPG · PNG · WEBP · PDF</p></div></div><div class="panel"><div class="panelhead"><h2>Recent documents</h2><button class="btn soft" data-goto="libraryView">View all</button></div><div class="grid-docs" id="recentDocs"><div class="empty">Your saved documents will appear here.</div></div></div></section>
-<section class="view" id="cameraView"><div class="panelhead"><div><div class="eyebrow">CAMERA SCANNER</div><h1 class="heading">Capture document</h1><p class="sub">Use the rear camera and keep all page edges visible.</p></div><button class="btn" data-goto="homeView">✕ Close</button></div><div class="camera"><video id="video" autoplay playsinline muted></video><div class="cam-overlay"></div><div class="cam-hint">Position the complete page inside the camera view</div></div><p class="status" id="camStatus">Requesting camera permission…</p><div class="capturebar"><button class="btn" id="switchCam">↻ Flip</button><button class="shutter" id="capture" aria-label="Capture page"></button><button class="btn" id="cameraFile">▧ Import</button></div></section>
-<section class="view" id="cropView"><div class="panelhead"><div><div class="eyebrow">PAGE BOUNDARIES</div><h1 class="heading">Adjust corners</h1><p class="sub">Auto-detect the page, drag green corner handles, or move yellow edge handles.</p></div><button class="btn" id="cropBack">Cancel</button></div><div class="cropstage" id="cropStage"><img id="cropImg" alt="Page to crop"><canvas id="cropOverlay"></canvas></div><div class="toolbar crop-tools" style="margin-top:13px"><button class="btn soft" id="autoEdges">✧ Auto-detect edges</button><button class="btn" id="manualCrop">✎ Select 4 corners manually</button><button class="btn" id="undoCorner" disabled>↶ Undo point</button><button class="btn" id="resetCrop">Reset corners</button><button class="btn primary" id="applyCrop">Crop & continue</button></div><p class="status crop-instructions">Manual mode: tap the paper corners in order — top-left, top-right, bottom-right, then bottom-left. Drag the numbered handles to fine-tune.</p></section>
-<section class="view" id="editorView"><div class="panelhead"><div><div class="eyebrow">DOCUMENT EDITOR</div><h1 class="heading" id="editorDocName">Scanned document</h1><p class="sub" id="pageCounter">Page 1</p></div><div class="toolbar"><button class="btn" id="backEditor">← Back</button><button class="btn" id="rename">✎ Rename</button><button class="btn" id="clearPages">Clear</button></div></div><div id="editorEmpty" class="panel empty">Import or capture pages to begin.</div><div id="editorWork" class="editor-layout"><div><div class="preview"><img id="pageImage" alt="Selected scanned page"></div><div class="panel"><div class="panelhead"><h2>Pages in this document</h2><div class="toolbar"><button class="btn" id="prevPage">← Move</button><button class="btn" id="nextPage">Move →</button></div></div><div class="thumbs" id="pageThumbs"></div><div class="toolbar"><button class="btn soft" id="addMore">＋ Add images / PDF</button><button class="btn soft" id="addCamera">＋ Camera page</button></div></div></div><aside class="side"><div class="panel"><h3>Enhance scan</h3><div class="filters"><button class="filter" data-filter="original">Original</button><button class="filter active" data-filter="auto">Auto</button><button class="filter" data-filter="color">Magic Color</button><button class="filter" data-filter="gray">Grayscale</button><button class="filter" data-filter="bw">B&amp;W</button></div><p class="status">Enhancement strength</p><input class="range" id="enhanceRange" type="range" min="0" max="100" value="40"><small id="enhanceValue">40%</small></div><div class="panel"><h3>Page adjustments</h3><div class="toolbar"><button class="btn" id="rotateL">↶ Rotate</button><button class="btn" id="rotateR">↷ Rotate</button><button class="btn soft" id="adjustCrop">✎ Crop / adjust edges</button></div></div><div class="panel"><h3>Recognize text (OCR)</h3><p class="status">Extract text from English and Bengali documents.</p><button class="btn soft" id="ocrRun">▤ Extract text</button></div><div class="panel"><h3>Export & save</h3><button class="btn primary" style="width:100%;margin-bottom:8px" id="exportPDF">↓ Export PDF</button><button class="btn" style="width:100%;margin-bottom:8px" id="exportImage">Download current page</button><button class="btn soft" style="width:100%" id="saveDoc">Save to My Documents</button></div></aside></div></section>
-<section class="view" id="libraryView"><div class="eyebrow">DOCUMENT LIBRARY</div><h1 class="heading">My Documents</h1><p class="sub">Your saved scans are stored locally on this device.</p><div class="panel"><div class="panelhead"><h2>Saved documents</h2><button class="btn primary" data-goto="homeView">＋ New scan</button></div><div class="grid-docs" id="docGrid"><div class="empty">Loading…</div></div></div></section>
-<section class="view" id="toolsView"><div class="eyebrow">PDF WORKSPACE</div><h1 class="heading">PDF tools</h1><p class="sub">Combine or separate existing PDF documents.</p><div class="toolgrid"><button class="tooltile" id="mergePDF"><span>⇄</span><b>Merge PDF</b><small>Combine multiple PDF files into one.</small></button><button class="tooltile" id="splitPDF"><span>▤</span><b>Split PDF</b><small>Save each page as a separate PDF.</small></button><button class="tooltile" id="pickFiles3" onclick="document.getElementById('uploadInput').click()"><span>▧</span><b>PDF to Scan</b><small>Import PDF pages into the scanner editor.</small></button></div></section>
-</main><nav class="bottom"><button data-view="homeView" class="active"><span>⌂</span>Home</button><button data-view="cameraView" id="bottomScan"><span>⊙</span>Scan</button><button data-view="libraryView"><span>▤</span>Documents</button><button data-view="toolsView"><span>▦</span>Tools</button></nav></div><input id="uploadInput" type="file" accept="image/*,application/pdf" multiple hidden><input id="pdfFiles" type="file" accept="application/pdf" multiple hidden><div class="modal" id="ocrModal"><div class="modalbox"><h2>Recognized text</h2><p class="status" id="ocrStatus">Text extraction result</p><textarea class="field" id="ocrText" rows="12"></textarea><div class="toolbar" style="margin-top:12px"><button class="btn" id="ocrClose">Close</button><button class="btn primary" id="ocrCopy">Copy text</button></div></div></div><div class="toast" id="toast"></div>
-<script src="./scanner-pro.js?v=9" defer></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14243d">
+<title>Scanner – DocuWorks Studio</title>
+<style>
+:root{--n:#14243d;--t:#2dd4bf}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{font:15px system-ui,"Segoe UI","Nirmala UI","Noto Sans Bengali",sans-serif;background:#0b1424;color:#fff;overflow:hidden}
+.scr{display:none;position:fixed;inset:0;flex-direction:column}.scr.on{display:flex}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--n)}
+header b{flex:1}header a{color:#5eead4;text-decoration:none;font-size:13px}
+input#fn{background:#0b1424;border:1px solid #2c4468;color:#fff;border-radius:8px;padding:6px 10px;width:150px}
+button,.btn{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:#233a5e;color:#fff;cursor:pointer}
+button.p,.btn.p{background:var(--t);color:#06231f;font-weight:700}
+#grid{flex:1;overflow:auto;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;align-content:start}
+.pg{background:#14243d;border-radius:10px;padding:6px;text-align:center}
+.pg img{width:100%;height:170px;object-fit:contain;background:#fff;border-radius:6px;cursor:pointer}
+.pc{display:flex;justify-content:space-between;align-items:center;margin-top:5px}.pc button{padding:4px 9px}
+.empty{grid-column:1/-1;text-align:center;color:#9fb3cf;padding:60px 10px;line-height:1.7}
+footer{display:flex;gap:8px;padding:10px;background:var(--n);justify-content:center;flex-wrap:wrap}
+#vid{flex:1;min-height:0;width:100%;object-fit:cover;background:#000}
+.cbar{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-around;align-items:center;padding:18px;background:linear-gradient(transparent,#000a)}
+.shot{width:72px;height:72px;border-radius:50%;border:5px solid #fff;background:var(--t);padding:0}
+#stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px}
+#ec{touch-action:none;max-width:100%;max-height:100%}
+#eTools{display:flex;gap:8px;padding:10px;background:var(--n);overflow:auto;justify-content:center}
+.chip.on{background:var(--t);color:#06231f;font-weight:700}
+dialog{border:0;border-radius:14px;padding:16px;width:min(560px,92vw);background:#fff;color:#14243d}
+dialog textarea{width:100%;height:240px;margin:10px 0;font:inherit}
+</style>
+</head>
+<body>
+<div id="home" class="scr on">
+  <header><b>Scanner</b><input id="fn" value="Scan" aria-label="File name"><a href="index.html">← Studio</a></header>
+  <div id="grid"></div>
+  <footer>
+    <button class="p" id="bCam">📷 Scan</button>
+    <label class="btn">🖼 Import<input id="fIn" type="file" accept="image/*" multiple hidden></label>
+    <button id="bPdf">⬇ PDF</button>
+    <button id="bOcr">Aa Text</button>
+  </footer>
+</div>
+<div id="cam" class="scr">
+  <video id="vid" playsinline autoplay muted></video>
+  <div class="cbar"><button id="cClose">✕ Close</button><button class="shot" id="cShot" aria-label="Capture"></button><span id="cN" style="min-width:70px;text-align:right"></span></div>
+</div>
+<div id="edit" class="scr">
+  <header><button id="eBack">‹</button><b id="eTitle"></b><button class="p" id="eNext">Next</button></header>
+  <div id="stage"><canvas id="ec"></canvas></div>
+  <div id="eTools"></div>
+</div>
+<dialog id="dlg"><b>Extracted text</b><textarea id="ocrT"></textarea>
+  <div style="display:flex;gap:8px;justify-content:flex-end"><button id="oCopy">Copy</button><button id="oDl">Download .txt</button><button class="p" id="oClose">Close</button></div>
+</dialog>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script>
+const $=s=>document.querySelector(s),ec=$('#ec'),pages=[];
+let ed={},Q=[],stream=null,fromCam=false;
+const show=id=>document.querySelectorAll('.scr').forEach(e=>e.classList.toggle('on',e.id===id));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
+
+/* ---------- document detection (OpenCV.js, loaded only when needed) ---------- */
+function loadCV(){return window.cvP||(window.cvP=new Promise((ok,no)=>{const s=document.createElement('script');s.async=true;s.src='https://docs.opencv.org/4.8.0/opencv.js';
+  s.onload=()=>{if(window.cv instanceof Promise)cv.then(r=>{window.cv=r;ok(r)});else if(cv.Mat)ok(cv);else cv.onRuntimeInitialized=()=>ok(cv)};s.onerror=no;document.head.appendChild(s)}))}
+const order=p=>{const s=p.map(q=>q[0]+q[1]),d=p.map(q=>q[0]-q[1]);return[p[s.indexOf(Math.min(...s))],p[d.indexOf(Math.max(...d))],p[s.indexOf(Math.max(...s))],p[d.indexOf(Math.min(...d))]]};
+async function detect(src){
+  try{
+    const cv=await loadCV(),k=500/Math.max(src.width,src.height),w=Math.round(src.width*k),h=Math.round(src.height*k),t=mk(w,h);
+    t.getContext('2d').drawImage(src,0,0,w,h);
+    const m=cv.imread(t),g=new cv.Mat(),e=new cv.Mat(),cs=new cv.MatVector(),hi=new cv.Mat(),ke=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(5,5));
+    cv.cvtColor(m,g,cv.COLOR_RGBA2GRAY);cv.GaussianBlur(g,g,new cv.Size(5,5),0);cv.Canny(g,e,60,160);cv.dilate(e,e,ke);
+    cv.findContours(e,cs,hi,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE);
+    let best=null,ba=w*h*0.15;
+    for(let i=0;i<cs.size();i++){
+      const c=cs.get(i),a=cv.contourArea(c);
+      if(a>ba){const ap=new cv.Mat();cv.approxPolyDP(c,ap,0.02*cv.arcLength(c,true),true);
+        if(ap.rows===4&&cv.isContourConvex(ap)){ba=a;best=[];for(let j=0;j<4;j++)best.push([ap.data32S[j*2]/k,ap.data32S[j*2+1]/k])}ap.delete()}
+      c.delete();
+    }
+    [m,g,e,cs,hi,ke].forEach(x=>x.delete());
+    return best?order(best):null;
+  }catch(err){return null}
+}
+const inset=s=>{const x=s.width*.05,y=s.height*.05;return[[x,y],[s.width-x,y],[s.width-x,s.height-y],[x,s.height-y]]};
+
+/* ---------- perspective warp (pure JS) ---------- */
+function solve(A,b){const n=8;for(let i=0;i<n;i++){let m=i;for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[m][i]))m=r;[A[i],A[m]]=[A[m],A[i]];[b[i],b[m]]=[b[m],b[i]];
+  for(let r=i+1;r<n;r++){const f=A[r][i]/A[i][i];for(let c=i;c<n;c++)A[r][c]-=f*A[i][c];b[r]-=f*b[i]}}
+  const x=Array(n);for(let i=n-1;i>=0;i--){let s=b[i];for(let c=i+1;c<n;c++)s-=A[i][c]*x[c];x[i]=s/A[i][i]}return x}
+function warp(src,q){
+  const d=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+  let W=Math.max(d(q[0],q[1]),d(q[3],q[2])),H=Math.max(d(q[0],q[3]),d(q[1],q[2]));
+  const sc=Math.min(1,2200/Math.max(W,H));W=Math.max(2,Math.round(W*sc));H=Math.max(2,Math.round(H*sc));
+  const D=[[0,0],[W,0],[W,H],[0,H]],A=[],B=[];
+  for(let i=0;i<4;i++){const[u,v]=D[i],[x,y]=q[i];A.push([u,v,1,0,0,0,-u*x,-v*x]);B.push(x);A.push([0,0,0,u,v,1,-u*y,-v*y]);B.push(y)}
+  const h=solve(A,B),o=mk(W,H),SW=src.width,SH=src.height,s=src.getContext('2d').getImageData(0,0,SW,SH).data,od=o.getContext('2d').createImageData(W,H),t=od.data;
+  for(let v=0;v<H;v++)for(let u=0;u<W;u++){
+    const z=h[6]*u+h[7]*v+1,x=(h[0]*u+h[1]*v+h[2])/z,y=(h[3]*u+h[4]*v+h[5])/z,x0=Math.floor(x),y0=Math.floor(y),i=(v*W+u)*4;
+    if(x0<0||y0<0||x0>=SW-1||y0>=SH-1){t[i]=t[i+1]=t[i+2]=255;t[i+3]=255;continue}
+    const fx=x-x0,fy=y-y0,p=(y0*SW+x0)*4,p2=p+4,r=p+SW*4,r2=r+4;
+    for(let c=0;c<3;c++)t[i+c]=(s[p+c]*(1-fx)+s[p2+c]*fx)*(1-fy)+(s[r+c]*(1-fx)+s[r2+c]*fx)*fy;
+    t[i+3]=255;
+  }
+  o.getContext('2d').putImageData(od,0,0);return o;
+}
+
+/* ---------- filters (paper-white background correction) ---------- */
+function bgGrid(c){
+  const W=c.width,H=c.height,d=c.getContext('2d').getImageData(0,0,W,H).data,B=Math.max(16,Math.round(Math.max(W,H)/36)),gw=Math.ceil(W/B),gh=Math.ceil(H/B),g=new Float32Array(gw*gh);
+  for(let by=0;by<gh;by++)for(let bx=0;bx<gw;bx++){
+    const l=[];for(let y=by*B;y<Math.min(H,by*B+B);y+=3)for(let x=bx*B;x<Math.min(W,bx*B+B);x+=3){const i=(y*W+x)*4;l.push(.299*d[i]+.587*d[i+1]+.114*d[i+2])}
+    l.sort((a,b)=>a-b);g[by*gw+bx]=l[Math.floor(l.length*.9)]||255;
+  }
+  return{g,gw,gh,B};
+}
+function filt(base,type,bgc){
+  const W=base.width,H=base.height,o=mk(W,H),x=o.getContext('2d');x.drawImage(base,0,0);
+  if(type==='orig')return o;
+  const id=x.getImageData(0,0,W,H),d=id.data,{g,gw,gh,B}=bgc;
+  for(let y=0;y<H;y++){
+    const fy=clamp(y/B-.5,0,gh-1),y0=fy|0,y1=Math.min(gh-1,y0+1),ty=fy-y0;
+    for(let xx=0;xx<W;xx++){
+      const fx=clamp(xx/B-.5,0,gw-1),x0=fx|0,x1=Math.min(gw-1,x0+1),tx=fx-x0;
+      const bg=(g[y0*gw+x0]*(1-tx)+g[y0*gw+x1]*tx)*(1-ty)+(g[y1*gw+x0]*(1-tx)+g[y1*gw+x1]*tx)*ty,k=255/Math.max(bg,100),i=(y*W+xx)*4;
+      let r=d[i]*k,gg=d[i+1]*k,b=d[i+2]*k;
+      if(type==='magic'){r=(r-128)*1.18+134;gg=(gg-128)*1.18+134;b=(b-128)*1.18+134}
+      else{const l=.299*r+.587*gg+.114*b;if(type==='bw')r=gg=b=clamp((l-150)*3.5,0,255);else r=gg=b=(l-128)*1.2+135}
+      d[i]=clamp(r,0,255);d[i+1]=clamp(gg,0,255);d[i+2]=clamp(b,0,255);
+    }
+  }
+  x.putImageData(id,0,0);return o;
+}
+function rot(c,r){if(!r)return c;const s=r%180,o=mk(s?c.height:c.width,s?c.width:c.height),x=o.getContext('2d');x.translate(o.width/2,o.height/2);x.rotate(r*Math.PI/180);x.drawImage(c,-c.width/2,-c.height/2);return o}
+function thumb(c){const k=260/Math.max(c.width,c.height),t=mk(Math.max(1,c.width*k|0),Math.max(1,c.height*k|0));t.getContext('2d').drawImage(c,0,0,t.width,t.height);return t.toDataURL('image/jpeg',.7)}
+function renderPg(p){p.out=rot(filt(p.base,p.filter,p.bgc),p.rot);p.th=thumb(p.out)}
+
+/* ---------- gallery ---------- */
+function grid(){
+  $('#grid').innerHTML=pages.length?pages.map((p,i)=>`<div class="pg"><img src="${p.th}" data-e="${i}" alt="Page ${i+1}"><div class="pc"><button data-l="${i}">◀</button><span>${i+1}</span><button data-r="${i}">▶</button><button data-x="${i}">✕</button></div></div>`).join('')
+   :'<div class="empty">No pages yet.<br>Tap <b>Scan</b> to use the camera or <b>Import</b> to pick photos.<br>Your files stay on this device.</div>';
+  $('#cN').textContent=pages.length?pages.length+' page'+(pages.length>1?'s':''):'';
+}
+$('#grid').onclick=e=>{const d=e.target.dataset,mv=(i,j)=>{if(j<0||j>=pages.length)return;[pages[i],pages[j]]=[pages[j],pages[i]];grid()};
+  if(d.e!==undefined)openEd(pages[+d.e],false,'filter');
+  else if(d.l!==undefined)mv(+d.l,+d.l-1);else if(d.r!==undefined)mv(+d.r,+d.r+1);
+  else if(d.x!==undefined&&confirm('Delete this page?')){pages.splice(+d.x,1);grid()}};
+
+/* ---------- capture / import ---------- */
+$('#bCam').onclick=async()=>{
+  if(!navigator.mediaDevices)return alert('Camera is not available here. Use Import.');
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:2560},height:{ideal:1440}},audio:false});
+    $('#vid').srcObject=stream;fromCam=true;show('cam')}catch(e){alert('Camera permission was denied. Use Import instead.')}
+};
+const stopCam=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;fromCam=false};
+$('#cClose').onclick=()=>{stopCam();show('home')};
+$('#cShot').onclick=()=>{const v=$('#vid');if(!v.videoWidth)return;const c=mk(v.videoWidth,v.videoHeight);c.getContext('2d').drawImage(v,0,0);addSrc(c)};
+$('#fIn').onchange=e=>{Q=[...e.target.files];e.target.value='';if(Q.length)nextFile()};
+function nextFile(){const f=Q.shift();createImageBitmap(f,{imageOrientation:'from-image'}).then(b=>{const c=mk(b.width,b.height);c.getContext('2d').drawImage(b,0,0);addSrc(c)})}
+function addSrc(c){
+  const k=Math.min(1,2400/Math.max(c.width,c.height));let s=c;
+  if(k<1){s=mk(Math.round(c.width*k),Math.round(c.height*k));s.getContext('2d').drawImage(c,0,0,s.width,s.height)}
+  openEd({src:s,quad:null,filter:'magic',rot:0},true,'crop');
+}
+
+/* ---------- editor ---------- */
+async function openEd(pg,isNew,mode){
+  ed={pg,isNew,mode,drag:-1,sc:1};show('edit');
+  if(mode==='crop'&&!pg.quad){pg.quad=inset(pg.src);ui();draw();const q=await detect(pg.src);if(q&&ed.pg===pg&&ed.mode==='crop'){pg.quad=q;draw()}}
+  else{ui();draw()}
+}
+function ui(){
+  const pg=ed.pg,crop=ed.mode==='crop';
+  $('#eTitle').textContent=crop?'Adjust corners':'Choose filter';$('#eNext').textContent=crop?'Next ›':'Done ✓';
+  $('#eTools').innerHTML=crop?'<button id="tAuto">✨ Auto detect</button><button id="tFull">⛶ Full image</button>'
+   :['orig:Original','magic:Magic','bw:B&W','gray:Gray'].map(s=>{const[k,l]=s.split(':');return`<button class="chip${pg.filter===k?' on':''}" data-f="${k}">${l}</button>`}).join('')+'<button id="tRot">↻ Rotate</button><button id="tCrop">✂ Re-crop</button>';
+}
+function draw(){
+  const pg=ed.pg,st=$('#stage'),W=st.clientWidth-16,H=st.clientHeight-16,x=ec.getContext('2d');
+  if(ed.mode==='crop'){
+    const s=pg.src,k=Math.min(W/s.width,H/s.height);ed.sc=k;ec.width=Math.round(s.width*k);ec.height=Math.round(s.height*k);
+    x.drawImage(s,0,0,ec.width,ec.height);
+    const q=pg.quad.map(p=>[p[0]*k,p[1]*k]);
+    x.beginPath();q.forEach((p,i)=>i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]));x.closePath();
+    x.fillStyle='rgba(45,212,191,.15)';x.fill();x.lineWidth=3;x.strokeStyle='#2dd4bf';x.stroke();
+    q.forEach(p=>{x.beginPath();x.arc(p[0],p[1],14,0,7);x.fillStyle='#fff';x.fill();x.lineWidth=3;x.stroke()});
+  }else{
+    const o=pg.out,k=Math.min(W/o.width,H/o.height);ec.width=Math.round(o.width*k);ec.height=Math.round(o.height*k);x.drawImage(o,0,0,ec.width,ec.height);
+  }
+}
+const pt=e=>{const r=ec.getBoundingClientRect();return[(e.clientX-r.left)*ec.width/r.width,(e.clientY-r.top)*ec.height/r.height]};
+ec.onpointerdown=e=>{if(ed.mode!=='crop')return;const p=pt(e);let b=-1,bd=48*ec.width/ec.getBoundingClientRect().width;
+  ed.pg.quad.forEach((q,i)=>{const d=Math.hypot(q[0]*ed.sc-p[0],q[1]*ed.sc-p[1]);if(d<bd){bd=d;b=i}});ed.drag=b;if(b>=0)ec.setPointerCapture(e.pointerId)};
+ec.onpointermove=e=>{if(ed.drag<0)return;const p=pt(e),s=ed.pg.src;ed.pg.quad[ed.drag]=[clamp(p[0]/ed.sc,0,s.width),clamp(p[1]/ed.sc,0,s.height)];draw()};
+ec.onpointerup=()=>{ed.drag=-1};
+$('#eTools').onclick=async e=>{
+  const b=e.target.closest('button');if(!b)return;const pg=ed.pg;
+  if(b.id==='tAuto'){b.textContent='Detecting…';const q=await detect(pg.src);b.textContent='✨ Auto detect';if(q){pg.quad=q;draw()}else alert('Could not find the page edges. Drag the corners by hand.')}
+  else if(b.id==='tFull'){pg.quad=[[0,0],[pg.src.width,0],[pg.src.width,pg.src.height],[0,pg.src.height]];draw()}
+  else if(b.id==='tRot'){pg.rot=(pg.rot+90)%360;renderPg(pg);draw()}
+  else if(b.id==='tCrop'){ed.mode='crop';ui();draw()}
+  else if(b.dataset.f){pg.filter=b.dataset.f;renderPg(pg);ui();draw()}
+};
+$('#eNext').onclick=()=>{
+  const pg=ed.pg;
+  if(ed.mode==='crop'){pg.base=warp(pg.src,pg.quad);pg.bgc=bgGrid(pg.base);renderPg(pg);ed.mode='filter';ui();draw()}
+  else{if(ed.isNew){pages.push(pg);ed.isNew=false}grid();back()}
+};
+const back=()=>{if(fromCam)show('cam');else if(Q.length)nextFile();else show('home')};
+$('#eBack').onclick=back;
+addEventListener('resize',()=>{if($('#edit').classList.contains('on'))draw()});
+
+/* ---------- export ---------- */
+$('#bPdf').onclick=()=>{
+  if(!pages.length)return alert('Add a page first.');
+  if(!window.jspdf)return alert('The PDF library could not load. Check your internet connection.');
+  let doc;
+  pages.forEach(p=>{
+    const o=p.out.width>p.out.height?'l':'p',W=o==='p'?210:297,H=o==='p'?297:210,k=Math.min(W/p.out.width,H/p.out.height),w=p.out.width*k,h=p.out.height*k;
+    if(!doc)doc=new jspdf.jsPDF({orientation:o,unit:'mm',format:'a4',compress:true});else doc.addPage('a4',o);
+    doc.addImage(p.out.toDataURL('image/jpeg',.88),'JPEG',(W-w)/2,(H-h)/2,w,h);
+  });
+  doc.save(($('#fn').value||'Scan')+'.pdf');
+};
+$('#bOcr').onclick=async()=>{
+  if(!pages.length)return alert('Add a page first.');
+  const ta=$('#ocrT');ta.value='Reading text… (the first run downloads language data)';$('#dlg').showModal();
+  try{
+    if(!window.Tesseract)await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)});
+    const w=await Tesseract.createWorker('eng+ben');let t='';
+    for(let i=0;i<pages.length;i++){const r=await w.recognize(pages[i].out);t+=(pages.length>1?'--- Page '+(i+1)+' ---\n':'')+r.data.text+'\n';ta.value=t}
+    await w.terminate();ta.value=t.trim();
+  }catch(e){ta.value='Text recognition could not run. Check your internet connection.'}
+};
+$('#oClose').onclick=()=>$('#dlg').close();
+$('#oCopy').onclick=()=>navigator.clipboard.writeText($('#ocrT').value);
+$('#oDl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([$('#ocrT').value],{type:'text/plain'}));a.download=($('#fn').value||'Scan')+'.txt';a.click()};
+grid();
+</script>
+</body>
+</html>
