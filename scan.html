@@ -158,6 +158,28 @@ function sharpenText(canvas,amount=.48){
   }
   ctx.putImageData(image,0,0);return canvas;
 }
+function sharpenMagicText(canvas,amount=.44){
+  const W=canvas.width,H=canvas.height,ctx=canvas.getContext('2d',{willReadFrequently:true});
+  const image=ctx.getImageData(0,0,W,H),d=image.data,src=new Uint8ClampedArray(d);
+  const lum=i=>.299*src[i]+.587*src[i+1]+.114*src[i+2];
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+    const i=(y*W+x)*4,center=lum(i);
+    const left=lum(i-4),right=lum(i+4),up=lum(i-W*4),down=lum(i+W*4);
+    const blur=(4*center+2*(left+right+up+down)+lum(i-W*4-4)+lum(i-W*4+4)+lum(i+W*4-4)+lum(i+W*4+4))/16;
+    const detail=center-blur;
+    const edge=Math.max(Math.abs(center-left),Math.abs(center-right),Math.abs(center-up),Math.abs(center-down));
+    const edgeGate=clamp((edge-1.8)/13,0,1);
+    const detailGate=clamp((Math.abs(detail)-.8)/4.5,0,1);
+    const chroma=Math.max(src[i],src[i+1],src[i+2])-Math.min(src[i],src[i+1],src[i+2]);
+    // Sharpen colored marks more gently: their hue and original ink identity remain intact.
+    const colorWeight=1-.62*clamp((chroma-10)/32,0,1);
+    const delta=clamp(detail*amount*edgeGate*detailGate*colorWeight,-6.5,6.5);
+    d[i]=clamp(src[i]+delta,0,255);
+    d[i+1]=clamp(src[i+1]+delta,0,255);
+    d[i+2]=clamp(src[i+2]+delta,0,255);
+  }
+  ctx.putImageData(image,0,0);return canvas;
+}
 function filt(base,type,bgc){
   const W=base.width,H=base.height,o=mk(W,H),x=o.getContext('2d');x.drawImage(base,0,0);
   if(type==='orig')return o;
@@ -176,37 +198,48 @@ function filt(base,type,bgc){
       const bg=(g[y0*gw+x0]*(1-tx)+g[y0*gw+x1]*tx)*(1-ty)+(g[y1*gw+x0]*(1-tx)+g[y1*gw+x1]*tx)*ty,k=255/Math.max(bg,100),i=(y*W+xx)*4;
       let r=d[i],gg=d[i+1],b=d[i+2];
       if(type==='magic'){
-        // Correct uneven page lighting in luminance only, so ink and stamps
-        // keep their original hue instead of each RGB channel being pushed
-        // toward white independently.
-        const l=.299*r+.587*gg+.114*b;
-        const normalized=clamp(l*255/Math.max(bg,110),0,255);
-        const v=normalized/255;
-        // Compress the light-paper range toward white. This removes soft
-        // crease and shadow shading while leaving dark ink largely untouched.
-        const paperTarget=1-Math.pow(1-v,1.7);
-        // Keep some natural paper texture and soft creases instead of flattening
-        // every light-area variation into pure white.
-        const paperAmount=clamp((v-.40)/.25,0,1);
-        const chroma=Math.max(r,gg,b)-Math.min(r,gg,b);
-        const neutralWeight=1-clamp((chroma-14)/42,0,1);
+        // Magic works on luminance while carrying the original chroma through
+        // the pipeline. This keeps stamps, signatures and colored annotations recognizable.
+        const rawL=lumMap[y*W+xx];
         const left=lumMap[y*W+Math.max(0,xx-1)],right=lumMap[y*W+Math.min(W-1,xx+1)];
         const up=lumMap[Math.max(0,y-1)*W+xx],down=lumMap[Math.min(H-1,y+1)*W+xx];
-        const edge=Math.max(Math.abs(right-left),Math.abs(down-up));
+        const localMean=(left+right+up+down)*.25;
+        const localDiff=Math.max(Math.abs(rawL-left),Math.abs(rawL-right),Math.abs(rawL-up),Math.abs(rawL-down));
+        const chroma=Math.max(r,gg,b)-Math.min(r,gg,b);
+        const colorWeight=clamp((chroma-10)/32,0,1);
+        const neutralWeight=1-colorWeight;
+
+        // Very light, edge-aware luminance smoothing suppresses sensor grain
+        // in flat paper areas. It backs off around character strokes and creases.
+        const noiseMix=.075*(1-clamp((localDiff-2)/16,0,1))*neutralWeight;
+        const l=rawL+(localMean-rawL)*noiseMix;
+        const normalized=clamp(l*255/Math.max(bg,110),0,255);
+        const v=normalized/255;
+
+        // Coarse, percentile-based background estimation removes uneven lighting
+        // without forcing the entire sheet to pure white.
+        const paperTarget=1-Math.pow(1-v,1.7);
+        const edge=Math.max(Math.abs(right-left),Math.abs(down-up),localDiff);
         const edgeWeight=1-clamp((edge-18)/45,0,1);
+        const paperAmount=clamp((v-.40)/.25,0,1);
         const corrected=255*(v+(paperTarget-v)*paperAmount*.58*neutralWeight*edgeWeight);
-        // Gently deepen faint neutral ink after correcting page illumination.
-        // This is luminance-only, so colored stamps and signatures retain hue.
-        const inkAmount=clamp((.90-v)/.42,0,1)*neutralWeight;
-        const inkTarget=255*Math.pow(v,1.16);
-        const tone=clamp(corrected+(inkTarget-255*v)*inkAmount*.72,0,255);
-        const dr=r-l,dg=gg-l,db=b-l;
-        // Add a small amount of color without clipping bright channels.
-        let sat=1.08;
+
+        // Recover faint neutral ink with a smooth tone curve and local contrast cue.
+        // The local cue is deliberately capped so paper folds remain natural.
+        const inkAmount=clamp((.985-v)/.46,0,1)*neutralWeight;
+        const inkTarget=255*Math.pow(v,1.24);
+        const localInkBoost=clamp((localMean-rawL-2)/15,0,1)*3.2*neutralWeight;
+        const tone=clamp(corrected+(inkTarget-255*v)*inkAmount*.82-localInkBoost,0,255);
+
+        // Recombine the adjusted luminance with the original chroma.
+        let dr=r-.299*r-.587*gg-.114*b;
+        let dg=gg-.299*r-.587*gg-.114*b;
+        let db=b-.299*r-.587*gg-.114*b;
+        let sat=1.06;
         if(dr>0)sat=Math.min(sat,(255-tone)/dr);else if(dr<0)sat=Math.min(sat,(0-tone)/dr);
         if(dg>0)sat=Math.min(sat,(255-tone)/dg);else if(dg<0)sat=Math.min(sat,(0-tone)/dg);
         if(db>0)sat=Math.min(sat,(255-tone)/db);else if(db<0)sat=Math.min(sat,(0-tone)/db);
-        sat=clamp(sat,0,1.08);
+        sat=clamp(sat,0,1.06);
         r=tone+dr*sat;gg=tone+dg*sat;b=tone+db*sat;
       }else{
         r*=k;gg*=k;b*=k;
@@ -218,7 +251,7 @@ function filt(base,type,bgc){
     }
   }
   x.putImageData(id,0,0);
-  return sharpenText(o,type==='magic'?.32:type==='bw'?.20:.48);
+  return type==='magic'?sharpenMagicText(o,.44):sharpenText(o,type==='bw'?.20:.48);
 }
 function rot(c,r){if(!r)return c;const s=r%180,o=mk(s?c.height:c.width,s?c.width:c.height),x=o.getContext('2d');x.translate(o.width/2,o.height/2);x.rotate(r*Math.PI/180);x.drawImage(c,-c.width/2,-c.height/2);return o}
 function thumb(c){const k=260/Math.max(c.width,c.height),t=mk(Math.max(1,c.width*k|0),Math.max(1,c.height*k|0));t.getContext('2d').drawImage(c,0,0,t.width,t.height);return t.toDataURL('image/jpeg',.7)}
