@@ -13,6 +13,7 @@ const DW_AI_STORAGE_KEY = "docuworks-local-ai-chat-v1";
 let dwAiEngine = null;
 let dwAiWorker = null;
 let dwAiLoading = false;
+let dwAiEnginePromise = null;
 let dwAiMessages = loadHistory();
 
 function loadHistory() {
@@ -115,7 +116,16 @@ function showUnsupported(message) {
 }
 
 async function ensureEngine() {
-  if (dwAiEngine || dwAiLoading) return;
+  if (dwAiEngine) return dwAiEngine;
+  if (!dwAiEnginePromise) {
+    dwAiEnginePromise = initializeEngine().finally(() => {
+      dwAiEnginePromise = null;
+    });
+  }
+  return dwAiEnginePromise;
+}
+
+async function initializeEngine() {
   dwAiLoading = true;
   const send = document.getElementById("dwAiSend");
   if (send) send.disabled = true;
@@ -123,14 +133,14 @@ async function ensureEngine() {
   if (!("gpu" in navigator)) {
     showUnsupported("WebGPU is not supported on this browser version.");
     dwAiLoading = false;
-    return;
+    return null;
   }
   let adapter = null;
   try { adapter = await navigator.gpu.requestAdapter(); } catch (_) {}
   if (!adapter) {
     showUnsupported("WebGPU is available but no compatible GPU adapter could be initialized.");
     dwAiLoading = false;
-    return;
+    return null;
   }
 
   setStatus("Loading AI Engine: 0% — preparing…", 0);
@@ -177,8 +187,8 @@ async function ensureEngine() {
     dwAiLoading = false;
     if (send) send.disabled = !dwAiEngine;
   }
+  return dwAiEngine;
 }
-
 async function sendMessage() {
   const input = document.getElementById("dwAiInput");
   const send = document.getElementById("dwAiSend");
