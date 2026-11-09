@@ -58,6 +58,7 @@
  <p class="text-[11px] text-slate-400">Progress is an estimate while the AI is analyzing your document.</p>
 </div>
 <p id="error-text" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3"></p>
+<label class="flex items-start gap-2 text-xs text-slate-600"><input id="use-local-ai-review" type="checkbox" checked class="mt-0.5 accent-blue-600"><span><strong>Improve structure with Local AI</strong> — optional, runs on this device after extraction. Original requirement/specification text is preserved.</span></label>
 <button id="convert-btn" disabled class="w-full bg-slate-200 text-slate-400 font-bold py-3 px-4 rounded-xl cursor-not-allowed transition-all">Upload a URS file first</button>
 <p class="text-xs text-center text-slate-400">AI-assisted extraction sends your URS to the configured secure AI service. Vendor response fields stay blank; review the generated CS against the source before official use.</p>
 </main>
@@ -319,6 +320,15 @@ btn.addEventListener('click',async()=>{
   const ext=file.name.toLowerCase().split('.').pop();
   setStatus(3,'Starting AI-powered URS extraction…');
   const parsed=await extractWithAI(file);
+  if($('use-local-ai-review')?.checked && typeof window.DWLocalAIReviewCS==='function'){
+   setStatus(89,'Local AI is reviewing requirement grouping and subsection headings…');
+   try{
+    const review=await window.DWLocalAIReviewCS(parsed.sheets||[]);
+    parsed.sheets=review.sheets||parsed.sheets;
+    if(!review.reviewed)console.warn('Local AI review skipped:',review.reason||'Unavailable');
+    else console.info('Local AI structural review applied to',review.applied,'row(s).');
+   }catch(reviewError){console.warn('Local AI review failed; keeping original extraction:',reviewError);}
+  }
   const sheets=(parsed.sheets||[]).filter(s=>s.rows&&s.rows.length);
   const allRows=sheets.flatMap(s=>s.rows);
   if(!allRows.length)throw new Error('No requirements could be extracted. No Excel file was generated.');
