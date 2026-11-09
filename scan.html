@@ -148,12 +148,20 @@ function bgGrid(c){
   }
   return{g,gw,gh,B};
 }
-function sharpenText(canvas,amount=.32){
+const TEXT_TONE_LUT=(()=>{
+  const lut=new Uint8ClampedArray(256);
+  for(let i=0;i<256;i++){
+    const s=255/(1+Math.exp((203-i)/15));
+    lut[i]=clamp((s-2)*1.008,0,255);
+  }
+  return lut;
+})();
+function sharpenText(canvas,amount=.48){
   const W=canvas.width,H=canvas.height,ctx=canvas.getContext('2d',{willReadFrequently:true}),image=ctx.getImageData(0,0,W,H),d=image.data,src=new Uint8ClampedArray(d);
   const lum=i=>.299*src[i]+.587*src[i+1]+.114*src[i+2];
   for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
     const i=(y*W+x)*4,center=lum(i),around=(lum(i-4)+lum(i+4)+lum(i-W*4)+lum(i+W*4))*.25;
-    const detail=(center-around)*amount;
+    const edge=center-around,detail=Math.abs(edge)<3.5?0:edge*amount;
     d[i]=clamp(src[i]+detail,0,255);d[i+1]=clamp(src[i+1]+detail,0,255);d[i+2]=clamp(src[i+2]+detail,0,255);
   }
   ctx.putImageData(image,0,0);return canvas;
@@ -169,12 +177,17 @@ function filt(base,type,bgc){
       const bg=(g[y0*gw+x0]*(1-tx)+g[y0*gw+x1]*tx)*(1-ty)+(g[y1*gw+x0]*(1-tx)+g[y1*gw+x1]*tx)*ty,k=255/Math.max(bg,100),i=(y*W+xx)*4;
       let r=d[i]*k,gg=d[i+1]*k,b=d[i+2]*k;
       if(type==='magic'){r=(r-128)*1.18+134;gg=(gg-128)*1.18+134;b=(b-128)*1.18+134}
-      else{const l=.299*r+.587*gg+.114*b;if(type==='bw')r=gg=b=clamp((l-156)*5.2,0,255);else r=gg=b=(l-128)*1.2+135}
+      else{
+        const l=.299*r+.587*gg+.114*b;
+        if(type==='bw')r=gg=b=clamp((l-156)*5.2,0,255);
+        else if(type==='text')r=gg=b=TEXT_TONE_LUT[clamp(Math.round(l),0,255)];
+        else r=gg=b=(l-128)*1.2+135;
+      }
       d[i]=clamp(r,0,255);d[i+1]=clamp(gg,0,255);d[i+2]=clamp(b,0,255);
     }
   }
   x.putImageData(id,0,0);
-  return sharpenText(o,type==='bw'?.20:.34);
+  return sharpenText(o,type==='text'?.08:type==='bw'?.20:.48);
 }
 function rot(c,r){if(!r)return c;const s=r%180,o=mk(s?c.height:c.width,s?c.width:c.height),x=o.getContext('2d');x.translate(o.width/2,o.height/2);x.rotate(r*Math.PI/180);x.drawImage(c,-c.width/2,-c.height/2);return o}
 function thumb(c){const k=260/Math.max(c.width,c.height),t=mk(Math.max(1,c.width*k|0),Math.max(1,c.height*k|0));t.getContext('2d').drawImage(c,0,0,t.width,t.height);return t.toDataURL('image/jpeg',.7)}
@@ -276,7 +289,7 @@ function ui(){
   const pg=ed.pg,crop=ed.mode==='crop';
   $('#eTitle').textContent=crop?'Adjust corners':'Choose filter';$('#eNext').textContent=crop?'Next ›':'Done ✓';
   $('#eTools').innerHTML=crop?'<button id="tAuto">✨ Auto detect</button><button id="tFull">⛶ Full image</button>'
-   :['orig:Original','magic:Magic','bw:B&W','gray:Gray'].map(s=>{const[k,l]=s.split(':');return`<button class="chip${pg.filter===k?' on':''}" data-f="${k}">${l}</button>`}).join('')+'<button id="tRot">↻ Rotate</button><button id="tCrop">✂ Re-crop</button>';
+   :['orig:Original','magic:Magic','text:Text HD','bw:B&W','gray:Gray'].map(s=>{const[k,l]=s.split(':');return`<button class="chip${pg.filter===k?' on':''}" data-f="${k}">${l}</button>`}).join('')+'<button id="tRot">↻ Rotate</button><button id="tCrop">✂ Re-crop</button>';
 }
 function draw(){
   const pg=ed.pg,st=$('#stage'),W=st.clientWidth-16,H=st.clientHeight-16,x=ec.getContext('2d');
