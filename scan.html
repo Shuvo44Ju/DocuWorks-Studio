@@ -31,6 +31,14 @@ footer{display:flex;gap:8px;padding:10px;background:var(--n);justify-content:cen
 .chip.on{background:var(--t);color:#06231f;font-weight:700}
 dialog{border:0;border-radius:14px;padding:16px;width:min(560px,92vw);background:#fff;color:#14243d}
 dialog textarea{width:100%;height:240px;margin:10px 0;font:inherit}
+#exportDlg{max-height:88vh;overflow:hidden}
+#exportPageList{display:flex;flex-direction:column;gap:8px;max-height:58vh;overflow:auto;margin:14px 0}
+.export-row{display:flex;align-items:center;gap:11px;padding:7px;border:1px solid #d8e0e8;border-radius:9px;cursor:pointer}
+.export-row input{width:18px;height:18px;accent-color:#0d9b83;flex:0 0 auto}
+.export-row img{width:42px;height:54px;object-fit:contain;background:#eef2f4;border-radius:4px}
+.export-row span{font-weight:600}
+#exportDlg .export-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+
 .dropzone{flex:0 0 auto;margin:10px 12px 0;padding:13px 16px;border:2px dashed #496486;border-radius:12px;background:#12223a;color:#d8e7f5;text-align:center;cursor:pointer;transition:background .15s,border-color .15s}
 .dropzone strong{color:#5eead4}.dropzone small{display:block;color:#9fb3cf;margin-top:3px}
 .dropzone.over{border-color:#2dd4bf;background:#163b45}
@@ -66,6 +74,16 @@ dialog textarea{width:100%;height:240px;margin:10px 0;font:inherit}
 </div>
 <dialog id="dlg"><b>Extracted text</b><textarea id="ocrT"></textarea>
   <div style="display:flex;gap:8px;justify-content:flex-end"><button id="oCopy">Copy</button><button id="oDl">Download .txt</button><button class="p" id="oClose">Close</button></div>
+</dialog>
+<dialog id="exportDlg">
+  <b>Select pages to export</b>
+  <p style="margin:6px 0;color:#526174;font-size:13px">Choose the pages you want in the PDF. They will stay in their original order.</p>
+  <div id="exportPageList"></div>
+  <div class="export-actions">
+    <button id="exportToggleAll">Deselect all</button>
+    <button id="exportCancel">Cancel</button>
+    <button class="p" id="exportSelected">Export selected</button>
+  </div>
 </dialog>
 <div id="busy" class="busy" hidden aria-live="polite" aria-busy="true"><div class="busy-card"><span class="spinner"></span><span id="busyText">Preparing image…</span></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
@@ -301,16 +319,34 @@ $('#eBack').onclick=back;
 addEventListener('resize',()=>{if($('#edit').classList.contains('on'))draw()});
 
 /* ---------- export ---------- */
-$('#bPdf').onclick=()=>{
-  if(!pages.length)return alert('Add a page first.');
-  if(!window.jspdf)return alert('The PDF library could not load. Check your internet connection.');
+function exportPdfPages(selectedPages){
   let doc;
-  pages.forEach(p=>{
+  selectedPages.forEach(p=>{
     const o=p.out.width>p.out.height?'l':'p',W=o==='p'?210:297,H=o==='p'?297:210,k=Math.min(W/p.out.width,H/p.out.height),w=p.out.width*k,h=p.out.height*k;
     if(!doc)doc=new jspdf.jsPDF({orientation:o,unit:'mm',format:'a4',compress:true});else doc.addPage('a4',o);
     doc.addImage(p.out.toDataURL('image/jpeg',.88),'JPEG',(W-w)/2,(H-h)/2,w,h);
   });
   doc.save(($('#fn').value||'Scan')+'.pdf');
+}
+$('#bPdf').onclick=()=>{
+  if(!pages.length)return alert('Add a page first.');
+  if(!window.jspdf)return alert('The PDF library could not load. Check your internet connection.');
+  if(pages.length===1){exportPdfPages(pages);return}
+  $('#exportPageList').innerHTML=pages.map((p,i)=>`<label class="export-row"><input type="checkbox" data-export-index="${i}" checked><img src="${p.th}" alt="Page ${i+1}"><span>Page ${i+1}</span></label>`).join('');
+  $('#exportToggleAll').textContent='Deselect all';
+  $('#exportDlg').showModal();
+};
+$('#exportToggleAll').onclick=()=>{
+  const boxes=[...$('#exportPageList').querySelectorAll('input[type="checkbox"]')],select=boxes.some(b=>!b.checked);
+  boxes.forEach(b=>b.checked=select);
+  $('#exportToggleAll').textContent=select?'Deselect all':'Select all';
+};
+$('#exportCancel').onclick=()=>$('#exportDlg').close();
+$('#exportSelected').onclick=()=>{
+  const indexes=[...$('#exportPageList').querySelectorAll('input[type="checkbox"]:checked')].map(b=>+b.dataset.exportIndex);
+  if(!indexes.length)return alert('Select at least one page to export.');
+  $('#exportDlg').close();
+  exportPdfPages(indexes.map(i=>pages[i]));
 };
 $('#bOcr').onclick=async()=>{
   if(!pages.length)return alert('Add a page first.');
