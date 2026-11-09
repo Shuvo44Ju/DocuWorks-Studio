@@ -287,8 +287,11 @@ async function handlePost({ request, env }) {
         {role:"system",content:SYSTEM_PROMPT},
         {role:"user",content:userContent}
       ],
-      max_tokens:7000,
-      temperature:0.2,
+      // Ask the model runtime to enforce valid JSON instead of relying on prompt wording.
+      response_format:{type:"json_object"},
+      // Allow longer URS documents to finish their extraction without truncating the JSON.
+      max_completion_tokens:10000,
+      temperature:0.1,
       top_p:0.9,
       // Gemma 4 has a built-in thinking channel. Disable it so the token
       // budget is used for the final JSON payload rather than hidden reasoning.
@@ -348,7 +351,7 @@ export async function onRequestGet({request,env}) {
     architecture:"Mixture of Experts (4B active parameters)",
     reasoningEffort:"medium",
     diagnostic:{
-      build:"cloudflare-workers-ai-gemma4-json-boundary-fix-20261108",
+      build:"cloudflare-workers-ai-json-mode-10000tokens-20261109",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
