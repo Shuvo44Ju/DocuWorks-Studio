@@ -31,11 +31,22 @@ footer{display:flex;gap:8px;padding:10px;background:var(--n);justify-content:cen
 .chip.on{background:var(--t);color:#06231f;font-weight:700}
 dialog{border:0;border-radius:14px;padding:16px;width:min(560px,92vw);background:#fff;color:#14243d}
 dialog textarea{width:100%;height:240px;margin:10px 0;font:inherit}
+.dropzone{flex:0 0 auto;margin:10px 12px 0;padding:13px 16px;border:2px dashed #496486;border-radius:12px;background:#12223a;color:#d8e7f5;text-align:center;cursor:pointer;transition:background .15s,border-color .15s}
+.dropzone strong{color:#5eead4}.dropzone small{display:block;color:#9fb3cf;margin-top:3px}
+.dropzone.over{border-color:#2dd4bf;background:#163b45}
+.busy{position:fixed;inset:0;z-index:100;background:#06101dcc;display:flex;align-items:center;justify-content:center;padding:20px}
+.busy[hidden]{display:none}.busy-card{display:flex;align-items:center;gap:12px;background:#14243d;border:1px solid #385477;border-radius:14px;padding:16px 20px;max-width:min(420px,92vw);box-shadow:0 12px 45px #0008}
+.spinner{width:22px;height:22px;flex:0 0 22px;border:3px solid #55708f;border-top-color:#2dd4bf;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <div id="home" class="scr on">
   <header><b>Scanner</b><input id="fn" value="Scan" aria-label="File name"><a href="index.html">← Studio</a></header>
+  <div id="dropZone" class="dropzone" role="button" tabindex="0" aria-label="Drop images here or click to browse">
+    <strong>⇩ Drop images here</strong> or click to browse
+    <small>Upload one or several JPG, PNG or WEBP images</small>
+  </div>
   <div id="grid"></div>
   <footer>
     <button class="p" id="bCam">📷 Scan</button>
@@ -56,10 +67,11 @@ dialog textarea{width:100%;height:240px;margin:10px 0;font:inherit}
 <dialog id="dlg"><b>Extracted text</b><textarea id="ocrT"></textarea>
   <div style="display:flex;gap:8px;justify-content:flex-end"><button id="oCopy">Copy</button><button id="oDl">Download .txt</button><button class="p" id="oClose">Close</button></div>
 </dialog>
+<div id="busy" class="busy" hidden aria-live="polite" aria-busy="true"><div class="busy-card"><span class="spinner"></span><span id="busyText">Preparing image…</span></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script>
 const $=s=>document.querySelector(s),ec=$('#ec'),pages=[];
-let ed={},Q=[],stream=null,fromCam=false;
+let ed={},Q=[],stream=null,fromCam=false,importTotal=0,importDone=0;
 const show=id=>document.querySelectorAll('.scr').forEach(e=>e.classList.toggle('on',e.id===id));
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
@@ -159,19 +171,77 @@ $('#bCam').onclick=async()=>{
 const stopCam=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;fromCam=false};
 $('#cClose').onclick=()=>{stopCam();show('home')};
 $('#cShot').onclick=()=>{const v=$('#vid');if(!v.videoWidth)return;const c=mk(v.videoWidth,v.videoHeight);c.getContext('2d').drawImage(v,0,0);addSrc(c)};
-$('#fIn').onchange=e=>{Q=[...e.target.files];e.target.value='';if(Q.length)nextFile()};
-function nextFile(){const f=Q.shift();createImageBitmap(f,{imageOrientation:'from-image'}).then(b=>{const c=mk(b.width,b.height);c.getContext('2d').drawImage(b,0,0);addSrc(c)})}
-function addSrc(c){
-  const k=Math.min(1,2400/Math.max(c.width,c.height));let s=c;
-  if(k<1){s=mk(Math.round(c.width*k),Math.round(c.height*k));s.getContext('2d').drawImage(c,0,0,s.width,s.height)}
-  openEd({src:s,quad:null,filter:'magic',rot:0},true,'crop');
+// Decode and downsize imports before opening the editor. This caps memory use on
+// large phone photos and yields to the browser instead of doing all work at once.
+const nextFrame=()=>new Promise(resolve=>requestAnimationFrame(()=>resolve()));
+function showBusy(message){$('#busyText').textContent=message;$('#busy').hidden=false}
+function hideBusy(){$('#busy').hidden=true}
+async function decodeImageFile(file){
+  let bitmap=null;
+  if(window.createImageBitmap){
+    try{bitmap=await createImageBitmap(file,{imageOrientation:'from-image'})}
+    catch(e){try{bitmap=await createImageBitmap(file)}catch(e2){bitmap=null}}
+  }
+  let width,height,draw;
+  if(bitmap){width=bitmap.width;height=bitmap.height;draw=(ctx,w,h)=>ctx.drawImage(bitmap,0,0,w,h)}
+  else{
+    const url=URL.createObjectURL(file),img=new Image();
+    try{await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('Image could not be decoded'));img.src=url})}
+    finally{URL.revokeObjectURL(url)}
+    width=img.naturalWidth;height=img.naturalHeight;draw=(ctx,w,h)=>ctx.drawImage(img,0,0,w,h);
+  }
+  if(!width||!height)throw new Error('Image has invalid dimensions');
+  const scale=Math.min(1,2200/Math.max(width,height),Math.sqrt(6000000/(width*height)));
+  const w=Math.max(1,Math.round(width*scale)),h=Math.max(1,Math.round(height*scale));
+  const canvas=mk(w,h),ctx=canvas.getContext('2d',{alpha:false});
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);draw(ctx,w,h);
+  if(bitmap&&bitmap.close)bitmap.close();
+  await nextFrame();
+  return canvas;
 }
+function queueFiles(fileList){
+  const incoming=[...fileList],images=incoming.filter(f=>f.type&&f.type.startsWith('image/'));
+  if(!images.length){alert('Please select JPG, PNG or WEBP image files.');return}
+  const skipped=incoming.length-images.length;
+  const startNow=Q.length===0;
+  Q.push(...images);importTotal+=images.length;
+  if(skipped)alert(skipped+' non-image file(s) were skipped.');
+  if(startNow)nextFile();
+}
+$('#fIn').onchange=e=>{queueFiles(e.target.files);e.target.value=''};
+async function nextFile(){
+  if(!Q.length){hideBusy();return}
+  const f=Q.shift();importDone++;
+  showBusy('Loading '+f.name+' ('+importDone+' of '+importTotal+')…');
+  await nextFrame();
+  try{
+    const canvas=await decodeImageFile(f);
+    showBusy('Opening image editor…');await nextFrame();
+    hideBusy();addSrc(canvas);
+  }catch(err){
+    console.error('Image import failed:',err);
+    alert('Could not open "'+f.name+'". The file may be damaged or unsupported.');
+    if(Q.length)nextFile();else hideBusy();
+  }
+}
+function addSrc(c){
+  // The import decoder already limits image dimensions and total pixels.
+  openEd({src:c,quad:null,filter:'magic',rot:0},true,'crop');
+}
+const dropZone=$('#dropZone');
+dropZone.addEventListener('click',()=>$('#fIn').click());
+dropZone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#fIn').click()}});
+['dragenter','dragover'].forEach(type=>dropZone.addEventListener(type,e=>{e.preventDefault();e.stopPropagation();dropZone.classList.add('over');if(e.dataTransfer)e.dataTransfer.dropEffect='copy'}));
+['dragleave','dragend'].forEach(type=>dropZone.addEventListener(type,e=>{e.preventDefault();if(!e.relatedTarget||!dropZone.contains(e.relatedTarget))dropZone.classList.remove('over')}));
+dropZone.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();dropZone.classList.remove('over');if(e.dataTransfer?.files?.length)queueFiles(e.dataTransfer.files)});
 
 /* ---------- editor ---------- */
-async function openEd(pg,isNew,mode){
+function openEd(pg,isNew,mode){
   ed={pg,isNew,mode,drag:-1,sc:1};show('edit');
-  if(mode==='crop'&&!pg.quad){pg.quad=inset(pg.src);ui();draw();const q=await detect(pg.src);if(q&&ed.pg===pg&&ed.mode==='crop'){pg.quad=q;draw()}}
-  else{ui();draw()}
+  if(mode==='crop'&&!pg.quad)pg.quad=inset(pg.src);
+  ui();draw();
+  // Do not launch OpenCV automatically on every import. It is available from
+  // the explicit Auto detect button, so importing remains immediate and light.
 }
 function ui(){
   const pg=ed.pg,crop=ed.mode==='crop';
@@ -210,7 +280,7 @@ $('#eNext').onclick=()=>{
   if(ed.mode==='crop'){pg.base=warp(pg.src,pg.quad);pg.bgc=bgGrid(pg.base);renderPg(pg);ed.mode='filter';ui();draw()}
   else{if(ed.isNew){pages.push(pg);ed.isNew=false}grid();back()}
 };
-const back=()=>{if(fromCam)show('cam');else if(Q.length)nextFile();else show('home')};
+const back=()=>{if(fromCam)show('cam');else if(Q.length)nextFile();else{hideBusy();importTotal=0;importDone=0;show('home')}};
 $('#eBack').onclick=back;
 addEventListener('resize',()=>{if($('#edit').classList.contains('on'))draw()});
 
