@@ -184,7 +184,9 @@ function filt(base,type,bgc){
         const v=normalized/255;
         // Compress the light-paper range toward white. This removes soft
         // crease and shadow shading while leaving dark ink largely untouched.
-        const paperTarget=1-Math.pow(1-v,2.2);
+        const paperTarget=1-Math.pow(1-v,1.7);
+        // Keep some natural paper texture and soft creases instead of flattening
+        // every light-area variation into pure white.
         const paperAmount=clamp((v-.40)/.25,0,1);
         const chroma=Math.max(r,gg,b)-Math.min(r,gg,b);
         const neutralWeight=1-clamp((chroma-14)/42,0,1);
@@ -192,7 +194,12 @@ function filt(base,type,bgc){
         const up=lumMap[Math.max(0,y-1)*W+xx],down=lumMap[Math.min(H-1,y+1)*W+xx];
         const edge=Math.max(Math.abs(right-left),Math.abs(down-up));
         const edgeWeight=1-clamp((edge-18)/45,0,1);
-        const tone=255*(v+(paperTarget-v)*paperAmount*.96*neutralWeight*edgeWeight);
+        const corrected=255*(v+(paperTarget-v)*paperAmount*.58*neutralWeight*edgeWeight);
+        // Gently deepen faint neutral ink after correcting page illumination.
+        // This is luminance-only, so colored stamps and signatures retain hue.
+        const inkAmount=clamp((.90-v)/.42,0,1)*neutralWeight;
+        const inkTarget=255*Math.pow(v,1.16);
+        const tone=clamp(corrected+(inkTarget-255*v)*inkAmount*.72,0,255);
         const dr=r-l,dg=gg-l,db=b-l;
         // Add a small amount of color without clipping bright channels.
         let sat=1.08;
@@ -211,7 +218,7 @@ function filt(base,type,bgc){
     }
   }
   x.putImageData(id,0,0);
-  return sharpenText(o,type==='magic'?.22:type==='bw'?.20:.48);
+  return sharpenText(o,type==='magic'?.32:type==='bw'?.20:.48);
 }
 function rot(c,r){if(!r)return c;const s=r%180,o=mk(s?c.height:c.width,s?c.width:c.height),x=o.getContext('2d');x.translate(o.width/2,o.height/2);x.rotate(r*Math.PI/180);x.drawImage(c,-c.width/2,-c.height/2);return o}
 function thumb(c){const k=260/Math.max(c.width,c.height),t=mk(Math.max(1,c.width*k|0),Math.max(1,c.height*k|0));t.getContext('2d').drawImage(c,0,0,t.width,t.height);return t.toDataURL('image/jpeg',.7)}
