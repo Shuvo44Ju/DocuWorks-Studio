@@ -647,7 +647,7 @@ function downloadDXF(doc){
       canvas.addEventListener('click',ev=>{
         if(dragged){ev.preventDefault();ev.stopImmediatePropagation();dragged=false;return}
         const p=localPoint(ev),world=worldAtLocal(p.x,p.y);
-        const measureButton=parent.querySelector('.cadtools [data-mode="measure"].active');
+        const measureButton=root.querySelector('.cadtools [data-mode="measure"].active');
         if(measureButton){callOriginalAt(world);return}
         const hit=hitTest(world);
         if(!hit){status.textContent='No entity within selection tolerance · Zoom '+Math.round(zoom*100)+'%';return}
