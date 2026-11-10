@@ -184,7 +184,7 @@ box.innerHTML='<div class="dxf-box"><b>Entities</b><div class="dxf-list">'+Objec
 function handleFile(file){window.currentFile=file;const ext=file.name.split('.').pop().toLowerCase();document.getElementById('drop').innerHTML='<strong>'+esc(file.name)+'</strong><span class="muted">'+Math.round(file.size/1024)+' KB · '+ext.toUpperCase()+'</span>';const p=document.getElementById('preview');p.innerHTML='';const old=document.getElementById('dxfInspector');if(old)old.remove();
 if(['png','jpg','jpeg'].includes(ext)){const img=document.createElement('img');img.src=URL.createObjectURL(file);p.appendChild(img)}
 else if(ext==='pdf'){const iframe=document.createElement('iframe');iframe.src=URL.createObjectURL(file);p.appendChild(iframe)}
-else if(ext==='dxf'){const reader=new FileReader();reader.onload=()=>{try{const doc=parseDXF(String(reader.result));renderDXF(doc,p);renderDXFInspector(doc);document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>DXF inspection complete:</b> '+doc.entities.length+' supported entities across '+Object.keys(doc.layers).length+' layers. Parsing happens locally in your browser.</div>'}catch(err){p.innerHTML='<div class="empty"><b>DXF could not be read</b><br>'+esc(err.message)+'</div>'}};reader.readAsText(file)}
+else if(ext==='dxf'){const reader=new FileReader();reader.onload=()=>{try{const doc=parseDXF(String(reader.result));window.currentDXF=doc;renderDXF(doc,p);renderDXFInspector(doc);document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>DXF inspection complete:</b> '+doc.entities.length+' supported entities across '+Object.keys(doc.layers).length+' layers. Parsing happens locally in your browser.</div>'}catch(err){p.innerHTML='<div class="empty"><b>DXF could not be read</b><br>'+esc(err.message)+'</div>'}};reader.readAsText(file)}
 else{p.innerHTML='<div class="empty"><b>'+ext.toUpperCase()+' file loaded</b><br><br>'+ (ext==='dwg'?'Native DWG preview/editing needs AutoCAD or a compatible CAD engine. You can still register the file and use the assistant.':'This file can be registered and tracked; browser editing is not enabled for this format.')+'</div>'}
 }
 </script>
@@ -678,6 +678,94 @@ function downloadDXF(doc){
     const observer=new MutationObserver(()=>attachAll());
     observer.observe(container,{childList:true,subtree:true});
   };
+})();
+</script>
+
+<style>
+.dxf-historybar{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.dxf-historybar button{font-size:11px}
+.dxf-edit-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;padding:10px;border:1px solid #cfd8e8;border-radius:9px;background:#f8fbff}
+.dxf-edit-form label{font-size:10px;color:#687386;display:grid;gap:4px}
+.dxf-edit-form input,.dxf-edit-form textarea{width:100%;min-width:0;padding:7px;border:1px solid #dfe5ee;border-radius:6px;background:white}
+.dxf-edit-form .wide{grid-column:1/-1}
+.dxf-selected{outline:2px solid #1769e0!important;background:#eaf2ff!important}
+.dxf-selection-count{font-size:11px;color:#1769e0;font-weight:700;margin:7px 0}
+</style>
+<script>
+(function(){
+ const prior=window.renderDXF;
+ window.renderDXF=function(doc,container){
+   prior(doc,container);
+   const panel=container.querySelector('.dxf-panel');
+   if(!panel||panel.querySelector('.dxf-historybar'))return;
+   const history={past:[],future:[],selected:new Set(),last:null};
+   const clone=()=>JSON.parse(JSON.stringify(doc.entities));
+   function checkpoint(){history.past.push(clone());if(history.past.length>50)history.past.shift();history.future=[];updateHistory()}
+   function updateHistory(){const bar=panel.querySelector('.dxf-historybar');if(!bar)return;bar.querySelector('[data-hist=undo]').disabled=!history.past.length;bar.querySelector('[data-hist=redo]').disabled=!history.future.length;panel.querySelector('.dxf-selection-count').textContent=history.selected.size+' object(s) selected'}
+   function refresh(){
+     rebuildDXFStats(doc);
+     const info=document.getElementById('dxfInfo');
+     if(info){info.innerHTML='';prior(doc,info);renderDXFInspector(doc)}
+   }
+   function select(i,additive){
+     if(!additive)history.selected.clear();
+     if(history.selected.has(i)&&additive)history.selected.delete(i);else history.selected.add(i);
+     history.last=i;
+     panel.querySelectorAll('#dxfObjList [data-i]').forEach(b=>b.classList.toggle('dxf-selected',history.selected.has(Number(b.dataset.i))));
+     if(doc.entities[i])showDXFEntity(doc.entities[i]);
+     updateHistory();
+   }
+   const bar=document.createElement('div');bar.className='dxf-historybar';
+   bar.innerHTML='<button class="btn small" data-hist="undo">↶ Undo</button><button class="btn small" data-hist="redo">↷ Redo</button><button class="btn small" data-hist="duplicate">Duplicate</button><button class="btn small danger" data-hist="delete">Delete selected</button><button class="btn small" data-hist="clear">Clear selection</button>';
+   panel.appendChild(bar);
+   const count=document.createElement('div');count.className='dxf-selection-count';panel.appendChild(count);
+   const form=document.createElement('div');form.className='dxf-edit-form';form.innerHTML='<b class="wide">Edit selected object</b><div class="wide muted" style="font-size:10px">Select one object, then edit its geometry or text. Shift/Ctrl-click object rows to select multiple.</div><div class="wide" id="dxfEditFields"></div><button class="btn primary small wide" id="dxfApplyProps">Apply properties</button>';
+   panel.appendChild(form);
+   function fieldsFor(e){
+     const fields=panel.querySelector('#dxfEditFields');if(!e){fields.innerHTML='<span class="muted">No object selected.</span>';return}
+     let html='<label>Layer<input name="layer" value="'+esc(e.layer||'0')+'"></label>';
+     if(e.points.length){html+='<label>X<input name="x" type="number" step="any" value="'+e.points[0].x+'"></label><label>Y<input name="y" type="number" step="any" value="'+e.points[0].y+'"></label>'}
+     if(e.type==='LINE'&&e.points[1])html+='<label>End X<input name="x2" type="number" step="any" value="'+e.points[1].x+'"></label><label>End Y<input name="y2" type="number" step="any" value="'+e.points[1].y+'"></label>';
+     if(e.data.r!=null)html+='<label>Radius<input name="radius" type="number" min="0" step="any" value="'+e.data.r+'"></label>';
+     if(e.type==='ARC')html+='<label>Start angle°<input name="start" type="number" step="any" value="'+(e.data.start||0)+'"></label><label>End angle°<input name="end" type="number" step="any" value="'+(e.data.end||0)+'"></label>';
+     if(e.data.text!=null)html+='<label class="wide">Text<textarea name="text" rows="2">'+esc(e.data.text)+'</textarea></label>';
+     if(e.type==='LWPOLYLINE'||e.type==='POLYLINE')html+='<div class="wide muted">Polyline vertices: '+e.points.length+'. Use Move or Duplicate for safe whole-object changes.</div>';
+     fields.innerHTML=html;
+   }
+   function selectedIndices(){return [...history.selected].filter(i=>doc.entities[i])}
+   function undo(){if(!history.past.length)return;history.future.push(clone());doc.entities=history.past.pop();history.selected.clear();refresh();updateHistory()}
+   function redo(){if(!history.future.length)return;history.past.push(clone());doc.entities=history.future.pop();history.selected.clear();refresh();updateHistory()}
+   bar.querySelector('[data-hist=undo]').onclick=undo;bar.querySelector('[data-hist=redo]').onclick=redo;
+   bar.querySelector('[data-hist=clear]').onclick=()=>{history.selected.clear();panel.querySelectorAll('#dxfObjList [data-i]').forEach(b=>b.classList.remove('dxf-selected'));fieldsFor(null);updateHistory()};
+   bar.querySelector('[data-hist=delete]').onclick=()=>{const ids=selectedIndices();if(!ids.length)return;if(!confirm('Delete '+ids.length+' selected object(s) from the browser copy?'))return;checkpoint();doc.entities=doc.entities.filter((e,i)=>!history.selected.has(i));history.selected.clear();refresh();updateHistory()};
+   bar.querySelector('[data-hist=duplicate]').onclick=()=>{const ids=selectedIndices();if(!ids.length)return;checkpoint();const copies=ids.map(i=>{const e=JSON.parse(JSON.stringify(doc.entities[i]));e.points.forEach(p=>{p.x+=10;p.y+=10});return e});doc.entities.push(...copies);history.selected=new Set(copies.map((e)=>doc.entities.indexOf(e)));refresh();updateHistory()};
+   panel.querySelector('#dxfApplyProps').onclick=()=>{
+     const ids=selectedIndices();if(ids.length!==1){alert('Select exactly one object to edit its properties.');return}
+     const e=doc.entities[ids[0]],v=n=>panel.querySelector('[name="'+n+'"]');
+     checkpoint();
+     if(v('layer'))e.layer=v('layer').value.trim()||'0';
+     if(e.points[0]){if(v('x')&&v('x').value!=='')e.points[0].x=Number(v('x').value);if(v('y')&&v('y').value!=='')e.points[0].y=Number(v('y').value)}
+     if(e.type==='LINE'&&e.points[1]){if(v('x2'))e.points[1].x=Number(v('x2').value);if(v('y2'))e.points[1].y=Number(v('y2').value)}
+     if(v('radius'))e.data.r=Math.max(0,Number(v('radius').value));
+     if(v('start'))e.data.start=Number(v('start').value);if(v('end'))e.data.end=Number(v('end').value);
+     if(v('text'))e.data.text=v('text').value;
+     refresh();fieldsFor(e);updateHistory();
+   };
+   const oldMove=panel.querySelector('#dxfMove');
+   if(oldMove)oldMove.onclick=()=>{
+     const ids=selectedIndices();if(!ids.length){alert('Select one or more objects first.');return}
+     const dx=Number(panel.querySelector('#dxfDx').value||0),dy=Number(panel.querySelector('#dxfDy').value||0);
+     if(!Number.isFinite(dx)||!Number.isFinite(dy))return;
+     checkpoint();ids.forEach(i=>doc.entities[i].points.forEach(p=>{p.x+=dx;p.y+=dy}));refresh();updateHistory();
+   };
+   const oldDelete=panel.querySelector('#dxfDelete');if(oldDelete)oldDelete.onclick=()=>bar.querySelector('[data-hist=delete]').click();
+   const oldLayer=panel.querySelector('#dxfLayerBtn');
+   if(oldLayer)oldLayer.onclick=()=>{const ids=selectedIndices(),layer=panel.querySelector('#dxfLayerSelect').value;if(!ids.length||!layer){alert('Select objects and a target layer first.');return}checkpoint();ids.forEach(i=>doc.entities[i].layer=layer);refresh();updateHistory()};
+   panel.querySelectorAll('#dxfObjList [data-i]').forEach(b=>b.addEventListener('click',ev=>{
+     const i=Number(b.dataset.i);select(i,ev.shiftKey||ev.ctrlKey||ev.metaKey);fieldsFor(selectedIndices().length===1?doc.entities[i]:null);
+   },true));
+   fieldsFor(null);updateHistory();
+ };
 })();
 </script>
 </body>
