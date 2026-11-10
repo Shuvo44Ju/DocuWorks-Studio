@@ -284,8 +284,31 @@ async function extractWithAI(sourceFile){
  for(const section of data.sections){
   const sectionTitle=String(section.title||'').trim();
   if(sectionTitle)rows.push({type:'section',title:sectionTitle});
-  for(const item of (Array.isArray(section.requirements)?section.requirements:[])){
+  const sectionItems=Array.isArray(section.requirements)?section.requirements:[];
+  // Some URS tables repeat one shared parenthetical qualifier in every child
+  // label (for example, "(Min to Max range) Capacity", "(Min to Max range) Readability").
+  // Detect only repeated, descriptive qualifiers; keep one-off parentheses and
+  // short list markers such as (a) or (i) unchanged.
+  const qualifierCounts=new Map();
+  for(const entry of sectionItems){
+   const match=String(entry?.requirement||'').trim().match(/^\\(([^()]{8,})\\)\\s+/);
+   if(match){
+    const qualifier=match[1].replace(/\\s+/g,' ').trim();
+    if(qualifier.split(/\\s+/).length>=2){
+     const key=qualifier.toLowerCase();
+     qualifierCounts.set(key,(qualifierCounts.get(key)||0)+1);
+    }
+   }
+  }
+  for(const item of sectionItems){
    let req=String(item.requirement||'').trim();
+   const qualifierMatch=req.match(/^\\(([^()]{8,})\\)\\s+/);
+   if(qualifierMatch){
+    const qualifier=qualifierMatch[1].replace(/\\s+/g,' ').trim();
+    if(qualifier.split(/\\s+/).length>=2 && (qualifierCounts.get(qualifier.toLowerCase())||0)>=2){
+     req=req.slice(qualifierMatch[0].length).trim();
+    }
+   }
    let desc=String(item.specification||'').trim();
    let parameterized=Boolean(item.parameterized);
    let parentRequirement=String(item.parentRequirement||'').trim();
