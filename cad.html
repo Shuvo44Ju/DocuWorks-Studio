@@ -376,7 +376,7 @@ window.renderDXF=function(doc,container){
     const arr=doc.entities.map((e,i)=>({e,i})).filter(x=>{
       const e=x.e,s=[e.type,e.layer,e.data?.text||''].join(' ').toLowerCase();return !query||s.includes(query);
     }).slice(0,300);
-    list.innerHTML=arr.map(x=>'<button class="dxf-result" data-i="'+x.i+'">'+esc(x.e.type)+' · '+esc(x.e.layer)+(x.e.data?.text?' · '+esc(x.e.data.text.slice(0,28)):'')+'</button>').join('')||'<div class="muted" style="padding:6px;font-size:11px">No matching objects.</div>';
+    list.innerHTML=arr.map(x=>'<button class="dxf-result" data-i="'+x.i+'">#'+(x.i+1)+' · '+esc(x.e.type)+' · '+esc(x.e.layer)+(x.e.data?.text?' · '+esc(x.e.data.text.slice(0,28)):'')+'</button>').join('')||'<div class="muted" style="padding:6px;font-size:11px">No matching objects.</div>';
     list.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{showDXFEntity(doc.entities[Number(b.dataset.i)]);});
   }
   function applyVisibility(){
@@ -463,7 +463,7 @@ window.renderDXF=function(doc,container){
   };
   panel.querySelector('#dxfDelete').onclick=function(){
     const e=requireSelection();if(!e)return;
-    if(confirm('Delete the selected DXF entity from the browser copy?')){doc.entities.splice(selected,1);selected=-1;rebuildDXFStats(doc);redraw();}
+    if(confirm('Delete the selected DXF entity from the browser copy?')){doc.entities.splice(selected,1);selected=-1;rebuildCadDocStats(doc);redraw();}
   };
   panel.querySelector('#dxfProp').onclick=function(){
     const e=requireSelection();if(!e)return;
@@ -913,6 +913,7 @@ async function requestCadModification(){
   out.innerHTML=html;
  }catch(e){out.innerHTML='<div class="notice"><b>Could not prepare a modification plan.</b><br>'+esc(e.message||e)+'</div>'}
 }
+function rebuildCadDocStats(doc){doc.layers={};doc.counts={};doc.entities.forEach(e=>{doc.layers[e.layer||'0']=(doc.layers[e.layer||'0']||0)+1;doc.counts[e.type]=(doc.counts[e.type]||0)+1});}
 function discardCadModification(){window.pendingCadPlan=null;document.getElementById('cadModifyResult').innerHTML='<p class="muted">Modification plan discarded. Drawing unchanged.</p>'}
 function approveCadModification(){
  const plan=window.pendingCadPlan,doc=window.currentDXF;
