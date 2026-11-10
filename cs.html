@@ -291,10 +291,10 @@ async function extractWithAI(sourceFile){
   // short list markers such as (a) or (i) unchanged.
   const qualifierCounts=new Map();
   for(const entry of sectionItems){
-   const match=String(entry?.requirement||'').trim().match(/^\\(([^()]{8,})\\)\\s+/);
+   const match=String(entry?.requirement||'').trim().match(/^\(([^()]{8,})\)\s+/);
    if(match){
-    const qualifier=match[1].replace(/\\s+/g,' ').trim();
-    if(qualifier.split(/\\s+/).length>=2){
+    const qualifier=match[1].replace(/\s+/g,' ').trim();
+    if(qualifier.split(/\s+/).length>=2){
      const key=qualifier.toLowerCase();
      qualifierCounts.set(key,(qualifierCounts.get(key)||0)+1);
     }
@@ -302,10 +302,10 @@ async function extractWithAI(sourceFile){
   }
   for(const item of sectionItems){
    let req=String(item.requirement||'').trim();
-   const qualifierMatch=req.match(/^\\(([^()]{8,})\\)\\s+/);
+   const qualifierMatch=req.match(/^\(([^()]{8,})\)\s+/);
    if(qualifierMatch){
-    const qualifier=qualifierMatch[1].replace(/\\s+/g,' ').trim();
-    if(qualifier.split(/\\s+/).length>=2 && (qualifierCounts.get(qualifier.toLowerCase())||0)>=2){
+    const qualifier=qualifierMatch[1].replace(/\s+/g,' ').trim();
+    if(qualifier.split(/\s+/).length>=2 && (qualifierCounts.get(qualifier.toLowerCase())||0)>=2){
      req=req.slice(qualifierMatch[0].length).trim();
     }
    }
