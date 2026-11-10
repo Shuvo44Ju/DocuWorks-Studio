@@ -71,8 +71,18 @@ export async function onRequestPost({request,env}) {
     const allowedTypes=new Set(["move_entity","delete_entity","set_layer","update_text","add_line","add_circle","add_text"]);
     const ops=Array.isArray(plan.operations)?plan.operations.slice(0,80).filter(op=>{
       if(!allowedTypes.has(op?.type))return false;
-      if(["move_entity","delete_entity","set_layer","update_text"].includes(op.type))return Number.isInteger(op.index)&&op.index>=0&&op.index<entities.length;
-      return true;
+      if(["move_entity","delete_entity","set_layer","update_text"].includes(op.type)){
+        if(!Number.isInteger(op.index)||op.index<0||op.index>=entities.length)return false;
+        const target=entities[op.index];
+        if(op.type==="move_entity")return ["LINE","CIRCLE","ARC","LWPOLYLINE","POINT","TEXT","MTEXT"].includes(target.type)&&Number.isFinite(Number(op.dx))&&Number.isFinite(Number(op.dy));
+        if(op.type==="update_text")return ["TEXT","MTEXT"].includes(target.type)&&typeof op.text==="string";
+        if(op.type==="set_layer")return typeof op.layer==="string"&&op.layer.trim().length>0&&op.layer.length<=120;
+        return ["LINE","CIRCLE","ARC","LWPOLYLINE","POINT","TEXT","MTEXT","POLYLINE"].includes(target.type);
+      }
+      if(op.type==="add_line")return [op.x1,op.y1,op.x2,op.y2].every(v=>Number.isFinite(Number(v)))&&typeof op.layer==="string";
+      if(op.type==="add_circle")return [op.x,op.y,op.radius].every(v=>Number.isFinite(Number(v)))&&Number(op.radius)>0&&typeof op.layer==="string";
+      if(op.type==="add_text")return [op.x,op.y,op.height].every(v=>Number.isFinite(Number(v)))&&Number(op.height)>0&&typeof op.text==="string"&&op.text.length>0&&typeof op.layer==="string";
+      return false;
     }):[];
     return reply({
       summary:String(plan.summary||"Modification plan prepared."),
