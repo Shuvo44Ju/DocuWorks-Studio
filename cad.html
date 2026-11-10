@@ -224,9 +224,9 @@ document.getElementById('workspaceAnalysis').scrollIntoView({behavior:'smooth',b
 function downloadSupplierComments(){if(!window.lastSupplierComments)return;const a=document.createElement('a'),u=URL.createObjectURL(new Blob([window.lastSupplierComments],{type:'text/plain'}));a.href=u;a.download='drawing-supplier-comments.txt';a.click();URL.revokeObjectURL(u)}
 async function compareRevisions(){const a=document.getElementById('revOld').files[0],b=document.getElementById('revNew').files[0],out=document.getElementById('revisionResults');if(!a||!b){out.innerHTML='<div class="notice">Select both DXF revisions first.</div>';return}try{const [da,db]=await Promise.all([a.text(),b.text()]);const A=dxfReport(parseDXF(da)),B=dxfReport(parseDXF(db));const keys=new Set([...A.types.map(x=>x[0]),...B.types.map(x=>x[0])]);const count=(r,k)=>r.types.find(x=>x[0]===k)?.[1]||0;const layerKeys=new Set([...A.layers.map(x=>x[0]),...B.layers.map(x=>x[0])]);const la=(r,k)=>r.layers.find(x=>x[0]===k)?.[1]||0;out.innerHTML='<div class="section"><h3>Revision comparison summary</h3><p><b>Previous:</b> '+esc(a.name)+' ('+A.total+' supported entities) · <b>New:</b> '+esc(b.name)+' ('+B.total+' supported entities)</p><h4>Entity count changes</h4><ul>'+Array.from(keys).map(k=>'<li>'+esc(k)+': '+count(A,k)+' → '+count(B,k)+' ('+(count(B,k)-count(A,k)>=0?'+':'')+(count(B,k)-count(A,k))+')</li>').join('')+'</ul><h4>Layer count changes</h4><ul>'+Array.from(layerKeys).map(k=>'<li>'+esc(k)+': '+la(A,k)+' → '+la(B,k)+' ('+(la(B,k)-la(A,k)>=0?'+':'')+(la(B,k)-la(A,k))+')</li>').join('')+'</ul><h4>Extracted text</h4><p>Previous: '+A.texts.length+' text objects · New: '+B.texts.length+' text objects.</p><div class="notice">This comparison detects count and layer changes only. It does not yet identify exact moved geometry, dimension value changes, block contents or visual differences. Always inspect the drawing revisions visually before acceptance.</div></div>'}catch(e){out.innerHTML='<div class="notice">Could not compare these files: '+esc(e.message)+'</div>'}}
 function buildDXFSourceMap(raw){
-  const eol=raw.includes("\\r\\n")?"\\r\\n":raw.includes("\\r")?"\\r":"\\n";
-  const trailing=/[\\r\\n]$/.test(raw);
-  const lines=raw.replace(/\\r\\n/g,"\\n").replace(/\\r/g,"\\n").split("\\n");
+  const eol=raw.includes("\r\n")?"\r\n":raw.includes("\r")?"\r":"\n";
+  const trailing=/[\r\n]$/.test(raw);
+  const lines=raw.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n");
   if(trailing&&lines[lines.length-1]==="")lines.pop();
   const supported=new Set(["LINE","CIRCLE","ARC","LWPOLYLINE","POLYLINE","TEXT","MTEXT","POINT"]);
   const spans=[];let section="",active=null,entitiesEndsecLine=-1;
@@ -264,7 +264,7 @@ function applyDXFBlockOperation(blockLines,op){
     for(let i=pairs.length-1;i>=0;i--)if(pairs[i].code===1||pairs[i].code===3)pairs.splice(i,1);
     const at=pairs.findIndex(p=>p.code===0)+1,value=String(op.text||"");
     if(type==="MTEXT"){
-      const chunks=value.match(/[\\s\\S]{1,250}/g)||[""];
+      const chunks=value.match(/[\s\S]{1,250}/g)||[""];
       const inserted=chunks.slice(0,-1).map(value=>({code:3,value}));inserted.push({code:1,value:chunks[chunks.length-1]});pairs.splice(at,0,...inserted);
     }else pairs.splice(at,0,{code:1,value});
   }
@@ -292,6 +292,7 @@ function serializeOriginalDXF(doc){
   }
   return lines.join(source.eol)+(source.trailing?source.eol:"");
 }
+function cloneDXFDocument(doc){const copy=JSON.parse(JSON.stringify(doc));copy._dxfDeleted=new Set(doc._dxfDeleted||[]);copy._dxfDeletedAdditions=new Set(doc._dxfDeletedAdditions||[]);return copy;}
 function parseDXF(text){
 const a=text.replace(/\r/g,'').split('\n').map(x=>x.trimEnd()), out=[];
 for(let i=0;i<a.length-1;i+=2) out.push({code:Number(a[i]),value:a[i+1]??''});
@@ -332,7 +333,7 @@ box.innerHTML='<div class="dxf-box"><b>Entities</b><div class="dxf-list">'+Objec
 function handleFile(file){window.currentFile=file;window.currentDXF=null;window.originalDXF=null;window.currentDXFRaw=null;window.pendingCadPlan=null;const ext=file.name.split('.').pop().toLowerCase();document.getElementById('drop').innerHTML='<strong>'+esc(file.name)+'</strong><span class="muted">'+Math.round(file.size/1024)+' KB · '+ext.toUpperCase()+'</span>';const p=document.getElementById('preview');p.innerHTML='';const old=document.getElementById('dxfInspector');if(old)old.remove();
 if(['png','jpg','jpeg'].includes(ext)){const img=document.createElement('img');img.src=URL.createObjectURL(file);p.appendChild(img)}
 else if(ext==='pdf'){const iframe=document.createElement('iframe');iframe.src=URL.createObjectURL(file);p.appendChild(iframe)}
-else if(ext==='dxf'){const reader=new FileReader();reader.onload=()=>{try{const doc=parseDXF(String(reader.result));window.currentDXF=doc;window.originalDXF=JSON.parse(JSON.stringify(doc));window.currentDXFRaw=String(reader.result);renderDXF(doc,p);renderDXFInspector(doc);document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>DXF inspection complete:</b> '+doc.entities.length+' supported entities across '+Object.keys(doc.layers).length+' layers. Parsing happens locally in your browser.</div>'}catch(err){p.innerHTML='<div class="empty"><b>DXF could not be read</b><br>'+esc(err.message)+'</div>'}};reader.readAsText(file)}
+else if(ext==='dxf'){const reader=new FileReader();reader.onload=()=>{try{const doc=parseDXF(String(reader.result));window.currentDXF=doc;window.originalDXF=cloneDXFDocument(doc);window.currentDXFRaw=String(reader.result);renderDXF(doc,p);renderDXFInspector(doc);document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>DXF inspection complete:</b> '+doc.entities.length+' supported entities across '+Object.keys(doc.layers).length+' layers. Parsing happens locally in your browser.</div>'}catch(err){p.innerHTML='<div class="empty"><b>DXF could not be read</b><br>'+esc(err.message)+'</div>'}};reader.readAsText(file)}
 else{p.innerHTML='<div class="empty"><b>'+ext.toUpperCase()+' file loaded</b><br><br>'+ (ext==='dwg'?'Native DWG preview/editing needs AutoCAD or a compatible CAD engine. You can still register the file and use the assistant.':'This file can be registered and tracked; browser editing is not enabled for this format.')+'</div>'}
 }
 </script>
@@ -982,39 +983,45 @@ async function requestCadModification(){
 }
 function rebuildCadDocStats(doc){doc.layers={};doc.counts={};doc.entities.forEach(e=>{doc.layers[e.layer||'0']=(doc.layers[e.layer||'0']||0)+1;doc.counts[e.type]=(doc.counts[e.type]||0)+1});}
 function discardCadModification(){window.pendingCadPlan=null;document.getElementById('cadModifyResult').innerHTML='<p class="muted">Modification plan discarded. Drawing unchanged.</p>'}
-function restoreOriginalDXF(){if(!window.originalDXF){alert('No original DXF copy is available.');return}if(!confirm('Restore the in-browser drawing to the original uploaded DXF state?'))return;window.currentDXF=JSON.parse(JSON.stringify(window.originalDXF));rebuildCadDocStats(window.currentDXF);const preview=document.getElementById('preview');preview.innerHTML='';renderDXF(window.currentDXF,preview);renderDXFInspector(window.currentDXF);window.pendingCadPlan=null;document.getElementById('cadModifyResult').innerHTML='<div class="notice">Restored the original uploaded DXF to the working copy. No file was overwritten.</div>';}
+function restoreOriginalDXF(){if(!window.originalDXF){alert('No original DXF copy is available.');return}if(!confirm('Restore the in-browser drawing to the original uploaded DXF state?'))return;window.currentDXF=cloneDXFDocument(window.originalDXF);rebuildCadDocStats(window.currentDXF);const preview=document.getElementById('preview');preview.innerHTML='';renderDXF(window.currentDXF,preview);renderDXFInspector(window.currentDXF);window.pendingCadPlan=null;document.getElementById('cadModifyResult').innerHTML='<div class="notice">Restored the original uploaded DXF to the working copy. No file was overwritten.</div>';}
 function approveCadModification(){
  const plan=window.pendingCadPlan,doc=window.currentDXF;
- if(!plan||plan.clarification_required||!Array.isArray(plan.operations)||!plan.operations.length||!doc){alert('There is no applicable modification plan.');return}
- if(!confirm('Apply '+plan.operations.length+' proposed operation(s) to the browser working copy? The original file will remain unchanged.'))return;
- const ops=plan.operations;
- const deletes=new Set(ops.filter(o=>o.type==='delete_entity').map(o=>o.index));
+ if(!plan||plan.clarification_required||!Array.isArray(plan.operations)||!plan.operations.length||!doc||!doc._dxfSource){alert('There is no safe editable DXF plan.');return}
+ if(!confirm('Apply '+plan.operations.length+' proposed operation(s) to the browser working copy? The original drawing file and all unsupported content will be preserved in the exported DXF.'))return;
+ const sourceIndexes=doc._dxfSourceIndexes||doc.entities.map((_,i)=>i),additionIndexes=doc._dxfAdditionIndexes||doc.entities.map(()=>null),deletedCurrent=new Set();
  let applied=0;
- for(const op of ops){
-  if(op.type==='move_entity'){
-   const e=doc.entities[op.index],dx=Number(op.dx),dy=Number(op.dy);
-   if(!e||!Array.isArray(e.points)||!Number.isFinite(dx)||!Number.isFinite(dy))continue;
-   e.points.forEach(p=>{p.x+=dx;p.y+=dy});applied++;
-  }else if(op.type==='set_layer'){
-   const e=doc.entities[op.index];if(e&&typeof op.layer==='string'&&op.layer.trim()){e.layer=op.layer.trim();applied++}
-  }else if(op.type==='update_text'){
-   const e=doc.entities[op.index];if(e&&['TEXT','MTEXT'].includes(e.type)&&typeof op.text==='string'){e.data.text=op.text;applied++}
-  }else if(op.type==='add_line'){
-   const vals=[op.x1,op.y1,op.x2,op.y2].map(Number);
-   if(vals.every(Number.isFinite)){doc.entities.push({type:'LINE',layer:String(op.layer||'0'),points:[{x:vals[0],y:vals[1]},{x:vals[2],y:vals[3]}],data:{}});applied++}
-  }else if(op.type==='add_circle'){
-   const vals=[op.x,op.y,op.radius].map(Number);
-   if(vals.every(Number.isFinite)&&vals[2]>0){doc.entities.push({type:'CIRCLE',layer:String(op.layer||'0'),points:[{x:vals[0],y:vals[1]}],data:{r:vals[2]}});applied++}
-  }else if(op.type==='add_text'){
-   const vals=[op.x,op.y,op.height].map(Number);
-   if(vals.every(Number.isFinite)&&typeof op.text==='string'&&op.text.length){doc.entities.push({type:'TEXT',layer:String(op.layer||'0'),points:[{x:vals[0],y:vals[1]}],data:{text:op.text,height:vals[2]}});applied++}
+ for(const op of plan.operations){
+  if(op.type==='delete_entity'){if(Number.isInteger(op.index)&&doc.entities[op.index])deletedCurrent.add(op.index);continue}
+  if(['move_entity','set_layer','update_text'].includes(op.type)){
+   const e=doc.entities[op.index];if(!e)continue;
+   const src=sourceIndexes[op.index],add=additionIndexes[op.index];
+   if(src!==null&&src!==undefined){
+    if(doc._dxfDeleted.has(src))continue;
+    const changed=applyDXFBlockOperation(doc._dxfBlocks[src],op);if(!changed)continue;doc._dxfBlocks[src]=changed;
+   }else if(add!==null&&add!==undefined){
+    if(doc._dxfDeletedAdditions.has(add))continue;
+    const changed=applyDXFBlockOperation(doc._dxfAdditions[add],op);if(!changed)continue;doc._dxfAdditions[add]=changed;
+   }else continue;
+   if(op.type==='move_entity'){const dx=Number(op.dx),dy=Number(op.dy);if(!Array.isArray(e.points))continue;e.points.forEach(p=>{p.x+=dx;p.y+=dy})}
+   else if(op.type==='set_layer')e.layer=String(op.layer);
+   else if(op.type==='update_text')e.data.text=String(op.text);
+   applied++;
+  }else if(['add_line','add_circle','add_text'].includes(op.type)){
+   const raw=makeDXFAddition(op);if(!raw)continue;let entity;
+   if(op.type==='add_line')entity={type:'LINE',layer:String(op.layer||'0'),points:[{x:Number(op.x1),y:Number(op.y1)},{x:Number(op.x2),y:Number(op.y2)}],data:{}};
+   else if(op.type==='add_circle')entity={type:'CIRCLE',layer:String(op.layer||'0'),points:[{x:Number(op.x),y:Number(op.y)}],data:{r:Number(op.radius)}};
+   else entity={type:'TEXT',layer:String(op.layer||'0'),points:[{x:Number(op.x),y:Number(op.y)}],data:{text:String(op.text),height:Number(op.height)}};
+   const addIndex=doc._dxfAdditions.length;doc._dxfAdditions.push(raw);doc.entities.push(entity);sourceIndexes.push(null);additionIndexes.push(addIndex);applied++;
   }
  }
- if(deletes.size){doc.entities=doc.entities.filter((e,i)=>!deletes.has(i));applied+=deletes.size}
+ for(const i of deletedCurrent){const src=sourceIndexes[i],add=additionIndexes[i];if(src!==null&&src!==undefined)doc._dxfDeleted.add(src);if(add!==null&&add!==undefined)doc._dxfDeletedAdditions.add(add)}
+ if(deletedCurrent.size){doc.entities=doc.entities.filter((_,i)=>!deletedCurrent.has(i));doc._dxfSourceIndexes=sourceIndexes.filter((_,i)=>!deletedCurrent.has(i));doc._dxfAdditionIndexes=additionIndexes.filter((_,i)=>!deletedCurrent.has(i))}
+ else{doc._dxfSourceIndexes=sourceIndexes;doc._dxfAdditionIndexes=additionIndexes}
+ if(!applied){alert('No safe operations could be applied. The drawing is unchanged.');return}
  rebuildDXFStats(doc);
  const preview=document.getElementById('preview');preview.innerHTML='';renderDXF(doc,preview);renderDXFInspector(doc);
  window.pendingCadPlan=null;
- document.getElementById('cadModifyResult').innerHTML='<div class="notice"><b>'+applied+' operation(s) applied to the browser working copy.</b> Review the drawing visually. Export only after accepting the simplified DXF export limitations.<div class="toolbar" style="margin-top:8px"><button class="btn small" onclick="restoreOriginalDXF()">Restore uploaded original</button></div></div>';
+ document.getElementById('cadModifyResult').innerHTML='<div class="notice"><b>'+applied+' operation(s) applied.</b> Export now preserves the original DXF sections and unsupported entities, while updating only the approved supported objects. Review the drawing in CAD software before issuing it.<div class="toolbar" style="margin-top:8px"><button class="btn small" onclick="restoreOriginalDXF()">Restore uploaded original</button></div></div>';
 }
 </script>
 
