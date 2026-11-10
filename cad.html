@@ -71,6 +71,16 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:fle
 <div id="dxfInfo" style="margin-top:14px"></div>
 </div></div>
 <div class="section" id="workspaceAnalysis" style="margin-top:18px"><div class="sectionhead"><h2>Drawing Analysis Report</h2><span class="label">Appears here after analysis</span></div><div id="workspaceAnalysisBody" class="muted">Upload a drawing, then select <b>Analyze Drawing</b>. The generated report will appear in this workspace automatically.</div></div>
+<div class="section" id="cadModifySection">
+ <div class="sectionhead"><h2>Modify Drawing with Instructions</h2><span class="label">AI proposes · you approve</span></div>
+ <div class="notice">Describe the change in ordinary language. The AI will prepare a proposed edit plan. Nothing changes until you select <b>Approve & Apply Changes</b>. The original uploaded file remains untouched.</div>
+ <div class="field" style="margin-top:12px"><label>Your modification instruction</label><textarea id="cadModifyPrompt" rows="3" placeholder="Example: Move the selected line 500 drawing units to the right. Or: Change the text AHU-01 to AHU-02."></textarea></div>
+ <div class="two" style="margin-top:10px">
+  <div class="field"><label>Drawing units (only if known)</label><select id="cadModifyUnits"><option value="">Not sure / not specified</option><option value="mm">Millimetres (mm)</option><option value="m">Metres (m)</option><option value="in">Inches (in)</option><option value="ft">Feet (ft)</option></select></div>
+  <div class="field"><label> </label><button class="btn primary" style="width:100%" onclick="requestCadModification()">Prepare modification plan</button></div>
+ </div>
+ <div id="cadModifyResult" style="margin-top:14px"><p class="muted">Upload a DXF drawing to request a modification.</p></div>
+</div>
 </section>
 
 <section class="page" id="assistant">
@@ -79,15 +89,15 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:fle
 <div class="notice"><b>How this works:</b> Upload a drawing in the Drawing Workspace, then describe the job below. The workspace will extract available DXF information, organize review findings and prepare supplier-facing comments. Any proposed geometry change must be checked and approved before a separate revised file is produced.</div>
 <div class="chips">
 <button class="chip" onclick="setTask('Review this drawing and identify potential issues before approval.')">Review before approval</button>
-<button class="chip" onclick="setTask('Check this drawing against the attached URS/specification and list compliance gaps.')">Check against URS</button>
+<button class="chip" onclick="setTask('Review the drawing for completeness, coordination risks, unclear dimensions, missing labels and questions to raise with the supplier.')">Drawing completeness</button>
 <button class="chip" onclick="setTask('Prepare a clear list of comments and corrections to send to the supplier.')">Prepare supplier comments</button>
 <button class="chip" onclick="setTask('Compare the current revision with the previous revision and summarize all changes.')">Compare revisions</button>
 <button class="chip" onclick="setTask('Tell me whether this drawing is ready for approval and what information is missing.')">Approval readiness</button>
 </div>
-<div class="field" style="margin-top:14px"><label>What do you want done? Use ordinary language.</label><textarea id="taskPrompt" rows="4" placeholder="Example: Check the equipment layout against the URS. Confirm service clearances, dimensions, access for maintenance and utility connections. Prepare a numbered comment list for the supplier."></textarea></div>
+<div class="field" style="margin-top:14px"><label>What do you want done? Use ordinary language.</label><textarea id="taskPrompt" rows="4" placeholder="Example: Review the equipment layout, identify unclear dimensions, access concerns, missing labels and questions I should raise with the supplier."></textarea></div>
 <div class="toolbar" style="margin-top:10px;flex-wrap:wrap">
 <button class="btn primary" onclick="runDrawingTask()">Analyze / Review Request</button>
-<button class="btn" onclick="document.getElementById('supportFiles').click()">Attach URS / specification / previous revision</button>
+<button class="btn" onclick="document.getElementById('supportFiles').click()">Attach previous revision / reference</button>
 <input id="supportFiles" type="file" hidden multiple accept=".pdf,.doc,.docx,.txt,.dxf,.png,.jpg,.jpeg">
 </div>
 <div id="supportList" class="muted" style="margin-top:8px">No supporting documents attached.</div>
@@ -184,7 +194,7 @@ const comments=list(data.supplier_comments,x=>'<li>'+esc(x)+'</li>','No supplier
 const limitations=list(data.limitations,x=>'<li>'+esc(x)+'</li>','');
 const confidence=Number.isFinite(Number(data.confidence))?Math.round(Number(data.confidence)*100)+'%':'Not stated';
 const readiness=String(data.approval_readiness||'Insufficient information');
-return '<div class="section"><div class="sectionhead"><h3>AI drawing review</h3><span class="status s-warn">'+esc(readiness)+'</span></div><p><b>Request:</b> '+esc(prompt)+'</p><p>'+esc(data.drawing_summary||'The AI did not provide a drawing summary.')+'</p><div class="notice"><b>Approval assessment:</b> '+esc(data.approval_explanation||'Human engineering review is required.')+'<br><b>AI confidence:</b> '+confidence+'</div><h3>1. Identified drawing elements</h3>'+elements+'<h3>2. Potential issues</h3>'+issues+'<h3>3. Information to confirm</h3>'+missing+'<h3>4. Draft supplier comments</h3>'+comments+'<h3>5. Analysis limitations</h3>'+limitations+'<p class="muted">Model: '+esc(data.model||'Cloudflare Workers AI')+' · Entities reviewed: '+esc(data.diagnostics?.entitiesReviewed??'—')+' · Inference: '+esc(data.diagnostics?.inferenceMs??'—')+' ms</p><div class="notice">This is an AI-assisted preliminary review of supported DXF data, not a certified engineering check or approval. Unsupported DXF objects and drawing visuals may not have been interpreted. URS compliance is not assessed unless the actual URS content is supplied and extracted.</div><button class="btn" onclick="downloadSupplierComments()">Export supplier comments (.txt)</button></div>';
+return '<div class="section"><div class="sectionhead"><h3>AI drawing review</h3><span class="status s-warn">'+esc(readiness)+'</span></div><p><b>Request:</b> '+esc(prompt)+'</p><p>'+esc(data.drawing_summary||'The AI did not provide a drawing summary.')+'</p><div class="notice"><b>Approval assessment:</b> '+esc(data.approval_explanation||'Human engineering review is required.')+'<br><b>AI confidence:</b> '+confidence+'</div><h3>1. Identified drawing elements</h3>'+elements+'<h3>2. Potential issues</h3>'+issues+'<h3>3. Information to confirm</h3>'+missing+'<h3>4. Draft supplier comments</h3>'+comments+'<h3>5. Analysis limitations</h3>'+limitations+'<p class="muted">Model: '+esc(data.model||'Cloudflare Workers AI')+' · Entities reviewed: '+esc(data.diagnostics?.entitiesReviewed??'—')+' · Inference: '+esc(data.diagnostics?.inferenceMs??'—')+' ms</p><div class="notice">This is an AI-assisted preliminary review of supported DXF data, not a certified engineering check or approval. Unsupported DXF objects and drawing visuals may not have been interpreted. This review does not compare the drawing against a URS or project specification.</div><button class="btn" onclick="downloadSupplierComments()">Export supplier comments (.txt)</button></div>';
 }
 async function runDrawingTask(){
 const prompt=document.getElementById('taskPrompt').value.trim();
@@ -253,7 +263,7 @@ box.innerHTML='<div class="dxf-box"><b>Entities</b><div class="dxf-list">'+Objec
 function handleFile(file){window.currentFile=file;const ext=file.name.split('.').pop().toLowerCase();document.getElementById('drop').innerHTML='<strong>'+esc(file.name)+'</strong><span class="muted">'+Math.round(file.size/1024)+' KB · '+ext.toUpperCase()+'</span>';const p=document.getElementById('preview');p.innerHTML='';const old=document.getElementById('dxfInspector');if(old)old.remove();
 if(['png','jpg','jpeg'].includes(ext)){const img=document.createElement('img');img.src=URL.createObjectURL(file);p.appendChild(img)}
 else if(ext==='pdf'){const iframe=document.createElement('iframe');iframe.src=URL.createObjectURL(file);p.appendChild(iframe)}
-else if(ext==='dxf'){const reader=new FileReader();reader.onload=()=>{try{const doc=parseDXF(String(reader.result));window.currentDXF=doc;renderDXF(doc,p);renderDXFInspector(doc);document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>DXF inspection complete:</b> '+doc.entities.length+' supported entities across '+Object.keys(doc.layers).length+' layers. Parsing happens locally in your browser.</div>'}catch(err){p.innerHTML='<div class="empty"><b>DXF could not be read</b><br>'+esc(err.message)+'</div>'}};reader.readAsText(file)}
+else if(ext==='dxf'){const reader=new FileReader();reader.onload=()=>{try{const doc=parseDXF(String(reader.result));window.currentDXF=doc;window.originalDXF=JSON.parse(JSON.stringify(doc));window.currentDXFRaw=String(reader.result);renderDXF(doc,p);renderDXFInspector(doc);document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>DXF inspection complete:</b> '+doc.entities.length+' supported entities across '+Object.keys(doc.layers).length+' layers. Parsing happens locally in your browser.</div>'}catch(err){p.innerHTML='<div class="empty"><b>DXF could not be read</b><br>'+esc(err.message)+'</div>'}};reader.readAsText(file)}
 else{p.innerHTML='<div class="empty"><b>'+ext.toUpperCase()+' file loaded</b><br><br>'+ (ext==='dwg'?'Native DWG preview/editing needs AutoCAD or a compatible CAD engine. You can still register the file and use the assistant.':'This file can be registered and tracked; browser editing is not enabled for this format.')+'</div>'}
 }
 </script>
@@ -494,6 +504,7 @@ function dxfEntityText(e){
   return s;
 }
 function downloadDXF(doc){
+  if(!confirm("This export rebuilds only the supported entities currently parsed by this tool. Unsupported objects, blocks, dimensions, hatches, layouts and some drawing metadata may be omitted. Continue only if you accept this limitation and will inspect the exported file in CAD software."))return;
   const header='0\\nSECTION\\n2\\nHEADER\\n9\\n$ACADVER\\n1\\nAC1009\\n0\\nENDSEC\\n';
   const body='0\\nSECTION\\n2\\nENTITIES\\n'+doc.entities.map(dxfEntityText).join('')+'0\\nENDSEC\\n0\\nEOF\\n';
   const blob=new Blob([header+body],{type:'application/dxf'});
