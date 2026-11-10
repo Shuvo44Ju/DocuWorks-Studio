@@ -914,7 +914,7 @@ async function requestCadModification(){
  }catch(e){out.innerHTML='<div class="notice"><b>Could not prepare a modification plan.</b><br>'+esc(e.message||e)+'</div>'}
 }
 function rebuildCadDocStats(doc){doc.layers={};doc.counts={};doc.entities.forEach(e=>{doc.layers[e.layer||'0']=(doc.layers[e.layer||'0']||0)+1;doc.counts[e.type]=(doc.counts[e.type]||0)+1});}
-function discardCadModification(){window.pendingCadPlan=null;document.getElementById('cadModifyResult').innerHTML='<p class="muted">Modification plan discarded. Drawing unchanged.</p>'}
+function discardCadModification(){window.pendingCadPlan=null;document.getElementById('cadModifyResult').innerHTML='<p class="muted">Modification plan discarded. Drawing unchanged.</p>'}\nfunction restoreOriginalDXF(){if(!window.originalDXF){alert('No original DXF copy is available.');return}if(!confirm('Restore the in-browser drawing to the original uploaded DXF state?'))return;window.currentDXF=JSON.parse(JSON.stringify(window.originalDXF));rebuildCadDocStats(window.currentDXF);const preview=document.getElementById('preview');preview.innerHTML='';renderDXF(window.currentDXF,preview);renderDXFInspector(window.currentDXF);window.pendingCadPlan=null;document.getElementById('cadModifyResult').innerHTML='<div class="notice">Restored the original uploaded DXF to the working copy. No file was overwritten.</div>';}
 function approveCadModification(){
  const plan=window.pendingCadPlan,doc=window.currentDXF;
  if(!plan||plan.clarification_required||!Array.isArray(plan.operations)||!plan.operations.length||!doc){alert('There is no applicable modification plan.');return}
@@ -946,7 +946,7 @@ function approveCadModification(){
  rebuildDXFStats(doc);
  const preview=document.getElementById('preview');preview.innerHTML='';renderDXF(doc,preview);renderDXFInspector(doc);
  window.pendingCadPlan=null;
- document.getElementById('cadModifyResult').innerHTML='<div class="notice"><b>'+applied+' operation(s) applied to the browser working copy.</b> Review the drawing visually. Export only after accepting the simplified DXF export limitations.</div>';
+ document.getElementById('cadModifyResult').innerHTML='<div class="notice"><b>'+applied+' operation(s) applied to the browser working copy.</b> Review the drawing visually. Export only after accepting the simplified DXF export limitations.<div class="toolbar" style="margin-top:8px"><button class="btn small" onclick="restoreOriginalDXF()">Restore uploaded original</button></div></div>';
 }
 </script>
 
