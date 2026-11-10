@@ -698,14 +698,14 @@ function downloadDXF(doc){
    prior(doc,container);
    const panel=container.querySelector('.dxf-panel');
    if(!panel||panel.querySelector('.dxf-historybar'))return;
-   const history={past:[],future:[],selected:new Set(),last:null};
+   const history=doc.__cadHistory||(doc.__cadHistory={past:[],future:[],selected:new Set(),last:null});
    const clone=()=>JSON.parse(JSON.stringify(doc.entities));
    function checkpoint(){history.past.push(clone());if(history.past.length>50)history.past.shift();history.future=[];updateHistory()}
    function updateHistory(){const bar=panel.querySelector('.dxf-historybar');if(!bar)return;bar.querySelector('[data-hist=undo]').disabled=!history.past.length;bar.querySelector('[data-hist=redo]').disabled=!history.future.length;panel.querySelector('.dxf-selection-count').textContent=history.selected.size+' object(s) selected'}
    function refresh(){
      rebuildDXFStats(doc);
      const info=document.getElementById('dxfInfo');
-     if(info){info.innerHTML='';prior(doc,info);renderDXFInspector(doc)}
+     if(info){info.innerHTML='';window.renderDXF(doc,info);renderDXFInspector(doc)}
    }
    function select(i,additive){
      if(!additive)history.selected.clear();
