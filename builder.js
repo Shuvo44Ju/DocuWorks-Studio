@@ -104,37 +104,6 @@ function fillTemplate(wb, model) {
     });
     return pairs.length && pairs.every(Boolean) ? pairs : [];
   };
-  const enumeratedItems = value => {
-    const text = String(value == null ? '' : value).trim();
-    if (!text) return [];
-    // Split only clear alphabetic list markers (a), b), c)...) in a single
-    // description cell. Require at least two consecutive markers so ordinary
-    // prose and isolated bracketed references are not broken apart.
-    const marker = /(?:^|\s)([a-h])[.)]\s+/gi;
-    const matches = [];
-    let match;
-    while ((match = marker.exec(text))) {
-      matches.push({
-        letter: match[1].toLowerCase(),
-        start: match.index + (match[0].length - match[0].trimStart().length),
-        contentStart: marker.lastIndex
-      });
-    }
-    if (matches.length < 2) return [];
-    const sequence = matches.every((item, index) =>
-      index === 0 || item.letter.charCodeAt(0) === matches[index - 1].letter.charCodeAt(0) + 1
-    );
-    if (!sequence) return [];
-    const items = [];
-    const prefix = text.slice(0, matches[0].start).trim();
-    if (prefix) items.push(prefix);
-    for (let i = 0; i < matches.length; i++) {
-      const end = i + 1 < matches.length ? matches[i + 1].start : text.length;
-      const item = text.slice(matches[i].contentStart, end).trim();
-      if (item) items.push(item);
-    }
-    return items.length >= 2 ? items.map(label => ({ label, specification: '' })) : [];
-  };
   const parentInfo = source => {
     if (!source) return { title: '', key: '' };
     const explicitParent = source.parentRequirement || source.parent || '';
@@ -260,9 +229,8 @@ function fillTemplate(wb, model) {
         prepared.push(source);
         continue;
       }
-      const pairs = enumeratedItems(source.desc);
-      const finalPairs = pairs.length ? pairs : labelledPairs(source.desc);
-      if (!finalPairs.length) {
+      const pairs = labelledPairs(source.desc);
+      if (!pairs.length) {
         prepared.push(source);
         continue;
       }
@@ -271,7 +239,7 @@ function fillTemplate(wb, model) {
         prepared.push(source);
         continue;
       }
-      for (const pair of finalPairs) {
+      for (const pair of pairs) {
         prepared.push({
           ...source,
           req: pair.label,
@@ -282,7 +250,7 @@ function fillTemplate(wb, model) {
           parentRequirement: info.title,
           group: '',
           label: pair.label,
-          parameterized: finalPairs.length > 1 || Boolean(source.parameterized)
+          parameterized: pairs.length > 1 || Boolean(source.parameterized)
         });
       }
     }
