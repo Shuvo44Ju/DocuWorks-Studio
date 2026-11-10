@@ -499,7 +499,7 @@ function dxfEntityText(e){
   }else if(e.type==='POINT'){
     s+=dxfPair(10,e.points[0]?.x||0)+dxfPair(20,e.points[0]?.y||0);
   }else if(e.type==='TEXT'||e.type==='MTEXT'){
-    s+=dxfPair(10,e.points[0]?.x||0)+dxfPair(20,e.points[0]?.y||0)+dxfPair(1,e.data.text||'');
+     s+=dxfPair(10,e.points[0]?.x||0)+dxfPair(20,e.points[0]?.y||0);if(e.data.height)s+=dxfPair(40,e.data.height);s+=dxfPair(1,e.data.text||'');
   }
   return s;
 }
