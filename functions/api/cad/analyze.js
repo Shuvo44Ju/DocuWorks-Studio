@@ -7,7 +7,7 @@ function isAllowedOrigin(origin) {
   return origin === "https://shuvo44ju.github.io" ||
     /^https:\/\/[a-z0-9-]+\.pages\.dev$/i.test(origin) ||
     /^https:\/\/(?:[a-z0-9-]+\.)*[a-z0-9-]+\.workers\.dev$/i.test(origin) ||
-    /^https?:\/\/(localhost|127\.0\.0\.1)(:\\d+)?$/i.test(origin);
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 }
 function respond(body, status, origin) {
   const headers = new Headers({
@@ -28,7 +28,7 @@ function parseModelJson(result) {
   let value = result?.choices?.[0]?.message?.content ?? result?.response ?? result?.result;
   if (value && typeof value === "object") return value;
   if (typeof value !== "string") throw new Error("The AI returned no readable response.");
-  const cleaned = value.trim().replace(/^\`\`\`(?:json)?\\s*/i, "").replace(/\\s*\`\`\`$/, "");
+  const cleaned = value.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
   if (start < 0 || end <= start) throw new Error("The AI response did not contain a complete JSON report.");
