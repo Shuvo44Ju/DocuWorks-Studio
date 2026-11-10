@@ -231,7 +231,7 @@ function buildDXFSourceMap(raw){
   const supported=new Set(["LINE","CIRCLE","ARC","LWPOLYLINE","POLYLINE","TEXT","MTEXT","POINT"]);
   const spans=[];let section="",active=null,entitiesEndsecLine=-1;
   for(let i=0;i+1<lines.length;i+=2){
-    const code=Number(String(lines[i]).trim()),value=String(lines[i+1]??"").trim();
+    const code=Number(String(lines[i]).trim().replace(/^\uFEFF/,"")),value=String(lines[i+1]??"").trim();
     if(code===0&&value.toUpperCase()==="SECTION"){section=String(lines[i+3]||"").trim().toUpperCase();continue}
     if(code===0&&value.toUpperCase()==="ENDSEC"){
       if(active){active.end=i;active=null}
@@ -255,14 +255,14 @@ function applyDXFBlockOperation(blockLines,op){
   const pairs=dxfBlockPairs(blockLines),type=String(pairs[0]?.value||"").toUpperCase();
   if(op.type==="move_entity"){
     const dx=Number(op.dx),dy=Number(op.dy);if(!Number.isFinite(dx)||!Number.isFinite(dy))return null;
-    for(const p of pairs){if(p.code>=10&&p.code<=18&&Number.isFinite(Number(p.value)))p.value=String(Number(p.value)+dx);else if(p.code>=20&&p.code<=28&&Number.isFinite(Number(p.value)))p.value=String(Number(p.value)+dy)}
+    for(const p of pairs){if(type==="MTEXT"&&(p.code===11||p.code===21))continue;if(p.code>=10&&p.code<=18&&Number.isFinite(Number(p.value)))p.value=String(Number(p.value)+dx);else if(p.code>=20&&p.code<=28&&Number.isFinite(Number(p.value)))p.value=String(Number(p.value)+dy)}
   }else if(op.type==="set_layer"){
     let found=false;for(const p of pairs)if(p.code===8){p.value=String(op.layer);found=true}
-    if(!found)pairs.splice(1,0,{code:8,value:String(op.layer)});
+    if(!found){const subclass=pairs.findIndex(p=>p.code===100);pairs.splice(subclass>=0?subclass+1:1,0,{code:8,value:String(op.layer)})}
   }else if(op.type==="update_text"){
     if(!["TEXT","MTEXT"].includes(type))return null;
-    for(let i=pairs.length-1;i>=0;i--)if(pairs[i].code===1||pairs[i].code===3)pairs.splice(i,1);
-    const at=pairs.findIndex(p=>p.code===0)+1,value=String(op.text||"");
+    let at=pairs.findIndex(p=>p.code===1||p.code===3);if(at<0)at=pairs.length;for(let i=pairs.length-1;i>=0;i--)if(pairs[i].code===1||pairs[i].code===3){if(i<at)at--;pairs.splice(i,1)}
+    const value=String(op.text||"");
     if(type==="MTEXT"){
       const chunks=value.match(/[\s\S]{1,250}/g)||[""];
       const inserted=chunks.slice(0,-1).map(value=>({code:3,value}));inserted.push({code:1,value:chunks[chunks.length-1]});pairs.splice(at,0,...inserted);
@@ -299,7 +299,7 @@ function serializeOriginalDXF(doc){
 }
 function cloneDXFDocument(doc){const copy=JSON.parse(JSON.stringify(doc));copy._dxfDeleted=new Set(doc._dxfDeleted||[]);copy._dxfDeletedAdditions=new Set(doc._dxfDeletedAdditions||[]);return copy;}
 function parseDXF(text){
-const a=text.replace(/\r/g,'').split('\n').map(x=>x.trimEnd()), out=[];
+const a=text.replace(/^\uFEFF/,"").replace(/\r/g,'').split('\n').map(x=>x.trimEnd()), out=[];
 for(let i=0;i<a.length-1;i+=2) out.push({code:Number(a[i]),value:a[i+1]??''});
 const entities=[], layers={}, counts={}; let section='', cur=null;
 for(let i=0;i<out.length;i++){const g=out[i],v=String(g.value).toUpperCase();
