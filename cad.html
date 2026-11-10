@@ -188,5 +188,67 @@ else if(ext==='dxf'){const reader=new FileReader();reader.onload=()=>{try{const 
 else{p.innerHTML='<div class="empty"><b>'+ext.toUpperCase()+' file loaded</b><br><br>'+ (ext==='dwg'?'Native DWG preview/editing needs AutoCAD or a compatible CAD engine. You can still register the file and use the assistant.':'This file can be registered and tracked; browser editing is not enabled for this format.')+'</div>'}
 }
 </script>
-</body>
+
+<style>
+.cadtools{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
+.cadtools .btn.active{background:var(--blue2);color:var(--blue);border-color:#a9c5f5}
+.inspect{padding:9px;border:1px solid var(--line);border-radius:9px;background:#fbfcfe;font-size:12px}
+</style>
+<script>
+function renderDXF(doc,container){
+ const tools=document.createElement('div'); tools.className='cadtools';
+ tools.innerHTML='<button class="btn small active" data-mode="select">Select</button><button class="btn small" data-mode="measure">Measure</button><span id="cadHint" class="label">Click an entity to inspect it.</span>';
+ container.parentElement.insertBefore(tools,container);
+ const canvas=document.createElement('canvas'); canvas.className='cadcanvas'; container.appendChild(canvas);
+ const ctx=canvas.getContext('2d'); let mode='select', selected=-1, measureStart=null;
+ function geom(){
+   const r=canvas.getBoundingClientRect(), b=dxfBounds(doc.entities), pad=35;
+   const w=Math.max(1,b.maxX-b.minX),h=Math.max(1,b.maxY-b.minY);
+   const s=Math.min((r.width-pad*2)/w,(r.height-pad*2)/h);
+   return {r,b,pad,s,sx:x=>pad+(x-b.minX)*s,sy:y=>r.height-pad-(y-b.minY)*s};
+ }
+ function draw(){
+   const r=canvas.getBoundingClientRect(),d=window.devicePixelRatio||1;
+   canvas.width=Math.max(1,r.width*d);canvas.height=Math.max(1,r.height*d);
+   ctx.setTransform(d,0,0,d,0,0);ctx.fillStyle='#111820';ctx.fillRect(0,0,r.width,r.height);
+   const g=geom();
+   doc.entities.forEach((e,i)=>{
+     ctx.beginPath();ctx.strokeStyle=i===selected?'#4da3ff':'#d9e4f2';ctx.fillStyle=i===selected?'#4da3ff':'#d9e4f2';ctx.lineWidth=i===selected?2:1;
+     if(e.type==='LINE'&&e.points.length>1){ctx.moveTo(g.sx(e.points[0].x),g.sy(e.points[0].y));ctx.lineTo(g.sx(e.points[1].x),g.sy(e.points[1].y));ctx.stroke();}
+     else if(e.type==='CIRCLE'&&e.points[0]&&e.data.r){ctx.arc(g.sx(e.points[0].x),g.sy(e.points[0].y),Math.abs(e.data.r*g.s),0,Math.PI*2);ctx.stroke();}
+     else if(e.type==='ARC'&&e.points[0]&&e.data.r){ctx.arc(g.sx(e.points[0].x),g.sy(e.points[0].y),Math.abs(e.data.r*g.s),-((e.data.end||360)*Math.PI/180),-((e.data.start||0)*Math.PI/180));ctx.stroke();}
+     else if((e.type==='LWPOLYLINE'||e.type==='POLYLINE')&&e.points.length){ctx.moveTo(g.sx(e.points[0].x),g.sy(e.points[0].y));e.points.slice(1).forEach(p=>ctx.lineTo(g.sx(p.x),g.sy(p.y)));if(e.data.flags&1)ctx.closePath();ctx.stroke();}
+     else if(e.type==='POINT'&&e.points[0]){ctx.arc(g.sx(e.points[0].x),g.sy(e.points[0].y),2,0,Math.PI*2);ctx.fill();}
+     else if((e.type==='TEXT'||e.type==='MTEXT')&&e.points[0]&&e.data.text){ctx.fillText(e.data.text.replace(/\\P/g,' '),g.sx(e.points[0].x),g.sy(e.points[0].y));}
+   });
+   if(measureStart){ctx.fillStyle='#4da3ff';ctx.beginPath();ctx.arc(g.sx(measureStart.x),g.sy(measureStart.y),5,0,Math.PI*2);ctx.fill();}
+ }
+ function worldAt(ev){
+   const g=geom();
+   return {x:g.b.minX+(ev.clientX-canvas.getBoundingClientRect().left-g.pad)/g.s,
+           y:g.b.minY+(g.r.height-(ev.clientY-canvas.getBoundingClientRect().top)-g.pad)/g.s};
+ }
+ canvas.onclick=function(ev){
+   const p=worldAt(ev);
+   if(mode==='measure'){
+     if(!measureStart){measureStart=p;document.getElementById('cadHint').textContent='Click the second point.';}
+     else{const dx=p.x-measureStart.x,dy=p.y-measureStart.y;document.getElementById('cadHint').textContent='Distance: '+Math.hypot(dx,dy).toFixed(3)+' units | ΔX '+dx.toFixed(3)+' | ΔY '+dy.toFixed(3);measureStart=null;}
+     draw();return;
+   }
+   let best=-1,score=Infinity;
+   doc.entities.forEach((e,i)=>e.points.forEach(pt=>{const q=Math.hypot(pt.x-p.x,pt.y-p.y);if(q<score){score=q;best=i;}}));
+   selected=best;
+   if(doc.entities[selected])showDXFEntity(doc.entities[selected]);
+   draw();
+ };
+ tools.querySelectorAll('button').forEach(b=>b.onclick=function(){mode=b.dataset.mode;measureStart=null;tools.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('cadHint').textContent=mode==='measure'?'Click two points to measure.':'Click an entity to inspect it.';draw();});
+ requestAnimationFrame(draw);
+ window.addEventListener('resize',draw,{once:true});
+}
+function showDXFEntity(e){
+ let box=document.getElementById('dxfEntity');
+ if(!box){box=document.createElement('div');box.id='dxfEntity';box.className='inspect';document.getElementById('dxfInspector').parentElement.insertBefore(box,document.getElementById('dxfInspector'));}
+ box.innerHTML='<b>Selected entity</b><br>Type: '+esc(e.type)+'<br>Layer: '+esc(e.layer)+'<br>Coordinates: '+e.points.map(p=>p.x.toFixed(3)+', '+p.y.toFixed(3)).join(' · ')+(e.data.r!=null?'<br>Radius: '+e.data.r:'')+(e.data.text?'<br>Text: '+esc(e.data.text):'');
+}
+</script></body>
 </html>
