@@ -1002,14 +1002,15 @@ function approveCadModification(){
    const src=sourceIndexes[op.index],add=additionIndexes[op.index];
    if(src!==null&&src!==undefined){
     if(doc._dxfDeleted.has(src))continue;
-    const changed=applyDXFBlockOperation(doc._dxfBlocks[src],op);if(!changed)continue;doc._dxfBlocks[src]=changed;doc._dxfEntitySnapshots[src]=JSON.parse(JSON.stringify(e));
+    const changed=applyDXFBlockOperation(doc._dxfBlocks[src],op);if(!changed)continue;doc._dxfBlocks[src]=changed;
    }else if(add!==null&&add!==undefined){
     if(doc._dxfDeletedAdditions.has(add))continue;
-    const changed=applyDXFBlockOperation(doc._dxfAdditions[add],op);if(!changed)continue;doc._dxfAdditions[add]=changed;doc._dxfAdditionSnapshots[add]=JSON.parse(JSON.stringify(e));
+    const changed=applyDXFBlockOperation(doc._dxfAdditions[add],op);if(!changed)continue;doc._dxfAdditions[add]=changed;
    }else continue;
    if(op.type==='move_entity'){const dx=Number(op.dx),dy=Number(op.dy);if(!Array.isArray(e.points))continue;e.points.forEach(p=>{p.x+=dx;p.y+=dy})}
    else if(op.type==='set_layer')e.layer=String(op.layer);
    else if(op.type==='update_text')e.data.text=String(op.text);
+   if(src!==null&&src!==undefined)doc._dxfEntitySnapshots[src]=JSON.parse(JSON.stringify(e));else if(add!==null&&add!==undefined)doc._dxfAdditionSnapshots[add]=JSON.parse(JSON.stringify(e));
    applied++;
   }else if(['add_line','add_circle','add_text'].includes(op.type)){
    const raw=makeDXFAddition(op);if(!raw)continue;let entity;
