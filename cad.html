@@ -309,5 +309,129 @@ window.renderDXF=function(doc,container){
 };
 })();
 </script>
+
+<style>
+.dxf-editbar{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.dxf-editbar input,.dxf-editbar select{border:1px solid var(--line);border-radius:7px;padding:7px;font-size:11px;min-width:70px}
+.dxf-editbar .btn{font-size:11px}
+.dxf-edit-note{font-size:10px;color:var(--muted);margin-top:7px;line-height:1.4}
+</style>
+<script>
+(function(){
+const previousRenderDXF=window.renderDXF;
+window.renderDXF=function(doc,container){
+  previousRenderDXF(doc,container);
+  const advanced=container.querySelector('.dxf-advanced');
+  if(!advanced)return;
+  const panel=advanced.querySelector('.dxf-panel');
+  const stage=advanced.querySelector('.dxf-stage');
+  let selected=-1;
+
+  const basePanel=panel.innerHTML;
+  panel.innerHTML=basePanel+
+    '<div class="dxf-editbar" id="dxfEditBar">'+
+    '<b style="width:100%;font-size:11px">DXF Edit</b>'+
+    '<input id="dxfDx" type="number" step="any" placeholder="ΔX">'+
+    '<input id="dxfDy" type="number" step="any" placeholder="ΔY">'+
+    '<button class="btn small" id="dxfMove">Move</button>'+
+    '<select id="dxfLayerSelect"><option value="">Layer…</option></select>'+
+    '<button class="btn small" id="dxfLayerBtn">Set layer</button>'+
+    '<button class="btn small danger" id="dxfDelete">Delete</button>'+
+    '<button class="btn small" id="dxfProp">Properties</button>'+
+    '<button class="btn small primary" id="dxfExport">Export DXF</button>'+
+    '</div>'+
+    '<div class="dxf-edit-note">Edits are made to the browser copy only. Your original DXF file is never overwritten.</div>';
+
+  const layerSelect=panel.querySelector('#dxfLayerSelect');
+  Object.keys(doc.layers).sort().forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;layerSelect.appendChild(o);});
+
+  function redraw(){
+    const old=stage.querySelector('.dxf-stage'); 
+    const oldCanvas=stage.querySelector('canvas');
+    const oldTools=stage.querySelector('.cadtools');
+    if(oldCanvas)oldCanvas.remove();
+    if(oldTools)oldTools.remove();
+    const fresh=document.createElement('div');fresh.className='dxf-stage';
+    stage.innerHTML='';stage.appendChild(fresh);
+    previousRenderDXF(doc,fresh);
+    attachListHandlers();
+  }
+  function attachListHandlers(){
+    panel.querySelectorAll('#dxfObjList [data-i]').forEach(b=>b.onclick=function(){
+      selected=Number(b.dataset.i);
+      showDXFEntity(doc.entities[selected]);
+      panel.querySelectorAll('#dxfObjList .dxf-result').forEach(x=>x.style.outline='');
+      b.style.outline='2px solid #1769e0';
+    });
+  }
+  function requireSelection(){
+    if(selected<0||!doc.entities[selected]){alert('Select an object first.');return null}
+    return doc.entities[selected];
+  }
+  function moveEntity(e,dx,dy){
+    e.points.forEach(p=>{p.x+=dx;p.y+=dy});
+  }
+  panel.querySelector('#dxfMove').onclick=function(){
+    const e=requireSelection();if(!e)return;
+    const dx=Number(panel.querySelector('#dxfDx').value||0),dy=Number(panel.querySelector('#dxfDy').value||0);
+    if(!Number.isFinite(dx)||!Number.isFinite(dy)){alert('Enter valid ΔX and ΔY.');return}
+    moveEntity(e,dx,dy);redraw();showDXFEntity(e);
+  };
+  panel.querySelector('#dxfLayerBtn').onclick=function(){
+    const e=requireSelection();if(!e)return;
+    const layer=layerSelect.value;if(!layer){alert('Choose a layer first.');return}
+    e.layer=layer;redraw();showDXFEntity(e);
+  };
+  panel.querySelector('#dxfDelete').onclick=function(){
+    const e=requireSelection();if(!e)return;
+    if(confirm('Delete the selected DXF entity from the browser copy?')){doc.entities.splice(selected,1);selected=-1;rebuildDXFStats(doc);redraw();}
+  };
+  panel.querySelector('#dxfProp').onclick=function(){
+    const e=requireSelection();if(!e)return;
+    let msg='Type: '+e.type+'\\nLayer: '+e.layer;
+    if(e.data.r!=null)msg+='\\nRadius: '+e.data.r;
+    if(e.data.text)msg+='\\nText: '+e.data.text;
+    alert(msg);
+  };
+  panel.querySelector('#dxfExport').onclick=function(){downloadDXF(doc)};
+  attachListHandlers();
+};
+function rebuildDXFStats(doc){
+  doc.layers={};doc.counts={};
+  doc.entities.forEach(e=>{doc.layers[e.layer]=(doc.layers[e.layer]||0)+1;doc.counts[e.type]=(doc.counts[e.type]||0)+1});
+  const box=document.getElementById('dxfInspector');
+  if(box)box.innerHTML='<div class="dxf-box"><b>Entities</b><div class="dxf-list">'+Object.entries(doc.counts).map(([k,v])=>'<div class="dxf-row"><span>'+esc(k)+'</span><b>'+v+'</b></div>').join('')+'</div></div><div class="dxf-box"><b>Layers</b><div class="dxf-list">'+Object.entries(doc.layers).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="dxf-row"><span>● '+esc(k)+'</span><b>'+v+'</b></div>').join('')+'</div></div>';
+}
+function dxfPair(code,value){return String(code)+'\\n'+String(value)+'\\n'}
+function dxfEntityText(e){
+  let s=dxfPair(0,e.type)+dxfPair(8,e.layer||'0');
+  if(e.type==='LINE'){
+    s+=dxfPair(10,e.points[0]?.x||0)+dxfPair(20,e.points[0]?.y||0)+dxfPair(11,e.points[1]?.x||0)+dxfPair(21,e.points[1]?.y||0);
+  }else if(e.type==='CIRCLE'){
+    s+=dxfPair(10,e.points[0]?.x||0)+dxfPair(20,e.points[0]?.y||0)+dxfPair(40,e.data.r||0);
+  }else if(e.type==='ARC'){
+    s+=dxfPair(10,e.points[0]?.x||0)+dxfPair(20,e.points[0]?.y||0)+dxfPair(40,e.data.r||0)+dxfPair(50,e.data.start||0)+dxfPair(51,e.data.end||0);
+  }else if(e.type==='LWPOLYLINE'){
+    s+=dxfPair(90,e.points.length)+dxfPair(70,e.data.flags||0);
+    e.points.forEach(p=>{s+=dxfPair(10,p.x)+dxfPair(20,p.y)});
+  }else if(e.type==='POLYLINE'){
+    s=dxfPair(0,'LWPOLYLINE')+dxfPair(8,e.layer||'0')+dxfPair(90,e.points.length)+dxfPair(70,e.data.flags||0);
+    e.points.forEach(p=>{s+=dxfPair(10,p.x)+dxfPair(20,p.y)});
+  }else if(e.type==='POINT'){
+    s+=dxfPair(10,e.points[0]?.x||0)+dxfPair(20,e.points[0]?.y||0);
+  }else if(e.type==='TEXT'||e.type==='MTEXT'){
+    s+=dxfPair(10,e.points[0]?.x||0)+dxfPair(20,e.points[0]?.y||0)+dxfPair(1,e.data.text||'');
+  }
+  return s;
+}
+function downloadDXF(doc){
+  const header='0\\nSECTION\\n2\\nHEADER\\n9\\n$ACADVER\\n1\\nAC1009\\n0\\nENDSEC\\n';
+  const body='0\\nSECTION\\n2\\nENTITIES\\n'+doc.entities.map(dxfEntityText).join('')+'0\\nENDSEC\\n0\\nEOF\\n';
+  const blob=new Blob([header+body],{type:'application/dxf'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(window.currentFile?.name||'drawing').replace(/\\.dxf$/i,'')+'_edited.dxf';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+})();
+</script>
 </body>
 </html>
