@@ -223,6 +223,75 @@ document.getElementById('workspaceAnalysis').scrollIntoView({behavior:'smooth',b
 }
 function downloadSupplierComments(){if(!window.lastSupplierComments)return;const a=document.createElement('a'),u=URL.createObjectURL(new Blob([window.lastSupplierComments],{type:'text/plain'}));a.href=u;a.download='drawing-supplier-comments.txt';a.click();URL.revokeObjectURL(u)}
 async function compareRevisions(){const a=document.getElementById('revOld').files[0],b=document.getElementById('revNew').files[0],out=document.getElementById('revisionResults');if(!a||!b){out.innerHTML='<div class="notice">Select both DXF revisions first.</div>';return}try{const [da,db]=await Promise.all([a.text(),b.text()]);const A=dxfReport(parseDXF(da)),B=dxfReport(parseDXF(db));const keys=new Set([...A.types.map(x=>x[0]),...B.types.map(x=>x[0])]);const count=(r,k)=>r.types.find(x=>x[0]===k)?.[1]||0;const layerKeys=new Set([...A.layers.map(x=>x[0]),...B.layers.map(x=>x[0])]);const la=(r,k)=>r.layers.find(x=>x[0]===k)?.[1]||0;out.innerHTML='<div class="section"><h3>Revision comparison summary</h3><p><b>Previous:</b> '+esc(a.name)+' ('+A.total+' supported entities) · <b>New:</b> '+esc(b.name)+' ('+B.total+' supported entities)</p><h4>Entity count changes</h4><ul>'+Array.from(keys).map(k=>'<li>'+esc(k)+': '+count(A,k)+' → '+count(B,k)+' ('+(count(B,k)-count(A,k)>=0?'+':'')+(count(B,k)-count(A,k))+')</li>').join('')+'</ul><h4>Layer count changes</h4><ul>'+Array.from(layerKeys).map(k=>'<li>'+esc(k)+': '+la(A,k)+' → '+la(B,k)+' ('+(la(B,k)-la(A,k)>=0?'+':'')+(la(B,k)-la(A,k))+')</li>').join('')+'</ul><h4>Extracted text</h4><p>Previous: '+A.texts.length+' text objects · New: '+B.texts.length+' text objects.</p><div class="notice">This comparison detects count and layer changes only. It does not yet identify exact moved geometry, dimension value changes, block contents or visual differences. Always inspect the drawing revisions visually before acceptance.</div></div>'}catch(e){out.innerHTML='<div class="notice">Could not compare these files: '+esc(e.message)+'</div>'}}
+function buildDXFSourceMap(raw){
+  const eol=raw.includes("\\r\\n")?"\\r\\n":raw.includes("\\r")?"\\r":"\\n";
+  const trailing=/[\\r\\n]$/.test(raw);
+  const lines=raw.replace(/\\r\\n/g,"\\n").replace(/\\r/g,"\\n").split("\\n");
+  if(trailing&&lines[lines.length-1]==="")lines.pop();
+  const supported=new Set(["LINE","CIRCLE","ARC","LWPOLYLINE","POLYLINE","TEXT","MTEXT","POINT"]);
+  const spans=[];let section="",active=null,entitiesEndsecLine=-1;
+  for(let i=0;i+1<lines.length;i+=2){
+    const code=Number(String(lines[i]).trim()),value=String(lines[i+1]??"").trim();
+    if(code===0&&value.toUpperCase()==="SECTION"){section=String(lines[i+3]||"").trim().toUpperCase();continue}
+    if(code===0&&value.toUpperCase()==="ENDSEC"){
+      if(active){active.end=i;active=null}
+      if(section==="ENTITIES")entitiesEndsecLine=i;
+      section="";continue;
+    }
+    if(section==="ENTITIES"&&code===0){
+      if(active){active.end=i;active=null}
+      const type=value.toUpperCase();
+      if(supported.has(type)){active={start:i,end:lines.length,type};spans.push(active)}
+    }
+  }
+  if(active)active.end=lines.length;
+  return {lines,eol,trailing,spans,entitiesEndsecLine};
+}
+function dxfBlockPairs(blockLines){
+  const pairs=[];for(let i=0;i+1<blockLines.length;i+=2)pairs.push({code:Number(String(blockLines[i]).trim()),value:blockLines[i+1]??""});return pairs;
+}
+function dxfPairsToLines(pairs){const out=[];pairs.forEach(p=>out.push(String(p.code),String(p.value)));return out}
+function applyDXFBlockOperation(blockLines,op){
+  const pairs=dxfBlockPairs(blockLines),type=String(pairs[0]?.value||"").toUpperCase();
+  if(op.type==="move_entity"){
+    const dx=Number(op.dx),dy=Number(op.dy);if(!Number.isFinite(dx)||!Number.isFinite(dy))return null;
+    for(const p of pairs){if(p.code>=10&&p.code<=18&&Number.isFinite(Number(p.value)))p.value=String(Number(p.value)+dx);else if(p.code>=20&&p.code<=28&&Number.isFinite(Number(p.value)))p.value=String(Number(p.value)+dy)}
+  }else if(op.type==="set_layer"){
+    let found=false;for(const p of pairs)if(p.code===8){p.value=String(op.layer);found=true}
+    if(!found)pairs.splice(1,0,{code:8,value:String(op.layer)});
+  }else if(op.type==="update_text"){
+    if(!["TEXT","MTEXT"].includes(type))return null;
+    for(let i=pairs.length-1;i>=0;i--)if(pairs[i].code===1||pairs[i].code===3)pairs.splice(i,1);
+    const at=pairs.findIndex(p=>p.code===0)+1,value=String(op.text||"");
+    if(type==="MTEXT"){
+      const chunks=value.match(/[\\s\\S]{1,250}/g)||[""];
+      const inserted=chunks.slice(0,-1).map(value=>({code:3,value}));inserted.push({code:1,value:chunks[chunks.length-1]});pairs.splice(at,0,...inserted);
+    }else pairs.splice(at,0,{code:1,value});
+  }
+  return dxfPairsToLines(pairs);
+}
+function makeDXFAddition(op){
+  const p=(code,value)=>({code,value:String(value)}),layer=String(op.layer||"0");let pairs=[];
+  if(op.type==="add_line")pairs=[p(0,"LINE"),p(8,layer),p(10,op.x1),p(20,op.y1),p(30,0),p(11,op.x2),p(21,op.y2),p(31,0)];
+  else if(op.type==="add_circle")pairs=[p(0,"CIRCLE"),p(8,layer),p(10,op.x),p(20,op.y),p(30,0),p(40,op.radius)];
+  else if(op.type==="add_text")pairs=[p(0,"TEXT"),p(8,layer),p(10,op.x),p(20,op.y),p(30,0),p(40,op.height),p(1,op.text),p(50,0)];
+  else return null;
+  return dxfPairsToLines(pairs);
+}
+function serializeOriginalDXF(doc){
+  const source=doc._dxfSource;if(!source)throw new Error("Original DXF source is unavailable; export stopped to prevent data loss.");
+  const lines=source.lines.slice(),additions=(doc._dxfAdditions||[]).filter((block,i)=>!doc._dxfDeletedAdditions?.has(i));
+  if(additions.length){
+    if(source.entitiesEndsecLine<0)throw new Error("Could not safely locate the ENTITIES section end; export was stopped.");
+    lines.splice(source.entitiesEndsecLine,0,...additions.flat());
+  }
+  for(let i=source.spans.length-1;i>=0;i--){
+    const span=source.spans[i],replacement=doc._dxfBlocks[i];
+    if(doc._dxfDeleted?.has(i))lines.splice(span.start,span.end-span.start);
+    else if(replacement)lines.splice(span.start,span.end-span.start,...replacement);
+  }
+  return lines.join(source.eol)+(source.trailing?source.eol:"");
+}
 function parseDXF(text){
 const a=text.replace(/\r/g,'').split('\n').map(x=>x.trimEnd()), out=[];
 for(let i=0;i<a.length-1;i+=2) out.push({code:Number(a[i]),value:a[i+1]??''});
@@ -242,7 +311,7 @@ else if(g.code===51)cur.data.end=Number(g.value);
 else if(g.code===1||g.code===3)cur.data.text=(cur.data.text||'')+String(g.value);
 else if(g.code===70)cur.data.flags=Number(g.value)}}
 entities.forEach(e=>layers[e.layer]=(layers[e.layer]||0)+1);
-return {entities,layers,counts};}
+const source=buildDXFSourceMap(text);return {entities,layers,counts,_dxfSource:source,_dxfBlocks:source.spans.map(span=>source.lines.slice(span.start,span.end)),_dxfDeleted:new Set(),_dxfAdditions:[],_dxfDeletedAdditions:new Set(),_dxfSourceIndexes:entities.map((_,i)=>i),_dxfAdditionIndexes:entities.map(()=>null)};}
 function dxfBounds(es){let xs=[],ys=[];es.forEach(e=>e.points.forEach(p=>{if(Number.isFinite(p.x)&&Number.isFinite(p.y)){xs.push(p.x);ys.push(p.y)}}));return xs.length?{minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)}:{minX:0,maxX:100,minY:0,maxY:100}}
 function renderDXF(doc,container){
 const canvas=document.createElement('canvas');canvas.className='cadcanvas';container.appendChild(canvas);const ctx=canvas.getContext('2d');
@@ -504,10 +573,8 @@ function dxfEntityText(e){
   return s;
 }
 function downloadDXF(doc){
-  if(!confirm("This export rebuilds only the supported entities currently parsed by this tool. Unsupported objects, blocks, dimensions, hatches, layouts and some drawing metadata may be omitted. Continue only if you accept this limitation and will inspect the exported file in CAD software."))return;
-  const header='0\\nSECTION\\n2\\nHEADER\\n9\\n$ACADVER\\n1\\nAC1009\\n0\\nENDSEC\\n';
-  const body='0\\nSECTION\\n2\\nENTITIES\\n'+doc.entities.map(dxfEntityText).join('')+'0\\nENDSEC\\n0\\nEOF\\n';
-  const blob=new Blob([header+body],{type:'application/dxf'});
+  let output;try{output=serializeOriginalDXF(doc)}catch(err){alert("Export stopped to protect your drawing: "+err.message);return}
+  const blob=new Blob([output],{type:'application/dxf'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(window.currentFile?.name||'drawing').replace(/\\.dxf$/i,'')+'_edited.dxf';a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
