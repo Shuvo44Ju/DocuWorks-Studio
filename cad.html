@@ -250,5 +250,64 @@ function showDXFEntity(e){
  if(!box){box=document.createElement('div');box.id='dxfEntity';box.className='inspect';document.getElementById('dxfInspector').parentElement.insertBefore(box,document.getElementById('dxfInspector'));}
  box.innerHTML='<b>Selected entity</b><br>Type: '+esc(e.type)+'<br>Layer: '+esc(e.layer)+'<br>Coordinates: '+e.points.map(p=>p.x.toFixed(3)+', '+p.y.toFixed(3)).join(' · ')+(e.data.r!=null?'<br>Radius: '+e.data.r:'')+(e.data.text?'<br>Text: '+esc(e.data.text):'');
 }
-</script></body>
+</script>
+<style>
+.dxf-advanced{display:grid;grid-template-columns:240px 1fr;gap:10px;margin-top:10px}
+.dxf-panel{border:1px solid var(--line);border-radius:9px;background:#fff;padding:10px;min-height:100px}
+.dxf-panel h3{font-size:12px;margin:0 0 8px}
+.layer-item{display:flex;align-items:center;gap:6px;padding:6px 4px;border-bottom:1px solid var(--line);font-size:11px}
+.layer-item input{margin:0}.layer-item button{margin-left:auto}
+.dxf-search{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px;margin-bottom:7px}
+.dxf-results{max-height:190px;overflow:auto}
+.dxf-result{display:block;width:100%;border:0;background:#fff;text-align:left;padding:7px;border-bottom:1px solid var(--line);font-size:11px}
+.dxf-result:hover{background:var(--blue2)}
+.dxf-stage{min-width:0}
+@media(max-width:800px){.dxf-advanced{grid-template-columns:1fr}}
+</style>
+<script>
+(function(){
+const originalRenderDXF=renderDXF;
+window.renderDXF=function(doc,container){
+  const wrap=document.createElement('div');
+  wrap.className='dxf-advanced';
+  const panel=document.createElement('div');
+  panel.className='dxf-panel';
+  const stage=document.createElement('div');
+  stage.className='dxf-stage';
+  wrap.appendChild(panel);wrap.appendChild(stage);
+  container.appendChild(wrap);
+  originalRenderDXF(doc,stage);
+
+  const layerState={};
+  Object.keys(doc.layers).forEach(k=>layerState[k]=true);
+  let query='';
+  function refreshPanel(){
+    const layers=Object.entries(doc.layers).sort((a,b)=>a[0].localeCompare(b[0]));
+    panel.innerHTML='<h3>Layers</h3><input class="dxf-search" id="dxfObjSearch" placeholder="Search type, layer or text..."><div class="dxf-results" id="dxfLayerList"></div><h3 style="margin-top:12px">Objects</h3><div class="dxf-results" id="dxfObjList"></div><div class="toolbar" style="margin-top:8px"><button class="btn small" id="dxfFit">Fit</button><button class="btn small" id="dxfPng">Export PNG</button></div>';
+    const ll=panel.querySelector('#dxfLayerList');
+    ll.innerHTML=layers.map(([name,count])=>'<label class="layer-item"><input type="checkbox" data-layer="'+esc(name)+'" '+(layerState[name]?'checked':'')+'><span>'+esc(name)+'</span><b style="margin-left:auto">'+count+'</b></label>').join('');
+    panel.querySelectorAll('[data-layer]').forEach(x=>x.onchange=()=>{layerState[x.dataset.layer]=x.checked;applyVisibility();});
+    const search=panel.querySelector('#dxfObjSearch');search.value=query;search.oninput=()=>{query=search.value.toLowerCase();renderObjects();};
+    panel.querySelector('#dxfFit').onclick=()=>window.dispatchEvent(new Event('resize'));
+    panel.querySelector('#dxfPng').onclick=()=>{const canv=stage.querySelector('canvas');if(canv){const a=document.createElement('a');a.download='dxf-view.png';a.href=canv.toDataURL('image/png');a.click();}};
+    renderObjects();
+  }
+  function renderObjects(){
+    const list=panel.querySelector('#dxfObjList');if(!list)return;
+    const arr=doc.entities.map((e,i)=>({e,i})).filter(x=>{
+      const e=x.e,s=[e.type,e.layer,e.data?.text||''].join(' ').toLowerCase();return !query||s.includes(query);
+    }).slice(0,300);
+    list.innerHTML=arr.map(x=>'<button class="dxf-result" data-i="'+x.i+'">'+esc(x.e.type)+' · '+esc(x.e.layer)+(x.e.data?.text?' · '+esc(x.e.data.text.slice(0,28)):'')+'</button>').join('')||'<div class="muted" style="padding:6px;font-size:11px">No matching objects.</div>';
+    list.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{showDXFEntity(doc.entities[Number(b.dataset.i)]);});
+  }
+  function applyVisibility(){
+    const filtered={...doc,entities:doc.entities.filter(e=>layerState[e.layer])};
+    const old=stage.querySelector('.cadtools');const oldCanvas=stage.querySelector('canvas');if(old)old.remove();if(oldCanvas)oldCanvas.remove();
+    originalRenderDXF(filtered,stage);
+  }
+  refreshPanel();
+};
+})();
+</script>
+</body>
 </html>
