@@ -874,5 +874,80 @@ function downloadDXF(doc){
 .dxf-vertex-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 </style>
 
+
+<script>
+window.pendingCadPlan=null;
+function cadOperationLabel(op){
+ const target=Number.isInteger(op.index)?'Object #'+(op.index+1):'New object';
+ if(op.type==='move_entity')return 'Move '+target+' by ΔX '+Number(op.dx)+' and ΔY '+Number(op.dy)+' drawing units';
+ if(op.type==='delete_entity')return 'Delete '+target;
+ if(op.type==='set_layer')return 'Move '+target+' to layer “'+String(op.layer||'')+'”';
+ if(op.type==='update_text')return 'Change text on '+target+' to “'+String(op.text||'')+'”';
+ if(op.type==='add_line')return 'Add line on '+String(op.layer||'0')+' from ('+op.x1+', '+op.y1+') to ('+op.x2+', '+op.y2+')';
+ if(op.type==='add_circle')return 'Add circle on '+String(op.layer||'0')+' at ('+op.x+', '+op.y+') with radius '+op.radius;
+ if(op.type==='add_text')return 'Add text “'+String(op.text||'')+'” on '+String(op.layer||'0')+' at ('+op.x+', '+op.y+')';
+ return 'Unsupported operation';
+}
+async function requestCadModification(){
+ const prompt=document.getElementById('cadModifyPrompt').value.trim();
+ const out=document.getElementById('cadModifyResult');
+ if(!prompt){alert('Please describe the change you want.');return}
+ if(!window.currentFile||!window.currentDXF){out.innerHTML='<div class="notice">Modification planning currently requires a DXF drawing. Upload a DXF first.</div>';return}
+ out.innerHTML='<div class="section"><b>Preparing your modification plan…</b><p class="muted">The original drawing is not being changed.</p></div>';
+ window.pendingCadPlan=null;
+ try{
+  const res=await fetch('https://docuworks-studio.shuvokh97.workers.dev/api/cad/modify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileName:window.currentFile.name,prompt,units:document.getElementById('cadModifyUnits').value,entities:window.currentDXF.entities})});
+  let data;try{data=await res.json()}catch{throw new Error('The modification service returned an unreadable response.')}
+  if(!res.ok)throw new Error(data.error||('Request failed with HTTP '+res.status));
+  window.pendingCadPlan=data;
+  let html='<div class="section"><h3>Proposed modification plan</h3><p>'+esc(data.summary||'Plan prepared.')+'</p>';
+  if(data.clarification_required)html+='<div class="notice"><b>Clarification needed:</b> '+esc(data.clarification_question||'Please clarify the target or drawing units, then submit the instruction again.')+'</div>';
+  if(Array.isArray(data.operations)&&data.operations.length){
+   html+='<ol>'+data.operations.map(op=>'<li><b>'+esc(cadOperationLabel(op))+'</b>'+(op.reason?'<div class="muted">'+esc(op.reason)+'</div>':'')+'</li>').join('')+'</ol>';
+  }else html+='<p class="muted">No safe, exact geometry operation was proposed. The AI may need a clearer target or more drawing information.</p>';
+  if(data.warnings?.length)html+='<h4>Warnings</h4><ul>'+data.warnings.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
+  if(data.preview_notes?.length)html+='<h4>Review before applying</h4><ul>'+data.preview_notes.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
+  html+='<p class="muted">Model: '+esc(data.model||'Cloudflare Workers AI')+' · '+esc(data.diagnostics?.entitiesReviewed??'—')+' entities reviewed</p>';
+  if(!data.clarification_required&&data.operations?.length)html+='<div class="toolbar"><button class="btn primary" onclick="approveCadModification()">Approve &amp; Apply Changes</button><button class="btn" onclick="discardCadModification()">Discard plan</button></div>';
+  html+='<div class="notice" style="margin-top:10px">Applying changes updates only the in-browser working copy. The uploaded original is not overwritten. DXF export is currently a simplified supported-entity export and may omit unsupported CAD content; inspect it in a CAD application before use.</div></div>';
+  out.innerHTML=html;
+ }catch(e){out.innerHTML='<div class="notice"><b>Could not prepare a modification plan.</b><br>'+esc(e.message||e)+'</div>'}
+}
+function discardCadModification(){window.pendingCadPlan=null;document.getElementById('cadModifyResult').innerHTML='<p class="muted">Modification plan discarded. Drawing unchanged.</p>'}
+function approveCadModification(){
+ const plan=window.pendingCadPlan,doc=window.currentDXF;
+ if(!plan||plan.clarification_required||!Array.isArray(plan.operations)||!plan.operations.length||!doc){alert('There is no applicable modification plan.');return}
+ if(!confirm('Apply '+plan.operations.length+' proposed operation(s) to the browser working copy? The original file will remain unchanged.'))return;
+ const ops=plan.operations;
+ const deletes=new Set(ops.filter(o=>o.type==='delete_entity').map(o=>o.index));
+ let applied=0;
+ for(const op of ops){
+  if(op.type==='move_entity'){
+   const e=doc.entities[op.index],dx=Number(op.dx),dy=Number(op.dy);
+   if(!e||!Array.isArray(e.points)||!Number.isFinite(dx)||!Number.isFinite(dy))continue;
+   e.points.forEach(p=>{p.x+=dx;p.y+=dy});applied++;
+  }else if(op.type==='set_layer'){
+   const e=doc.entities[op.index];if(e&&typeof op.layer==='string'&&op.layer.trim()){e.layer=op.layer.trim();applied++}
+  }else if(op.type==='update_text'){
+   const e=doc.entities[op.index];if(e&&['TEXT','MTEXT'].includes(e.type)&&typeof op.text==='string'){e.data.text=op.text;applied++}
+  }else if(op.type==='add_line'){
+   const vals=[op.x1,op.y1,op.x2,op.y2].map(Number);
+   if(vals.every(Number.isFinite)){doc.entities.push({type:'LINE',layer:String(op.layer||'0'),points:[{x:vals[0],y:vals[1]},{x:vals[2],y:vals[3]}],data:{}});applied++}
+  }else if(op.type==='add_circle'){
+   const vals=[op.x,op.y,op.radius].map(Number);
+   if(vals.every(Number.isFinite)&&vals[2]>0){doc.entities.push({type:'CIRCLE',layer:String(op.layer||'0'),points:[{x:vals[0],y:vals[1]}],data:{r:vals[2]}});applied++}
+  }else if(op.type==='add_text'){
+   const vals=[op.x,op.y,op.height].map(Number);
+   if(vals.every(Number.isFinite)&&typeof op.text==='string'&&op.text.length){doc.entities.push({type:'TEXT',layer:String(op.layer||'0'),points:[{x:vals[0],y:vals[1]}],data:{text:op.text,height:vals[2]}});applied++}
+  }
+ }
+ if(deletes.size){doc.entities=doc.entities.filter((e,i)=>!deletes.has(i));applied+=deletes.size}
+ rebuildDXFStats(doc);
+ const preview=document.getElementById('preview');preview.innerHTML='';renderDXF(doc,preview);renderDXFInspector(doc);
+ window.pendingCadPlan=null;
+ document.getElementById('cadModifyResult').innerHTML='<div class="notice"><b>'+applied+' operation(s) applied to the browser working copy.</b> Review the drawing visually. Export only after accepting the simplified DXF export limitations.</div>';
+}
+</script>
+
 </body>
 </html>
