@@ -433,5 +433,252 @@ function downloadDXF(doc){
 }
 })();
 </script>
+
+<style>
+.dxf-nav-toolbar{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.dxf-nav-toolbar .btn.active{background:var(--blue2);color:var(--blue);border-color:#9bbdf2}
+.dxf-nav-viewport{position:relative;width:100%;height:430px;overflow:hidden;background:#111820;border-radius:8px;touch-action:none}
+.dxf-nav-viewport canvas.cadcanvas{position:absolute;left:0;top:0;width:100%;height:100%;min-height:0;max-width:none;transform-origin:0 0;cursor:crosshair;outline:none;touch-action:none}
+.dxf-nav-status{position:absolute;left:8px;bottom:7px;z-index:4;padding:4px 7px;border-radius:5px;background:rgba(8,13,20,.82);color:#d9e4f2;font:11px ui-monospace,monospace;pointer-events:none}
+.dxf-crosshair-x,.dxf-crosshair-y{position:absolute;z-index:3;pointer-events:none;display:none;background:rgba(80,160,255,.65)}
+.dxf-crosshair-x{height:1px;left:0;right:0}.dxf-crosshair-y{width:1px;top:0;bottom:0}
+.dxf-zoom-window{position:absolute;z-index:5;border:1px dashed #74b6ff;background:rgba(45,130,230,.16);pointer-events:none;display:none}
+</style>
+<script>
+(function(){
+  const previousDXFRender=window.renderDXF;
+  window.renderDXF=function(doc,container){
+    previousDXFRender(doc,container);
+    const root=container.querySelector('.dxf-advanced')||container;
+    const panel=root.querySelector('.dxf-panel');
+    const seen=new WeakSet();
+
+    function attachCanvas(canvas){
+      if(seen.has(canvas)||canvas.closest('.dxf-nav-viewport'))return;
+      seen.add(canvas);
+      const parent=canvas.parentElement;
+      if(!parent)return;
+      parent.querySelectorAll('.dxf-nav-viewport').forEach(v=>{if(!v.querySelector('canvas'))v.remove()});
+      parent.querySelectorAll('.dxf-nav-toolbar').forEach(t=>t.remove());
+
+      const viewport=document.createElement('div');
+      viewport.className='dxf-nav-viewport';
+      parent.insertBefore(viewport,canvas);
+      viewport.appendChild(canvas);
+      canvas.tabIndex=0;
+      canvas.style.transform='translate(0px,0px) scale(1)';
+
+      const toolbar=document.createElement('div');
+      toolbar.className='dxf-nav-toolbar';
+      toolbar.innerHTML=
+        '<button class="btn small" data-nav="zin">＋ Zoom</button>'+
+        '<button class="btn small" data-nav="zout">－ Zoom</button>'+
+        '<button class="btn small active" data-nav="fit">Fit</button>'+
+        '<button class="btn small" data-nav="pan">Pan</button>'+
+        '<button class="btn small" data-nav="window">Zoom Window</button>'+
+        '<span class="label" style="align-self:center">Wheel: zoom · Middle-drag: pan · Space: pan</span>';
+      parent.insertBefore(toolbar,viewport);
+
+      const crossX=document.createElement('div');crossX.className='dxf-crosshair-x';
+      const crossY=document.createElement('div');crossY.className='dxf-crosshair-y';
+      const zoomBox=document.createElement('div');zoomBox.className='dxf-zoom-window';
+      const status=document.createElement('div');status.className='dxf-nav-status';status.textContent='X —  Y —  Zoom 100%';
+      viewport.append(crossX,crossY,zoomBox,status);
+
+      const oldClick=canvas.onclick;
+      canvas.onclick=null;
+      const bounds=dxfBounds(doc.entities);
+      const minX=bounds.minX,maxX=bounds.maxX,minY=bounds.minY,maxY=bounds.maxY;
+      const spanX=Math.max(1,maxX-minX),spanY=Math.max(1,maxY-minY);
+      const pad=35;
+      let zoom=1,tx=0,ty=0,panMode=false,windowMode=false,spaceDown=false;
+      let pointerStart=null,dragKind='',dragged=false,selectionIndex=-1;
+
+      function dimensions(){
+        return {w:viewport.clientWidth||canvas.clientWidth||600,h:viewport.clientHeight||430};
+      }
+      function baseScale(){
+        const d=dimensions();
+        return Math.max(.000001,Math.min((d.w-pad*2)/spanX,(d.h-pad*2)/spanY));
+      }
+      function applyTransform(){
+        canvas.style.transform='translate('+tx+'px,'+ty+'px) scale('+zoom+')';
+        status.textContent='X —  Y —  Zoom '+Math.round(zoom*100)+'%';
+      }
+      function localPoint(ev){
+        const r=viewport.getBoundingClientRect();
+        return {x:ev.clientX-r.left,y:ev.clientY-r.top};
+      }
+      function worldAtLocal(x,y){
+        const d=dimensions(),s=baseScale();
+        const bx=(x-tx)/zoom,by=(y-ty)/zoom;
+        return {x:minX+(bx-pad)/s,y:minY+(d.h-pad-by)/s};
+      }
+      function updateCrosshair(ev){
+        const p=localPoint(ev),w=worldAtLocal(p.x,p.y);
+        crossX.style.display='block';crossY.style.display='block';
+        crossX.style.top=p.y+'px';crossY.style.left=p.x+'px';
+        status.textContent='X '+w.x.toFixed(3)+'   Y '+w.y.toFixed(3)+'   Zoom '+Math.round(zoom*100)+'%';
+      }
+      function zoomAt(x,y,factor){
+        const next=Math.max(.08,Math.min(40,zoom*factor));
+        const bx=(x-tx)/zoom,by=(y-ty)/zoom;
+        tx=x-bx*next;ty=y-by*next;zoom=next;applyTransform();
+      }
+      function fit(){
+        zoom=1;tx=0;ty=0;applyTransform();
+        toolbar.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav==='fit'));
+      }
+      function changeMode(mode){
+        panMode=mode==='pan';windowMode=mode==='window';
+        toolbar.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav===mode));
+        canvas.style.cursor=panMode?'grab':windowMode?'crosshair':'crosshair';
+      }
+      function distanceToSegment(p,a,b){
+        const dx=b.x-a.x,dy=b.y-a.y,len=dx*dx+dy*dy;
+        const t=len?Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/len)):0;
+        const q={x:a.x+t*dx,y:a.y+t*dy};
+        return {distance:Math.hypot(p.x-q.x,p.y-q.y),point:q};
+      }
+      function angleInArc(angle,start,end){
+        const norm=v=>((v%360)+360)%360;
+        angle=norm(angle);start=norm(start);end=norm(end);
+        return start<=end?(angle>=start&&angle<=end):(angle>=start||angle<=end);
+      }
+      function hitTest(p){
+        const tolerance=12/(baseScale()*zoom);
+        let best=null;
+        doc.entities.forEach((e,index)=>{
+          let hit=Infinity,anchor=e.points&&e.points[0]?e.points[0]:null;
+          if(e.type==='LINE'&&e.points.length>=2){
+            hit=distanceToSegment(p,e.points[0],e.points[1]).distance;
+          }else if((e.type==='LWPOLYLINE'||e.type==='POLYLINE')&&e.points.length){
+            for(let i=1;i<e.points.length;i++)hit=Math.min(hit,distanceToSegment(p,e.points[i-1],e.points[i]).distance);
+            if((e.data.flags&1)&&e.points.length>2)hit=Math.min(hit,distanceToSegment(p,e.points[e.points.length-1],e.points[0]).distance);
+          }else if((e.type==='CIRCLE'||e.type==='ARC')&&anchor&&Number.isFinite(e.data.r)){
+            const dx=p.x-anchor.x,dy=p.y-anchor.y,dist=Math.hypot(dx,dy);
+            hit=Math.abs(dist-e.data.r);
+            if(e.type==='ARC'){
+              const ang=Math.atan2(dy,dx)*180/Math.PI;
+              if(!angleInArc(ang,e.data.start||0,e.data.end||360)){
+                const a1={x:anchor.x+e.data.r*Math.cos((e.data.start||0)*Math.PI/180),y:anchor.y+e.data.r*Math.sin((e.data.start||0)*Math.PI/180)};
+                const a2={x:anchor.x+e.data.r*Math.cos((e.data.end||360)*Math.PI/180),y:anchor.y+e.data.r*Math.sin((e.data.end||360)*Math.PI/180)};
+                hit=Math.min(Math.hypot(p.x-a1.x,p.y-a1.y),Math.hypot(p.x-a2.x,p.y-a2.y));
+              }
+            }
+          }else if(anchor){hit=Math.hypot(p.x-anchor.x,p.y-anchor.y)}
+          if(hit<=(best?best.distance:tolerance)&&(!best||hit<best.distance))best={index:index,distance:hit,entity:e,anchor:anchor};
+        });
+        return best;
+      }
+      function callOriginalAt(world){
+        if(typeof oldClick!=='function')return;
+        const r=canvas.getBoundingClientRect();
+        const scale=Math.max(.000001,Math.min((r.width-pad*2)/spanX,(r.height-pad*2)/spanY));
+        const fake={clientX:r.left+pad+(world.x-minX)*scale,clientY:r.top+r.height-pad-(world.y-minY)*scale};
+        oldClick.call(canvas,fake);
+      }
+      function selectObject(index){
+        selectionIndex=index;
+        const e=doc.entities[index];
+        if(!e)return;
+        showDXFEntity(e);
+        if(panel){
+          const item=panel.querySelector('#dxfObjList [data-i="'+index+'"]');
+          if(item)item.click();
+        }
+      }
+      function finishWindow(p){
+        const x1=Math.min(pointerStart.x,p.x),y1=Math.min(pointerStart.y,p.y);
+        const x2=Math.max(pointerStart.x,p.x),y2=Math.max(pointerStart.y,p.y);
+        const w=x2-x1,h=y2-y1;
+        zoomBox.style.display='none';
+        if(w<12||h<12)return;
+        const d=dimensions(),factor=Math.min(d.w/w,d.h/h);
+        const next=Math.max(.08,Math.min(40,zoom*factor));
+        const cx=(x1+x2)/2,cy=(y1+y2)/2;
+        const oldX=(cx-tx)/zoom,oldY=(cy-ty)/zoom;
+        zoom=next;tx=d.w/2-oldX*zoom;ty=d.h/2-oldY*zoom;
+        applyTransform();changeMode('select');
+      }
+
+      toolbar.querySelector('[data-nav="zin"]').onclick=()=>zoomAt(dimensions().w/2,dimensions().h/2,1.25);
+      toolbar.querySelector('[data-nav="zout"]').onclick=()=>zoomAt(dimensions().w/2,dimensions().h/2,.8);
+      toolbar.querySelector('[data-nav="fit"]').onclick=fit;
+      toolbar.querySelector('[data-nav="pan"]').onclick=()=>changeMode(panMode?'select':'pan');
+      toolbar.querySelector('[data-nav="window"]').onclick=()=>changeMode(windowMode?'select':'window');
+
+      canvas.addEventListener('wheel',ev=>{
+        ev.preventDefault();const p=localPoint(ev);
+        zoomAt(p.x,p.y,ev.deltaY<0?1.15:.87);
+      },{passive:false});
+      canvas.addEventListener('pointerdown',ev=>{
+        const p=localPoint(ev);
+        const shouldPan=panMode||spaceDown||ev.button===1;
+        if(shouldPan||windowMode){
+          ev.preventDefault();canvas.setPointerCapture(ev.pointerId);
+          pointerStart=p;dragged=false;dragKind=windowMode?'window':'pan';
+          if(dragKind==='window'){
+            zoomBox.style.display='block';zoomBox.style.left=p.x+'px';zoomBox.style.top=p.y+'px';zoomBox.style.width='0px';zoomBox.style.height='0px';
+          }else{canvas.style.cursor='grabbing'}
+        }
+      });
+      canvas.addEventListener('pointermove',ev=>{
+        updateCrosshair(ev);
+        if(!pointerStart||!dragKind)return;
+        const p=localPoint(ev);
+        if(Math.hypot(p.x-pointerStart.x,p.y-pointerStart.y)>3)dragged=true;
+        if(dragKind==='pan'&&dragged){
+          tx+=p.x-pointerStart.x;ty+=p.y-pointerStart.y;pointerStart=p;applyTransform();
+        }else if(dragKind==='window'){
+          zoomBox.style.left=Math.min(pointerStart.x,p.x)+'px';zoomBox.style.top=Math.min(pointerStart.y,p.y)+'px';
+          zoomBox.style.width=Math.abs(p.x-pointerStart.x)+'px';zoomBox.style.height=Math.abs(p.y-pointerStart.y)+'px';
+        }
+      });
+      canvas.addEventListener('pointerup',ev=>{
+        if(!pointerStart||!dragKind)return;
+        const p=localPoint(ev),kind=dragKind;
+        if(kind==='window')finishWindow(p);
+        if(kind==='pan')canvas.style.cursor=panMode?'grab':'crosshair';
+        pointerStart=null;dragKind='';
+        if(dragged)setTimeout(()=>{dragged=false},0);
+      });
+      canvas.addEventListener('pointercancel',()=>{pointerStart=null;dragKind='';zoomBox.style.display='none'});
+      canvas.addEventListener('click',ev=>{
+        if(dragged){ev.preventDefault();ev.stopImmediatePropagation();dragged=false;return}
+        const p=localPoint(ev),world=worldAtLocal(p.x,p.y);
+        const measureButton=parent.querySelector('.cadtools [data-mode="measure"].active');
+        if(measureButton){callOriginalAt(world);return}
+        const hit=hitTest(world);
+        if(!hit){status.textContent='No entity within selection tolerance · Zoom '+Math.round(zoom*100)+'%';return}
+        callOriginalAt(hit.anchor||world);
+        selectObject(hit.index);
+      });
+      canvas.addEventListener('pointerleave',()=>{crossX.style.display='none';crossY.style.display='none'});
+      canvas.addEventListener('keydown',ev=>{if(ev.code==='Space'){spaceDown=true;canvas.style.cursor='grab'}});
+      canvas.addEventListener('keyup',ev=>{if(ev.code==='Space'){spaceDown=false;canvas.style.cursor=panMode?'grab':'crosshair'}});
+      viewport.addEventListener('pointerenter',()=>canvas.focus({preventScroll:true}));
+      window.addEventListener('resize',()=>fit(),{once:true});
+      applyTransform();
+
+      const pngButton=panel&&panel.querySelector('#dxfPng');
+      if(pngButton)pngButton.onclick=function(){
+        const d=dimensions(),out=document.createElement('canvas');out.width=d.w*2;out.height=d.h*2;
+        const ctx=out.getContext('2d');ctx.scale(2,2);ctx.fillStyle='#111820';ctx.fillRect(0,0,d.w,d.h);
+        ctx.translate(tx,ty);ctx.scale(zoom,zoom);
+        ctx.drawImage(canvas,0,0,canvas.width,canvas.height,0,0,canvas.offsetWidth,canvas.offsetHeight);
+        const a=document.createElement('a');a.download='dxf-view.png';a.href=out.toDataURL('image/png');a.click();
+      };
+    }
+
+    function attachAll(){
+      container.querySelectorAll('canvas.cadcanvas').forEach(attachCanvas);
+    }
+    attachAll();
+    const observer=new MutationObserver(()=>attachAll());
+    observer.observe(container,{childList:true,subtree:true});
+  };
+})();
+</script>
 </body>
 </html>
