@@ -729,8 +729,18 @@ function downloadDXF(doc){
      if(e.data.r!=null)html+='<label>Radius<input name="radius" type="number" min="0" step="any" value="'+e.data.r+'"></label>';
      if(e.type==='ARC')html+='<label>Start angle°<input name="start" type="number" step="any" value="'+(e.data.start||0)+'"></label><label>End angle°<input name="end" type="number" step="any" value="'+(e.data.end||0)+'"></label>';
      if(e.data.text!=null)html+='<label class="wide">Text<textarea name="text" rows="2">'+esc(e.data.text)+'</textarea></label>';
-     if(e.type==='LWPOLYLINE'||e.type==='POLYLINE')html+='<div class="wide muted">Polyline vertices: '+e.points.length+'. Use Move or Duplicate for safe whole-object changes.</div>';
+     if(e.type==='LWPOLYLINE'||e.type==='POLYLINE'){
+       html+='<div class="wide"><b style="font-size:11px">Polyline vertices ('+e.points.length+')</b><div class="dxf-vertex-list">';
+       e.points.forEach((p,i)=>{html+='<div class="dxf-vertex-row"><span>V'+(i+1)+'</span><label>X<input type="number" step="any" name="vx'+i+'" value="'+p.x+'"></label><label>Y<input type="number" step="any" name="vy'+i+'" value="'+p.y+'"></label><button type="button" class="btn small danger" data-remove-vertex="'+i+'" title="Remove this vertex">×</button></div>';});
+       html+='</div><label class="dxf-closed-toggle"><input type="checkbox" name="closed" '+((e.data.flags&1)?'checked':'')+'> Closed polyline</label><div class="dxf-vertex-actions"><button type="button" class="btn small" id="dxfAddVertex">Add vertex</button><button type="button" class="btn small" id="dxfRemoveLastVertex">Remove last vertex</button></div><div class="muted" style="font-size:10px;margin-top:5px">Vertex editing changes straight segments only. Existing bulge/curve data is not currently preserved by this editor.</div></div>';
+     }
      fields.innerHTML=html;
+     if(e.type==='LWPOLYLINE'||e.type==='POLYLINE'){
+       const add=panel.querySelector('#dxfAddVertex'),removeLast=panel.querySelector('#dxfRemoveLastVertex');
+       if(add)add.onclick=()=>{checkpoint();const last=e.points[e.points.length-1]||{x:0,y:0};e.points.push({x:last.x+10,y:last.y});refresh();};
+       if(removeLast)removeLast.onclick=()=>{if(e.points.length<=2){alert('A polyline must keep at least two vertices.');return}checkpoint();e.points.pop();refresh();};
+       panel.querySelectorAll('[data-remove-vertex]').forEach(btn=>btn.onclick=()=>{const n=Number(btn.dataset.removeVertex);if(e.points.length<=2){alert('A polyline must keep at least two vertices.');return}checkpoint();e.points.splice(n,1);refresh();});
+     }
    }
    function selectedIndices(){return [...history.selected].filter(i=>doc.entities[i])}
    function undo(){if(!history.past.length)return;history.future.push(clone());doc.entities=history.past.pop();history.selected.clear();refresh();updateHistory()}
@@ -749,6 +759,10 @@ function downloadDXF(doc){
      if(v('radius'))e.data.r=Math.max(0,Number(v('radius').value));
      if(v('start'))e.data.start=Number(v('start').value);if(v('end'))e.data.end=Number(v('end').value);
      if(v('text'))e.data.text=v('text').value;
+     if(e.type==='LWPOLYLINE'||e.type==='POLYLINE'){
+       e.points.forEach((p,i)=>{const x=v('vx'+i),y=v('vy'+i);if(x&&x.value!=='')p.x=Number(x.value);if(y&&y.value!=='')p.y=Number(y.value);});
+       const closed=v('closed');if(closed)e.data.flags=closed.checked?(e.data.flags|1):(e.data.flags&~1);
+     }
      refresh();fieldsFor(e);updateHistory();
    };
    const oldMove=panel.querySelector('#dxfMove');
@@ -768,5 +782,17 @@ function downloadDXF(doc){
  };
 })();
 </script>
+
+<style>
+.dxf-vertex-list{display:grid;gap:5px;margin-top:7px}
+.dxf-vertex-row{display:grid;grid-template-columns:25px minmax(0,1fr) minmax(0,1fr) 28px;gap:5px;align-items:end;padding:5px;background:#f7f9fc;border:1px solid #e4eaf2;border-radius:6px}
+.dxf-vertex-row>span{font-size:10px;font-weight:700;padding:7px 0}
+.dxf-vertex-row label{font-size:9px;color:#687386;display:grid;gap:3px}
+.dxf-vertex-row input{width:100%;min-width:0;padding:6px;border:1px solid #dfe5ee;border-radius:5px}
+.dxf-vertex-row button{padding:5px!important;min-width:26px}
+.dxf-closed-toggle{display:flex!important;grid-template-columns:none!important;align-items:center;gap:6px;margin-top:8px;font-size:11px!important}
+.dxf-vertex-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+</style>
+
 </body>
 </html>
