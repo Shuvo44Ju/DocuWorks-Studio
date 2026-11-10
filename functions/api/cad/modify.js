@@ -55,7 +55,7 @@ export async function onRequestPost({request,env}) {
     "For a move, dx and dy are drawing-unit offsets. Moving a circle/arc changes its center. Moving a polyline changes all its vertices. Do not claim to move a whole equipment block if the block is not represented as a single supported entity.",
     "Do not alter dimensions, block references, hatches, external references, or unsupported objects. Do not invent geometry, dimensions, layers, or text. Prefer asking for clarification over guessing.",
     "If no safe exact operation is possible, return an empty operations array and explain why. Keep comments short and practical.",
-    "Return ONLY JSON: {"summary":"...","clarification_required":false,"clarification_question":"","operations":[{"type":"move_entity","index":0,"dx":0,"dy":0,"reason":"..."}],"warnings":["..."],"preview_notes":["..."]}. Use only the listed operation types and required fields."
+    'Return ONLY JSON matching this schema: {"summary":"...","clarification_required":false,"clarification_question":"","operations":[{"type":"move_entity","index":0,"dx":0,"dy":0,"reason":"..."}],"warnings":["..."],"preview_notes":["..."]}. Use only the listed operation types and required fields.'
   ].join("\n");
   const started=Date.now();
   try {
