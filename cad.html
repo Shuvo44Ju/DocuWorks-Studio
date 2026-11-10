@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CAD Project Manager — DocuWorks Studio</title>
+<style>
+:root{--blue:#1769e0;--blue2:#eaf2ff;--ink:#172033;--muted:#687386;--line:#dfe5ee;--bg:#f5f7fb;--ok:#16845b;--warn:#b86a00;--danger:#c43b3b}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);background:var(--bg)}
+button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:flex;min-height:100vh}.side{width:245px;background:#fff;border-right:1px solid var(--line);padding:22px 15px;position:sticky;top:0;height:100vh}.brand{display:flex;gap:12px;align-items:center;padding:5px 10px 24px}.logo{width:40px;height:40px;border-radius:11px;background:var(--blue);color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px}.brand b{display:block}.brand small{color:var(--muted)}.nav{display:grid;gap:6px}.nav button{border:0;background:transparent;text-align:left;padding:12px 13px;border-radius:9px;color:#536074}.nav button.active,.nav button:hover{background:var(--blue2);color:var(--blue);font-weight:700}.main{flex:1;min-width:0}.top{height:74px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px}.top h1{font-size:20px;margin:0}.top p{margin:4px 0 0;color:var(--muted);font-size:12px}.content{padding:26px;max-width:1500px;margin:auto}.page{display:none}.page.active{display:block}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px}.metric{font-size:27px;font-weight:800;margin-top:6px}.label{color:var(--muted);font-size:12px}.section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:18px}.sectionhead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:15px}.section h2{font-size:16px;margin:0}.btn{border:1px solid var(--line);background:#fff;padding:9px 13px;border-radius:8px;color:var(--ink)}.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}.btn.danger{color:var(--danger)}.btn.small{padding:7px 10px;font-size:12px}.toolbar{display:flex;gap:8px;flex-wrap:wrap}.grid2{display:grid;grid-template-columns:1.15fr .85fr;gap:18px}.drop{border:2px dashed #b8c7df;border-radius:13px;padding:32px;text-align:center;background:#fbfdff}.drop.drag{background:var(--blue2);border-color:var(--blue)}.drop input{display:none}.drop strong{display:block;margin-bottom:5px}.muted{color:var(--muted)}.preview{min-height:430px;border:1px solid var(--line);border-radius:10px;background:#10151d;display:grid;place-items:center;overflow:hidden}.preview iframe,.preview img{width:100%;height:100%;min-height:430px;border:0;object-fit:contain}.preview .empty{color:#aab5c7;text-align:center;padding:40px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;background:#fff}.field textarea{min-height:80px;resize:vertical}.tablewrap{overflow:auto}.table{width:100%;border-collapse:collapse;font-size:12px}.table th,.table td{border-bottom:1px solid var(--line);padding:11px 9px;text-align:left;white-space:nowrap}.table th{color:var(--muted);font-weight:700;background:#fbfcfe}.status{display:inline-flex;padding:4px 8px;border-radius:99px;font-size:10px;font-weight:700}.s-open{background:#eaf2ff;color:#1769e0}.s-done{background:#e9f8f1;color:#16845b}.s-warn{background:#fff3df;color:#b86a00}.chat{height:470px;border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}.messages{flex:1;padding:17px;overflow:auto;background:#fbfcfe}.msg{max-width:85%;padding:11px 13px;border-radius:12px;margin-bottom:10px;font-size:13px;line-height:1.5}.msg.user{margin-left:auto;background:var(--blue);color:#fff;border-bottom-right-radius:3px}.msg.bot{background:#fff;border:1px solid var(--line);border-bottom-left-radius:3px}.composer{display:flex;gap:8px;padding:11px;border-top:1px solid var(--line);background:#fff}.composer input{flex:1;border:1px solid var(--line);border-radius:9px;padding:10px}.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}.chip{border:1px solid #cfd8e8;background:#fff;border-radius:99px;padding:7px 10px;font-size:11px}.check{display:flex;align-items:flex-start;gap:9px;padding:10px;border-bottom:1px solid var(--line)}.check input{margin-top:3px}.notice{padding:12px 14px;border-radius:9px;background:#fff7e8;border:1px solid #f1d9ad;color:#7c5318;font-size:12px}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.emptyrow{text-align:center;padding:28px;color:var(--muted)}@media(max-width:900px){.side{width:72px;padding:14px 8px}.brand div:last-child,.nav button span{display:none}.brand{padding:5px 8px 20px}.cards{grid-template-columns:1fr 1fr}.grid2,.two{grid-template-columns:1fr}}@media(max-width:600px){.side{display:none}.content{padding:16px}.cards{grid-template-columns:1fr}.top{padding:0 16px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+<div class="brand"><div class="logo">DW</div><div><b>CAD Manager</b><small>DocuWorks Studio</small></div></div>
+<nav class="nav">
+<button class="active" data-page="dashboard">▦ <span>Dashboard</span></button>
+<button data-page="drawing">⌁ <span>Drawing Workspace</span></button>
+<button data-page="assistant">✦ <span>Ask / AutoCAD Help</span></button>
+<button data-page="register">☷ <span>Drawing Register</span></button>
+<button data-page="actions">✓ <span>Actions & RFI</span></button>
+<button data-page="review">□ <span>Review Checklist</span></button>
+<button data-page="coach">⌘ <span>AutoCAD Coach</span></button>
+</nav>
+</aside>
+<main class="main">
+<header class="top"><div><h1 id="pageTitle">CAD Project Manager</h1><p id="pageSub">A practical workspace for managing drawings and learning AutoCAD.</p></div><div class="toolbar"><button class="btn small" onclick="clearDemo()">Clear local data</button></div></header>
+<div class="content">
+
+<section class="page active" id="dashboard">
+<div class="cards">
+<div class="card"><div class="label">Active projects</div><div class="metric" id="mProjects">2</div></div>
+<div class="card"><div class="label">Drawings</div><div class="metric" id="mDrawings">0</div></div>
+<div class="card"><div class="label">Open actions / RFIs</div><div class="metric" id="mActions">0</div></div>
+<div class="card"><div class="label">Awaiting review</div><div class="metric" id="mReview">1</div></div>
+</div>
+<div class="section"><div class="sectionhead"><h2>Project Manager's quick start</h2><button class="btn primary" onclick="showPage('drawing')">Open a drawing</button></div>
+<div class="two">
+<div><p><b>1. Upload the drawing</b><br><span class="muted">Keep the original file untouched. Add project, drawing number and revision.</span></p>
+<p><b>2. Ask what you need</b><br><span class="muted">Use the assistant for AutoCAD commands, drawing checks and modification procedures.</span></p></div>
+<div class="notice"><b>DWG safety:</b> this browser tool does not pretend to edit native DWG. It can track DWG files and give you exact AutoCAD steps. DXF can be inspected and selected safe edits can be supported.</div>
+</div></div>
+<div class="section"><div class="sectionhead"><h2>Recent drawings</h2><button class="btn small" onclick="showPage('register')">View register</button></div><div class="tablewrap"><table class="table"><thead><tr><th>Drawing</th><th>Revision</th><th>Type</th><th>Status</th></tr></thead><tbody id="recent"></tbody></table></div></div>
+</section>
+
+<section class="page" id="drawing">
+<div class="grid2">
+<div class="section" style="margin-top:0"><div class="sectionhead"><h2>Drawing Workspace</h2><div class="toolbar"><button class="btn small" onclick="document.getElementById('file').click()">Upload</button><input id="file" type="file" hidden accept=".dwg,.dxf,.pdf,.png,.jpg,.jpeg"></div></div>
+<div id="drop" class="drop"><strong>Drop a drawing here</strong><span class="muted">DXF / DWG / PDF / PNG / JPG</span><br><br><button class="btn primary" onclick="document.getElementById('file').click()">Choose drawing</button></div>
+<div class="preview" id="preview"><div class="empty">Your drawing preview will appear here.</div></div>
+</div>
+<div class="section" style="margin-top:0"><div class="sectionhead"><h2>Drawing information</h2><button class="btn primary small" onclick="saveDrawing()">Save drawing</button></div>
+<div class="meta">
+<div class="field"><label>Project</label><input id="dProject" placeholder="Project name"></div>
+<div class="field"><label>Drawing number</label><input id="dNo" placeholder="e.g. MEP-001"></div>
+<div class="field"><label>Title</label><input id="dTitle" placeholder="Drawing title"></div>
+<div class="field"><label>Revision</label><input id="dRev" placeholder="Rev 00"></div>
+<div class="field"><label>Discipline</label><select id="dDisc"><option>Architectural</option><option>Structural</option><option>Mechanical</option><option>Electrical</option><option>Plumbing</option><option>Process</option><option>Other</option></select></div>
+<div class="field"><label>Status</label><select id="dStatus"><option>For Review</option><option>For Approval</option><option>Approved</option><option>Issued</option><option>Superseded</option></select></div>
+<div class="field" style="grid-column:1/-1"><label>Notes</label><textarea id="dNotes" placeholder="Important notes, coordination points, pending clarification..."></textarea></div>
+</div>
+<div id="dxfInfo" style="margin-top:14px"></div>
+</div></div>
+</section>
+
+<section class="page" id="assistant">
+<div class="section" style="margin-top:0"><div class="sectionhead"><h2>Ask / AutoCAD Help</h2><span class="label">Beginner-friendly project guidance</span></div>
+<div class="chips"><button class="chip" onclick="ask('How do I safely modify a dimension?')">Modify a dimension</button><button class="chip" onclick="ask('How do I create and use layers?')">Layers</button><button class="chip" onclick="ask('What should I check before issuing a drawing?')">Issue check</button><button class="chip" onclick="ask('How do I prepare a drawing for PDF printing?')">Plot / PDF</button></div>
+<div class="chat"><div class="messages" id="messages"><div class="msg bot"><b>CAD Project Assistant</b><br>Tell me what you need to do. I will explain the AutoCAD workflow in simple steps and tell you when the task requires opening the DWG in AutoCAD.</div></div><div class="composer"><input id="askBox" placeholder="e.g. I need to change all dimensions to another style..." onkeydown="if(event.key==='Enter')ask()"><button class="btn primary" onclick="ask()">Ask</button></div></div>
+</div>
+</section>
+
+<section class="page" id="register">
+<div class="section" style="margin-top:0"><div class="sectionhead"><h2>Drawing Register</h2><div class="toolbar"><button class="btn small" onclick="showPage('drawing')">+ Add drawing</button><button class="btn small" onclick="printRegister()">Print</button></div></div>
+<div class="tablewrap"><table class="table"><thead><tr><th>Drawing No.</th><th>Title</th><th>Project</th><th>Rev</th><th>Discipline</th><th>Status</th><th>Type</th><th></th></tr></thead><tbody id="registerBody"></tbody></table></div></div>
+</section>
+
+<section class="page" id="actions">
+<div class="section" style="margin-top:0"><div class="sectionhead"><h2>Actions & RFI Log</h2><button class="btn primary small" onclick="addAction()">+ Add item</button></div>
+<div class="two"><div class="field"><label>Item type</label><select id="aType"><option>Action</option><option>RFI</option><option>Submittal</option><option>Inspection</option></select></div><div class="field"><label>Due date</label><input id="aDue" type="date"></div><div class="field"><label>Responsible</label><input id="aWho" placeholder="Person / supplier"></div><div class="field"><label>Description</label><input id="aDesc" placeholder="What needs to be done?"></div></div>
+<div class="tablewrap" style="margin-top:18px"><table class="table"><thead><tr><th>Type</th><th>Description</th><th>Responsible</th><th>Due</th><th>Status</th></tr></thead><tbody id="actionBody"></tbody></table></div></div>
+</section>
+
+<section class="page" id="review">
+<div class="section" style="margin-top:0"><div class="sectionhead"><h2>Drawing Review Checklist</h2><button class="btn primary small" onclick="printReview()">Print checklist</button></div>
+<div id="checks"></div></div>
+</section>
+
+<section class="page" id="coach">
+<div class="section" style="margin-top:0"><div class="sectionhead"><h2>AutoCAD Beginner Coach</h2><input id="cmdSearch" placeholder="Search command or topic..." oninput="renderCoach()"></div><div id="coachList"></div></div>
+</section>
+</div></main></div>
+<script>
+const KEY='dw_cad_manager_v1';
+let state=JSON.parse(localStorage.getItem(KEY)||'{"drawings":[],"actions":[],"checks":{},"projects":2}');
+const topics=[
+['LAYER','Create, rename, freeze and manage drawing layers','LAYER / LA','Use layers to control visibility and standards.','Create layers before drawing; avoid putting everything on Layer 0.'],
+['MATCHPROP','Copy properties from one object to another','MATCHPROP / MA','Useful when correcting inconsistent colors, linetypes or text properties.','Check what properties are being copied before applying broadly.'],
+['DIMSTYLE','Create or modify dimension styles','DIMSTYLE / D','Controls text, arrows, units and spacing for dimensions.','Do not change a company standard style without approval.'],
+['OSNAP','Precise object snapping','OSNAP / F3','Use endpoint, midpoint, center, intersection and perpendicular snaps.','Do not rely on visual placement for critical geometry.'],
+['XREF','Manage external references','XREF','Attach and coordinate external drawings without merging everything into one file.','Keep reference paths organized and verify the correct revision.'],
+['PURGE','Remove unused definitions','PURGE','Cleans unused layers, blocks, linetypes and other definitions.','Never purge blindly on a controlled production file.'],
+['AUDIT','Check drawing database errors','AUDIT','Find and repair drawing database problems.','Save a backup before repair.'],
+['PLOT','Print or publish a drawing','PLOT','Set printer, paper, scale, plot area and CTB/STB settings.','Always inspect print preview before issuing.'],
+['REVCLOUD','Mark revisions visually','REVCLOUD','Create revision clouds around changed areas.','Cloud the actual changed area and match the project revision procedure.'],
+['UNITS','Set drawing units','UNITS','Controls insertion and unit display settings.','Confirm units before measuring or inserting blocks.']
+];
+const checks=['Title block complete and correct','Drawing number and revision verified','Scale and units verified','Dimensions checked for consistency','Layers follow project standard','Xrefs / references are correct revision','Notes and specifications reviewed','Symbols / blocks are correct','Coordination / clashes checked','Plot preview and PDF quality checked','Approval / issue status confirmed'];
+function save(){localStorage.setItem(KEY,JSON.stringify(state));renderAll()}
+function showPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===id));const b=document.querySelector('.nav button[data-page="'+id+'"]');document.getElementById('pageTitle').textContent=b?b.innerText.trim():'CAD Project Manager'}
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+function renderAll(){document.getElementById('mDrawings').textContent=state.drawings.length;document.getElementById('mActions').textContent=state.actions.filter(x=>x.status!=='Done').length;document.getElementById('mProjects').textContent=state.projects||2;renderRegister();renderRecent();renderActions();renderChecks();renderCoach()}
+function renderRecent(){const el=document.getElementById('recent');el.innerHTML=state.drawings.slice(-6).reverse().map(d=>'<tr><td>'+esc(d.no||'—')+'</td><td>'+esc(d.rev||'—')+'</td><td>'+esc(d.type)+'</td><td><span class="status s-open">'+esc(d.status||'For Review')+'</span></td></tr>').join('')||'<tr><td colspan="4" class="emptyrow">No drawings yet.</td></tr>'}
+function renderRegister(){const el=document.getElementById('registerBody');el.innerHTML=state.drawings.map((d,i)=>'<tr><td>'+esc(d.no||'—')+'</td><td>'+esc(d.title||'—')+'</td><td>'+esc(d.project||'—')+'</td><td>'+esc(d.rev||'—')+'</td><td>'+esc(d.disc||'—')+'</td><td><span class="status s-open">'+esc(d.status)+'</span></td><td>'+esc(d.type)+'</td><td><button class="btn small danger" onclick="deleteDrawing('+i+')">Delete</button></td></tr>').join('')||'<tr><td colspan="8" class="emptyrow">No drawings registered.</td></tr>'}
+function renderActions(){const el=document.getElementById('actionBody');el.innerHTML=state.actions.map(x=>'<tr><td>'+esc(x.type)+'</td><td>'+esc(x.desc)+'</td><td>'+esc(x.who)+'</td><td>'+esc(x.due||'—')+'</td><td><span class="status '+(x.status==='Done'?'s-done':'s-warn')+'">'+x.status+'</span></td></tr>').join('')||'<tr><td colspan="5" class="emptyrow">No open items.</td></tr>'}
+function renderChecks(){const el=document.getElementById('checks');el.innerHTML=checks.map((x,i)=>'<label class="check"><input type="checkbox" '+(state.checks[i]?'checked':'')+' onchange="state.checks['+i+']=this.checked;save()"> <span>'+esc(x)+'</span></label>').join('')}
+function renderCoach(){const q=(document.getElementById('cmdSearch')?.value||'').toLowerCase();document.getElementById('coachList').innerHTML=topics.filter(t=>t.join(' ').toLowerCase().includes(q)).map(t=>'<div class="section" style="margin:10px 0"><b>'+esc(t[0])+'</b> — '+esc(t[1])+'<p class="muted">'+esc(t[2])+'</p><div><b>When:</b> '+esc(t[3])+'</div><div class="notice" style="margin-top:8px"><b>Common mistake:</b> '+esc(t[4])+'</div></div>').join('')}
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function addAction(){state.actions.push({type:document.getElementById('aType').value,desc:document.getElementById('aDesc').value||'New item',who:document.getElementById('aWho').value||'—',due:document.getElementById('aDue').value,status:'Open'});save()}
+function deleteDrawing(i){if(confirm('Delete this register entry?')){state.drawings.splice(i,1);save()}}
+function clearDemo(){if(confirm('Clear all CAD Project Manager local data?')){localStorage.removeItem(KEY);location.reload()}}
+function printRegister(){window.print()}
+function printReview(){window.print()}
+function saveDrawing(){if(!window.currentFile){alert('Upload a drawing first.');return}state.drawings.push({no:dNo.value,title:dTitle.value,project:dProject.value,rev:dRev.value,disc:dDisc.value,status:dStatus.value,type:window.currentFile.name.split('.').pop().toUpperCase(),notes:dNotes.value});save();alert('Drawing added to the register. The original file is not changed.')}
+function handleFile(file){window.currentFile=file;const ext=file.name.split('.').pop().toLowerCase();document.getElementById('drop').innerHTML='<strong>'+esc(file.name)+'</strong><span class="muted">'+Math.round(file.size/1024)+' KB · '+ext.toUpperCase()+'</span>';const p=document.getElementById('preview');p.innerHTML='';if(['png','jpg','jpeg'].includes(ext)){const img=document.createElement('img');img.src=URL.createObjectURL(file);p.appendChild(img)}else if(ext==='pdf'){const iframe=document.createElement('iframe');iframe.src=URL.createObjectURL(file);p.appendChild(iframe)}else{p.innerHTML='<div class="empty"><b>'+ext.toUpperCase()+' file loaded</b><br><br>'+ (ext==='dwg'?'Native DWG preview/editing needs AutoCAD or a compatible CAD engine. You can still register the file and use the assistant.':'DXF can be inspected when a compatible parser is available. The browser version keeps the original file untouched.')+'</div>'}document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>File safety:</b> this tool creates register records and guidance. It does not overwrite your uploaded original.</div>'}
+document.getElementById('file').onchange=e=>e.target.files[0]&&handleFile(e.target.files[0]);
+const drop=document.getElementById('drop');['dragenter','dragover'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>e.dataTransfer.files[0]&&handleFile(e.dataTransfer.files[0]));
+function ask(q){q=q||document.getElementById('askBox').value;if(!q)return;const box=document.getElementById('messages');box.innerHTML+='<div class="msg user">'+esc(q)+'</div>';document.getElementById('askBox').value='';const a=answer(q.toLowerCase());box.innerHTML+='<div class="msg bot">'+a+'</div>';box.scrollTop=box.scrollHeight}
+function answer(q){
+if(q.includes('dimension'))return '<b>Changing a dimension safely</b><br>1. Save a backup/revision copy.<br>2. Use <b>DIMSTYLE</b> if the problem is the overall dimension style.<br>3. Select the dimension and open <b>Properties</b> for a one-off change.<br>4. Check units, precision, text height and arrow settings.<br>5. Recheck several dimensions before issuing.<br><br><span class="muted">For native DWG, perform the actual edit in AutoCAD. This tool can guide the workflow.</span>';
+if(q.includes('layer'))return '<b>Layer workflow</b><br>Use <b>LAYER</b> (or LA). Create meaningful layers, set color/linetype/lineweight standards, then make the correct layer current. Freeze or lock layers instead of deleting information you may need later.';
+if(q.includes('issue')||q.includes('check'))return '<b>Before issuing a drawing</b><br>Check title block, drawing number, revision, scale, units, dimensions, notes, layers, xrefs, symbols, coordination, PDF/plot quality and approval status. Then compare the current revision against the previous issued revision and record what changed.';
+if(q.includes('plot')||q.includes('pdf'))return '<b>Plot / PDF workflow</b><br>Use <b>PLOT</b> or <b>PUBLISH</b>. Confirm layout, paper size, plot area, scale, orientation, plot style (CTB/STB), lineweights and revision/title-block information. Always use Preview before issuing the PDF.';
+if(q.includes('move'))return '<b>Move an object</b><br>Use <b>MOVE</b>, select the object, choose a base point, then specify the destination. For accurate placement use <b>OSNAP</b> and enter distances/coordinates when appropriate. Never move critical geometry by eye.';
+return '<b>Recommended approach</b><br>Tell me the exact drawing task, for example: “I need to change all text to 2.5 mm”, “How do I compare Rev 02 with Rev 03?”, or “What should I check before sending this drawing to the supplier?” I will break it into AutoCAD steps and project-management checks.';
+}
+renderAll();
+</script>
+</body>
+</html>
