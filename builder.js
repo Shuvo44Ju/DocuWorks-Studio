@@ -110,7 +110,7 @@ function fillTemplate(wb, model) {
     // Split only clear alphabetic list markers (a), b), c)...) in a single
     // description cell. Require at least two consecutive markers so ordinary
     // prose and isolated bracketed references are not broken apart.
-    const marker = /(?:^|\\s)([a-h])[.)]\\s+/gi;
+    const marker = /(?:^|\s)([a-h])[.)]\s+/gi;
     const matches = [];
     let match;
     while ((match = marker.exec(text))) {
