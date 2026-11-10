@@ -9,7 +9,15 @@
 *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);background:var(--bg)}
 button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:flex;min-height:100vh}.side{width:245px;background:#fff;border-right:1px solid var(--line);padding:22px 15px;position:sticky;top:0;height:100vh}.brand{display:flex;gap:12px;align-items:center;padding:5px 10px 24px}.logo{width:40px;height:40px;border-radius:11px;background:var(--blue);color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px}.brand b{display:block}.brand small{color:var(--muted)}.nav{display:grid;gap:6px}.nav button{border:0;background:transparent;text-align:left;padding:12px 13px;border-radius:9px;color:#536074}.nav button.active,.nav button:hover{background:var(--blue2);color:var(--blue);font-weight:700}.main{flex:1;min-width:0}.top{height:74px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px}.top h1{font-size:20px;margin:0}.top p{margin:4px 0 0;color:var(--muted);font-size:12px}.content{padding:26px;max-width:1500px;margin:auto}.page{display:none}.page.active{display:block}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px}.metric{font-size:27px;font-weight:800;margin-top:6px}.label{color:var(--muted);font-size:12px}.section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:18px}.sectionhead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:15px}.section h2{font-size:16px;margin:0}.btn{border:1px solid var(--line);background:#fff;padding:9px 13px;border-radius:8px;color:var(--ink)}.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}.btn.danger{color:var(--danger)}.btn.small{padding:7px 10px;font-size:12px}.toolbar{display:flex;gap:8px;flex-wrap:wrap}.grid2{display:grid;grid-template-columns:1.15fr .85fr;gap:18px}.drop{border:2px dashed #b8c7df;border-radius:13px;padding:32px;text-align:center;background:#fbfdff}.drop.drag{background:var(--blue2);border-color:var(--blue)}.drop input{display:none}.drop strong{display:block;margin-bottom:5px}.muted{color:var(--muted)}.preview{min-height:430px;border:1px solid var(--line);border-radius:10px;background:#10151d;display:grid;place-items:center;overflow:hidden}.preview iframe,.preview img{width:100%;height:100%;min-height:430px;border:0;object-fit:contain}.preview .empty{color:#aab5c7;text-align:center;padding:40px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;background:#fff}.field textarea{min-height:80px;resize:vertical}.tablewrap{overflow:auto}.table{width:100%;border-collapse:collapse;font-size:12px}.table th,.table td{border-bottom:1px solid var(--line);padding:11px 9px;text-align:left;white-space:nowrap}.table th{color:var(--muted);font-weight:700;background:#fbfcfe}.status{display:inline-flex;padding:4px 8px;border-radius:99px;font-size:10px;font-weight:700}.s-open{background:#eaf2ff;color:#1769e0}.s-done{background:#e9f8f1;color:#16845b}.s-warn{background:#fff3df;color:#b86a00}.chat{height:470px;border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}.messages{flex:1;padding:17px;overflow:auto;background:#fbfcfe}.msg{max-width:85%;padding:11px 13px;border-radius:12px;margin-bottom:10px;font-size:13px;line-height:1.5}.msg.user{margin-left:auto;background:var(--blue);color:#fff;border-bottom-right-radius:3px}.msg.bot{background:#fff;border:1px solid var(--line);border-bottom-left-radius:3px}.composer{display:flex;gap:8px;padding:11px;border-top:1px solid var(--line);background:#fff}.composer input{flex:1;border:1px solid var(--line);border-radius:9px;padding:10px}.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}.chip{border:1px solid #cfd8e8;background:#fff;border-radius:99px;padding:7px 10px;font-size:11px}.check{display:flex;align-items:flex-start;gap:9px;padding:10px;border-bottom:1px solid var(--line)}.check input{margin-top:3px}.notice{padding:12px 14px;border-radius:9px;background:#fff7e8;border:1px solid #f1d9ad;color:#7c5318;font-size:12px}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.emptyrow{text-align:center;padding:28px;color:var(--muted)}@media(max-width:900px){.side{width:72px;padding:14px 8px}.brand div:last-child,.nav button span{display:none}.brand{padding:5px 8px 20px}.cards{grid-template-columns:1fr 1fr}.grid2,.two{grid-template-columns:1fr}}@media(max-width:600px){.side{display:none}.content{padding:16px}.cards{grid-template-columns:1fr}.top{padding:0 16px}}
 </style>
-</head>
+
+<style>
+.dxf-tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.dxf-box{border:1px solid var(--line);border-radius:9px;padding:10px;background:#fbfcfe}
+.dxf-box b{font-size:12px}.dxf-list{max-height:150px;overflow:auto;margin-top:6px}
+.dxf-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);font-size:11px}
+.cadcanvas{width:100%;height:100%;min-height:430px;display:block;background:#111820}
+@media(max-width:600px){.dxf-tools{grid-template-columns:1fr}}
+</style></head>
 <body>
 <div class="app">
 <aside class="side">
@@ -136,6 +144,49 @@ if(q.includes('move'))return '<b>Move an object</b><br>Use <b>MOVE</b>, select t
 return '<b>Recommended approach</b><br>Tell me the exact drawing task, for example: “I need to change all text to 2.5 mm”, “How do I compare Rev 02 with Rev 03?”, or “What should I check before sending this drawing to the supplier?” I will break it into AutoCAD steps and project-management checks.';
 }
 renderAll();
+function parseDXF(text){
+const a=text.replace(/\r/g,'').split('\n').map(x=>x.trimEnd()), out=[];
+for(let i=0;i<a.length-1;i+=2) out.push({code:Number(a[i]),value:a[i+1]??''});
+const entities=[], layers={}, counts={}; let section='', cur=null;
+for(let i=0;i<out.length;i++){const g=out[i],v=String(g.value).toUpperCase();
+if(g.code===0&&v==='SECTION'){section=String(out[++i]?.value||'').toUpperCase();continue}
+if(g.code===0&&v==='ENDSEC'){section='';continue}
+if(section==='ENTITIES'&&g.code===0){
+if(['LINE','CIRCLE','ARC','LWPOLYLINE','POLYLINE','TEXT','MTEXT','POINT'].includes(v)){cur={type:v,layer:'0',points:[],data:{}};entities.push(cur);counts[v]=(counts[v]||0)+1}
+else cur=null; continue}
+if(cur){if(g.code===8)cur.layer=String(g.value||'0');
+else if(g.code===10||g.code===11)cur.points.push({x:Number(g.value),y:0});
+else if(g.code===20||g.code===21){let k=cur.points.length-1;if(k>=0)cur.points[k].y=Number(g.value)}
+else if(g.code===40)cur.data.r=Number(g.value);
+else if(g.code===50)cur.data.start=Number(g.value);
+else if(g.code===51)cur.data.end=Number(g.value);
+else if(g.code===1||g.code===3)cur.data.text=(cur.data.text||'')+String(g.value);
+else if(g.code===70)cur.data.flags=Number(g.value)}}
+entities.forEach(e=>layers[e.layer]=(layers[e.layer]||0)+1);
+return {entities,layers,counts};}
+function dxfBounds(es){let xs=[],ys=[];es.forEach(e=>e.points.forEach(p=>{if(Number.isFinite(p.x)&&Number.isFinite(p.y)){xs.push(p.x);ys.push(p.y)}}));return xs.length?{minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)}:{minX:0,maxX:100,minY:0,maxY:100}}
+function renderDXF(doc,container){
+const canvas=document.createElement('canvas');canvas.className='cadcanvas';container.appendChild(canvas);const ctx=canvas.getContext('2d');
+const draw=()=>{const r=canvas.getBoundingClientRect(),d=window.devicePixelRatio||1;canvas.width=Math.max(1,r.width*d);canvas.height=Math.max(1,r.height*d);ctx.setTransform(d,0,0,d,0,0);ctx.fillStyle='#111820';ctx.fillRect(0,0,r.width,r.height);
+const b=dxfBounds(doc.entities),pad=35,w=Math.max(1,b.maxX-b.minX),h=Math.max(1,b.maxY-b.minY),s=Math.min((r.width-pad*2)/w,(r.height-pad*2)/h);
+const sx=x=>pad+(x-b.minX)*s,sy=y=>r.height-pad-(y-b.minY)*s;ctx.strokeStyle='#d9e4f2';ctx.fillStyle='#d9e4f2';ctx.lineWidth=1;ctx.font='11px sans-serif';
+doc.entities.forEach(e=>{ctx.beginPath();if(e.type==='LINE'&&e.points.length>1){ctx.moveTo(sx(e.points[0].x),sy(e.points[0].y));ctx.lineTo(sx(e.points[1].x),sy(e.points[1].y));ctx.stroke()}
+else if(e.type==='CIRCLE'&&e.points[0]&&e.data.r){ctx.arc(sx(e.points[0].x),sy(e.points[0].y),Math.abs(e.data.r*s),0,Math.PI*2);ctx.stroke()}
+else if(e.type==='ARC'&&e.points[0]&&e.data.r){ctx.arc(sx(e.points[0].x),sy(e.points[0].y),Math.abs(e.data.r*s),-((e.data.end||360)*Math.PI/180),-((e.data.start||0)*Math.PI/180));ctx.stroke()}
+else if((e.type==='LWPOLYLINE'||e.type==='POLYLINE')&&e.points.length){ctx.moveTo(sx(e.points[0].x),sy(e.points[0].y));e.points.slice(1).forEach(p=>ctx.lineTo(sx(p.x),sy(p.y)));if(e.data.flags&1)ctx.closePath();ctx.stroke()}
+else if(e.type==='POINT'&&e.points[0]){ctx.arc(sx(e.points[0].x),sy(e.points[0].y),2,0,Math.PI*2);ctx.fill()}
+else if((e.type==='TEXT'||e.type==='MTEXT')&&e.points[0]&&e.data.text){ctx.fillText(e.data.text.replace(/\\P/g,' '),sx(e.points[0].x),sy(e.points[0].y))}})};
+requestAnimationFrame(draw);window.addEventListener('resize',draw,{once:true})}
+function renderDXFInspector(doc){
+let box=document.getElementById('dxfInspector');if(!box){box=document.createElement('div');box.id='dxfInspector';box.className='dxf-tools';document.getElementById('preview').parentElement.appendChild(box)}
+box.innerHTML='<div class="dxf-box"><b>Entities</b><div class="dxf-list">'+Object.entries(doc.counts).map(([k,v])=>'<div class="dxf-row"><span>'+esc(k)+'</span><b>'+v+'</b></div>').join('')+'</div></div><div class="dxf-box"><b>Layers</b><div class="dxf-list">'+Object.entries(doc.layers).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="dxf-row"><span>● '+esc(k)+'</span><b>'+v+'</b></div>').join('')+'</div></div>';
+}
+function handleFile(file){window.currentFile=file;const ext=file.name.split('.').pop().toLowerCase();document.getElementById('drop').innerHTML='<strong>'+esc(file.name)+'</strong><span class="muted">'+Math.round(file.size/1024)+' KB · '+ext.toUpperCase()+'</span>';const p=document.getElementById('preview');p.innerHTML='';const old=document.getElementById('dxfInspector');if(old)old.remove();
+if(['png','jpg','jpeg'].includes(ext)){const img=document.createElement('img');img.src=URL.createObjectURL(file);p.appendChild(img)}
+else if(ext==='pdf'){const iframe=document.createElement('iframe');iframe.src=URL.createObjectURL(file);p.appendChild(iframe)}
+else if(ext==='dxf'){const reader=new FileReader();reader.onload=()=>{try{const doc=parseDXF(String(reader.result));renderDXF(doc,p);renderDXFInspector(doc);document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>DXF inspection complete:</b> '+doc.entities.length+' supported entities across '+Object.keys(doc.layers).length+' layers. Parsing happens locally in your browser.</div>'}catch(err){p.innerHTML='<div class="empty"><b>DXF could not be read</b><br>'+esc(err.message)+'</div>'}};reader.readAsText(file)}
+else{p.innerHTML='<div class="empty"><b>'+ext.toUpperCase()+' file loaded</b><br><br>'+ (ext==='dwg'?'Native DWG preview/editing needs AutoCAD or a compatible CAD engine. You can still register the file and use the assistant.':'This file can be registered and tracked; browser editing is not enabled for this format.')+'</div>'}
+}
 </script>
 </body>
 </html>
