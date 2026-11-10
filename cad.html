@@ -280,6 +280,11 @@ function makeDXFAddition(op){
 }
 function serializeOriginalDXF(doc){
   const source=doc._dxfSource;if(!source)throw new Error("Original DXF source is unavailable; export stopped to prevent data loss.");
+  for(let i=0;i<doc.entities.length;i++){
+    const src=doc._dxfSourceIndexes?.[i],add=doc._dxfAdditionIndexes?.[i],current=JSON.stringify(doc.entities[i]);
+    if(src!==null&&src!==undefined&&current!==JSON.stringify(doc._dxfEntitySnapshots?.[src]))throw new Error("An object was edited outside the source-preserving modification workflow. Use the AI modification approval workflow or restore the original before exporting.");
+    if(add!==null&&add!==undefined&&current!==JSON.stringify(doc._dxfAdditionSnapshots?.[add]))throw new Error("A newly added object was edited outside the source-preserving modification workflow. Reapply the change through the AI modification workflow before exporting.");
+  }
   const lines=source.lines.slice(),additions=(doc._dxfAdditions||[]).filter((block,i)=>!doc._dxfDeletedAdditions?.has(i));
   if(additions.length){
     if(source.entitiesEndsecLine<0)throw new Error("Could not safely locate the ENTITIES section end; export was stopped.");
@@ -312,7 +317,7 @@ else if(g.code===51)cur.data.end=Number(g.value);
 else if(g.code===1||g.code===3)cur.data.text=(cur.data.text||'')+String(g.value);
 else if(g.code===70)cur.data.flags=Number(g.value)}}
 entities.forEach(e=>layers[e.layer]=(layers[e.layer]||0)+1);
-const source=buildDXFSourceMap(text);return {entities,layers,counts,_dxfSource:source,_dxfBlocks:source.spans.map(span=>source.lines.slice(span.start,span.end)),_dxfDeleted:new Set(),_dxfAdditions:[],_dxfDeletedAdditions:new Set(),_dxfSourceIndexes:entities.map((_,i)=>i),_dxfAdditionIndexes:entities.map(()=>null)};}
+const source=buildDXFSourceMap(text);return {entities,layers,counts,_dxfSource:source,_dxfBlocks:source.spans.map(span=>source.lines.slice(span.start,span.end)),_dxfDeleted:new Set(),_dxfAdditions:[],_dxfDeletedAdditions:new Set(),_dxfSourceIndexes:entities.map((_,i)=>i),_dxfAdditionIndexes:entities.map(()=>null),_dxfEntitySnapshots:entities.map(e=>JSON.parse(JSON.stringify(e))),_dxfAdditionSnapshots:[]};}
 function dxfBounds(es){let xs=[],ys=[];es.forEach(e=>e.points.forEach(p=>{if(Number.isFinite(p.x)&&Number.isFinite(p.y)){xs.push(p.x);ys.push(p.y)}}));return xs.length?{minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)}:{minX:0,maxX:100,minY:0,maxY:100}}
 function renderDXF(doc,container){
 const canvas=document.createElement('canvas');canvas.className='cadcanvas';container.appendChild(canvas);const ctx=canvas.getContext('2d');
@@ -977,7 +982,7 @@ async function requestCadModification(){
   if(data.preview_notes?.length)html+='<h4>Review before applying</h4><ul>'+data.preview_notes.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
   html+='<p class="muted">Model: '+esc(data.model||'Cloudflare Workers AI')+' · '+esc(data.diagnostics?.entitiesReviewed??'—')+' entities reviewed</p>';
   if(!data.clarification_required&&data.operations?.length)html+='<div class="toolbar"><button class="btn primary" onclick="approveCadModification()">Approve &amp; Apply Changes</button><button class="btn" onclick="discardCadModification()">Discard plan</button></div>';
-  html+='<div class="notice" style="margin-top:10px">Applying changes updates only the in-browser working copy. The uploaded original is not overwritten. DXF export is currently a simplified supported-entity export and may omit unsupported CAD content; inspect it in a CAD application before use.</div></div>';
+  html+='<div class="notice" style="margin-top:10px">Applying changes updates only the in-browser working copy. The uploaded original is not overwritten. Export patches the original DXF and retains unsupported entities and drawing sections. Always inspect the result in a CAD application before issuing it.</div></div>';
   out.innerHTML=html;
  }catch(e){out.innerHTML='<div class="notice"><b>Could not prepare a modification plan.</b><br>'+esc(e.message||e)+'</div>'}
 }
@@ -997,10 +1002,10 @@ function approveCadModification(){
    const src=sourceIndexes[op.index],add=additionIndexes[op.index];
    if(src!==null&&src!==undefined){
     if(doc._dxfDeleted.has(src))continue;
-    const changed=applyDXFBlockOperation(doc._dxfBlocks[src],op);if(!changed)continue;doc._dxfBlocks[src]=changed;
+    const changed=applyDXFBlockOperation(doc._dxfBlocks[src],op);if(!changed)continue;doc._dxfBlocks[src]=changed;doc._dxfEntitySnapshots[src]=JSON.parse(JSON.stringify(e));
    }else if(add!==null&&add!==undefined){
     if(doc._dxfDeletedAdditions.has(add))continue;
-    const changed=applyDXFBlockOperation(doc._dxfAdditions[add],op);if(!changed)continue;doc._dxfAdditions[add]=changed;
+    const changed=applyDXFBlockOperation(doc._dxfAdditions[add],op);if(!changed)continue;doc._dxfAdditions[add]=changed;doc._dxfAdditionSnapshots[add]=JSON.parse(JSON.stringify(e));
    }else continue;
    if(op.type==='move_entity'){const dx=Number(op.dx),dy=Number(op.dy);if(!Array.isArray(e.points))continue;e.points.forEach(p=>{p.x+=dx;p.y+=dy})}
    else if(op.type==='set_layer')e.layer=String(op.layer);
@@ -1011,7 +1016,7 @@ function approveCadModification(){
    if(op.type==='add_line')entity={type:'LINE',layer:String(op.layer||'0'),points:[{x:Number(op.x1),y:Number(op.y1)},{x:Number(op.x2),y:Number(op.y2)}],data:{}};
    else if(op.type==='add_circle')entity={type:'CIRCLE',layer:String(op.layer||'0'),points:[{x:Number(op.x),y:Number(op.y)}],data:{r:Number(op.radius)}};
    else entity={type:'TEXT',layer:String(op.layer||'0'),points:[{x:Number(op.x),y:Number(op.y)}],data:{text:String(op.text),height:Number(op.height)}};
-   const addIndex=doc._dxfAdditions.length;doc._dxfAdditions.push(raw);doc.entities.push(entity);sourceIndexes.push(null);additionIndexes.push(addIndex);applied++;
+   const addIndex=doc._dxfAdditions.length;doc._dxfAdditions.push(raw);doc._dxfAdditionSnapshots.push(JSON.parse(JSON.stringify(entity)));doc.entities.push(entity);sourceIndexes.push(null);additionIndexes.push(addIndex);applied++;
   }
  }
  for(const i of deletedCurrent){const src=sourceIndexes[i],add=additionIndexes[i];if(src!==null&&src!==undefined)doc._dxfDeleted.add(src);if(add!==null&&add!==undefined)doc._dxfDeletedAdditions.add(add)}
