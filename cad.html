@@ -260,7 +260,7 @@ function renderDXFInspector(doc){
 let box=document.getElementById('dxfInspector');if(!box){box=document.createElement('div');box.id='dxfInspector';box.className='dxf-tools';document.getElementById('preview').parentElement.appendChild(box)}
 box.innerHTML='<div class="dxf-box"><b>Entities</b><div class="dxf-list">'+Object.entries(doc.counts).map(([k,v])=>'<div class="dxf-row"><span>'+esc(k)+'</span><b>'+v+'</b></div>').join('')+'</div></div><div class="dxf-box"><b>Layers</b><div class="dxf-list">'+Object.entries(doc.layers).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="dxf-row"><span>● '+esc(k)+'</span><b>'+v+'</b></div>').join('')+'</div></div>';
 }
-function handleFile(file){window.currentFile=file;const ext=file.name.split('.').pop().toLowerCase();document.getElementById('drop').innerHTML='<strong>'+esc(file.name)+'</strong><span class="muted">'+Math.round(file.size/1024)+' KB · '+ext.toUpperCase()+'</span>';const p=document.getElementById('preview');p.innerHTML='';const old=document.getElementById('dxfInspector');if(old)old.remove();
+function handleFile(file){window.currentFile=file;window.currentDXF=null;window.originalDXF=null;window.currentDXFRaw=null;window.pendingCadPlan=null;const ext=file.name.split('.').pop().toLowerCase();document.getElementById('drop').innerHTML='<strong>'+esc(file.name)+'</strong><span class="muted">'+Math.round(file.size/1024)+' KB · '+ext.toUpperCase()+'</span>';const p=document.getElementById('preview');p.innerHTML='';const old=document.getElementById('dxfInspector');if(old)old.remove();
 if(['png','jpg','jpeg'].includes(ext)){const img=document.createElement('img');img.src=URL.createObjectURL(file);p.appendChild(img)}
 else if(ext==='pdf'){const iframe=document.createElement('iframe');iframe.src=URL.createObjectURL(file);p.appendChild(iframe)}
 else if(ext==='dxf'){const reader=new FileReader();reader.onload=()=>{try{const doc=parseDXF(String(reader.result));window.currentDXF=doc;window.originalDXF=JSON.parse(JSON.stringify(doc));window.currentDXFRaw=String(reader.result);renderDXF(doc,p);renderDXFInspector(doc);document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>DXF inspection complete:</b> '+doc.entities.length+' supported entities across '+Object.keys(doc.layers).length+' layers. Parsing happens locally in your browser.</div>'}catch(err){p.innerHTML='<div class="empty"><b>DXF could not be read</b><br>'+esc(err.message)+'</div>'}};reader.readAsText(file)}
@@ -892,7 +892,7 @@ async function requestCadModification(){
  const prompt=document.getElementById('cadModifyPrompt').value.trim();
  const out=document.getElementById('cadModifyResult');
  if(!prompt){alert('Please describe the change you want.');return}
- if(!window.currentFile||!window.currentDXF){out.innerHTML='<div class="notice">Modification planning currently requires a DXF drawing. Upload a DXF first.</div>';return}
+ if(!window.currentFile||window.currentFile.name.split('.').pop().toLowerCase()!=='dxf'||!window.currentDXF){out.innerHTML='<div class="notice">Modification planning currently requires a DXF drawing. Upload a DXF first and wait for its inspection to finish.</div>';return}
  out.innerHTML='<div class="section"><b>Preparing your modification plan…</b><p class="muted">The original drawing is not being changed.</p></div>';
  window.pendingCadPlan=null;
  try{
