@@ -77,7 +77,7 @@ export async function onRequestPost({request,env}) {
         if(op.type==="move_entity")return ["LINE","CIRCLE","ARC","LWPOLYLINE","POINT","TEXT","MTEXT"].includes(target.type)&&Number.isFinite(Number(op.dx))&&Number.isFinite(Number(op.dy));
         if(op.type==="update_text")return ["TEXT","MTEXT"].includes(target.type)&&typeof op.text==="string";
         if(op.type==="set_layer")return typeof op.layer==="string"&&op.layer.trim().length>0&&op.layer.length<=120;
-        return ["LINE","CIRCLE","ARC","LWPOLYLINE","POINT","TEXT","MTEXT","POLYLINE"].includes(target.type);
+        return ["LINE","CIRCLE","ARC","LWPOLYLINE","POINT","TEXT","MTEXT"].includes(target.type);
       }
       if(op.type==="add_line")return [op.x1,op.y1,op.x2,op.y2].every(v=>Number.isFinite(Number(v)))&&typeof op.layer==="string";
       if(op.type==="add_circle")return [op.x,op.y,op.radius].every(v=>Number.isFinite(Number(v)))&&Number(op.radius)>0&&typeof op.layer==="string";
