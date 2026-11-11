@@ -1242,8 +1242,8 @@ function localReport(doc,file){
   if(body)body.innerHTML=out.innerHTML;
  };
  window.addEventListener('load',()=>{
-  document.querySelectorAll('button[onclick="analyzeDrawingFromWorkspace()"]').forEach(b=>b.textContent='CAD Geometry & Measurements');
-  document.querySelectorAll('button[onclick="runDrawingTask()"]').forEach(b=>b.textContent='CAD Geometry & Measurements');
+  document.querySelectorAll('button[onclick="analyzeDrawingFromWorkspace()"]').forEach(b=>b.textContent='Review drawing');
+  document.querySelectorAll('button[onclick="runDrawingTask()"]').forEach(b=>b.textContent='Run local drawing review');
   const assistantToolbar=document.querySelector('#assistant .toolbar');
   if(assistantToolbar&&!assistantToolbar.querySelector('[data-ai-review]')){
    const b=document.createElement('button');b.className='btn';b.textContent='Interpret Drawing (AI service required)';b.setAttribute('data-ai-review','1');b.onclick=window.runAIDrawingTask;assistantToolbar.insertBefore(b,assistantToolbar.firstChild);
