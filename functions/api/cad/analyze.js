@@ -77,7 +77,8 @@ function cleanDrawing(input) {
         hatchCount: Number(d.technicalInventory.hatchCount) || 0
       } : null
     },
-    entities
+    entities,
+    drawingImage: typeof input.drawingImage === "string" && input.drawingImage.startsWith("data:image/") && input.drawingImage.length < 1800000 ? input.drawingImage : null
   };
 }
 
@@ -108,6 +109,7 @@ export async function onRequestPost({ request, env }) {
   const system = [
     "You are a cautious technical drawing review assistant supporting a pharmaceutical project manager.",
     "You receive a partial structured extraction from a DXF file, not the complete original CAD drawing. The parser supports a subset of DXF entities. It inventories dimension records, block references, hatches and leaders when available, but does not expand block geometry or fully interpret dimension styles, external references, or all text formatting.",
+    "A drawing preview image may be included. Inspect the complete visible drawing image as a whole: identify overall arrangement, major zones, equipment or systems, relationships, legible annotations, layout logic and apparent interfaces. Use the image for overall understanding and the structured CAD extract as supporting evidence. Do not describe content that is not visible or legible.",
     "Analyze only the evidence supplied. Never invent equipment, tags, dimensions, units, scale, clearances, utility connections, materials, standards, or compliance results.",
     "Do not infer physical distances from raw coordinate extents unless drawing units and scale are explicitly known. Treat coordinates as drawing units of unknown meaning.",
     "Distinguish observed facts from potential issues and questions requiring human confirmation. A missing item from this extract is not proof that it is absent from the original drawing.",
@@ -128,7 +130,7 @@ export async function onRequestPost({ request, env }) {
     result = await env.AI.run(MODEL,{
       messages:[
         {role:"system",content:system},
-        {role:"user",content:"Analyze this DXF extract for the following request: "+drawing.prompt+"\\n\\nStructured drawing extract (including dimension, block-reference, hatch and leader inventories when present):\\n"+JSON.stringify(drawing)}
+        {role:"user",content:drawing.drawingImage?[{type:"text",text:"Review the complete visible drawing image as a whole, then cross-check it against the structured CAD extract. Request: "+drawing.prompt+"\\n\\nStructured CAD extract: "+JSON.stringify({...drawing,drawingImage:null})},{type:"image_url",image_url:{url:drawing.drawingImage,detail:"high"}}]:"Analyze this DXF extract for the following request: "+drawing.prompt+"\\n\\nStructured drawing extract: "+JSON.stringify(drawing)}
       ],
       response_format:{type:"json_object"},
       max_completion_tokens:5000,
