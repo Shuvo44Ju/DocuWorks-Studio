@@ -1170,8 +1170,8 @@ function approveCadModification(){
   const dimensionRows=dims.slice(0,80).map(d=>'<tr><td>'+esc(d.text||'—')+'</td><td>'+esc(d.measurement||'—')+'</td><td>'+esc(d.style||'—')+'</td></tr>').join('');
   const extent=g.bounds?'X '+n(g.bounds.minX)+' to '+n(g.bounds.maxX)+' · Y '+n(g.bounds.minY)+' to '+n(g.bounds.maxY):'No supported 2D coordinates extracted';
   const areaNote=g.closedCount||g.circleArea?'Sum of supported closed polylines and circles. Overlapping shapes may be counted more than once; this is not automatically the usable floor/equipment area.':'No closed supported shapes were available for area calculation.';
-  window.lastLocalReview='DRAWING MEASUREMENTS & OVERVIEW\nFile: '+file.name+'\nExtents: '+extent+'\nWidth: '+n(g.width)+'\nHeight: '+n(g.height)+'\nBounding rectangle area: '+n(g.boundingArea)+'\nClosed shape area sum: '+n(g.totalClosedShapeArea)+'\nClosed boundary length: '+n(g.totalClosedBoundary)+'\nStraight line length: '+n(g.lineLength)+'\nOpen polyline length: '+n(g.openPolylineLength)+'\nDimensions: '+dims.length+'\nBlocks: '+blocks.length+'\nHatches: '+hatches.length+'\nLeaders: '+leaders.length+'\n\n'+unitNote+'\n'+areaNote;
-  return '<div class="section"><div class="sectionhead"><div><h3>Drawing overview & measurable quantities</h3><p class="muted">Calculated locally from the supported geometry — no AI quota used</p></div><span class="status s-done">Instant</span></div>'+
+  window.lastLocalOverviewHTML='';window.lastLocalReview='DRAWING MEASUREMENTS & OVERVIEW\nFile: '+file.name+'\nExtents: '+extent+'\nWidth: '+n(g.width)+'\nHeight: '+n(g.height)+'\nBounding rectangle area: '+n(g.boundingArea)+'\nClosed shape area sum: '+n(g.totalClosedShapeArea)+'\nClosed boundary length: '+n(g.totalClosedBoundary)+'\nStraight line length: '+n(g.lineLength)+'\nOpen polyline length: '+n(g.openPolylineLength)+'\nDimensions: '+dims.length+'\nBlocks: '+blocks.length+'\nHatches: '+hatches.length+'\nLeaders: '+leaders.length+'\n\n'+unitNote+'\n'+areaNote;
+  const html='<div class="section"><div class="sectionhead"><div><h3>Drawing overview & measurable quantities</h3><p class="muted">Calculated locally from the supported geometry — no AI quota used</p></div><span class="status s-done">Instant</span></div>'+
   '<div class="drawing-metrics">'+
   [['Drawing width',n(g.width)],['Drawing height',n(g.height)],['Bounding rectangle area',n(g.boundingArea)],['Closed-shape area total',n(g.totalClosedShapeArea)],['Closed boundary length',n(g.totalClosedBoundary)],['Straight line length',n(g.lineLength)],['Open polyline length',n(g.openPolylineLength)],['Supported objects',String(r.total||0)]].map(x=>'<div class="metric-card"><span class="label">'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div>'+
   '<p class="muted">'+esc(unitNote)+'</p><div class="notice"><b>Area interpretation:</b> '+esc(areaNote)+' Bounding rectangle area is width × height of the extracted extents; it is not the actual occupied floor area.</div>'+
@@ -1179,7 +1179,7 @@ function approveCadModification(){
   '<div class="two"><div><h4>Geometry by type</h4><table class="measure-table"><tr><th>Object</th><th>Count</th></tr>'+types+'</table></div><div><h4>Layers</h4><table class="measure-table"><tr><th>Layer</th><th>Count</th></tr>'+layers+'</table></div></div>'+
   '<h4>Dimension records found: '+dims.length+'</h4>'+(dimensionRows?'<table class="measure-table"><tr><th>Displayed text</th><th>Stored measurement</th><th>Style</th></tr>'+dimensionRows+'</table>':'<p class="muted">No native DIMENSION records were extracted by the current reader. This does not prove none exist in the source file.</p>')+
   '<div class="two"><div><h4>Additional CAD content detected</h4><p>Block references: <b>'+blocks.length+'</b><br>Hatches: <b>'+hatches.length+'</b><br>Leaders: <b>'+leaders.length+'</b></p></div><div><h4>Extracted drawing notes / labels</h4>'+(labels?'<ul>'+labels+'</ul>':'<p class="muted">No supported text strings extracted.</p>')+'</div></div>'+
-  '<p class="muted">This measurement overview is deterministic and does not require an AI service. The current parser supports only selected 2D entities; unsupported blocks, dimensions, hatches, Xrefs, 3D geometry and clipped/hidden content may affect totals.</p><div class="toolbar"><button class="btn" onclick="downloadLocalReview()">Export measurements (.txt)</button><button class="btn primary" onclick="runAIDrawingTask()">Run AI technical review (uses AI service)</button></div></div>';
+  '<p class="muted">This measurement overview is deterministic and does not require an AI service. The current parser supports only selected 2D entities; unsupported blocks, dimensions, hatches, Xrefs, 3D geometry and clipped/hidden content may affect totals.</p><div class="toolbar"><button class="btn" onclick="downloadLocalReview()">Export measurements (.txt)</button><button class="btn primary" onclick="runAIDrawingTask()">Run AI technical review (uses AI service)</button></div></div>';window.lastLocalOverviewHTML=html;return html;
  }
  window.runDrawingTask=async function(){
   const out=document.getElementById('taskResults');
@@ -1195,9 +1195,11 @@ function approveCadModification(){
  };
  window.runAIDrawingTask=async function(){
   if(typeof previousAIRun!=='function'){alert('AI technical review is unavailable.');return}
+  if(!window.lastLocalOverviewHTML&&window.currentDXF&&window.currentFile)localReport(window.currentDXF,window.currentFile);
   await previousAIRun();
   const out=document.getElementById('taskResults');
   const body=document.getElementById('workspaceAnalysisBody');
+  if(window.lastLocalOverviewHTML)out.innerHTML+=window.lastLocalOverviewHTML;
   if(body)body.innerHTML=out.innerHTML;
  };
  window.addEventListener('load',()=>{
@@ -1207,7 +1209,7 @@ function approveCadModification(){
   if(assistantToolbar&&!assistantToolbar.querySelector('[data-ai-review]')){
    const b=document.createElement('button');b.className='btn';b.textContent='AI Technical Review (uses AI service)';b.setAttribute('data-ai-review','1');b.onclick=window.runAIDrawingTask;assistantToolbar.insertBefore(b,assistantToolbar.firstChild);
   }
-  const ws=document.querySelector('#drawing .sectionhead .toolbar');
+  const ws=document.querySelector('#drawing .grid2 > .section:nth-child(2) .sectionhead .toolbar');
   if(ws&&!ws.querySelector('[data-ai-review]')){
    const b=document.createElement('button');b.className='btn small';b.textContent='AI Review';b.setAttribute('data-ai-review','1');b.onclick=window.runAIDrawingTask;ws.insertBefore(b,ws.firstChild);
   }
