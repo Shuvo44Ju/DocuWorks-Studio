@@ -1,5 +1,5 @@
 const MODEL = "@cf/google/gemma-4-26b-a4b-it";
-const MAX_BODY_BYTES = 1024 * 1024;
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_ENTITIES = 900;
 
 function allowed(origin) {
