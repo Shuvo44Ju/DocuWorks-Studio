@@ -96,7 +96,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:fle
 </div>
 <div class="field" style="margin-top:14px"><label>What do you want done? Use ordinary language.</label><textarea id="taskPrompt" rows="4" placeholder="Example: Review the equipment layout, identify unclear dimensions, access concerns, missing labels and questions I should raise with the supplier."></textarea></div>
 <div class="toolbar" style="margin-top:10px;flex-wrap:wrap">
-<button class="btn primary" onclick="runDrawingTask()">Run Quick Review</button>
+<button class="btn primary" onclick="runDrawingTask()">Measure & interpret drawing content</button>
 <button class="btn" onclick="document.getElementById('supportFiles').click()">Attach previous revision / reference</button>
 <input id="supportFiles" type="file" hidden multiple accept=".pdf,.doc,.docx,.txt,.dxf,.png,.jpg,.jpeg">
 </div>
@@ -1161,8 +1161,34 @@ function approveCadModification(){
   const bounds=xs.length?{minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)}:null;
   return {bounds,width:bounds?bounds.maxX-bounds.minX:0,height:bounds?bounds.maxY-bounds.minY:0,boundingArea:bounds?(bounds.maxX-bounds.minX)*(bounds.maxY-bounds.minY):0,lineLength,circleArea,circlePerimeter,closedArea,closedPerimeter,closedCount,openCount,openPolylineLength,totalClosedShapeArea:closedArea+circleArea,totalClosedBoundary:closedPerimeter+circlePerimeter};
  }
- function localReport(doc,file){
-  const r=dxfReport(doc),g=drawingGeometry(doc),inv=doc.technicalInventory||{},dims=inv.dimensions||[],blocks=inv.blockReferences||[],hatches=inv.hatches||[],leaders=inv.leaders||[];
+ function interpretDrawingContent(doc,r,inv){
+  const raw=(r.texts||[]).map(x=>String(x||'').replace(/\\P/g,' ').replace(/\\\\~/g,' ').replace(/\\s+/g,' ').trim()).filter(Boolean);
+  const texts=[...new Set(raw)].slice(0,400);
+  const joined=texts.join(' | ');
+  const groups=[
+    {name:'Drawing / project identification',re:/\\b(drawing\\s*(no|number|title)|dwg\\.?\\s*(no|title)|project|client|customer|location|sheet|revision|rev\\.?|date|scale|prepared|checked|approved)\\b/i},
+    {name:'Dimensions, levels & setting-out',re:/\\b(dim|dimension|mm|cm|metre|meter|level|elev|datum|grid|axis|offset|spacing|clearance|\\+\\/\\-)\\b/i},
+    {name:'Equipment & component references',re:/\\b(equip|equipment|pump|motor|tank|vessel|valve|filter|fan|ahu|chiller|panel|duct|pipe|line|tag|nozzle|instrument|sensor|door|window|column|beam|foundation)\\b/i},
+    {name:'Technical notes & specifications',re:/\\b(note|specification|material|grade|pressure|temperature|capacity|flow|load|voltage|power|finish|coating|weld|insulation|standard|shall|provide|install)\\b/i},
+    {name:'Process / service / connection references',re:/\\b(inlet|outlet|supply|return|drain|exhaust|suction|discharge|connection|interface|utility|air|water|steam|gas|waste|flow)\\b/i}
+  ];
+  const classified=groups.map(g=>({name:g.name,items:texts.filter(t=>g.re.test(t)).slice(0,35)})).filter(g=>g.items.length);
+  const hints=[
+    ['General arrangement / layout',/\\b(general arrangement|\\bGA\\b|layout plan|equipment layout|room layout)\\b/i],
+    ['Piping / process drawing',/\\b(P&ID|piping|pipe routing|process flow|line number|isometric)\\b/i],
+    ['Architectural / building drawing',/\\b(floor plan|architectural|room name|door schedule|window schedule)\\b/i],
+    ['Structural drawing',/\\b(reinforcement|rebar|foundation|column schedule|beam schedule|structural)\\b/i],
+    ['Electrical drawing',/\\b(single line diagram|SLD|cable schedule|switchgear|electrical)\\b/i],
+    ['HVAC / ventilation drawing',/\\b(HVAC|AHU|duct|air handling|ventilation|exhaust)\\b/i]
+  ].filter(x=>x[1].test(joined)).map(x=>x[0]);
+  const tags=[...new Set(texts.flatMap(t=>t.match(/\\b[A-Z]{1,5}[-_/]\\d{2,5}[A-Z]?\\b/g)||[]))].slice(0,100);
+  const identity=classified.find(g=>g.name==='Drawing / project identification')?.items||[];
+  const notes=classified.find(g=>g.name==='Technical notes & specifications')?.items||[];
+  const dimensions=inv.dimensions||[];
+  return {texts,classified,hints,tags,identity,notes,dimensions};
+}
+function localReport(doc,file){
+  const r=dxfReport(doc),g=drawingGeometry(doc),inv=doc.technicalInventory||{},dims=inv.dimensions||[],blocks=inv.blockReferences||[],hatches=inv.hatches||[],leaders=inv.leaders||[];const interpretation=interpretDrawingContent(doc,r,inv);
   const unitNote='Drawing units are not verified. Values below are in raw drawing units unless the drawing header explicitly defines them.';
   const types=(r.types||[]).map(([k,v])=>'<tr><td>'+esc(k)+'</td><td>'+v+'</td></tr>').join('');
   const layers=(r.layers||[]).map(([k,v])=>'<tr><td>'+esc(k)+'</td><td>'+v+'</td></tr>').join('');
@@ -1170,16 +1196,16 @@ function approveCadModification(){
   const dimensionRows=dims.slice(0,80).map(d=>'<tr><td>'+esc(d.text||'—')+'</td><td>'+esc(d.measurement||'—')+'</td><td>'+esc(d.style||'—')+'</td></tr>').join('');
   const extent=g.bounds?'X '+n(g.bounds.minX)+' to '+n(g.bounds.maxX)+' · Y '+n(g.bounds.minY)+' to '+n(g.bounds.maxY):'No supported 2D coordinates extracted';
   const areaNote=g.closedCount||g.circleArea?'Sum of supported closed polylines and circles. Overlapping shapes may be counted more than once; this is not automatically the usable floor/equipment area.':'No closed supported shapes were available for area calculation.';
-  window.lastLocalOverviewHTML='';window.lastLocalReview='DRAWING MEASUREMENTS & OVERVIEW\nFile: '+file.name+'\nExtents: '+extent+'\nWidth: '+n(g.width)+'\nHeight: '+n(g.height)+'\nBounding rectangle area: '+n(g.boundingArea)+'\nClosed shape area sum: '+n(g.totalClosedShapeArea)+'\nClosed boundary length: '+n(g.totalClosedBoundary)+'\nStraight line length: '+n(g.lineLength)+'\nOpen polyline length: '+n(g.openPolylineLength)+'\nDimensions: '+dims.length+'\nBlocks: '+blocks.length+'\nHatches: '+hatches.length+'\nLeaders: '+leaders.length+'\n\n'+unitNote+'\n'+areaNote;
-  const html='<div class="section"><div class="sectionhead"><div><h3>CAD geometry & measurable quantities</h3><p class="muted">Measured locally from supported CAD entities — geometry only, not design interpretation</p></div><span class="status s-done">Instant</span></div>'+
+  window.lastLocalOverviewHTML='DRAWING CONTENT INTERPRETATION & MEASUREMENTS\nFile: '+file.name+'\nDrawing category cues: '+(interpretation.hints.join(', ')||'Not established from extracted annotations')+'\nIdentification text: '+interpretation.identity.join(' | ')+'\nEquipment/reference tags: '+interpretation.tags.join(', ')+'\nTechnical notes: '+interpretation.notes.join(' | ')+'\nExtents: '+extent+'\nWidth: '+n(g.width)+'\nHeight: '+n(g.height)+'\nBounding rectangle area: '+n(g.boundingArea)+'\nClosed shape area sum: '+n(g.totalClosedShapeArea)+'\nClosed boundary length: '+n(g.totalClosedBoundary)+'\nStraight line length: '+n(g.lineLength)+'\nOpen polyline length: '+n(g.openPolylineLength)+'\nDimensions: '+dims.length+'\nBlocks: '+blocks.length+'\nHatches: '+hatches.length+'\nLeaders: '+leaders.length+'\n\n'+unitNote+'\n'+areaNote;
+  const html='<div class="section"><div class="sectionhead"><div><h3>Drawing interpretation & measurable quantities</h3><p class="muted">Extracted locally from readable annotations and supported CAD geometry — no AI quota or paid service</p></div><span class="status s-done">Instant</span></div>'+
   '<div class="drawing-metrics">'+
   [['Drawing width',n(g.width)],['Drawing height',n(g.height)],['Bounding rectangle area',n(g.boundingArea)],['Closed-shape area total',n(g.totalClosedShapeArea)],['Closed boundary length',n(g.totalClosedBoundary)],['Straight line length',n(g.lineLength)],['Open polyline length',n(g.openPolylineLength)],['Supported objects',String(r.total||0)]].map(x=>'<div class="metric-card"><span class="label">'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div>'+
   '<p class="muted">'+esc(unitNote)+'</p><div class="notice"><b>Area interpretation:</b> '+esc(areaNote)+' Bounding rectangle area is width × height of the extracted extents; it is not the actual occupied floor area.</div>'+
-  '<h4>Drawing extents</h4><p>'+esc(extent)+'</p>'+
+  '<h4>What the extracted drawing information indicates</h4>'+(interpretation.hints.length?'<p><b>Possible drawing category:</b> '+interpretation.hints.map(esc).join(' · ')+'</p>':'<p class="muted">The drawing category cannot be established confidently from the extracted annotations alone.</p>')+'<p class="muted">This interpretation is built from readable labels and notes in the DXF. It does not infer unseen design intent.</p>'+(interpretation.identity.length?'<h4>Identification / title-block text</h4><ul>'+interpretation.identity.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'')+(interpretation.classified.length?interpretation.classified.filter(x=>x.name!=='Drawing / project identification').map(x=>'<h4>'+esc(x.name)+'</h4><ul>'+x.items.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul>').join(''):'<p class="muted">No readable technical labels were extracted. The source may contain text inside unsupported blocks, external references or raster images.</p>')+(interpretation.tags.length?'<h4>Possible equipment / reference tags</h4><p>'+interpretation.tags.map(esc).join(' · ')+'</p>':'')+'<h4>Drawing extents</h4><p>'+esc(extent)+'</p>'+
   '<div class="two"><div><h4>Geometry by type</h4><table class="measure-table"><tr><th>Object</th><th>Count</th></tr>'+types+'</table></div><div><h4>Layers</h4><table class="measure-table"><tr><th>Layer</th><th>Count</th></tr>'+layers+'</table></div></div>'+
   '<h4>Dimension records found: '+dims.length+'</h4>'+(dimensionRows?'<table class="measure-table"><tr><th>Displayed text</th><th>Stored measurement</th><th>Style</th></tr>'+dimensionRows+'</table>':'<p class="muted">No native DIMENSION records were extracted by the current reader. This does not prove none exist in the source file.</p>')+
   '<div class="two"><div><h4>Additional CAD content detected</h4><p>Block references: <b>'+blocks.length+'</b><br>Hatches: <b>'+hatches.length+'</b><br>Leaders: <b>'+leaders.length+'</b></p></div><div><h4>Extracted drawing notes / labels</h4>'+(labels?'<ul>'+labels+'</ul>':'<p class="muted">No supported text strings extracted.</p>')+'</div></div>'+
-  '<p class="muted">This measurement overview is deterministic and does not require an AI service. The current parser supports only selected 2D entities; unsupported blocks, dimensions, hatches, Xrefs, 3D geometry and clipped/hidden content may affect totals.</p><div class="toolbar"><button class="btn" onclick="downloadLocalReview()">Export measurements (.txt)</button><button class="btn primary" onclick="runAIDrawingTask()">Interpret drawing & prepare technical review (AI service required)</button></div></div>';window.lastLocalOverviewHTML=html;return html;
+  '<p class="muted">This free local review extracts readable drawing annotations and selected CAD measurements. It cannot reliably interpret text embedded in unsupported blocks, raster images, Xrefs, 3D geometry or clipped/hidden content; verify important values against the original drawing.</p><div class="toolbar"><button class="btn" onclick="downloadLocalReview()">Export measurements (.txt)</button><button class="btn primary" onclick="runAIDrawingTask()">Interpret drawing & prepare technical review (AI service required)</button></div></div>';window.lastLocalOverviewHTML=html;return html;
  }
  window.runDrawingTask=async function(){
   const out=document.getElementById('taskResults');
