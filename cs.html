@@ -221,6 +221,33 @@ async function renderPdfPagesForAI(sourceFile){
  }
  return pages;
 }
+async function extractLocallyWhenQuotaIsExhausted(sourceFile){
+ const ext=sourceFile.name.toLowerCase().split('.').pop();
+ setStatus(32,'Cloudflare AI daily limit reached. Switching to local document extraction…');
+ let parsed;
+ if(ext==='pdf') parsed=await parsePdf(sourceFile);
+ else if(ext==='docx') parsed=await parseDocx(sourceFile);
+ else throw new Error('Local fallback supports PDF and DOCX files only.');
+ const sheets=(parsed.sheets||[]).filter(sh=>Array.isArray(sh.rows)&&sh.rows.length);
+ const rows=sheets.flatMap(sh=>sh.rows);
+ const count=rows.filter(row=>row&&row.type==='row').length;
+ if(!count) throw new Error('Cloudflare AI daily limit is exhausted, and local extraction could not identify any requirement rows in this document. Try a text-based PDF or a DOCX with a clear Requirement/Description table. No workbook was generated.');
+ for(const row of rows){
+  if(row&&row.type==='row'){
+   row.review=true;
+   row.reviewReason='Extracted locally because the Cloudflare AI free daily allowance is exhausted. Verify this row against the original URS before approval.';
+   row.minConf=Number.isFinite(Number(row.minConf))?Math.min(Number(row.minConf),60):null;
+  }
+ }
+ const extractedText=String(parsed.text||'');
+ return {
+  sheets,text:extractedText,
+  equipmentName:titleFromText(extractedText,sourceFile.name),
+  warnings:['Cloudflare AI daily allowance was exhausted. This workbook was created using local text/table extraction, not AI interpretation. Review every requirement and specification against the source before use.'],
+  rowCount:count,ai:false,model:'Local extraction fallback',
+  diagnostics:{fallback:'local-parser',cloudflareQuotaExhausted:true}
+ };
+}
 async function extractWithAI(sourceFile){
  const endpoint=getAIEndpoint();
  if(!endpoint)throw new Error('AI document understanding is not connected to the Cloudflare Worker. See AI_BACKEND_SETUP.md.');
@@ -278,7 +305,13 @@ async function extractWithAI(sourceFile){
   diagnostics.networkAndTransferMs=Number.isFinite(diagnostics.requestRoundTripMs)&&Number.isFinite(diagnostics.workerTotalMs)
    ?Math.max(0,diagnostics.requestRoundTripMs-diagnostics.workerTotalMs):null;
  }
- if(!response.ok)throw new Error(data.error||('AI extraction failed (HTTP '+response.status+').'));
+ if(!response.ok){
+  const quotaMessage=String(data.error||'');
+  if(response.status===429 && /daily free allocation|daily allowance|quota|neurons/i.test(quotaMessage)){
+   return await extractLocallyWhenQuotaIsExhausted(sourceFile);
+  }
+  throw new Error(quotaMessage||('AI extraction failed (HTTP '+response.status+').'));
+ }
  if(!Array.isArray(data.sections)||!data.sections.length)throw new Error('The AI returned no usable requirement sections. No Excel file was generated.');
  const rows=[];
  for(const section of data.sections){
@@ -357,7 +390,7 @@ btn.addEventListener('click',async()=>{
  try{
   if(!window.ExcelJS||!window.CSBuilder)throw new Error('A required workbook library did not load. Refresh the page and retry.');
   const ext=file.name.toLowerCase().split('.').pop();
-  setStatus(3,'Starting AI-powered URS extraction…');
+  setStatus(3,'Starting URS extraction…');
   const parsed=await extractWithAI(file);
   const sheets=(parsed.sheets||[]).filter(s=>s.rows&&s.rows.length);
   const allRows=sheets.flatMap(s=>s.rows);
@@ -378,7 +411,7 @@ btn.addEventListener('click',async()=>{
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
   const reviewCount=allRows.filter(r=>r.review).length;
   const warningText=parsed.warnings.length?' AI warnings: '+parsed.warnings.slice(0,3).join(' | '):'';
-  setStatus(100,'Completed using AI document understanding: '+actual+' requirement rows exported; '+reviewCount+' row(s) flagged for source review.'+warningText+' Please verify against every source page before approval.');
+  setStatus(100,(parsed.ai?'Completed using AI document understanding: ':'Completed using local extraction: ')+actual+' requirement rows exported; '+reviewCount+' row(s) flagged for source review.'+warningText+' Please verify against every source page before approval.');
  }catch(e){console.error(e);error(e&&e.message?e.message:String(e));prog.classList.add('hidden')}
  finally{setReady(!!file)}
 });
