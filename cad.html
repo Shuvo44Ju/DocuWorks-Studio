@@ -173,8 +173,18 @@ async function convertDWGInBrowser(file){
  const version='0.8.8';
  const base='https://cdn.jsdelivr.net/npm/@mlightcad/libredwg-web@'+version+'/';
  const mod=await import(base+'dist/libredwg-web.js');
- if(!mod.LibreDwg||typeof mod.LibreDwg.create!=='function')throw new Error('The DWG reader module did not expose its expected API.');
- const engine=await mod.LibreDwg.create(base+'wasm/');
+ if(!mod.LibreDwg||typeof mod.LibreDwg.createByWasmInstance!=='function'||typeof mod.createModule!=='function')throw new Error('The DWG reader package is missing its expected WebAssembly factory exports.');
+ const wasmUrl=base+'wasm/libredwg-web.wasm';
+ let wasmResponse;
+ try{wasmResponse=await fetch(wasmUrl,{mode:'cors',cache:'force-cache'})}
+ catch(e){throw new Error('Could not download the DWG WebAssembly engine from the package CDN. Check network access or CDN blocking. Details: '+(e.message||e))}
+ if(!wasmResponse.ok)throw new Error('The DWG WebAssembly file could not be loaded (HTTP '+wasmResponse.status+'). Package asset: '+wasmUrl);
+ const wasmBinary=await wasmResponse.arrayBuffer();
+ if(!wasmBinary.byteLength)throw new Error('The DWG WebAssembly download was empty.');
+ let wasmInstance;
+ try{wasmInstance=await mod.createModule({wasmBinary})}
+ catch(e){throw new Error('The DWG WebAssembly engine downloaded but could not initialize. Details: '+(e.message||e))}
+ const engine=mod.LibreDwg.createByWasmInstance(wasmInstance);
  const bytes=await file.arrayBuffer();
  const converted=engine.dwg_write_dxf(bytes);
  if(!converted||!converted.length)throw new Error('The DWG reader could not convert this file. It may use an unsupported DWG version or contain unsupported data.');
