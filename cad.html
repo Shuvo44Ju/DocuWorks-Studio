@@ -1119,5 +1119,101 @@ function approveCadModification(){
 }
 </script>
 
-<style>.review-report{max-width:1000px;line-height:1.55}.review-report h3{margin:22px 0 9px;font-size:16px}.review-summary{padding:16px;border:1px solid var(--line);border-radius:12px;background:#f8fafc}.review-list{padding-left:20px}.review-list li{margin:10px 0}.review-finding{padding:12px;border:1px solid var(--line);border-radius:10px;list-style:none;margin-left:-20px}.review-details{margin:16px 0;padding:12px;border:1px solid var(--line);border-radius:10px}.review-details summary{cursor:pointer;font-weight:600}</style></body>
+<style>.review-report{max-width:1000px;line-height:1.55}.review-report h3{margin:22px 0 9px;font-size:16px}.review-summary{padding:16px;border:1px solid var(--line);border-radius:12px;background:#f8fafc}.review-list{padding-left:20px}.review-list li{margin:10px 0}.review-finding{padding:12px;border:1px solid var(--line);border-radius:10px;list-style:none;margin-left:-20px}.review-details{margin:16px 0;padding:12px;border:1px solid var(--line);border-radius:10px}.review-details summary{cursor:pointer;font-weight:600}</style>
+<style>
+.drawing-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}
+.drawing-metrics .metric-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px}
+.drawing-metrics .metric-card b{display:block;font-size:19px;margin-top:5px;overflow-wrap:anywhere}
+.measure-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.measure-table td,.measure-table th{padding:9px;border-bottom:1px solid var(--line);text-align:left}
+.measure-table th{color:var(--muted);background:#fafbfd}
+@media(max-width:800px){.drawing-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+<script>
+(function(){
+ const previousAIRun=window.runDrawingTask;
+ const n=(v,d=3)=>Number.isFinite(v)?Number(v.toFixed(d)).toLocaleString('en-US',{maximumFractionDigits:d}):'—';
+ function polygonMetrics(points){
+  if(!Array.isArray(points)||points.length<3)return {area:0,perimeter:0};
+  let twice=0,perimeter=0;
+  for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length];twice+=a.x*b.y-b.x*a.y;perimeter+=Math.hypot(b.x-a.x,b.y-a.y)}
+  return {area:Math.abs(twice)/2,perimeter};
+ }
+ function drawingGeometry(doc){
+  const es=doc?.entities||[],xs=[],ys=[];let lineLength=0,circleArea=0,circlePerimeter=0,closedArea=0,closedPerimeter=0,openPolylineLength=0,closedCount=0,openCount=0;
+  const add=(x,y)=>{if(Number.isFinite(x)&&Number.isFinite(y)){xs.push(x);ys.push(y)}};
+  for(const e of es){
+   const pts=e.points||[];
+   if(e.type==='LINE'&&pts.length>=2)lineLength+=Math.hypot(pts[1].x-pts[0].x,pts[1].y-pts[0].y);
+   if(e.type==='CIRCLE'&&pts[0]&&Number(e.data?.r)>0){const r=Number(e.data.r);add(pts[0].x-r,pts[0].y-r);add(pts[0].x+r,pts[0].y+r);circleArea+=Math.PI*r*r;circlePerimeter+=2*Math.PI*r}
+   else pts.forEach(p=>add(p.x,p.y));
+   if((e.type==='LWPOLYLINE'||e.type==='POLYLINE')&&pts.length>1){
+    const closed=!!(Number(e.data?.flags||0)&1);
+    const m=polygonMetrics(pts);
+    if(closed){closedArea+=m.area;closedPerimeter+=m.perimeter;closedCount++}
+    else{for(let i=1;i<pts.length;i++)openPolylineLength+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);openCount++}
+   }
+   if(e.type==='ARC'&&pts[0]&&Number(e.data?.r)>0){
+    const r=Number(e.data.r),a0=Number(e.data.start||0)*Math.PI/180,a1=Number(e.data.end||360)*Math.PI/180;
+    for(let k=0;k<=24;k++){const a=a0+(a1-a0)*k/24;add(pts[0].x+r*Math.cos(a),pts[0].y+r*Math.sin(a))}
+   }
+  }
+  const bounds=xs.length?{minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)}:null;
+  return {bounds,width:bounds?bounds.maxX-bounds.minX:0,height:bounds?bounds.maxY-bounds.minY:0,boundingArea:bounds?(bounds.maxX-bounds.minX)*(bounds.maxY-bounds.minY):0,lineLength,circleArea,circlePerimeter,closedArea,closedPerimeter,closedCount,openCount,openPolylineLength,totalClosedShapeArea:closedArea+circleArea,totalClosedBoundary:closedPerimeter+circlePerimeter};
+ }
+ function localReport(doc,file){
+  const r=dxfReport(doc),g=drawingGeometry(doc),inv=doc.technicalInventory||{},dims=inv.dimensions||[],blocks=inv.blockReferences||[],hatches=inv.hatches||[],leaders=inv.leaders||[];
+  const unitNote='Drawing units are not verified. Values below are in raw drawing units unless the drawing header explicitly defines them.';
+  const types=(r.types||[]).map(([k,v])=>'<tr><td>'+esc(k)+'</td><td>'+v+'</td></tr>').join('');
+  const layers=(r.layers||[]).map(([k,v])=>'<tr><td>'+esc(k)+'</td><td>'+v+'</td></tr>').join('');
+  const labels=(r.texts||[]).slice(0,100).map(t=>'<li>'+esc(t)+'</li>').join('');
+  const dimensionRows=dims.slice(0,80).map(d=>'<tr><td>'+esc(d.text||'—')+'</td><td>'+esc(d.measurement||'—')+'</td><td>'+esc(d.style||'—')+'</td></tr>').join('');
+  const extent=g.bounds?'X '+n(g.bounds.minX)+' to '+n(g.bounds.maxX)+' · Y '+n(g.bounds.minY)+' to '+n(g.bounds.maxY):'No supported 2D coordinates extracted';
+  const areaNote=g.closedCount||g.circleArea?'Sum of supported closed polylines and circles. Overlapping shapes may be counted more than once; this is not automatically the usable floor/equipment area.':'No closed supported shapes were available for area calculation.';
+  window.lastLocalReview='DRAWING MEASUREMENTS & OVERVIEW\nFile: '+file.name+'\nExtents: '+extent+'\nWidth: '+n(g.width)+'\nHeight: '+n(g.height)+'\nBounding rectangle area: '+n(g.boundingArea)+'\nClosed shape area sum: '+n(g.totalClosedShapeArea)+'\nClosed boundary length: '+n(g.totalClosedBoundary)+'\nStraight line length: '+n(g.lineLength)+'\nOpen polyline length: '+n(g.openPolylineLength)+'\nDimensions: '+dims.length+'\nBlocks: '+blocks.length+'\nHatches: '+hatches.length+'\nLeaders: '+leaders.length+'\n\n'+unitNote+'\n'+areaNote;
+  return '<div class="section"><div class="sectionhead"><div><h3>Drawing overview & measurable quantities</h3><p class="muted">Calculated locally from the supported geometry — no AI quota used</p></div><span class="status s-done">Instant</span></div>'+
+  '<div class="drawing-metrics">'+
+  [['Drawing width',n(g.width)],['Drawing height',n(g.height)],['Bounding rectangle area',n(g.boundingArea)],['Closed-shape area total',n(g.totalClosedShapeArea)],['Closed boundary length',n(g.totalClosedBoundary)],['Straight line length',n(g.lineLength)],['Open polyline length',n(g.openPolylineLength)],['Supported objects',String(r.total||0)]].map(x=>'<div class="metric-card"><span class="label">'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div>'+
+  '<p class="muted">'+esc(unitNote)+'</p><div class="notice"><b>Area interpretation:</b> '+esc(areaNote)+' Bounding rectangle area is width × height of the extracted extents; it is not the actual occupied floor area.</div>'+
+  '<h4>Drawing extents</h4><p>'+esc(extent)+'</p>'+
+  '<div class="two"><div><h4>Geometry by type</h4><table class="measure-table"><tr><th>Object</th><th>Count</th></tr>'+types+'</table></div><div><h4>Layers</h4><table class="measure-table"><tr><th>Layer</th><th>Count</th></tr>'+layers+'</table></div></div>'+
+  '<h4>Dimension records found: '+dims.length+'</h4>'+(dimensionRows?'<table class="measure-table"><tr><th>Displayed text</th><th>Stored measurement</th><th>Style</th></tr>'+dimensionRows+'</table>':'<p class="muted">No native DIMENSION records were extracted by the current reader. This does not prove none exist in the source file.</p>')+
+  '<div class="two"><div><h4>Additional CAD content detected</h4><p>Block references: <b>'+blocks.length+'</b><br>Hatches: <b>'+hatches.length+'</b><br>Leaders: <b>'+leaders.length+'</b></p></div><div><h4>Extracted drawing notes / labels</h4>'+(labels?'<ul>'+labels+'</ul>':'<p class="muted">No supported text strings extracted.</p>')+'</div></div>'+
+  '<p class="muted">This measurement overview is deterministic and does not require an AI service. The current parser supports only selected 2D entities; unsupported blocks, dimensions, hatches, Xrefs, 3D geometry and clipped/hidden content may affect totals.</p><div class="toolbar"><button class="btn" onclick="downloadLocalReview()">Export measurements (.txt)</button><button class="btn primary" onclick="runAIDrawingTask()">Run AI technical review (uses AI service)</button></div></div>';
+ }
+ window.runDrawingTask=async function(){
+  const out=document.getElementById('taskResults');
+  if(!window.currentFile){out.innerHTML='<div class="notice">Upload a DXF or DWG drawing first.</div>';return}
+  if(window.currentDrawingLoading){out.innerHTML='<div class="notice">Drawing conversion is still running. Please wait until the preview appears.</div>';return}
+  if(!window.currentDXF){out.innerHTML='<div class="notice">A measurable DXF geometry extract is not available for this file type yet.</div>';return}
+  out.innerHTML=localReport(window.currentDXF,window.currentFile);
+ };
+ window.analyzeDrawingFromWorkspace=async function(){
+  await window.runDrawingTask();
+  document.getElementById('workspaceAnalysisBody').innerHTML=document.getElementById('taskResults').innerHTML;
+  document.getElementById('workspaceAnalysis').scrollIntoView({behavior:'smooth',block:'start'});
+ };
+ window.runAIDrawingTask=async function(){
+  if(typeof previousAIRun!=='function'){alert('AI technical review is unavailable.');return}
+  await previousAIRun();
+  const out=document.getElementById('taskResults');
+  const body=document.getElementById('workspaceAnalysisBody');
+  if(body)body.innerHTML=out.innerHTML;
+ };
+ window.addEventListener('load',()=>{
+  document.querySelectorAll('button[onclick="analyzeDrawingFromWorkspace()"]').forEach(b=>b.textContent='Drawing Overview');
+  document.querySelectorAll('button[onclick="runDrawingTask()"]').forEach(b=>b.textContent='Drawing Overview');
+  const assistantToolbar=document.querySelector('#assistant .toolbar');
+  if(assistantToolbar&&!assistantToolbar.querySelector('[data-ai-review]')){
+   const b=document.createElement('button');b.className='btn';b.textContent='AI Technical Review (uses AI service)';b.setAttribute('data-ai-review','1');b.onclick=window.runAIDrawingTask;assistantToolbar.insertBefore(b,assistantToolbar.firstChild);
+  }
+  const ws=document.querySelector('#drawing .sectionhead .toolbar');
+  if(ws&&!ws.querySelector('[data-ai-review]')){
+   const b=document.createElement('button');b.className='btn small';b.textContent='AI Review';b.setAttribute('data-ai-review','1');b.onclick=window.runAIDrawingTask;ws.insertBefore(b,ws.firstChild);
+  }
+ });
+})();
+</script>
+
+</body>
 </html>
