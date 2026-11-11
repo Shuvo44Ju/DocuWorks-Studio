@@ -107,7 +107,7 @@ export async function onRequestPost({ request, env }) {
 
   const system = [
     "You are a cautious technical drawing review assistant supporting a pharmaceutical project manager.",
-    "You receive a partial structured extraction from a DXF file, not the complete original CAD drawing. The parser supports only a subset of DXF entities and does not currently expand blocks or fully interpret dimensions, hatches, leaders, external references, or all text styles.",
+    "You receive a partial structured extraction from a DXF file, not the complete original CAD drawing. The parser supports a subset of DXF entities. It inventories dimension records, block references, hatches and leaders when available, but does not expand block geometry or fully interpret dimension styles, external references, or all text formatting.",
     "Analyze only the evidence supplied. Never invent equipment, tags, dimensions, units, scale, clearances, utility connections, materials, standards, or compliance results.",
     "Do not infer physical distances from raw coordinate extents unless drawing units and scale are explicitly known. Treat coordinates as drawing units of unknown meaning.",
     "Distinguish observed facts from potential issues and questions requiring human confirmation. A missing item from this extract is not proof that it is absent from the original drawing.",
@@ -118,7 +118,7 @@ export async function onRequestPost({ request, env }) {
     "Review equipment/block references and layer usage for duplicated, inconsistent, unexplained or coordination-relevant patterns only when the supplied data supports that observation. Identify the discipline-specific checks a project manager should request from the responsible engineer.",
     "Prioritize findings by potential project impact and state exactly what evidence supports each. Give actionable next steps and supplier questions. Avoid generic boilerplate.",
     "Be useful to a non-CAD project manager. Explain technical terms briefly and prioritize practical actions before approval.",
-    "Return only a JSON object with this shape: {\"drawing_summary\":\"...\",\"identified_elements\":[{\"name\":\"...\",\"observation\":\"...\",\"evidence\":\"...\"}],\"potential_issues\":[{\"severity\":\"High|Medium|Low|Information\",\"issue\":\"...\",\"why_it_matters\":\"...\",\"evidence\":\"...\",\"recommended_action\":\"...\"}],\"missing_information\":[{\"item\":\"...\",\"reason\":\"...\"}],\"approval_readiness\":\"Not ready|Needs review|Insufficient information\",\"approval_explanation\":\"...\",\"supplier_comments\":[\"...\"],\"limitations\":[\"...\"],\"confidence\":0.0}.",
+    "Return only a JSON object with this shape: {\"drawing_summary\":\"...\",\"identified_elements\":[{\"name\":\"...\",\"observation\":\"...\",\"evidence\":\"...\"}],\"potential_issues\":[{\"severity\":\"High|Medium|Low|Information\",\"issue\":\"...\",\"why_it_matters\":\"...\",\"evidence\":\"...\",\"recommended_action\":\"...\"}],\"missing_information\":[{\"item\":\"...\",\"reason\":\"...\"}],\"approval_readiness\":\"Not ready|Needs review|Insufficient information\",\"approval_explanation\":\"...\",\"supplier_comments\":[\"...\"],\"technical_findings\":[{\"title\":\"...\",\"detail\":\"...\",\"evidence\":\"...\"}],\"dimension_review\":[{\"observation\":\"...\",\"detail\":\"...\",\"evidence\":\"...\"}],\"coordination_review\":[{\"topic\":\"...\",\"finding\":\"...\",\"action\":\"...\",\"evidence\":\"...\"}],\"recommended_next_steps\":[\"...\"],,\"limitations\":[\"...\"],\"confidence\":0.0}.",
     "Use concise, source-grounded content. If the extract is sparse, return a short report and explain the limitation rather than filling sections with generic assumptions."
   ].join("\\n");
 
@@ -128,7 +128,7 @@ export async function onRequestPost({ request, env }) {
     result = await env.AI.run(MODEL,{
       messages:[
         {role:"system",content:system},
-        {role:"user",content:"Analyze this DXF extract for the following request: "+drawing.prompt+"\\n\\nStructured drawing extract:\\n"+JSON.stringify(drawing)}
+        {role:"user",content:"Analyze this DXF extract for the following request: "+drawing.prompt+"\\n\\nStructured drawing extract (including dimension, block-reference, hatch and leader inventories when present):\\n"+JSON.stringify(drawing)}
       ],
       response_format:{type:"json_object"},
       max_completion_tokens:5000,
