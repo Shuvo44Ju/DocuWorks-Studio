@@ -183,7 +183,7 @@ async function convertDWGInBrowser(file){
  return raw;
 }
 async function handleFile(file){
- window.currentFile=file;window.currentDXF=null;window.currentDrawingSourceType=null;
+ window.currentFile=file;window.currentDXF=null;window.currentDrawingSourceType=null;window.currentDrawingLoading=true;window.currentDrawingLoadError='';
  const ext=file.name.split('.').pop().toLowerCase();
  document.getElementById('drop').innerHTML='<strong>'+esc(file.name)+'</strong><span class="muted">'+Math.round(file.size/1024)+' KB · '+ext.toUpperCase()+'</span>';
  const p=document.getElementById('preview');p.innerHTML='';
@@ -200,12 +200,14 @@ async function handleFile(file){
    p.innerHTML='<div class="notice"><b>'+sourceLabel+' technical extraction completed</b><br>'+d.entities.length+' supported entities detected across '+Object.keys(d.layers).length+' layers.<br>Drawing extents: X '+fmtNum(b.minX)+' to '+fmtNum(b.maxX)+'; Y '+fmtNum(b.minY)+' to '+fmtNum(b.maxY)+'.<br><br>The AI will review the extracted supported objects. Unsupported objects may not appear in this preview or analysis.</div>';
    document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>File safety:</b> the uploaded original '+ext.toUpperCase()+' is untouched. '+(ext==='dwg'?'DWG conversion and extraction run locally in your browser. When you request AI analysis, the supported extracted geometry is sent to the configured Cloudflare AI Worker; the original DWG file is not uploaded. Approved edits export as a separate DXF file, not back into the original DWG.':'The source DXF is preserved during supported edits.')+' The current inspector recognizes supported entity types only; dimensions, blocks, hatches, 3D objects and other advanced content may be incomplete.</div>';
   }catch(err){
-   p.innerHTML='<div class="notice"><b>'+ext.toUpperCase()+' could not be analyzed.</b><br>'+esc(err.message||err)+'<br><br>Your original file has not been changed. You can try exporting it from AutoCAD as DXF (ASCII) and uploading that DXF instead.</div>';
+   window.currentDrawingLoadError=String(err&&err.message||err||'Unknown conversion error');
+   p.innerHTML='<div class="notice"><b>'+ext.toUpperCase()+' conversion failed.</b><br>'+esc(window.currentDrawingLoadError)+'<br><br>Your original file has not been changed. Check the browser connection and retry. If this DWG version is unsupported, export it from AutoCAD as DXF (ASCII).</div>';
    document.getElementById('dxfInfo').innerHTML='<div class="notice">No geometry was accepted for AI analysis. The original file remains untouched.</div>';
   }
  }else if(ext==='pdf'){p.innerHTML='<div class="empty">PDF preview loaded. AI extraction is not enabled yet.</div>'}
  else{p.innerHTML='<div class="empty"><b>'+ext.toUpperCase()+' file loaded</b><br><br>This format can be registered and tracked, but browser geometry extraction is not enabled.</div>'}
  if(!['dwg','dxf'].includes(ext))document.getElementById('dxfInfo').innerHTML='<div class="notice">AI geometry analysis is currently available for supported DXF entities and locally converted DWG files only. PDF/image analysis is still under development.</div>';
+ window.currentDrawingLoading=false;
 }
 document.getElementById('file').onchange=e=>e.target.files[0]&&handleFile(e.target.files[0]);
 const drop=document.getElementById('drop');['dragenter','dragover'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>e.dataTransfer.files[0]&&handleFile(e.dataTransfer.files[0]));
@@ -241,7 +243,8 @@ if(!prompt){alert('Please describe what you want reviewed.');return}
 const out=document.getElementById('taskResults');
 if(!window.currentFile){out.innerHTML='<div class="notice">Upload a drawing in the Drawing Workspace first.</div>';return}
 const ext=window.currentFile.name.split('.').pop().toLowerCase();
-if(!window.currentDXF){out.innerHTML='<div class="notice"><b>AI analysis is not available for this file.</b><br>Upload a supported DXF or a DWG that can be converted locally. PDF and image analysis are still under development.</div>';return}
+if(window.currentDrawingLoading){out.innerHTML='<div class="notice"><b>DWG conversion is still running.</b><br>Please wait for the drawing extraction to finish. The Analyze button can be used once the drawing preview reports that extraction is complete.</div>';return}
+if(!window.currentDXF){out.innerHTML='<div class="notice"><b>Drawing geometry is not ready for AI analysis.</b><br>'+(window.currentDrawingLoadError?'Conversion error: '+esc(window.currentDrawingLoadError):'The selected file has not produced supported DXF geometry yet.')+'<br>Retry the upload or export the DWG from AutoCAD as DXF (ASCII).</div>';return}
 const local=dxfReport(window.currentDXF);
 out.innerHTML='<div class="section"><b>AI drawing analysis in progress…</b><p class="muted">Sending the supported DXF extract to your Cloudflare Worker. The original drawing is not modified.</p></div>';
 try{
@@ -1004,7 +1007,8 @@ async function requestCadModification(){
  const prompt=document.getElementById('cadModifyPrompt').value.trim();
  const out=document.getElementById('cadModifyResult');
  if(!prompt){alert('Please describe the change you want.');return}
- if(!window.currentFile||!window.currentDXF){out.innerHTML='<div class="notice">Modification planning requires a drawing that has been successfully extracted as supported DXF geometry. Upload a supported DXF or DWG first.</div>';return}
+ if(window.currentDrawingLoading){out.innerHTML='<div class="notice">The DWG conversion is still running. Wait for extraction to finish before preparing a modification plan.</div>';return}
+ if(!window.currentFile||!window.currentDXF){out.innerHTML='<div class="notice">Modification planning requires successfully extracted drawing geometry. '+esc(window.currentDrawingLoadError||'Upload a supported DXF or DWG first.')+'</div>';return}
  out.innerHTML='<div class="section"><b>Preparing your modification plan…</b><p class="muted">The original drawing is not being changed.</p></div>';
  window.pendingCadPlan=null;
  try{
