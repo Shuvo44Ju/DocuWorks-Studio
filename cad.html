@@ -182,7 +182,7 @@ async function convertDWGInBrowser(file){
  if(!/SECTION/i.test(raw)||!/ENTITIES/i.test(raw))throw new Error('The conversion did not produce a recognizable DXF drawing.');
  return raw;
 }
-async function handleFile(file){
+async function handleFileAsync(file){
  window.currentFile=file;window.currentDXF=null;window.currentDrawingSourceType=null;window.currentDrawingLoading=true;window.currentDrawingLoadError='';
  const ext=file.name.split('.').pop().toLowerCase();
  document.getElementById('drop').innerHTML='<strong>'+esc(file.name)+'</strong><span class="muted">'+Math.round(file.size/1024)+' KB · '+ext.toUpperCase()+'</span>';
@@ -377,12 +377,7 @@ function renderDXFInspector(doc){
 let box=document.getElementById('dxfInspector');if(!box){box=document.createElement('div');box.id='dxfInspector';box.className='dxf-tools';document.getElementById('preview').parentElement.appendChild(box)}
 box.innerHTML='<div class="dxf-box"><b>Entities</b><div class="dxf-list">'+Object.entries(doc.counts).map(([k,v])=>'<div class="dxf-row"><span>'+esc(k)+'</span><b>'+v+'</b></div>').join('')+'</div></div><div class="dxf-box"><b>Layers</b><div class="dxf-list">'+Object.entries(doc.layers).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="dxf-row"><span>● '+esc(k)+'</span><b>'+v+'</b></div>').join('')+'</div></div>';
 }
-function handleFile(file){window.currentFile=file;window.currentDXF=null;window.originalDXF=null;window.currentDXFRaw=null;window.pendingCadPlan=null;const ext=file.name.split('.').pop().toLowerCase();document.getElementById('drop').innerHTML='<strong>'+esc(file.name)+'</strong><span class="muted">'+Math.round(file.size/1024)+' KB · '+ext.toUpperCase()+'</span>';const p=document.getElementById('preview');p.innerHTML='';const old=document.getElementById('dxfInspector');if(old)old.remove();
-if(['png','jpg','jpeg'].includes(ext)){const img=document.createElement('img');img.src=URL.createObjectURL(file);p.appendChild(img)}
-else if(ext==='pdf'){const iframe=document.createElement('iframe');iframe.src=URL.createObjectURL(file);p.appendChild(iframe)}
-else if(['dxf','drw'].includes(ext)){const reader=new FileReader();reader.onload=()=>{const raw=String(reader.result||'');const looksLikeDXF=/\\bSECTION\\s*\\n\\s*2\\s*\\n/i.test(raw)&&/\\bENTITIES\\s*\\n/i.test(raw);if(looksLikeDXF){try{const doc=parseDXF(raw);window.currentDXF=doc;window.originalDXF=cloneDXFDocument(doc);window.currentDXFRaw=raw;renderDXF(doc,p);renderDXFInspector(doc);document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>'+ (ext==='drw'?'DRW file contains readable DXF-style data':'DXF inspection complete') +':</b> '+doc.entities.length+' supported entities across '+Object.keys(doc.layers).length+' layers. Parsing happens locally in your browser.</div>'}catch(err){p.innerHTML='<div class="empty"><b>Drawing data could not be parsed</b><br>'+esc(err.message)+'</div>'}}else if(ext==='drw'){p.innerHTML='<div class="empty"><b>DRW file detected</b><br><br><span class="muted">This DRW is not a readable DXF text file. DRW is a generic/proprietary extension used by several CAD systems, while AutoCAD native drawings use DWG. The original file is kept untouched. To analyze/edit its CAD geometry in this browser, the safest route is to export it from the source CAD system as DXF or DWG.</span><div class="notice" style="margin-top:12px"><b>What the system can do now:</b> keep the DRW in the drawing register, retain its metadata, and guide the conversion. Once a DXF is supplied, the existing analysis and approved-edit workflow becomes available.</div></div>'}else{p.innerHTML='<div class="empty"><b>DXF could not be read</b><br>The file does not contain a recognizable DXF structure.</div>'}};reader.readAsText(file)}
-else{p.innerHTML='<div class="empty"><b>'+ext.toUpperCase()+' file loaded</b><br><br>'+ (ext==='dwg'?'Native DWG preview/editing needs AutoCAD or a compatible CAD engine. You can still register the file and use the assistant.':'This file can be registered and tracked; browser editing is not enabled for this format.')+'</div>'}
-}
+function handleFile(file){return handleFileAsync(file)}
 </script>
 
 <style>
