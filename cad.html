@@ -17,48 +17,61 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:fle
 .dxf-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);font-size:11px}
 .cadcanvas{width:100%;height:100%;min-height:430px;display:block;background:#111820}
 @media(max-width:600px){.dxf-tools{grid-template-columns:1fr}}
+</style><style id="professional-overhaul">
+:root{--blue:#2457d6;--blue2:#edf2ff;--ink:#172238;--muted:#718096;--line:#e4e9f1;--bg:#f4f6fa;--ok:#16845b;--warn:#b86a00;--danger:#c43b3b}
+body{font-family:Inter,"Segoe UI",Arial,sans-serif;background:#f4f6fa;color:#172238;letter-spacing:-.01em}
+.app{min-height:100vh}.side{width:252px;flex:0 0 252px;background:#101c32;border:0;color:#e7edf8;padding:24px 16px;display:flex;flex-direction:column;z-index:5}
+.brand{padding:4px 10px 30px;gap:12px}.logo{background:#2d65ed;border-radius:12px;width:42px;height:42px;box-shadow:0 8px 22px #1743a34d}.brand b{font-size:14px;color:#fff;letter-spacing:.01em}.brand small{display:block;color:#91a1bb;font-size:11px;margin-top:3px}
+.nav{gap:6px}.nav button{display:flex;align-items:center;gap:12px;color:#aebbd0;padding:12px 13px;border-radius:9px;font-size:13px;font-weight:550;transition:.18s}.nav button .navicon{width:22px;text-align:center;font-size:17px;color:#91a5c8}.nav button.active,.nav button:hover{background:#203454;color:#fff}.nav button.active{box-shadow:inset 3px 0 #6190ff}.nav button.active .navicon{color:#82a9ff}
+.side-foot{margin-top:auto;border-top:1px solid #293750;padding:18px 10px 4px;color:#c8d3e4;font-size:11px}.side-foot small{display:block;color:#8293ad;margin:6px 0 0 15px}.side-dot{display:inline-block;width:7px;height:7px;background:#42c995;border-radius:50%;margin-right:7px}
+.main{min-width:0}.top{height:82px;padding:0 34px;background:#fff;border-bottom:1px solid #e7ebf2}.top h1{font-size:20px;font-weight:720;letter-spacing:-.035em;margin:3px 0 0}.top p{font-size:12px;color:#7c8799;margin:3px 0 0}.eyebrow{font-size:9px;font-weight:800;letter-spacing:.14em;color:#8491a5;margin-bottom:6px}.top .eyebrow{margin:0;color:#8a96a9}.top-actions{display:flex;align-items:center;gap:10px}.local-pill{font-size:11px;color:#52627a;border:1px solid #e3e8f0;border-radius:20px;padding:7px 11px}.local-pill i{display:inline-block;width:6px;height:6px;background:#24a879;border-radius:50%;margin-right:6px}
+.content{padding:28px 34px 44px;max-width:1600px}.section,.card{background:#fff;border:1px solid #e6eaf1;border-radius:13px;box-shadow:0 2px 7px #14213a06}.section{padding:21px;margin-top:18px}.sectionhead{align-items:center;margin-bottom:15px}.sectionhead h2,.sectionhead h3{font-size:16px;font-weight:700;letter-spacing:-.025em;margin:2px 0}.sectionhead .label{font-size:11px}.btn{border:1px solid #dce3ed;background:#fff;color:#34435a;border-radius:8px;padding:9px 13px;font-size:12px;font-weight:650;transition:.16s}.btn:hover{border-color:#a9bce0;background:#f8faff}.btn.primary{background:#2457d6;border-color:#2457d6;color:#fff;box-shadow:0 3px 8px #2457d625}.btn.primary:hover{background:#1949c0}.btn.small{padding:7px 10px}.field label{font-size:11px;font-weight:700;color:#56647a;margin-bottom:6px}.field input,.field select,.field textarea,.dxf-search{border:1px solid #dce3ed;border-radius:8px;background:#fff;padding:10px 11px;color:#24324a;font-size:12px;outline:none}.field input:focus,.field select:focus,.field textarea:focus{border-color:#7395e8;box-shadow:0 0 0 3px #2457d614}
+.dash-hero{min-height:240px;border-radius:16px;padding:32px 38px;background:linear-gradient(112deg,#142847 0%,#1b3766 58%,#2457a8 100%);color:#fff;display:flex;align-items:center;justify-content:space-between;overflow:hidden;position:relative}.dash-hero:after{content:"";position:absolute;width:420px;height:420px;border:1px solid #ffffff12;border-radius:50%;right:9%;top:-220px;box-shadow:0 0 0 35px #ffffff08,0 0 0 70px #ffffff05}.dash-hero>div:first-child{position:relative;z-index:1}.dash-hero .eyebrow{color:#a9c4ff}.dash-hero h2{font-size:30px;line-height:1.08;letter-spacing:-.045em;margin:8px 0 10px}.dash-hero p{max-width:470px;color:#c2d0e6;font-size:12px;line-height:1.7;margin:0 0 19px}.hero-btn{background:#fff;border-color:#fff;color:#1c3d75;padding:10px 15px}.hero-btn:hover{background:#eaf0ff}.hero-btn span{padding-left:12px}.hero-mark{width:230px;height:170px;position:relative;display:grid;place-items:center;z-index:1}.hero-ring{position:absolute;width:180px;height:180px;border:1px solid #ffffff22;border-radius:50%;box-shadow:0 0 0 18px #ffffff08}.hero-sheet{width:116px;height:142px;background:#f6f8fd;border-radius:7px;box-shadow:0 18px 38px #07172d70;transform:rotate(7deg);padding:13px;color:#233c67;position:relative}.hero-sheet span{font-size:8px;letter-spacing:.12em;color:#7790b7}.hero-sheet b{display:block;font-size:34px;margin-top:4px}.hero-sheet i{display:block;height:3px;background:#c5d1e4;border-radius:4px;margin-top:8px;width:80%}.hero-sheet i:nth-of-type(2){width:62%}.hero-sheet small{position:absolute;bottom:12px;font-size:7px;letter-spacing:.1em;color:#6680a8}
+.dash-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin:17px 0}.kpi{background:#fff;border:1px solid #e6eaf1;border-radius:12px;padding:16px 18px;min-height:100px}.kpi span{display:block;font-size:9px;letter-spacing:.1em;font-weight:800;color:#7f8ba0}.kpi b{display:block;font-size:27px;letter-spacing:-.04em;margin:7px 0 1px;color:#1b2a43}.kpi small{font-size:10px;color:#8b96a8}.dash-lower{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(270px,.8fr);gap:16px}.dash-lower .section{margin:0}.recent-section .sectionhead{margin-bottom:8px}.quick-section h2{font-size:16px;margin:4px 0 13px}.quick-link{width:100%;display:flex;align-items:center;gap:10px;padding:12px 0;border:0;border-top:1px solid #edf0f5;background:none;text-align:left;color:#273750;cursor:pointer}.quick-link>span:nth-child(2){flex:1}.quick-link b{display:block;font-size:11px}.quick-link small{display:block;color:#8793a6;font-size:10px;margin-top:3px}.quick-link>span:last-child{color:#8291a7}.quick-icon{width:30px;height:30px;display:grid;place-items:center;background:#edf2ff;color:#2859d4;border-radius:8px;font-size:15px}
+.table{font-size:11px}.table th{font-size:9px;letter-spacing:.08em;color:#7d8aa0;background:#f8f9fc}.table td,.table th{padding:11px 10px;border-bottom:1px solid #edf0f5}.table tr:last-child td{border-bottom:0}.emptyrow{color:#8995a8;text-align:center;padding:22px!important}
+.grid2{gap:18px}.drop{border:1.5px dashed #c8d4e5;background:#f8faff;border-radius:11px;padding:28px 18px;text-align:center}.drop strong{font-size:13px}.drop .muted{font-size:11px}.preview{border:1px solid #dfe5ee;border-radius:10px;overflow:hidden;background:#111820}.meta{gap:12px}.notice{border:1px solid #dce7fb;background:#f5f8ff;border-radius:9px;padding:12px 14px;color:#51627e;font-size:11px;line-height:1.6}.chips{gap:7px}.chip{border:1px solid #dfe5ee;border-radius:20px;background:#fff;color:#50617a;padding:7px 11px;font-size:11px}.chip:hover{background:#edf2ff;border-color:#c6d5f7;color:#2457d6}
+.status{font-size:10px;border-radius:20px;padding:4px 8px;font-weight:700}.dxf-box{border-color:#e4e9f1;border-radius:9px;background:#fafbfd}.cadcanvas{min-height:520px}
+.side .nav button span:not(.navicon){display:inline}.side .brand div:last-child,.nav button span{display:block}
+@media(max-width:1100px){.side{width:210px;flex-basis:210px}.content{padding:22px}.dash-lower{grid-template-columns:1fr}.hero-mark{opacity:.65}}
+@media(max-width:760px){.side{width:62px;flex-basis:62px;padding:18px 8px}.brand{padding:4px 2px 22px;justify-content:center}.brand div:last-child,.nav button span:not(.navicon),.side-foot{display:none!important}.nav button{justify-content:center;padding:12px 5px}.nav button .navicon{font-size:19px}.top{padding:0 16px}.top-actions{display:none}.content{padding:16px}.dash-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.dash-hero{padding:24px;min-height:215px}.hero-mark{display:none}.dash-hero h2{font-size:25px}}
+@media(max-width:480px){.side{display:none}.dash-kpis{gap:8px}.kpi{padding:13px}.kpi b{font-size:23px}.dash-hero{padding:21px}.content{padding:12px}.section{padding:15px}}
+@media print{.side,.top,.btn,.quick-section{display:none!important}.content{padding:0}.section,.kpi{box-shadow:none}}
 </style></head>
 <body>
 <div class="app">
 <aside class="side">
 <div class="brand"><div class="logo">DW</div><div><b>CAD Manager</b><small>DocuWorks Studio</small></div></div>
-<nav class="nav">
-<button class="active" data-page="dashboard">▦ <span>Dashboard</span></button>
-<button data-page="drawing">⌁ <span>Drawing Workspace</span></button>
-<button data-page="assistant">✦ <span>Ask / AutoCAD Help</span></button>
-<button data-page="register">☷ <span>Drawing Register</span></button>
-<button data-page="actions">✓ <span>Actions & RFI</span></button>
-<button data-page="review">□ <span>Review Checklist</span></button>
-<button data-page="coach">⌘ <span>AutoCAD Coach</span></button>
+<nav class="nav" aria-label="Main navigation">
+<button class="active" data-page="dashboard"><span class="navicon">▦</span><span>Overview</span></button>
+<button data-page="drawing"><span class="navicon">⌁</span><span>Drawing workspace</span></button>
+<button data-page="assistant"><span class="navicon">✦</span><span>Review & modify</span></button>
+<button data-page="register"><span class="navicon">☷</span><span>Drawing register</span></button>
+<button data-page="actions"><span class="navicon">✓</span><span>Actions & RFI</span></button>
 </nav>
+<div class="side-foot"><span class="side-dot"></span> Local-first workspace <small>No paid AI enabled</small></div>
 </aside>
 <main class="main">
-<header class="top"><div><h1 id="pageTitle">CAD Project Manager</h1><p id="pageSub">A project manager's workspace for drawing review, supplier coordination and revision control.</p></div><div class="toolbar"><button class="btn small" onclick="clearDemo()">Clear local data</button></div></header>
+<header class="top"><div><div class="eyebrow">DOCUWORKS STUDIO / ENGINEERING</div><h1 id="pageTitle">Project overview</h1><p id="pageSub">Drawing control, technical review and supplier coordination.</p></div><div class="top-actions"><span class="local-pill"><i></i> Local workspace</span></div></header>
 <div class="content">
 
 <section class="page active" id="dashboard">
-<div class="cards">
-<div class="card"><div class="label">Active projects</div><div class="metric" id="mProjects">2</div></div>
-<div class="card"><div class="label">Drawings</div><div class="metric" id="mDrawings">0</div></div>
-<div class="card"><div class="label">Open actions / RFIs</div><div class="metric" id="mActions">0</div></div>
-<div class="card"><div class="label">Awaiting review</div><div class="metric" id="mReview">1</div></div>
-</div>
-<div class="section"><div class="sectionhead"><h2>Project Manager's quick start</h2><button class="btn primary" onclick="showPage('drawing')">Open a drawing</button></div>
-<div class="two">
-<div><p><b>1. Upload the drawing</b><br><span class="muted">DWG files are converted locally for analysis; DXF can be inspected and edited safely in-browser.</span></p>
-<p><b>2. Ask what you need</b><br><span class="muted">Use the assistant for AutoCAD commands, drawing checks and modification procedures.</span></p></div>
-<div class="notice"><b>DWG safety:</b> DWG is converted locally to DXF for supported-object analysis. Approved edits export as a separate DXF; native DWG write-back is not supported.</div>
-</div></div>
-<div class="section"><div class="sectionhead"><h2>Recent drawings</h2><button class="btn small" onclick="showPage('register')">View register</button></div><div class="tablewrap"><table class="table"><thead><tr><th>Drawing</th><th>Revision</th><th>Type</th><th>Status</th></tr></thead><tbody id="recent"></tbody></table></div></div>
+<div class="dash-hero"><div><div class="eyebrow light">PROJECT CONTROL CENTRE</div><h2>Keep every drawing<br>under control.</h2><p>Review supplier drawings, track revisions and turn technical comments into clear actions.</p><button class="btn hero-btn" onclick="showPage('drawing')">Open drawing workspace <span>→</span></button></div><div class="hero-mark"><div class="hero-sheet"><span>DWG</span><b>01</b><i></i><i></i><i></i><small>REVISION CONTROL</small></div><div class="hero-ring"></div></div></div>
+<div class="dash-kpis">
+<div class="kpi"><span>REGISTERED DRAWINGS</span><b id="mDrawings">0</b><small>In your local register</small></div>
+<div class="kpi"><span>OPEN ACTIONS / RFIs</span><b id="mActions">0</b><small>Items not yet completed</small></div>
+<div class="kpi"><span>AWAITING REVIEW</span><b id="mReview">0</b><small>For review or approval</small></div>
+<div class="kpi"><span>APPROVED / ISSUED</span><b id="mDone">0</b><small>Completed drawing status</small></div></div>
+<div class="dash-lower"><div class="section recent-section"><div class="sectionhead"><div><div class="eyebrow">DOCUMENT CONTROL</div><h2>Recent drawings</h2></div><button class="btn small" onclick="showPage('register')">View register →</button></div><div class="tablewrap"><table class="table"><thead><tr><th>Drawing</th><th>Revision</th><th>File type</th><th>Status</th></tr></thead><tbody id="recent"></tbody></table></div></div>
+<div class="section quick-section"><div class="eyebrow">QUICK ACCESS</div><h2>What do you need to do?</h2><button class="quick-link" onclick="showPage('drawing')"><span class="quick-icon">＋</span><span><b>Review a new drawing</b><small>Upload DWG or DXF</small></span><span>→</span></button><button class="quick-link" onclick="showPage('assistant')"><span class="quick-icon">✦</span><span><b>Request a modification</b><small>Describe the change</small></span><span>→</span></button><button class="quick-link" onclick="showPage('actions')"><span class="quick-icon">✓</span><span><b>Track an action / RFI</b><small>Follow up with supplier</small></span><span>→</span></button></div></div>
 </section>
 
 <section class="page" id="drawing">
 <div class="grid2">
-<div class="section" style="margin-top:0"><div class="sectionhead"><h2>Drawing Workspace</h2><div class="toolbar"><button class="btn small" onclick="document.getElementById('file').click()">Upload</button><input id="file" type="file" hidden accept=".drw,.dwg,.dxf,.pdf,.png,.jpg,.jpeg"></div></div>
+<div class="section" style="margin-top:0"><div class="sectionhead"><div><div class="eyebrow">DRAWING CONTROL</div><h2>Drawing workspace</h2></div><div class="toolbar"><button class="btn small" onclick="document.getElementById('file').click()">Upload</button><input id="file" type="file" hidden accept=".drw,.dwg,.dxf,.pdf,.png,.jpg,.jpeg"></div></div>
 <div id="drop" class="drop"><strong>Drop a drawing here</strong><span class="muted">DRW / DXF / DWG / PDF / PNG / JPG</span><br><br><button class="btn primary" onclick="document.getElementById('file').click()">Choose drawing</button></div>
 <div class="preview" id="preview"><div class="empty">Your drawing preview will appear here.</div></div>
 </div>
-<div class="section" style="margin-top:0"><div class="sectionhead"><h2>Drawing information</h2><div class="toolbar"><button class="btn primary small" onclick="analyzeDrawingFromWorkspace()">Quick Review</button><button class="btn small" onclick="saveDrawing()">Save drawing</button></div></div>
+<div class="section" style="margin-top:0"><div class="sectionhead"><div><div class="eyebrow">DOCUMENT METADATA</div><h2>Drawing information</h2></div><div class="toolbar"><button class="btn primary small" onclick="analyzeDrawingFromWorkspace()">Review drawing</button><button class="btn small" onclick="saveDrawing()">Save drawing</button></div></div>
 <div class="meta">
 <div class="field"><label>Project</label><input id="dProject" placeholder="Project name"></div>
 <div class="field"><label>Drawing number</label><input id="dNo" placeholder="e.g. MEP-001"></div>
@@ -72,7 +85,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:fle
 </div></div>
 <div class="section" id="workspaceAnalysis" style="margin-top:18px"><div class="sectionhead"><h2>Drawing Analysis Report</h2><span class="label">Appears here after analysis</span></div><div id="workspaceAnalysisBody" class="muted">Upload a drawing, then select <b>Analyze Drawing</b>. The generated report will appear in this workspace automatically.</div></div>
 <div class="section" id="cadModifySection">
- <div class="sectionhead"><h2>Modify Drawing with Instructions</h2><span class="label">AI proposes · you approve</span></div>
+ <div class="sectionhead"><div><div class="eyebrow">CONTROLLED EDITING</div><h2>Modify drawing</h2></div><span class="label">AI proposes · you approve</span></div>
  <div class="notice">Describe the change in ordinary language. The AI will prepare a proposed edit plan. Nothing changes until you select <b>Approve & Apply Changes</b>. The original uploaded file remains untouched.</div>
  <div class="field" style="margin-top:12px"><label>Your modification instruction</label><textarea id="cadModifyPrompt" rows="3" placeholder="Example: Move the selected line 500 drawing units to the right. Or: Change the text AHU-01 to AHU-02."></textarea></div>
  <div class="two" style="margin-top:10px">
@@ -85,7 +98,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:fle
 
 <section class="page" id="assistant">
 <div class="section" style="margin-top:0">
-<div class="sectionhead"><h2>Drawing Review & Task Assistant</h2><span class="label">For project managers — no CAD operation required</span></div>
+<div class="sectionhead"><div><div class="eyebrow">TECHNICAL REVIEW</div><h2>Review & modify</h2></div><span class="label">For project managers — no CAD operation required</span></div>
 <div class="notice"><b>How this works:</b> Upload a drawing in the Drawing Workspace, then describe the job below. The workspace will extract available DXF information, organize review findings and prepare supplier-facing comments. Any proposed geometry change must be checked and approved before a separate revised file is produced.</div>
 <div class="chips">
 <button class="chip" onclick="setTask('Review this drawing and identify potential issues before approval.')">Review before approval</button>
@@ -96,7 +109,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:fle
 </div>
 <div class="field" style="margin-top:14px"><label>What do you want done? Use ordinary language.</label><textarea id="taskPrompt" rows="4" placeholder="Example: Review the equipment layout, identify unclear dimensions, access concerns, missing labels and questions I should raise with the supplier."></textarea></div>
 <div class="toolbar" style="margin-top:10px;flex-wrap:wrap">
-<button class="btn primary" onclick="runDrawingTask()">Measure & interpret drawing content</button>
+<button class="btn primary" onclick="runDrawingTask()">Run local drawing review</button>
 <button class="btn" onclick="document.getElementById('supportFiles').click()">Attach previous revision / reference</button>
 <input id="supportFiles" type="file" hidden multiple accept=".pdf,.doc,.docx,.txt,.dxf,.png,.jpg,.jpeg">
 </div>
@@ -116,12 +129,12 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:fle
 </section>
 
 <section class="page" id="register">
-<div class="section" style="margin-top:0"><div class="sectionhead"><h2>Drawing Register</h2><div class="toolbar"><button class="btn small" onclick="showPage('drawing')">+ Add drawing</button><button class="btn small" onclick="printRegister()">Print</button></div></div>
+<div class="section" style="margin-top:0"><div class="sectionhead"><div><div class="eyebrow">DOCUMENT CONTROL</div><h2>Drawing register</h2></div><div class="toolbar"><button class="btn small" onclick="showPage('drawing')">+ Add drawing</button><button class="btn small" onclick="printRegister()">Print</button></div></div>
 <div class="tablewrap"><table class="table"><thead><tr><th>Drawing No.</th><th>Title</th><th>Project</th><th>Rev</th><th>Discipline</th><th>Status</th><th>Type</th><th></th></tr></thead><tbody id="registerBody"></tbody></table></div></div>
 </section>
 
 <section class="page" id="actions">
-<div class="section" style="margin-top:0"><div class="sectionhead"><h2>Actions & RFI Log</h2><button class="btn primary small" onclick="addAction()">+ Add item</button></div>
+<div class="section" style="margin-top:0"><div class="sectionhead"><div><div class="eyebrow">FOLLOW-UP CONTROL</div><h2>Actions & RFI log</h2></div><button class="btn primary small" onclick="addAction()">+ Add item</button></div>
 <div class="two"><div class="field"><label>Item type</label><select id="aType"><option>Action</option><option>RFI</option><option>Submittal</option><option>Inspection</option></select></div><div class="field"><label>Due date</label><input id="aDue" type="date"></div><div class="field"><label>Responsible</label><input id="aWho" placeholder="Person / supplier"></div><div class="field"><label>Description</label><input id="aDesc" placeholder="What needs to be done?"></div></div>
 <div class="tablewrap" style="margin-top:18px"><table class="table"><thead><tr><th>Type</th><th>Description</th><th>Responsible</th><th>Due</th><th>Status</th></tr></thead><tbody id="actionBody"></tbody></table></div></div>
 </section>
@@ -152,9 +165,9 @@ const topics=[
 ];
 const checks=['Title block complete and correct','Drawing number and revision verified','Scale and units verified','Dimensions checked for consistency','Layers follow project standard','Xrefs / references are correct revision','Notes and specifications reviewed','Symbols / blocks are correct','Coordination / clashes checked','Plot preview and PDF quality checked','Approval / issue status confirmed'];
 function save(){localStorage.setItem(KEY,JSON.stringify(state));renderAll()}
-function showPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===id));const b=document.querySelector('.nav button[data-page="'+id+'"]');document.getElementById('pageTitle').textContent=b?b.innerText.trim():'CAD Project Manager'}
+function showPage(id){const page=document.getElementById(id);if(!page)return;document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));page.classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===id));const meta={dashboard:['Project overview','Drawing control, technical review and supplier coordination.'],drawing:['Drawing workspace','Inspect, measure and manage controlled drawing changes.'],assistant:['Review & modify','Prepare technical comments and controlled modification proposals.'],register:['Drawing register','Maintain drawing numbers, revisions and approval status.'],actions:['Actions & RFI','Track supplier clarifications, responsibilities and due dates.']};document.getElementById('pageTitle').textContent=(meta[id]||['CAD Project Manager',''])[0];document.getElementById('pageSub').textContent=(meta[id]||['',''])[1]}
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
-function renderAll(){document.getElementById('mDrawings').textContent=state.drawings.length;document.getElementById('mActions').textContent=state.actions.filter(x=>x.status!=='Done').length;document.getElementById('mProjects').textContent=state.projects||2;renderRegister();renderRecent();renderActions();renderChecks();renderCoach()}
+function renderAll(){document.getElementById('mDrawings').textContent=state.drawings.length;document.getElementById('mActions').textContent=state.actions.filter(x=>x.status!=='Done').length;document.getElementById('mReview').textContent=state.drawings.filter(x=>['For Review','For Approval'].includes(x.status)).length;document.getElementById('mDone').textContent=state.drawings.filter(x=>['Approved','Issued'].includes(x.status)).length;renderRegister();renderRecent();renderActions();renderChecks();renderCoach()}
 function renderRecent(){const el=document.getElementById('recent');el.innerHTML=state.drawings.slice(-6).reverse().map(d=>'<tr><td>'+esc(d.no||'—')+'</td><td>'+esc(d.rev||'—')+'</td><td>'+esc(d.type)+'</td><td><span class="status s-open">'+esc(d.status||'For Review')+'</span></td></tr>').join('')||'<tr><td colspan="4" class="emptyrow">No drawings yet.</td></tr>'}
 function renderRegister(){const el=document.getElementById('registerBody');el.innerHTML=state.drawings.map((d,i)=>'<tr><td>'+esc(d.no||'—')+'</td><td>'+esc(d.title||'—')+'</td><td>'+esc(d.project||'—')+'</td><td>'+esc(d.rev||'—')+'</td><td>'+esc(d.disc||'—')+'</td><td><span class="status s-open">'+esc(d.status)+'</span></td><td>'+esc(d.type)+'</td><td><button class="btn small danger" onclick="deleteDrawing('+i+')">Delete</button></td></tr>').join('')||'<tr><td colspan="8" class="emptyrow">No drawings registered.</td></tr>'}
 function renderActions(){const el=document.getElementById('actionBody');el.innerHTML=state.actions.map(x=>'<tr><td>'+esc(x.type)+'</td><td>'+esc(x.desc)+'</td><td>'+esc(x.who)+'</td><td>'+esc(x.due||'—')+'</td><td><span class="status '+(x.status==='Done'?'s-done':'s-warn')+'">'+x.status+'</span></td></tr>').join('')||'<tr><td colspan="5" class="emptyrow">No open items.</td></tr>'}
