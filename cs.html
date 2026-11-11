@@ -69,7 +69,7 @@
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const $=id=>document.getElementById(id), zone=$('drop-zone'), input=$('urs-input'), info=$('file-info'), btn=$('convert-btn'), err=$('error-text'), prog=$('progress-container'), bar=$('progress-bar'), status=$('status-text'), pct=$('progress-percent'), elapsedLabel=$('elapsed-text');
-let file=null, progressValue=0;
+let file=null, progressValue=0, conversionStage='Waiting to start';
 function error(m){err.textContent=m;err.classList.remove('hidden')}
 function clearError(){err.textContent='';err.classList.add('hidden')}
 function setStatus(p,m){progressValue=Math.max(progressValue,Math.max(0,Math.min(100,Math.round(p))));prog.classList.remove('hidden');bar.style.width=progressValue+'%';bar.setAttribute('aria-valuenow',String(progressValue));pct.textContent=progressValue+'%';status.textContent=m}
@@ -203,13 +203,18 @@ function getAIEndpoint(){
  return '';
 }
 async function renderPdfPagesForAI(sourceFile){
+ conversionStage='Opening the PDF and preparing pages';
  if(!window.pdfjsLib)throw new Error('The PDF reader did not load. Refresh the page and retry.');
+ conversionStage='Reading the selected PDF file';
  const bytes=await sourceFile.arrayBuffer();
+ if(!bytes||bytes.byteLength<100)throw new Error('The selected PDF could not be read or is empty. Re-select the file from a local folder and retry.');
+ conversionStage='Opening the PDF with the PDF reader';
  const pdf=await pdfjsLib.getDocument({data:new Uint8Array(bytes)}).promise;
  if(pdf.numPages>30)throw new Error('The free AI converter currently supports up to 30 PDF pages per file. Split this document into smaller parts and retry.');
  const pages=[];
  for(let n=1;n<=pdf.numPages;n++){
   setStatus(8+Math.round((n/pdf.numPages)*12),'Preparing PDF page '+n+' of '+pdf.numPages+' for AI vision…');
+  conversionStage='Rendering PDF page '+n+' of '+pdf.numPages;
   const page=await pdf.getPage(n),viewport=page.getViewport({scale:1.3});
   const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{alpha:false});
   canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
@@ -249,14 +254,17 @@ async function extractLocallyWhenQuotaIsExhausted(sourceFile){
  };
 }
 async function extractWithAI(sourceFile){
+ conversionStage='Connecting to the document extraction service';
  const endpoint=getAIEndpoint();
  if(!endpoint)throw new Error('AI document understanding is not connected to the Cloudflare Worker. See AI_BACKEND_SETUP.md.');
+ conversionStage='Preparing the source document';
  setStatus(5,'Preparing the source document…');
  const preparationStarted=performance.now();
  const diagnostics={};
  const ext=sourceFile.name.toLowerCase().split('.').pop(),form=new FormData();
  form.append('fileName',sourceFile.name);
  if(ext==='pdf'){
+  conversionStage='Preparing PDF pages for analysis';
   const pages=await renderPdfPagesForAI(sourceFile);
   form.append('pageImages',JSON.stringify(pages));
  }else if(ext==='docx'){
@@ -266,6 +274,7 @@ async function extractWithAI(sourceFile){
   form.append('documentHtml',res.value);
  }else throw new Error('Please upload a PDF or DOCX file.');
  diagnostics.documentPreparationMs=Math.round(performance.now()-preparationStarted);
+ conversionStage='Sending the prepared document to Cloudflare AI';
  setStatus(25,'Uploading source pages to Cloudflare Workers AI…');
  const controller=new AbortController();
  const started=Date.now();
@@ -385,17 +394,19 @@ async function extractWithAI(sourceFile){
  };
 }
 btn.addEventListener('click',async()=>{
- if(!file)return;clearError();setReady(false);
+ if(!file)return;clearError();setReady(false);conversionStage='Checking required libraries';
  progressValue=0;bar.style.width='0%';bar.setAttribute('aria-valuenow','0');pct.textContent='0%';elapsedLabel.textContent='';
  try{
   if(!window.ExcelJS||!window.CSBuilder)throw new Error('A required workbook library did not load. Refresh the page and retry.');
   const ext=file.name.toLowerCase().split('.').pop();
   setStatus(3,'Starting URS extraction…');
+  conversionStage='Extracting requirements from the URS';
   const parsed=await extractWithAI(file);
   const sheets=(parsed.sheets||[]).filter(s=>s.rows&&s.rows.length);
   const allRows=sheets.flatMap(s=>s.rows);
   if(!allRows.length)throw new Error('No requirements could be extracted. No Excel file was generated.');
   const actual=allRows.filter(r=>r.type==='row'||r.type==='sw').length;
+  conversionStage='Downloading the original CS.xlsx template';
   setStatus(92,'Loading the original CS.xlsx template…');
   const templateUrl=new URL('./CS.xlsx',document.baseURI);
   templateUrl.searchParams.set('v','e5e11cefaa27c55d');
@@ -403,19 +414,23 @@ btn.addEventListener('click',async()=>{
   if(!response.ok)throw new Error('The CS Excel template could not be found on the published site (HTTP '+response.status+'). Please refresh the page after the latest site deployment.');
   const template=await response.arrayBuffer();
   if(template.byteLength<5000)throw new Error('The CS Excel template download was incomplete ('+template.byteLength+' bytes). Refresh the page and retry.');
+  conversionStage='Opening the CS Excel template';
   const workbookStarted=performance.now(),wb=new ExcelJS.Workbook();
   try{await wb.xlsx.load(template)}catch(templateError){throw new Error('The CS Excel template was downloaded but could not be opened. The published template may be corrupted or an old cached copy is being used. Details: '+(templateError.message||templateError));}
   const title=parsed.equipmentName||titleFromText(parsed.text||'',file.name);
+  conversionStage='Filling the CS template with extracted requirements';
   CSBuilder.fillTemplate(wb,{title:'CS File of '+title,sheets});
   setStatus(97,'Building the formatted CS workbook…');
+  conversionStage='Generating the Excel workbook';
   const out=await wb.xlsx.writeBuffer(),blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   console.info('DocuWorks workbook generation (ms)',Math.round(performance.now()-workbookStarted));
+  conversionStage='Starting the Excel file download';
   a.href=url;a.download='CS_'+title.replace(/[^\w.-]+/g,'_').slice(0,70)+'.xlsx';
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
   const reviewCount=allRows.filter(r=>r.review).length;
   const warningText=parsed.warnings.length?' AI warnings: '+parsed.warnings.slice(0,3).join(' | '):'';
   setStatus(100,(parsed.ai?'Completed using AI document understanding: ':'Completed using local extraction: ')+actual+' requirement rows exported; '+reviewCount+' row(s) flagged for source review.'+warningText+' Please verify against every source page before approval.');
- }catch(e){console.error(e);error(e&&e.message?e.message:String(e));prog.classList.add('hidden')}
+ }catch(e){console.error('DocuWorks CS conversion failed at stage:',conversionStage,e);const detail=e&&e.message?e.message:String(e);error('Failed during: '+conversionStage+'. '+(e&&e.name?e.name+': ':'')+detail+' Open browser DevTools (F12) → Console if further diagnostics are needed.');prog.classList.add('hidden')}
  finally{setReady(!!file)}
 });
 </script>
