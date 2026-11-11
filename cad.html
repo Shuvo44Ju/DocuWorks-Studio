@@ -304,6 +304,7 @@ out.innerHTML=renderCadAIReport(data,prompt);
  const message=String(error.message||error);
  out.innerHTML='<div class="notice"><b>A full drawing review was not generated.</b><br>'+esc(message)+'<br>The object inventory is not a substitute for reviewing the drawing as a whole. Your original drawing has not been changed. Please retry when the AI service is available.</div>';
 }
+}
 async function analyzeDrawingFromWorkspace(){
 if(!window.currentFile){alert('Upload a drawing first.');return}
 const prompt=document.getElementById('taskPrompt');
