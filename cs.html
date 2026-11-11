@@ -68,6 +68,9 @@
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+// GitHub Pages can occasionally fail to resolve the external PDF worker. The converter
+// therefore runs PDF.js in the main thread for reliability; this avoids worker-file
+// lookup errors while keeping the document fully local in the browser.
 const $=id=>document.getElementById(id), zone=$('drop-zone'), input=$('urs-input'), info=$('file-info'), btn=$('convert-btn'), err=$('error-text'), prog=$('progress-container'), bar=$('progress-bar'), status=$('status-text'), pct=$('progress-percent'), elapsedLabel=$('elapsed-text');
 let file=null, progressValue=0, conversionStage='Waiting to start';
 function error(m){err.textContent=m;err.classList.remove('hidden')}
@@ -109,7 +112,7 @@ function detectTableColumnRules(canvas) {
  } catch(e) { console.warn('Table-rule detection skipped:',e); return null; }
 }
 async function parsePdf(f){
- const data=await f.arrayBuffer(), pdf=await pdfjsLib.getDocument({data}).promise, pages=[], textChunks=[];
+ const data=await f.arrayBuffer(), pdf=await pdfjsLib.getDocument({data,disableWorker:true}).promise, pages=[], textChunks=[];
  let textWords=0, ocrPages=[];
  const qualityScore=words=>{
   if(!words||!words.length)return 0;
@@ -209,7 +212,7 @@ async function renderPdfPagesForAI(sourceFile){
  const bytes=await sourceFile.arrayBuffer();
  if(!bytes||bytes.byteLength<100)throw new Error('The selected PDF could not be read or is empty. Re-select the file from a local folder and retry.');
  conversionStage='Opening the PDF with the PDF reader';
- const pdf=await pdfjsLib.getDocument({data:new Uint8Array(bytes)}).promise;
+ const pdf=await pdfjsLib.getDocument({data:new Uint8Array(bytes),disableWorker:true}).promise;
  if(pdf.numPages>30)throw new Error('The free AI converter currently supports up to 30 PDF pages per file. Split this document into smaller parts and retry.');
  const pages=[];
  for(let n=1;n<=pdf.numPages;n++){
