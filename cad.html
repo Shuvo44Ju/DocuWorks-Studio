@@ -291,7 +291,8 @@ if(!window.currentFile){out.innerHTML='<div class="notice">Upload a drawing in t
 const ext=window.currentFile.name.split('.').pop().toLowerCase();
 if(window.currentDrawingLoading){out.innerHTML='<div class="notice"><b>DWG conversion is still running.</b><br>Please wait for the drawing extraction to finish. The Analyze button can be used once the drawing preview reports that extraction is complete.</div>';return}
 if(!window.currentDXF){out.innerHTML='<div class="notice"><b>Drawing geometry is not ready for AI analysis.</b><br>'+(window.currentDrawingLoadError?'Conversion error: '+esc(window.currentDrawingLoadError):'The selected file has not produced supported DXF geometry yet.')+'<br>Retry the upload or export the DWG from AutoCAD as DXF (ASCII).</div>';return}
-const local=dxfReport(window.currentDXF);\nconst drawingImage=captureDrawingPreview();
+const local=dxfReport(window.currentDXF);
+const drawingImage=captureDrawingPreview();
 out.innerHTML='<div class="section"><b>AI drawing analysis in progress…</b><p class="muted">Sending the supported DXF extract to your Cloudflare Worker. The original drawing is not modified.</p></div>';
 try{
 const response=await fetch('https://docuworks-studio.shuvokh97.workers.dev/api/cad/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileName:window.currentFile.name,prompt,drawingImage,drawing:{...local,entities:window.currentDXF.entities}})});
