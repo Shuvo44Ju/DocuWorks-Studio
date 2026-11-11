@@ -58,7 +58,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:fle
 <div id="drop" class="drop"><strong>Drop a drawing here</strong><span class="muted">DRW / DXF / DWG / PDF / PNG / JPG</span><br><br><button class="btn primary" onclick="document.getElementById('file').click()">Choose drawing</button></div>
 <div class="preview" id="preview"><div class="empty">Your drawing preview will appear here.</div></div>
 </div>
-<div class="section" style="margin-top:0"><div class="sectionhead"><h2>Drawing information</h2><div class="toolbar"><button class="btn primary small" onclick="analyzeDrawingFromWorkspace()">Analyze Drawing</button><button class="btn small" onclick="saveDrawing()">Save drawing</button></div></div>
+<div class="section" style="margin-top:0"><div class="sectionhead"><h2>Drawing information</h2><div class="toolbar"><button class="btn primary small" onclick="analyzeDrawingFromWorkspace()">Quick Review</button><button class="btn small" onclick="saveDrawing()">Save drawing</button></div></div>
 <div class="meta">
 <div class="field"><label>Project</label><input id="dProject" placeholder="Project name"></div>
 <div class="field"><label>Drawing number</label><input id="dNo" placeholder="e.g. MEP-001"></div>
@@ -96,7 +96,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:fle
 </div>
 <div class="field" style="margin-top:14px"><label>What do you want done? Use ordinary language.</label><textarea id="taskPrompt" rows="4" placeholder="Example: Review the equipment layout, identify unclear dimensions, access concerns, missing labels and questions I should raise with the supplier."></textarea></div>
 <div class="toolbar" style="margin-top:10px;flex-wrap:wrap">
-<button class="btn primary" onclick="runDrawingTask()">Analyze / Review Request</button>
+<button class="btn primary" onclick="runDrawingTask()">Run Quick Review</button>
 <button class="btn" onclick="document.getElementById('supportFiles').click()">Attach previous revision / reference</button>
 <input id="supportFiles" type="file" hidden multiple accept=".pdf,.doc,.docx,.txt,.dxf,.png,.jpg,.jpeg">
 </div>
@@ -261,6 +261,31 @@ const confidence=Number.isFinite(Number(data.confidence))?Math.round(Number(data
 const readiness=String(data.approval_readiness||'Insufficient information');
 return '<div class="section"><div class="sectionhead"><h3>AI drawing review</h3><span class="status s-warn">'+esc(readiness)+'</span></div><p><b>Request:</b> '+esc(prompt)+'</p><p>'+esc(data.drawing_summary||'The AI did not provide a drawing summary.')+'</p><div class="notice"><b>Approval assessment:</b> '+esc(data.approval_explanation||'Human engineering review is required.')+'<br><b>AI confidence:</b> '+confidence+'</div><h3>1. Identified drawing elements</h3>'+elements+'<h3>2. Potential issues</h3>'+issues+'<h3>3. Information to confirm</h3>'+missing+'<h3>4. Advanced technical observations</h3>'+technical+'<h3>5. Dimension and annotation review</h3>'+dimensions+'<h3>6. Coordination review</h3>'+coordination+'<h3>7. Draft supplier comments</h3>'+comments+'<h3>8. Prioritized next steps</h3>'+nextSteps+'<h3>9. Analysis limitations</h3>'+limitations+'<p class="muted">Model: '+esc(data.model||'Cloudflare Workers AI')+' · Entities reviewed: '+esc(data.diagnostics?.entitiesReviewed??'—')+' · Inference: '+esc(data.diagnostics?.inferenceMs??'—')+' ms</p><div class="notice">This is an AI-assisted preliminary review of supported DXF data, not a certified engineering check or approval. Unsupported DXF objects and drawing visuals may not have been interpreted. This review does not compare the drawing against a URS or project specification.</div><button class="btn" onclick="downloadSupplierComments()">Export supplier comments (.txt)</button></div>';
 }
+function buildLocalDrawingReview(report,fileName,prompt){
+ const types=(report.types||[]).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count);
+ const layers=(report.layers||[]).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count);
+ const texts=(report.texts||[]).slice(0,80);
+ const bounds=report.bounds||null;
+ const facts=[
+  ['File',fileName],
+  ['Supported objects found',String(report.total||0)],
+  ['Object types',types.length?types.map(x=>x.name+' ('+x.count+')').join(', '):'No supported objects extracted'],
+  ['Layers',String(layers.length)],
+  ['Text / labels extracted',String((report.texts||[]).length)]
+ ];
+ let html='<div class="section"><h3>Instant drawing check</h3><p>This report was generated directly from the drawing in your browser. It does not use AI credits, so it remains available when the AI service is busy or its daily allowance is used.</p>';
+ html+='<div class="meta">'+facts.map(([k,v])=>'<div class="dxf-box"><div class="label">'+esc(k)+'</div><b>'+esc(v)+'</b></div>').join('')+'</div>';
+ if(bounds)html+='<h4>Extracted drawing extents</h4><p class="muted">X: '+esc(bounds.minX)+' to '+esc(bounds.maxX)+' · Y: '+esc(bounds.minY)+' to '+esc(bounds.maxY)+' (drawing units not verified)</p>';
+ html+='<h4>Object breakdown</h4><ul>'+types.slice(0,20).map(x=>'<li>'+esc(x.name)+': '+x.count+'</li>').join('')+'</ul>';
+ html+='<h4>Layers found</h4><div class="dxf-list">'+layers.slice(0,40).map(x=>'<div class="dxf-row"><span>'+esc(x.name)+'</span><b>'+x.count+'</b></div>').join('')+'</div>';
+ html+='<h4>Extracted labels and notes</h4>'+(texts.length?'<ul>'+texts.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul>':'<p class="muted">No text labels were extracted by the current parser. This does not prove the original drawing has no labels.</p>');
+ html+='<div class="notice"><b>What this can and cannot tell you</b><br>This quick check lists objects, layers and readable text. It cannot confirm engineering correctness, dimensions, clearances, compliance or whether equipment is suitable. Those checks require drawing interpretation and the relevant project requirements.</div>';
+ html+='<h4>Useful next actions</h4><ul><li>Open the preview and visually inspect the drawing.</li><li>Check that the title block, drawing number and revision match the supplier transmittal.</li><li>Ask the responsible engineer to confirm dimensions, interfaces, access and utilities before approval.</li></ul>';
+ html+='<p class="muted">Requested review: '+esc(prompt)+'</p><button class="btn" onclick="downloadLocalReview()">Download quick review</button></div>';
+ window.lastLocalReview='INSTANT DRAWING CHECK\nFile: '+fileName+'\nObjects: '+(report.total||0)+'\nTypes: '+types.map(x=>x.name+' ('+x.count+')').join(', ')+'\nLayers: '+layers.map(x=>x.name+' ('+x.count+')').join(', ')+'\nExtracted text:\n'+texts.join('\n')+'\n\nThis is a parser-based inventory, not an engineering approval.';
+ return html;
+}
+function downloadLocalReview(){if(!window.lastLocalReview)return;const a=document.createElement('a'),u=URL.createObjectURL(new Blob([window.lastLocalReview],{type:'text/plain'}));a.href=u;a.download='drawing-quick-review.txt';a.click();URL.revokeObjectURL(u)}
 async function runDrawingTask(){
 const prompt=document.getElementById('taskPrompt').value.trim();
 if(!prompt){alert('Please describe what you want reviewed.');return}
@@ -277,7 +302,12 @@ let data;try{data=await response.json()}catch{throw new Error('The analysis serv
 if(!response.ok)throw new Error(data.error||('Analysis failed with HTTP '+response.status));
 window.lastSupplierComments='AI-ASSISTED DRAWING REVIEW COMMENTS\nDrawing: '+window.currentFile.name+'\nRequest: '+prompt+'\n\n'+(data.supplier_comments||[]).map((x,i)=>(i+1)+'. '+x).join('\n')+'\n\nPreliminary AI review only. Verify all comments against the controlled original drawing and approved project requirements.';
 out.innerHTML=renderCadAIReport(data,prompt);
-}catch(error){out.innerHTML='<div class="notice"><b>AI analysis could not be completed.</b><br>'+esc(error.message||error)+'<br><br>Your drawing has not been changed. You can retry after checking the Worker deployment and Cloudflare AI allowance.</div>';}
+}catch(error){const message=String(error.message||error);
+ if(/daily free allowance|daily allowance|quota|neurons/i.test(message)){
+  out.innerHTML=buildLocalDrawingReview(local,window.currentFile.name,prompt)+'<div class="notice" style="margin-top:10px"><b>AI review is temporarily unavailable.</b><br>The daily AI allowance has been reached. You can still use the instant drawing check above; no need to wait to inspect the file.</div>';
+ }else{
+  out.innerHTML=buildLocalDrawingReview(local,window.currentFile.name,prompt)+'<div class="notice" style="margin-top:10px"><b>AI review could not be completed.</b><br>'+esc(message)+'<br>The instant drawing check is shown above instead. Your drawing has not been changed.</div>';
+ }}
 }
 async function analyzeDrawingFromWorkspace(){
 if(!window.currentFile){alert('Upload a drawing first.');return}
