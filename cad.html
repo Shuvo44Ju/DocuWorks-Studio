@@ -1162,26 +1162,26 @@ function approveCadModification(){
   return {bounds,width:bounds?bounds.maxX-bounds.minX:0,height:bounds?bounds.maxY-bounds.minY:0,boundingArea:bounds?(bounds.maxX-bounds.minX)*(bounds.maxY-bounds.minY):0,lineLength,circleArea,circlePerimeter,closedArea,closedPerimeter,closedCount,openCount,openPolylineLength,totalClosedShapeArea:closedArea+circleArea,totalClosedBoundary:closedPerimeter+circlePerimeter};
  }
  function interpretDrawingContent(doc,r,inv){
-  const raw=(r.texts||[]).map(x=>String(x||'').replace(/\\P/g,' ').replace(/\\\\~/g,' ').replace(/\\s+/g,' ').trim()).filter(Boolean);
+  const raw=(r.texts||[]).map(x=>String(x||'').replace(/\\P/g,' ').replace(/\\\\~/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
   const texts=[...new Set(raw)].slice(0,400);
   const joined=texts.join(' | ');
   const groups=[
-    {name:'Drawing / project identification',re:/\\b(drawing\\s*(no|number|title)|dwg\\.?\\s*(no|title)|project|client|customer|location|sheet|revision|rev\\.?|date|scale|prepared|checked|approved)\\b/i},
-    {name:'Dimensions, levels & setting-out',re:/\\b(dim|dimension|mm|cm|metre|meter|level|elev|datum|grid|axis|offset|spacing|clearance|\\+\\/\\-)\\b/i},
-    {name:'Equipment & component references',re:/\\b(equip|equipment|pump|motor|tank|vessel|valve|filter|fan|ahu|chiller|panel|duct|pipe|line|tag|nozzle|instrument|sensor|door|window|column|beam|foundation)\\b/i},
-    {name:'Technical notes & specifications',re:/\\b(note|specification|material|grade|pressure|temperature|capacity|flow|load|voltage|power|finish|coating|weld|insulation|standard|shall|provide|install)\\b/i},
-    {name:'Process / service / connection references',re:/\\b(inlet|outlet|supply|return|drain|exhaust|suction|discharge|connection|interface|utility|air|water|steam|gas|waste|flow)\\b/i}
+    {name:'Drawing / project identification',re:/\b(drawing\s*(no|number|title)|dwg\\.?\s*(no|title)|project|client|customer|location|sheet|revision|rev\\.?|date|scale|prepared|checked|approved)\b/i},
+    {name:'Dimensions, levels & setting-out',re:/\b(dim|dimension|mm|cm|metre|meter|level|elev|datum|grid|axis|offset|spacing|clearance|\+\\/\\-)\b/i},
+    {name:'Equipment & component references',re:/\b(equip|equipment|pump|motor|tank|vessel|valve|filter|fan|ahu|chiller|panel|duct|pipe|line|tag|nozzle|instrument|sensor|door|window|column|beam|foundation)\b/i},
+    {name:'Technical notes & specifications',re:/\b(note|specification|material|grade|pressure|temperature|capacity|flow|load|voltage|power|finish|coating|weld|insulation|standard|shall|provide|install)\b/i},
+    {name:'Process / service / connection references',re:/\b(inlet|outlet|supply|return|drain|exhaust|suction|discharge|connection|interface|utility|air|water|steam|gas|waste|flow)\b/i}
   ];
   const classified=groups.map(g=>({name:g.name,items:texts.filter(t=>g.re.test(t)).slice(0,35)})).filter(g=>g.items.length);
   const hints=[
-    ['General arrangement / layout',/\\b(general arrangement|\\bGA\\b|layout plan|equipment layout|room layout)\\b/i],
-    ['Piping / process drawing',/\\b(P&ID|piping|pipe routing|process flow|line number|isometric)\\b/i],
-    ['Architectural / building drawing',/\\b(floor plan|architectural|room name|door schedule|window schedule)\\b/i],
-    ['Structural drawing',/\\b(reinforcement|rebar|foundation|column schedule|beam schedule|structural)\\b/i],
-    ['Electrical drawing',/\\b(single line diagram|SLD|cable schedule|switchgear|electrical)\\b/i],
-    ['HVAC / ventilation drawing',/\\b(HVAC|AHU|duct|air handling|ventilation|exhaust)\\b/i]
+    ['General arrangement / layout',/\b(general arrangement|\bGA\b|layout plan|equipment layout|room layout)\b/i],
+    ['Piping / process drawing',/\b(P&ID|piping|pipe routing|process flow|line number|isometric)\b/i],
+    ['Architectural / building drawing',/\b(floor plan|architectural|room name|door schedule|window schedule)\b/i],
+    ['Structural drawing',/\b(reinforcement|rebar|foundation|column schedule|beam schedule|structural)\b/i],
+    ['Electrical drawing',/\b(single line diagram|SLD|cable schedule|switchgear|electrical)\b/i],
+    ['HVAC / ventilation drawing',/\b(HVAC|AHU|duct|air handling|ventilation|exhaust)\b/i]
   ].filter(x=>x[1].test(joined)).map(x=>x[0]);
-  const tags=[...new Set(texts.flatMap(t=>t.match(/\\b[A-Z]{1,5}[-_/]\\d{2,5}[A-Z]?\\b/g)||[]))].slice(0,100);
+  const tags=[...new Set(texts.flatMap(t=>t.match(/\b[A-Z]{1,5}[-_/]\\d{2,5}[A-Z]?\b/g)||[]))].slice(0,100);
   const identity=classified.find(g=>g.name==='Drawing / project identification')?.items||[];
   const notes=classified.find(g=>g.name==='Technical notes & specifications')?.items||[];
   const dimensions=inv.dimensions||[];
