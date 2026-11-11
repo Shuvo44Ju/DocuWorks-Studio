@@ -71,7 +71,7 @@ body{font-family:Inter,"Segoe UI",Arial,sans-serif;background:#f4f6fa;color:#172
 <div id="drop" class="drop"><strong>Drop a drawing here</strong><span class="muted">DRW / DXF / DWG / PDF / PNG / JPG</span><br><br><button class="btn primary" onclick="document.getElementById('file').click()">Choose drawing</button></div>
 <div class="preview" id="preview"><div class="empty">Your drawing preview will appear here.</div></div>
 </div>
-<div class="section" style="margin-top:0"><div class="sectionhead"><div><div class="eyebrow">DOCUMENT METADATA</div><h2>Drawing information</h2></div><div class="toolbar"><button class="btn primary small" onclick="analyzeDrawingFromWorkspace()">Review drawing</button><button class="btn small" onclick="saveDrawing()">Save drawing</button></div></div>
+<div class="section" style="margin-top:0"><div class="sectionhead"><div><div class="eyebrow">DOCUMENT METADATA</div><h2>Drawing information</h2></div><div class="toolbar"><button class="btn primary small" onclick="analyzeDrawingFromWorkspace()">Analyze Drawing</button><button class="btn small" onclick="saveDrawing()">Save drawing</button></div></div>
 <div class="meta">
 <div class="field"><label>Project</label><input id="dProject" placeholder="Project name"></div>
 <div class="field"><label>Drawing number</label><input id="dNo" placeholder="e.g. MEP-001"></div>
@@ -83,14 +83,14 @@ body{font-family:Inter,"Segoe UI",Arial,sans-serif;background:#f4f6fa;color:#172
 </div>
 <div id="dxfInfo" style="margin-top:14px"></div>
 </div></div>
-<div class="section" id="workspaceAnalysis" style="margin-top:18px"><div class="sectionhead"><h2>Drawing Analysis Report</h2><span class="label">Appears here after analysis</span></div><div id="workspaceAnalysisBody" class="muted">Upload a drawing, then select <b>Analyze Drawing</b>. The generated report will appear in this workspace automatically.</div></div>
+<div class="section" id="workspaceAnalysis" style="margin-top:18px"><div class="sectionhead"><div><div class="eyebrow">DRAWING INTERPRETATION</div><h2>Analysis</h2></div><span class="label">Evidence-led review</span></div><div id="workspaceAnalysisBody" class="muted">Upload a drawing, then select <b>Analyze Drawing</b>. The generated report will appear in this workspace automatically.</div></div>
 <div class="section" id="cadModifySection">
- <div class="sectionhead"><div><div class="eyebrow">CONTROLLED EDITING</div><h2>Modify drawing</h2></div><span class="label">AI proposes · you approve</span></div>
- <div class="notice">Describe the change in ordinary language. The AI will prepare a proposed edit plan. Nothing changes until you select <b>Approve & Apply Changes</b>. The original uploaded file remains untouched.</div>
- <div class="field" style="margin-top:12px"><label>Your modification instruction</label><textarea id="cadModifyPrompt" rows="3" placeholder="Example: Move the selected line 500 drawing units to the right. Or: Change the text AHU-01 to AHU-02."></textarea></div>
+ <div class="sectionhead"><div><div class="eyebrow">YOUR COMMENTS</div><h2>Tell me what to change</h2></div><span class="label">Preview first · apply only after approval</span></div>
+ <div class="notice">After reviewing the drawing, write your change request here in ordinary language. The tool will use the drawing preview and latest analysis to prepare a proposed edit. Nothing changes until you approve it.</div>
+ <div class="field" style="margin-top:12px"><label>Your comment / change request</label><textarea id="cadModifyPrompt" rows="3" placeholder="Example: Move the control panel beside the entrance. Change the room label to Packing Room. Add a partition between these two areas."></textarea></div>
  <div class="two" style="margin-top:10px">
   <div class="field"><label>Drawing units (only if known)</label><select id="cadModifyUnits"><option value="">Not sure / not specified</option><option value="mm">Millimetres (mm)</option><option value="m">Metres (m)</option><option value="in">Inches (in)</option><option value="ft">Feet (ft)</option></select></div>
-  <div class="field"><label> </label><button class="btn primary" style="width:100%" onclick="requestCadModification()">Prepare modification plan</button></div>
+  <div class="field"><label> </label><button class="btn primary" style="width:100%" onclick="requestCadModification()">Prepare change preview</button></div>
  </div>
  <div id="cadModifyResult" style="margin-top:14px"><p class="muted">Upload a supported DXF or DWG drawing to request a modification.</p></div>
 </div>
@@ -98,7 +98,7 @@ body{font-family:Inter,"Segoe UI",Arial,sans-serif;background:#f4f6fa;color:#172
 
 <section class="page" id="assistant">
 <div class="section" style="margin-top:0">
-<div class="sectionhead"><div><div class="eyebrow">TECHNICAL REVIEW</div><h2>Review & modify</h2></div><span class="label">For project managers — no CAD operation required</span></div>
+<div class="sectionhead"><div><div class="eyebrow">DRAWING REVIEW</div><h2>Analysis & revisions</h2></div><span class="label">For project managers — no CAD operation required</span></div>
 <div class="notice"><b>How this works:</b> Upload a drawing in the Drawing Workspace, then describe the job below. The workspace will extract available DXF information, organize review findings and prepare supplier-facing comments. Any proposed geometry change must be checked and approved before a separate revised file is produced.</div>
 <div class="chips">
 <button class="chip" onclick="setTask('Review this drawing and identify potential issues before approval.')">Review before approval</button>
@@ -109,7 +109,7 @@ body{font-family:Inter,"Segoe UI",Arial,sans-serif;background:#f4f6fa;color:#172
 </div>
 <div class="field" style="margin-top:14px"><label>What do you want done? Use ordinary language.</label><textarea id="taskPrompt" rows="4" placeholder="Example: Review the equipment layout, identify unclear dimensions, access concerns, missing labels and questions I should raise with the supplier."></textarea></div>
 <div class="toolbar" style="margin-top:10px;flex-wrap:wrap">
-<button class="btn primary" onclick="runDrawingTask()">Run local drawing review</button>
+<button class="btn primary" onclick="analyzeDrawingFromWorkspace()">Analyze Drawing</button>
 <button class="btn" onclick="document.getElementById('supportFiles').click()">Attach previous revision / reference</button>
 <input id="supportFiles" type="file" hidden multiple accept=".pdf,.doc,.docx,.txt,.dxf,.png,.jpg,.jpeg">
 </div>
@@ -260,16 +260,13 @@ function extractDXFTechnicalInventory(raw){
 }
 function dxfReport(doc){const es=doc.entities||[],bounds=dxfBounds(es),types=Object.entries(doc.counts||{}).sort((a,b)=>b[1]-a[1]),layers=Object.entries(doc.layers||{}).sort((a,b)=>b[1]-a[1]),texts=es.filter(e=>e.type==='TEXT'||e.type==='MTEXT').map(e=>e.data.text||'').filter(Boolean),open=es.filter(e=>e.type==='LWPOLYLINE'&&!(Number(e.data.flags||0)&1)).length,closed=es.filter(e=>e.type==='LWPOLYLINE'&&(Number(e.data.flags||0)&1)).length;return {total:es.length,bounds,types,layers,texts,open,closed,technicalInventory:doc.technicalInventory||null}}
 function renderCadAIReport(data,prompt){
- const list=(items,render,empty)=>Array.isArray(items)&&items.length?'<ul class="review-list">'+items.map(render).join('')+'</ul>':'<p class="muted">'+empty+'</p>';
- const findings=list(data.potential_issues,x=>'<li class="review-finding"><b>'+esc(x.severity||'Review')+' — '+esc(x.issue||'Finding')+'</b><p>'+esc(x.why_it_matters||'')+'</p>'+(x.evidence?'<p class="muted">Evidence: '+esc(x.evidence)+'</p>':'')+(x.recommended_action?'<p><b>Action:</b> '+esc(x.recommended_action)+'</p>':'')+'</li>','No specific issue could be established from the available drawing view.');
- const elements=list(data.identified_elements,x=>'<li><b>'+esc(x.name||'Element')+'</b> — '+esc(x.observation||'')+(x.evidence?'<div class="muted">Evidence: '+esc(x.evidence)+'</div>':'')+'</li>','The drawing content could not be identified confidently.');
- const missing=list(data.missing_information,x=>'<li><b>'+esc(x.item||'Information to confirm')+'</b> — '+esc(x.reason||'Not verifiable from the available drawing.')+'</li>','No additional information gaps were identified.');
- const tech=[...(data.technical_findings||[]),...(data.dimension_review||[]).map(x=>({title:x.observation,detail:x.detail,evidence:x.evidence})),...(data.coordination_review||[]).map(x=>({title:x.topic,detail:x.finding+' '+(x.action||''),evidence:x.evidence}))];
- const technical=list(tech,x=>'<li><b>'+esc(x.title||'Technical observation')+'</b> — '+esc(x.detail||'')+(x.evidence?'<div class="muted">Evidence: '+esc(x.evidence)+'</div>':'')+'</li>','No further technical observations could be confirmed.');
- const comments=list(data.supplier_comments,x=>'<li>'+esc(x)+'</li>','No supplier comments were generated.');
- const steps=list(data.recommended_next_steps,x=>'<li>'+esc(x)+'</li>','Have the responsible engineer verify the drawing before approval.');
- return '<div class="section review-report"><div class="sectionhead"><div><h2>Overall Drawing Review</h2><p class="muted">Whole-view visual review with supporting CAD data</p></div><span class="status s-warn">'+esc(data.approval_readiness||'Insufficient information')+'</span></div><div class="review-summary"><h3>1. Overall understanding</h3><p>'+esc(data.drawing_summary||'The drawing could not be interpreted with sufficient confidence.')+'</p></div><h3>2. Key findings requiring attention</h3>'+findings+'<h3>3. What the drawing contains</h3>'+elements+'<h3>4. Technical and coordination review</h3>'+technical+'<h3>5. Information still required</h3>'+missing+'<h3>6. Recommended actions</h3>'+steps+'<h3>7. Draft supplier comments</h3>'+comments+'<div class="notice"><b>Approval assessment:</b> '+esc(data.approval_explanation||'Engineering confirmation is required before approval.')+'</div><details class="review-details"><summary>Review scope and limitations</summary><p>This review uses the drawing preview image and supported CAD data extracted by the browser. Unsupported objects, hidden layers, external references or content omitted from the preview may not be assessed. Verify findings against the controlled original and project requirements.</p><ul>'+((data.limitations||[]).map(x=>'<li>'+esc(x)+'</li>').join(''))+'</ul></details><button class="btn" onclick="downloadSupplierComments()">Export supplier comments (.txt)</button></div>';
-}
+  const list=(items,render,empty)=>Array.isArray(items)&&items.length?'<ul class="review-list">'+items.map(render).join('')+'</ul>':'<p class="muted">'+empty+'</p>';
+  const elements=list(data.identified_elements,x=>'<li><b>'+esc(x.name||'Element')+'</b> — '+esc(x.observation||'')+(x.evidence?'<div class="muted">Drawing evidence: '+esc(x.evidence)+'</div>':'')+'</li>','The drawing elements could not be identified confidently from the available view.');
+  const issues=list(data.potential_issues,x=>'<li class="review-finding"><b>'+esc(x.severity||'Review')+' — '+esc(x.issue||'Finding')+'</b><p>'+esc(x.why_it_matters||'')+'</p>'+(x.evidence?'<p class="muted">Evidence: '+esc(x.evidence)+'</p>':'')+(x.recommended_action?'<p><b>Recommended action:</b> '+esc(x.recommended_action)+'</p>':'')+'</li>','No specific issue could be established from the available drawing evidence.');
+  const questions=list(data.missing_information,x=>'<li><b>'+esc(x.item||'Confirmation required')+'</b> — '+esc(x.reason||'Not clear from the drawing.')+'</li>','No specific information gap was established.');
+  const actions=list(data.recommended_next_steps,x=>'<li>'+esc(x)+'</li>','No additional action was identified from the available evidence.');
+  return '<div class="section review-report"><div class="sectionhead"><div><h2>What this drawing shows</h2><p class="muted">Interpretation based on the visible drawing and extracted CAD information</p></div><span class="status s-warn">'+esc(data.approval_readiness||'Needs engineering review')+'</span></div><div class="review-summary"><p>'+esc(data.drawing_summary||'The drawing could not be interpreted with sufficient confidence.')+'</p></div><h3>Main components and arrangement</h3>'+elements+'<h3>Issues that need attention</h3>'+issues+'<h3>Items to confirm</h3>'+questions+'<h3>Recommended next actions</h3>'+actions+'<div class="notice"><b>Review boundary:</b> This is an AI-assisted interpretation, not an engineering certification. Verify critical dimensions, design intent and compliance against the native drawing and approved project requirements.</div><details class="review-details"><summary>Why some details may not be assessed</summary><ul>'+((data.limitations||[]).map(x=>'<li>'+esc(x)+'</li>').join(''))+'</ul></details></div>';
+ }
 function buildLocalDrawingReview(report,fileName,prompt){
  const types=(report.types||[]).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count);
  const layers=(report.layers||[]).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count);
@@ -311,7 +308,7 @@ try{
 const response=await fetch('https://docuworks-studio.shuvokh97.workers.dev/api/cad/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileName:window.currentFile.name,prompt,drawingImage,drawing:{...local,entities:window.currentDXF.entities}})});
 let data;try{data=await response.json()}catch{throw new Error('The analysis service returned an unreadable response.')}
 if(!response.ok)throw new Error(data.error||('Analysis failed with HTTP '+response.status));
-window.lastSupplierComments='AI-ASSISTED DRAWING REVIEW COMMENTS\nDrawing: '+window.currentFile.name+'\nRequest: '+prompt+'\n\n'+(data.supplier_comments||[]).map((x,i)=>(i+1)+'. '+x).join('\n')+'\n\nPreliminary AI review only. Verify all comments against the controlled original drawing and approved project requirements.';
+window.lastCadAnalysisReport=data; window.lastSupplierComments=(data.supplier_comments||[]).join('\n');
 out.innerHTML=renderCadAIReport(data,prompt);
 }catch(error){
  const message=String(error.message||error);
@@ -321,7 +318,7 @@ out.innerHTML=renderCadAIReport(data,prompt);
 async function analyzeDrawingFromWorkspace(){
 if(!window.currentFile){alert('Upload a drawing first.');return}
 const prompt=document.getElementById('taskPrompt');
-if(!prompt.value.trim())prompt.value='Analyze this drawing and prepare a preliminary technical review, identify extracted information, potential issues and items requiring confirmation before approval.';
+prompt.value='Interpret the drawing as a whole. Explain its purpose, layout, main components and how they relate. Identify only important issues or unclear items directly supported by visible or extracted evidence. Do not list parser inventories or generic checklist items. If a detail cannot be read, say so.';
 await runDrawingTask();
 document.getElementById('workspaceAnalysisBody').innerHTML=document.getElementById('taskResults').innerHTML;
 document.getElementById('workspaceAnalysis').scrollIntoView({behavior:'smooth',block:'start'});
@@ -1070,10 +1067,10 @@ async function requestCadModification(){
  out.innerHTML='<div class="section"><b>Preparing your modification plan…</b><p class="muted">The original drawing is not being changed.</p></div>';
  window.pendingCadPlan=null;
  try{
-  const res=await fetch('https://docuworks-studio.shuvokh97.workers.dev/api/cad/modify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileName:window.currentFile.name,prompt,units:document.getElementById('cadModifyUnits').value,entities:window.currentDXF.entities})});
+  const res=await fetch('https://docuworks-studio.shuvokh97.workers.dev/api/cad/modify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileName:window.currentFile.name,prompt,units:document.getElementById('cadModifyUnits').value,entities:window.currentDXF.entities,drawingImage:captureDrawingPreview(),analysisContext:window.lastCadAnalysisReport||null,changeHistory:window.cadChangeHistory||[]})});
   let data;try{data=await res.json()}catch{throw new Error('The modification service returned an unreadable response.')}
   if(!res.ok)throw new Error(data.error||('Request failed with HTTP '+res.status));
-  window.pendingCadPlan=data;
+  window.pendingCadPlan=data; window.cadChangeHistory=window.cadChangeHistory||[]; window.cadChangeHistory.push({request:prompt,summary:String(data.summary||'Change plan prepared')});
   let html='<div class="section"><h3>Proposed modification plan</h3><p>'+esc(data.summary||'Plan prepared.')+'</p>';
   if(data.clarification_required)html+='<div class="notice"><b>Clarification needed:</b> '+esc(data.clarification_question||'Please clarify the target or drawing units, then submit the instruction again.')+'</div>';
   if(Array.isArray(data.operations)&&data.operations.length){
@@ -1128,7 +1125,7 @@ function approveCadModification(){
  rebuildDXFStats(doc);
  const preview=document.getElementById('preview');preview.innerHTML='';renderDXF(doc,preview);renderDXFInspector(doc);
  window.pendingCadPlan=null;
- document.getElementById('cadModifyResult').innerHTML='<div class="notice"><b>'+applied+' operation(s) applied.</b> Export now preserves the original DXF sections and unsupported entities, while updating only the approved supported objects. Review the drawing in CAD software before issuing it.<div class="toolbar" style="margin-top:8px"><button class="btn small" onclick="restoreOriginalDXF()">Restore uploaded original</button></div></div>';
+ document.getElementById('cadModifyResult').innerHTML='<div class="notice"><b>'+applied+' approved change(s) applied to the working drawing.</b> You can now enter another comment to request a further change. The analysis report describes the previous version; select Analyze Drawing again when you want an updated interpretation. Export the revised DXF and verify it in CAD software before issue.<div class="toolbar" style="margin-top:8px"><button class="btn small" onclick="restoreOriginalDXF()">Restore uploaded original</button></div></div>';
 }
 </script>
 
