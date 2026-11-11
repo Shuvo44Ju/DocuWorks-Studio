@@ -64,7 +64,18 @@ function cleanDrawing(input) {
       layers: Array.isArray(d.layers) ? d.layers.slice(0,60) : [],
       openPolylines: Number(d.open) || 0,
       closedPolylines: Number(d.closed) || 0,
-      extractedText: Array.isArray(d.texts) ? d.texts.slice(0,MAX_TEXTS).map(x=>String(x).slice(0,1500)) : []
+      extractedText: Array.isArray(d.texts) ? d.texts.slice(0,MAX_TEXTS).map(x=>String(x).slice(0,1500)) : [],
+      technicalInventory: d.technicalInventory && typeof d.technicalInventory === "object" ? {
+        entityTypeCounts: d.technicalInventory.entityTypeCounts || {},
+        dimensions: Array.isArray(d.technicalInventory.dimensions) ? d.technicalInventory.dimensions.slice(0,250) : [],
+        blockReferences: Array.isArray(d.technicalInventory.blockReferences) ? d.technicalInventory.blockReferences.slice(0,300) : [],
+        leaders: Array.isArray(d.technicalInventory.leaders) ? d.technicalInventory.leaders.slice(0,100) : [],
+        hatches: Array.isArray(d.technicalInventory.hatches) ? d.technicalInventory.hatches.slice(0,150) : [],
+        dimensionCount: Number(d.technicalInventory.dimensionCount) || 0,
+        blockReferenceCount: Number(d.technicalInventory.blockReferenceCount) || 0,
+        leaderCount: Number(d.technicalInventory.leaderCount) || 0,
+        hatchCount: Number(d.technicalInventory.hatchCount) || 0
+      } : null
     },
     entities
   };
@@ -102,6 +113,10 @@ export async function onRequestPost({ request, env }) {
     "Distinguish observed facts from potential issues and questions requiring human confirmation. A missing item from this extract is not proof that it is absent from the original drawing.",
     "Do not claim compliance against any external specification or project requirement because none is included in this request.",
     "For each finding, include evidence such as entity type, layer, or exact extracted text when possible. If there is insufficient evidence, say so clearly.",
+    "Perform an advanced, evidence-led technical review, not a generic summary. Examine geometry distribution and extents, entity and layer structure, extracted labels/text, dimension entities and their available text/measurement/style metadata, block references, hatches, leaders, and likely annotation or coordination dependencies. Explicitly distinguish actual evidence from a review question. Flag suspicious or incomplete patterns only as potential risks, never as proven design errors without evidence.",
+    "Review dimensions for missing/unreadable overrides, mixed or absent dimension metadata, possible annotation gaps, and values that merit human cross-checking. Do not decide dimensions are incorrect merely because they differ. Do not infer units or scale.",
+    "Review equipment/block references and layer usage for duplicated, inconsistent, unexplained or coordination-relevant patterns only when the supplied data supports that observation. Identify the discipline-specific checks a project manager should request from the responsible engineer.",
+    "Prioritize findings by potential project impact and state exactly what evidence supports each. Give actionable next steps and supplier questions. Avoid generic boilerplate.",
     "Be useful to a non-CAD project manager. Explain technical terms briefly and prioritize practical actions before approval.",
     "Return only a JSON object with this shape: {\"drawing_summary\":\"...\",\"identified_elements\":[{\"name\":\"...\",\"observation\":\"...\",\"evidence\":\"...\"}],\"potential_issues\":[{\"severity\":\"High|Medium|Low|Information\",\"issue\":\"...\",\"why_it_matters\":\"...\",\"evidence\":\"...\",\"recommended_action\":\"...\"}],\"missing_information\":[{\"item\":\"...\",\"reason\":\"...\"}],\"approval_readiness\":\"Not ready|Needs review|Insufficient information\",\"approval_explanation\":\"...\",\"supplier_comments\":[\"...\"],\"limitations\":[\"...\"],\"confidence\":0.0}.",
     "Use concise, source-grounded content. If the extract is sparse, return a short report and explain the limitation rather than filling sections with generic assumptions."
@@ -137,6 +152,10 @@ export async function onRequestPost({ request, env }) {
       potential_issues:arr("potential_issues"),
       missing_information:arr("missing_information"),
       supplier_comments:arr("supplier_comments"),
+      technical_findings:arr("technical_findings"),
+      dimension_review:arr("dimension_review"),
+      coordination_review:arr("coordination_review"),
+      recommended_next_steps:arr("recommended_next_steps"),
       limitations:[...arr("limitations"),"AI reviewed only the supported DXF extract sent by this browser. It did not inspect unsupported DXF structures or verify the original drawing visually."],
       model:MODEL,
       provider:"Cloudflare Workers AI",
