@@ -300,12 +300,9 @@ let data;try{data=await response.json()}catch{throw new Error('The analysis serv
 if(!response.ok)throw new Error(data.error||('Analysis failed with HTTP '+response.status));
 window.lastSupplierComments='AI-ASSISTED DRAWING REVIEW COMMENTS\nDrawing: '+window.currentFile.name+'\nRequest: '+prompt+'\n\n'+(data.supplier_comments||[]).map((x,i)=>(i+1)+'. '+x).join('\n')+'\n\nPreliminary AI review only. Verify all comments against the controlled original drawing and approved project requirements.';
 out.innerHTML=renderCadAIReport(data,prompt);
-}catch(error){const message=String(error.message||error);
- if(/daily free allowance|daily allowance|quota|neurons/i.test(message)){
-  out.innerHTML=buildLocalDrawingReview(local,window.currentFile.name,prompt)+'<div class="notice" style="margin-top:10px"><b>AI review is temporarily unavailable.</b><br>The daily AI allowance has been reached. You can still use the instant drawing check above; no need to wait to inspect the file.</div>';
- }else{
-  out.innerHTML=buildLocalDrawingReview(local,window.currentFile.name,prompt)+'<div class="notice" style="margin-top:10px"><b>AI review could not be completed.</b><br>'+esc(message)+'<br>The instant drawing check is shown above instead. Your drawing has not been changed.</div>';
- }}
+}catch(error){
+ const message=String(error.message||error);
+ out.innerHTML='<div class="notice"><b>A full drawing review was not generated.</b><br>'+esc(message)+'<br>The object inventory is not a substitute for reviewing the drawing as a whole. Your original drawing has not been changed. Please retry when the AI service is available.</div>';
 }
 async function analyzeDrawingFromWorkspace(){
 if(!window.currentFile){alert('Upload a drawing first.');return}
