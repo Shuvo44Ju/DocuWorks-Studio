@@ -175,7 +175,7 @@ async function convertDWGInBrowser(file){
  const mod=await import(base+'dist/libredwg-web.js');
  if(!mod.LibreDwg||typeof mod.LibreDwg.create!=='function')throw new Error('The DWG reader module did not expose its expected API.');
  const engine=await mod.LibreDwg.create(base+'wasm/');
- const bytes=new Uint8Array(await file.arrayBuffer());
+ const bytes=await file.arrayBuffer();
  const converted=engine.dwg_write_dxf(bytes);
  if(!converted||!converted.length)throw new Error('The DWG reader could not convert this file. It may use an unsupported DWG version or contain unsupported data.');
  const raw=new TextDecoder('utf-8').decode(converted);
@@ -198,7 +198,7 @@ async function handleFile(file){
    const d=window.currentDXF,b=dxfBounds(d.entities);
    const sourceLabel=ext==='dwg'?'DWG converted locally to DXF':'DXF';
    p.innerHTML='<div class="notice"><b>'+sourceLabel+' technical extraction completed</b><br>'+d.entities.length+' supported entities detected across '+Object.keys(d.layers).length+' layers.<br>Drawing extents: X '+fmtNum(b.minX)+' to '+fmtNum(b.maxX)+'; Y '+fmtNum(b.minY)+' to '+fmtNum(b.maxY)+'.<br><br>The AI will review the extracted supported objects. Unsupported objects may not appear in this preview or analysis.</div>';
-   document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>File safety:</b> the uploaded original '+ext.toUpperCase()+' is untouched. '+(ext==='dwg'?'DWG conversion and extraction run locally in your browser; approved edits can be exported as a separate DXF file, not written back into the original DWG.':'The source DXF is preserved during supported edits.')+' The current inspector recognizes supported entity types only; dimensions, blocks, hatches, 3D objects and other advanced content may be incomplete.</div>';
+   document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>File safety:</b> the uploaded original '+ext.toUpperCase()+' is untouched. '+(ext==='dwg'?'DWG conversion and extraction run locally in your browser. When you request AI analysis, the supported extracted geometry is sent to the configured Cloudflare AI Worker; the original DWG file is not uploaded. Approved edits export as a separate DXF file, not back into the original DWG.':'The source DXF is preserved during supported edits.')+' The current inspector recognizes supported entity types only; dimensions, blocks, hatches, 3D objects and other advanced content may be incomplete.</div>';
   }catch(err){
    p.innerHTML='<div class="notice"><b>'+ext.toUpperCase()+' could not be analyzed.</b><br>'+esc(err.message||err)+'<br><br>Your original file has not been changed. You can try exporting it from AutoCAD as DXF (ASCII) and uploading that DXF instead.</div>';
    document.getElementById('dxfInfo').innerHTML='<div class="notice">No geometry was accepted for AI analysis. The original file remains untouched.</div>';
