@@ -45,9 +45,9 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:fle
 </div>
 <div class="section"><div class="sectionhead"><h2>Project Manager's quick start</h2><button class="btn primary" onclick="showPage('drawing')">Open a drawing</button></div>
 <div class="two">
-<div><p><b>1. Upload the drawing</b><br><span class="muted">DRW/DWG files can be registered. DXF can be inspected and edited safely in-browser; DRW is first checked for DXF-style data.</span></p>
+<div><p><b>1. Upload the drawing</b><br><span class="muted">DWG files are converted locally for analysis; DXF can be inspected and edited safely in-browser.</span></p>
 <p><b>2. Ask what you need</b><br><span class="muted">Use the assistant for AutoCAD commands, drawing checks and modification procedures.</span></p></div>
-<div class="notice"><b>DWG safety:</b> this browser tool does not pretend to edit native DWG. It can track DWG files and give you exact AutoCAD steps. DXF can be inspected and selected safe edits can be supported.</div>
+<div class="notice"><b>DWG safety:</b> DWG is converted locally to DXF for supported-object analysis. Approved edits export as a separate DXF; native DWG write-back is not supported.</div>
 </div></div>
 <div class="section"><div class="sectionhead"><h2>Recent drawings</h2><button class="btn small" onclick="showPage('register')">View register</button></div><div class="tablewrap"><table class="table"><thead><tr><th>Drawing</th><th>Revision</th><th>Type</th><th>Status</th></tr></thead><tbody id="recent"></tbody></table></div></div>
 </section>
@@ -79,7 +79,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.app{display:fle
   <div class="field"><label>Drawing units (only if known)</label><select id="cadModifyUnits"><option value="">Not sure / not specified</option><option value="mm">Millimetres (mm)</option><option value="m">Metres (m)</option><option value="in">Inches (in)</option><option value="ft">Feet (ft)</option></select></div>
   <div class="field"><label> </label><button class="btn primary" style="width:100%" onclick="requestCadModification()">Prepare modification plan</button></div>
  </div>
- <div id="cadModifyResult" style="margin-top:14px"><p class="muted">Upload a DXF drawing to request a modification.</p></div>
+ <div id="cadModifyResult" style="margin-top:14px"><p class="muted">Upload a supported DXF or DWG drawing to request a modification.</p></div>
 </div>
 </section>
 
@@ -167,7 +167,46 @@ function clearDemo(){if(confirm('Clear all CAD Project Manager local data?')){lo
 function printRegister(){window.print()}
 function printReview(){window.print()}
 function saveDrawing(){if(!window.currentFile){alert('Upload a drawing first.');return}state.drawings.push({no:dNo.value,title:dTitle.value,project:dProject.value,rev:dRev.value,disc:dDisc.value,status:dStatus.value,type:window.currentFile.name.split('.').pop().toUpperCase(),notes:dNotes.value});save();alert('Drawing added to the register. The original file is not changed.')}
-async function handleFile(file){window.currentFile=file;window.currentDXF=null;const ext=file.name.split('.').pop().toLowerCase();document.getElementById('drop').innerHTML='<strong>'+esc(file.name)+'</strong><span class="muted">'+Math.round(file.size/1024)+' KB · '+ext.toUpperCase()+'</span>';const p=document.getElementById('preview');p.innerHTML='';if(['png','jpg','jpeg'].includes(ext)){const img=document.createElement('img');img.src=URL.createObjectURL(file);p.appendChild(img)}else if(ext==='pdf'){const iframe=document.createElement('iframe');iframe.src=URL.createObjectURL(file);p.appendChild(iframe)}else if(ext==='dxf'){try{const raw=await file.text();window.currentDXF=parseDXF(raw);const d=window.currentDXF;const b=dxfBounds(d.entities);p.innerHTML='<div class="notice"><b>DXF technical inspection completed</b><br>'+d.entities.length+' supported entities detected across '+Object.keys(d.layers).length+' layers.<br>Drawing extents: X '+fmtNum(b.minX)+' to '+fmtNum(b.maxX)+'; Y '+fmtNum(b.minY)+' to '+fmtNum(b.maxY)+'.<br><br>Open Drawing Review & Task Assistant to generate a structured technical summary.</div>';if(typeof originalRenderDXF==='function'){} }catch(err){p.innerHTML='<div class="notice">DXF could not be parsed: '+esc(err.message)+'</div>'}}else{p.innerHTML='<div class="empty"><b>'+ext.toUpperCase()+' file loaded</b><br><br>DWG files can be registered, but native DWG geometry analysis requires a compatible CAD conversion engine. The original file remains unchanged.</div>'}document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>File safety:</b> your uploaded original is kept untouched. Analysis is currently available for supported DXF entities; PDF, image and DWG files can be previewed or registered but are not yet semantically analyzed.</div>'}
+async function convertDWGInBrowser(file){
+ const status=document.getElementById('preview');
+ status.innerHTML='<div class="notice"><b>Preparing local DWG reader…</b><br>Downloading the open-source WebAssembly engine. Your drawing file stays in this browser.</div>';
+ const version='0.8.8';
+ const base='https://cdn.jsdelivr.net/npm/@mlightcad/libredwg-web@'+version+'/';
+ const mod=await import(base+'dist/libredwg-web.js');
+ if(!mod.LibreDwg||typeof mod.LibreDwg.create!=='function')throw new Error('The DWG reader module did not expose its expected API.');
+ const engine=await mod.LibreDwg.create(base+'wasm/');
+ const bytes=new Uint8Array(await file.arrayBuffer());
+ const converted=engine.dwg_write_dxf(bytes);
+ if(!converted||!converted.length)throw new Error('The DWG reader could not convert this file. It may use an unsupported DWG version or contain unsupported data.');
+ const raw=new TextDecoder('utf-8').decode(converted);
+ if(!/SECTION/i.test(raw)||!/ENTITIES/i.test(raw))throw new Error('The conversion did not produce a recognizable DXF drawing.');
+ return raw;
+}
+async function handleFile(file){
+ window.currentFile=file;window.currentDXF=null;window.currentDrawingSourceType=null;
+ const ext=file.name.split('.').pop().toLowerCase();
+ document.getElementById('drop').innerHTML='<strong>'+esc(file.name)+'</strong><span class="muted">'+Math.round(file.size/1024)+' KB · '+ext.toUpperCase()+'</span>';
+ const p=document.getElementById('preview');p.innerHTML='';
+ if(['png','jpg','jpeg'].includes(ext)){const img=document.createElement('img');img.src=URL.createObjectURL(file);p.appendChild(img)}
+ else if(ext==='pdf'){const iframe=document.createElement('iframe');iframe.src=URL.createObjectURL(file);p.appendChild(iframe)}
+ else if(ext==='dxf'||ext==='dwg'){
+  try{
+   let raw;
+   if(ext==='dwg'){raw=await convertDWGInBrowser(file);window.currentDrawingSourceType='dwg'}
+   else{raw=await file.text();window.currentDrawingSourceType='dxf'}
+   window.currentDXF=parseDXF(raw);
+   const d=window.currentDXF,b=dxfBounds(d.entities);
+   const sourceLabel=ext==='dwg'?'DWG converted locally to DXF':'DXF';
+   p.innerHTML='<div class="notice"><b>'+sourceLabel+' technical extraction completed</b><br>'+d.entities.length+' supported entities detected across '+Object.keys(d.layers).length+' layers.<br>Drawing extents: X '+fmtNum(b.minX)+' to '+fmtNum(b.maxX)+'; Y '+fmtNum(b.minY)+' to '+fmtNum(b.maxY)+'.<br><br>The AI will review the extracted supported objects. Unsupported objects may not appear in this preview or analysis.</div>';
+   document.getElementById('dxfInfo').innerHTML='<div class="notice"><b>File safety:</b> the uploaded original '+ext.toUpperCase()+' is untouched. '+(ext==='dwg'?'DWG conversion and extraction run locally in your browser; approved edits can be exported as a separate DXF file, not written back into the original DWG.':'The source DXF is preserved during supported edits.')+' The current inspector recognizes supported entity types only; dimensions, blocks, hatches, 3D objects and other advanced content may be incomplete.</div>';
+  }catch(err){
+   p.innerHTML='<div class="notice"><b>'+ext.toUpperCase()+' could not be analyzed.</b><br>'+esc(err.message||err)+'<br><br>Your original file has not been changed. You can try exporting it from AutoCAD as DXF (ASCII) and uploading that DXF instead.</div>';
+   document.getElementById('dxfInfo').innerHTML='<div class="notice">No geometry was accepted for AI analysis. The original file remains untouched.</div>';
+  }
+ }else if(ext==='pdf'){p.innerHTML='<div class="empty">PDF preview loaded. AI extraction is not enabled yet.</div>'}
+ else{p.innerHTML='<div class="empty"><b>'+ext.toUpperCase()+' file loaded</b><br><br>This format can be registered and tracked, but browser geometry extraction is not enabled.</div>'}
+ if(!['dwg','dxf'].includes(ext))document.getElementById('dxfInfo').innerHTML='<div class="notice">AI geometry analysis is currently available for supported DXF entities and locally converted DWG files only. PDF/image analysis is still under development.</div>';
+}
 document.getElementById('file').onchange=e=>e.target.files[0]&&handleFile(e.target.files[0]);
 const drop=document.getElementById('drop');['dragenter','dragover'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>e.dataTransfer.files[0]&&handleFile(e.dataTransfer.files[0]));
 function ask(q){q=q||document.getElementById('askBox').value;if(!q)return;const box=document.getElementById('messages');box.innerHTML+='<div class="msg user">'+esc(q)+'</div>';document.getElementById('askBox').value='';const a=answer(q.toLowerCase());box.innerHTML+='<div class="msg bot">'+a+'</div>';box.scrollTop=box.scrollHeight}
@@ -202,7 +241,7 @@ if(!prompt){alert('Please describe what you want reviewed.');return}
 const out=document.getElementById('taskResults');
 if(!window.currentFile){out.innerHTML='<div class="notice">Upload a drawing in the Drawing Workspace first.</div>';return}
 const ext=window.currentFile.name.split('.').pop().toLowerCase();
-if(ext!=='dxf'||!window.currentDXF){out.innerHTML='<div class="notice"><b>AI analysis is not yet available for this file type.</b><br>Current AI review accepts DXF files with supported extracted entities. PDF/image analysis and native DWG conversion are still under development. You can preview or register those files, but this tool will not claim to have analyzed them.</div>';return}
+if(!window.currentDXF){out.innerHTML='<div class="notice"><b>AI analysis is not available for this file.</b><br>Upload a supported DXF or a DWG that can be converted locally. PDF and image analysis are still under development.</div>';return}
 const local=dxfReport(window.currentDXF);
 out.innerHTML='<div class="section"><b>AI drawing analysis in progress…</b><p class="muted">Sending the supported DXF extract to your Cloudflare Worker. The original drawing is not modified.</p></div>';
 try{
@@ -581,7 +620,7 @@ function dxfEntityText(e){
 function downloadDXF(doc){
   let output;try{output=serializeOriginalDXF(doc)}catch(err){alert("Export stopped to protect your drawing: "+err.message);return}
   const blob=new Blob([output],{type:'application/dxf'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(window.currentFile?.name||'drawing').replace(/\\.dxf$/i,'')+'_edited.dxf';a.click();
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(window.currentFile?.name||'drawing').replace(/\\.(dxf|dwg)$/i,'')+'_edited.dxf';a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 })();
@@ -965,7 +1004,7 @@ async function requestCadModification(){
  const prompt=document.getElementById('cadModifyPrompt').value.trim();
  const out=document.getElementById('cadModifyResult');
  if(!prompt){alert('Please describe the change you want.');return}
- if(!window.currentFile||window.currentFile.name.split('.').pop().toLowerCase()!=='dxf'||!window.currentDXF){out.innerHTML='<div class="notice">Modification planning currently requires a DXF drawing. Upload a DXF first and wait for its inspection to finish.</div>';return}
+ if(!window.currentFile||!window.currentDXF){out.innerHTML='<div class="notice">Modification planning requires a drawing that has been successfully extracted as supported DXF geometry. Upload a supported DXF or DWG first.</div>';return}
  out.innerHTML='<div class="section"><b>Preparing your modification plan…</b><p class="muted">The original drawing is not being changed.</p></div>';
  window.pendingCadPlan=null;
  try{
@@ -982,7 +1021,7 @@ async function requestCadModification(){
   if(data.preview_notes?.length)html+='<h4>Review before applying</h4><ul>'+data.preview_notes.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
   html+='<p class="muted">Model: '+esc(data.model||'Cloudflare Workers AI')+' · '+esc(data.diagnostics?.entitiesReviewed??'—')+' entities reviewed</p>';
   if(!data.clarification_required&&data.operations?.length)html+='<div class="toolbar"><button class="btn primary" onclick="approveCadModification()">Approve &amp; Apply Changes</button><button class="btn" onclick="discardCadModification()">Discard plan</button></div>';
-  html+='<div class="notice" style="margin-top:10px">Applying changes updates only the in-browser working copy. The uploaded original is not overwritten. Export patches the original DXF and retains unsupported entities and drawing sections. Always inspect the result in a CAD application before issuing it.</div></div>';
+  html+='<div class="notice" style="margin-top:10px">Applying changes updates only the in-browser working copy. The uploaded original is not overwritten. For a DWG source, export creates a separate edited DXF; open it in AutoCAD and save as DWG if you need a native DWG deliverable. For a DXF source, export patches the original DXF and retains untouched source sections. Always inspect the result in a CAD application before issuing it.</div></div>';
   out.innerHTML=html;
  }catch(e){out.innerHTML='<div class="notice"><b>Could not prepare a modification plan.</b><br>'+esc(e.message||e)+'</div>'}
 }
@@ -992,7 +1031,7 @@ function restoreOriginalDXF(){if(!window.originalDXF){alert('No original DXF cop
 function approveCadModification(){
  const plan=window.pendingCadPlan,doc=window.currentDXF;
  if(!plan||plan.clarification_required||!Array.isArray(plan.operations)||!plan.operations.length||!doc||!doc._dxfSource){alert('There is no safe editable DXF plan.');return}
- if(!confirm('Apply '+plan.operations.length+' proposed operation(s) to the browser working copy? The original drawing file and all unsupported content will be preserved in the exported DXF.'))return;
+ if(!confirm('Apply '+plan.operations.length+' proposed operation(s) to the browser working copy? The original upload is not overwritten. The exported DXF contains the approved supported edits; content not understood by the converter may not be preserved.'))return;
  const sourceIndexes=doc._dxfSourceIndexes||doc.entities.map((_,i)=>i),additionIndexes=doc._dxfAdditionIndexes||doc.entities.map(()=>null),deletedCurrent=new Set();
  let applied=0;
  for(const op of plan.operations){
