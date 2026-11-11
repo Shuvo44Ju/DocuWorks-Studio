@@ -7,7 +7,7 @@ self.addEventListener('fetch',event=>{
  const url=new URL(req.url);
  if(url.origin!==self.location.origin)return;
  // The URS converter must never fall back to a cached pre-AI page: the live page renders PDF pages for vision extraction.
- if(url.pathname.endsWith('/cs.html')){
+ if(url.pathname.endsWith('/cs.html')||url.pathname.endsWith('/CS.xlsx')){
    event.respondWith(fetch(req,{cache:'no-store'}));
    return;
  }
