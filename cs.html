@@ -397,11 +397,14 @@ btn.addEventListener('click',async()=>{
   if(!allRows.length)throw new Error('No requirements could be extracted. No Excel file was generated.');
   const actual=allRows.filter(r=>r.type==='row'||r.type==='sw').length;
   setStatus(92,'Loading the original CS.xlsx template…');
-  const response=await fetch('./CS.xlsx',{cache:'no-store'});
-  if(!response.ok)throw new Error('Could not load the original CS.xlsx template (HTTP '+response.status+').');
-  const workbookStarted=performance.now();
-  const template=await response.arrayBuffer(),wb=new ExcelJS.Workbook();
-  await wb.xlsx.load(template);
+  const templateUrl=new URL('./CS.xlsx',document.baseURI);
+  templateUrl.searchParams.set('v','e5e11cefaa27c55d');
+  const response=await fetch(templateUrl.href,{cache:'no-store',credentials:'same-origin'});
+  if(!response.ok)throw new Error('The CS Excel template could not be found on the published site (HTTP '+response.status+'). Please refresh the page after the latest site deployment.');
+  const template=await response.arrayBuffer();
+  if(template.byteLength<5000)throw new Error('The CS Excel template download was incomplete ('+template.byteLength+' bytes). Refresh the page and retry.');
+  const workbookStarted=performance.now(),wb=new ExcelJS.Workbook();
+  try{await wb.xlsx.load(template)}catch(templateError){throw new Error('The CS Excel template was downloaded but could not be opened. The published template may be corrupted or an old cached copy is being used. Details: '+(templateError.message||templateError));}
   const title=parsed.equipmentName||titleFromText(parsed.text||'',file.name);
   CSBuilder.fillTemplate(wb,{title:'CS File of '+title,sheets});
   setStatus(97,'Building the formatted CS workbook…');
