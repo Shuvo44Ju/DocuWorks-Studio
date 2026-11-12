@@ -88,30 +88,36 @@ function formatFileSize(bytes){
 async function choose(selectedFile){
  clearError();
  if(!selectedFile)return;
- let f=selectedFile;
- const ext=String(f.name||'').toLowerCase().split('.').pop();
+ const original=selectedFile;
+ const ext=String(original.name||'').toLowerCase().split('.').pop();
  if(!['pdf','docx'].includes(ext)){error('Please choose a PDF or DOCX file.');return}
- // Some browser drag-and-drop providers expose a File with size=0 before its
- // bytes are materialized. Verify the bytes once before treating it as empty.
- if(typeof f.size!=='number'||!Number.isFinite(f.size)||f.size===0){
-  try{
-   if(typeof f.arrayBuffer!=='function')throw new Error('File data cannot be read');
-   const bytes=await f.arrayBuffer();
-   if(bytes.byteLength>0){
-    f=new File([bytes],f.name,{type:f.type||'',lastModified:f.lastModified||Date.now()});
-   }else{
-    error('The browser received this file as 0 bytes. Please use Browse to select the original PDF/DOCX, or copy it to your computer first if it is stored in cloud storage.');
-    return;
-   }
-  }catch(readError){
-   error('The browser could not read the selected file. Please use Browse to select it again. Details: '+(readError.message||readError));
-   return;
-  }
+ if(typeof original.size==='number'&&original.size>50*1024*1024){error('File exceeds 50 MB.');return}
+ // Snapshot the bytes immediately while the browser's file handle is still valid.
+ // Some drag/drop, cloud-drive and temporary file providers invalidate the original
+ // File reference before the user presses Convert, causing a delayed NotFoundError.
+ let bytes;
+ try{
+  if(typeof original.arrayBuffer!=='function')throw new Error('This browser did not provide readable file data.');
+  bytes=await original.arrayBuffer();
+ }catch(readError){
+  console.error('Could not snapshot selected URS file:',readError);
+  error('The browser could not read the original file. Please copy it to a local folder (such as Desktop) and select it again. Details: '+(readError.message||readError));
+  return;
  }
- if(f.size>50*1024*1024){error('File exceeds 50 MB.');return}
+ if(!bytes||bytes.byteLength===0){error('The selected file contains no readable data. Please copy the original file to a local folder and select it again.');return}
+ if(bytes.byteLength>50*1024*1024){error('File exceeds 50 MB.');return}
+ // Store a new in-memory File, not the original temporary file handle.
+ let f;
+ try{
+  f=new File([bytes],original.name,{type:original.type||'',lastModified:original.lastModified||Date.now()});
+ }catch(snapshotError){
+  console.error('Could not create stable in-memory file:',snapshotError);
+  error('The selected file could not be prepared for conversion. Please try Browse again. Details: '+(snapshotError.message||snapshotError));
+  return;
+ }
  file=f;
  $('file-name').textContent=f.name;
- $('file-size').textContent=formatFileSize(f.size);
+ $('file-size').textContent=formatFileSize(bytes.byteLength);
  zone.classList.add('hidden');
  info.classList.remove('hidden');
  info.classList.add('flex');
