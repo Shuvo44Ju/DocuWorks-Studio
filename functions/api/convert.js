@@ -130,7 +130,7 @@ function normalizeForCsTemplate(data) {
       let requirement = String(item?.requirement || "").trim();
       const specification = String(item?.specification || "").trim();
       const parent = String(item?.parentRequirement || "").trim();
-      const parentIsSection = Boolean(sectionFromHeading(parent));
+      const parentIsSection = /^(?:[1-5][.)]?\s*)?(?:general information|functional requirements|utility services|validation aspects(?:\s*\/\s*regulatory requirements)?|maintenance(?:\s*\/\s*yearly calibration)?)$/i.test(parent);
       if (parent && !parentIsSection &&
           !requirement.toLowerCase().startsWith(parent.toLowerCase()) &&
           requirement) {
