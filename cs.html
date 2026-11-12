@@ -77,9 +77,42 @@ function error(m){err.textContent=m;err.classList.remove('hidden')}
 function clearError(){err.textContent='';err.classList.add('hidden')}
 function setStatus(p,m){progressValue=Math.max(progressValue,Math.max(0,Math.min(100,Math.round(p))));prog.classList.remove('hidden');bar.style.width=progressValue+'%';bar.setAttribute('aria-valuenow',String(progressValue));pct.textContent=progressValue+'%';status.textContent=m}
 function setReady(v){btn.disabled=!v;btn.className='w-full font-bold py-3 px-4 rounded-xl transition-all '+(v?'bg-blue-600 hover:bg-blue-700 text-white':'bg-slate-200 text-slate-400 cursor-not-allowed');btn.textContent=v?'Convert & Download CS Excel':'Upload a URS file first'}
-function choose(f){clearError();if(!f)return;const ext=f.name.toLowerCase().split('.').pop();if(!['pdf','docx'].includes(ext)){error('Please choose a PDF or DOCX file.');return}if(f.size>50*1024*1024){error('File exceeds 50 MB.');return}file=f;$('file-name').textContent=f.name;$('file-size').textContent=(f.size/1024).toFixed(1)+' KB';zone.classList.add('hidden');info.classList.remove('hidden');info.classList.add('flex');prog.classList.add('hidden');setReady(true)}
-zone.addEventListener('click',()=>input.click());zone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click()}});input.addEventListener('change',()=>choose(input.files[0]));
-['dragenter','dragover'].forEach(n=>zone.addEventListener(n,e=>{e.preventDefault();zone.classList.add('border-blue-500','bg-blue-50/50')}));['dragleave','drop'].forEach(n=>zone.addEventListener(n,e=>{e.preventDefault();zone.classList.remove('border-blue-500','bg-blue-50/50')}));zone.addEventListener('drop',e=>choose(e.dataTransfer.files[0]));
+function formatFileSize(bytes){
+ const size=Number(bytes);
+ if(!Number.isFinite(size)||size<0)return 'Size unavailable';
+ if(size===0)return '0 bytes';
+ if(size<1024)return size+' bytes';
+ if(size<1024*1024)return (size/1024).toFixed(2)+' KB';
+ return (size/(1024*1024)).toFixed(2)+' MB';
+}
+function choose(selectedFile){
+ clearError();
+ if(!selectedFile)return;
+ const f=selectedFile;
+ if(typeof f.size!=='number'||!Number.isFinite(f.size)){error('The browser could not read this file’s size. Please try selecting it with Browse instead of dragging it.');return}
+ if(f.size===0){error('The selected file appears to be empty (0 bytes). Please check the original file and try again.');return}
+ const ext=String(f.name||'').toLowerCase().split('.').pop();
+ if(!['pdf','docx'].includes(ext)){error('Please choose a PDF or DOCX file.');return}
+ if(f.size>50*1024*1024){error('File exceeds 50 MB.');return}
+ file=f;
+ $('file-name').textContent=f.name;
+ $('file-size').textContent=formatFileSize(f.size);
+ zone.classList.add('hidden');
+ info.classList.remove('hidden');
+ info.classList.add('flex');
+ prog.classList.add('hidden');
+ setReady(true);
+}
+zone.addEventListener('click',()=>input.click());
+zone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click()}});
+input.addEventListener('change',()=>choose(input.files&&input.files[0]));
+['dragenter','dragover'].forEach(n=>zone.addEventListener(n,e=>{e.preventDefault();e.stopPropagation();zone.classList.add('border-blue-500','bg-blue-50/50')}));
+['dragleave','drop'].forEach(n=>zone.addEventListener(n,e=>{e.preventDefault();e.stopPropagation();zone.classList.remove('border-blue-500','bg-blue-50/50')}));
+zone.addEventListener('drop',e=>{
+ const droppedFiles=e.dataTransfer&&e.dataTransfer.files;
+ if(!droppedFiles||!droppedFiles.length){error('No file was received. Please drop a PDF or DOCX file directly into the upload area.');return}
+ choose(droppedFiles[0]);
+});
 $('remove-file-btn').addEventListener('click',()=>{file=null;input.value='';info.classList.add('hidden');info.classList.remove('flex');zone.classList.remove('hidden');prog.classList.add('hidden');clearError();setReady(false)});
 function titleFromText(t,name){const m=CSCore.extractMeta(t);return m.equipment||m.title||name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').trim()||'Untitled URS Document'}
 function detectTableColumnRules(canvas) {
