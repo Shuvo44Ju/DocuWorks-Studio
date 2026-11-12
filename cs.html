@@ -50,6 +50,17 @@
 <div class="text-center space-y-2"><div class="inline-flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-xl font-bold text-xl mb-2">▤</div><h1 class="text-2xl font-extrabold text-slate-900">URS to CS Converter</h1><p class="text-sm text-slate-500">Upload a URS PDF or Word document and convert its requirements into your original CS Excel template.</p><p class="text-xs font-semibold text-blue-700">Template-preserving conversion engine</p></div>
 <div id="drop-zone" tabindex="0" role="button" aria-label="Choose or drop a URS file" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-8 text-center bg-slate-50 hover:bg-blue-50/50 transition-all cursor-pointer group"><input type="file" id="urs-input" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden"><div class="space-y-3 pointer-events-none"><svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a4 4 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg><p class="text-base font-semibold text-slate-700">Drop your URS PDF or DOCX here</p><p class="text-xs text-slate-400 mt-1">or click to browse</p></div></div>
 <div id="file-info" class="hidden bg-slate-50 border border-slate-200 rounded-lg p-4 items-center justify-between"><div class="min-w-0"><p id="file-name" class="text-sm font-semibold truncate"></p><p id="file-size" class="text-xs text-slate-400"></p></div><button id="remove-file-btn" class="text-xs text-slate-500 hover:text-red-600 p-2">Remove</button></div>
+<section id="metadata-panel" class="hidden rounded-xl border border-amber-200 bg-amber-50/50 p-4 space-y-3">
+ <div><h2 class="text-sm font-bold text-slate-800">Missing URS information</h2><p id="metadata-help" class="text-xs text-slate-600 mt-1"></p></div>
+ <label class="block text-xs font-semibold text-slate-700" for="metadata-input">Missing information</label>
+ <input id="metadata-input" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Enter the missing information" autocomplete="off">
+ <button id="metadata-continue" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">Continue to conversion</button>
+</section>
+<section id="row-review-panel" class="hidden rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+ <div><h2 id="row-review-title" class="text-sm font-bold text-slate-800">Detected requirements</h2><p id="row-review-summary" class="text-xs text-slate-600 mt-1"></p></div>
+ <div id="row-review-content" class="space-y-3 max-h-[520px] overflow-y-auto"></div>
+ <p id="row-review-note" class="text-xs text-slate-500"></p>
+</section>
 <div id="progress-container" class="hidden rounded-xl border border-blue-100 bg-blue-50/50 p-4 space-y-3">
  <div class="flex items-center justify-between gap-3"><span class="text-sm font-semibold text-slate-700">Conversion progress</span><strong id="progress-percent" class="text-sm font-bold text-blue-700 tabular-nums">0%</strong></div>
  <div class="w-full bg-blue-100 rounded-full h-3 overflow-hidden"><div id="progress-bar" role="progressbar" aria-label="Estimated conversion progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" class="dw-progress-fill h-3 w-0 rounded-full transition-[width] duration-700 ease-out"></div></div>
@@ -71,8 +82,9 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
 // GitHub Pages can occasionally fail to resolve the external PDF worker. The converter
 // therefore runs PDF.js in the main thread for reliability; this avoids worker-file
 // lookup errors while keeping the document fully local in the browser.
-const $=id=>document.getElementById(id), zone=$('drop-zone'), input=$('urs-input'), info=$('file-info'), btn=$('convert-btn'), err=$('error-text'), prog=$('progress-container'), bar=$('progress-bar'), status=$('status-text'), pct=$('progress-percent'), elapsedLabel=$('elapsed-text');
+const $=id=>document.getElementById(id), zone=$('drop-zone'), input=$('urs-input'), info=$('file-info'), btn=$('convert-btn'), err=$('error-text'), prog=$('progress-container'), bar=$('progress-bar'), status=$('status-text'), pct=$('progress-percent'), elapsedLabel=$('elapsed-text'), metadataPanel=$('metadata-panel'), metadataHelp=$('metadata-help'), metadataInput=$('metadata-input'), metadataContinue=$('metadata-continue'), rowReviewPanel=$('row-review-panel'), rowReviewTitle=$('row-review-title'), rowReviewSummary=$('row-review-summary'), rowReviewContent=$('row-review-content'), rowReviewNote=$('row-review-note');
 let file=null, progressValue=0, conversionStage='Waiting to start';
+let workflowStep='inspect', sourcePreflight=null, sourceMeta={equipmentName:'',ursNumber:'',referenceDocumentNumber:'',version:'',department:''}, userMeta={equipmentName:'',ursNumber:''}, pendingParsed=null;
 function error(m){err.textContent=m;err.classList.remove('hidden')}
 function clearError(){err.textContent='';err.classList.add('hidden')}
 function setStatus(p,m){progressValue=Math.max(progressValue,Math.max(0,Math.min(100,Math.round(p))));prog.classList.remove('hidden');bar.style.width=progressValue+'%';bar.setAttribute('aria-valuenow',String(progressValue));pct.textContent=progressValue+'%';status.textContent=m}
@@ -141,15 +153,10 @@ zone.addEventListener('drop',e=>{
  choose(droppedFile);
 });
 $('remove-file-btn').addEventListener('click',()=>{file=null;input.value='';info.classList.add('hidden');info.classList.remove('flex');zone.classList.remove('hidden');prog.classList.add('hidden');clearError();setReady(false)});
-function titleFromText(t,name){
+function titleFromText(t){
  const meta=CSCore.extractMeta(t);
- const clean=value=>String(value||'').replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').replace(/^\s*(?:URS|User Requirement Specification|User Requirements?)\s*[-:–—]*\s*/i,'').replace(/\s+/g,' ').trim();
- let candidate=clean(meta.equipment||meta.title||name);
- if(!candidate||/^(?:urs|user requirement specification|user requirements?|document|cs)$/i.test(candidate)){
-  candidate=clean(name);
- }
- if(!candidate||/^(?:urs|user requirement specification|user requirements?|document|cs)$/i.test(candidate)) candidate='Equipment';
- return candidate;
+ const candidate=String(meta.equipment||'').replace(/\s+/g,' ').trim();
+ return /^(?:urs|user requirements?|user requirement specification|document|cs)$/i.test(candidate)?'':candidate;
 }
 function detectTableColumnRules(canvas) {
  try {
@@ -179,6 +186,47 @@ function detectTableColumnRules(canvas) {
      requirement.x-number.x<w*.075)return null;
   return {numberEnd:number.x/w,requirementEnd:requirement.x/w};
  } catch(e) { console.warn('Table-rule detection skipped:',e); return null; }
+}
+function estimateSkewDegrees(canvas){
+ try{
+  const w=canvas.width,h=canvas.height,ctx=canvas.getContext('2d',{willReadFrequently:true});
+  if(!ctx||w<200||h<200)return 0;
+  const pixels=ctx.getImageData(0,0,w,h).data,points=[];
+  const step=Math.max(2,Math.floor(Math.max(w,h)/900));
+  for(let y=Math.floor(h*.08);y<h*.92;y+=step){
+   for(let x=Math.floor(w*.06);x<w*.94;x+=step){
+    const p=(y*w+x)*4,gray=pixels[p]*.299+pixels[p+1]*.587+pixels[p+2]*.114;
+    if(gray<145)points.push([x,y]);
+   }
+  }
+  if(points.length<250)return 0;
+  const angleStep=.25,maxAngle=7.5,binSize=Math.max(2,Math.round(step*1.2));
+  let bestAngle=0,bestScore=0;
+  for(let angle=-maxAngle;angle<=maxAngle+1e-6;angle+=angleStep){
+   const slope=Math.tan(angle*Math.PI/180),bins=new Map();
+   for(const [x,y] of points){
+    const key=Math.round((y-slope*x)/binSize);
+    bins.set(key,(bins.get(key)||0)+1);
+   }
+   let score=0;
+   for(const count of bins.values())if(count>score)score=count;
+   if(score>bestScore){bestScore=score;bestAngle=angle;}
+  }
+  // Avoid rotating a level page because of a logo, border, or isolated line.
+  return Math.abs(bestAngle)<.25?0:bestAngle;
+ }catch(e){console.warn('Deskew angle detection skipped:',e);return 0;}
+}
+function deskewCanvas(sourceCanvas){
+ const angle=estimateSkewDegrees(sourceCanvas);
+ if(!angle)return {canvas:sourceCanvas,angle:0};
+ const canvas=document.createElement('canvas');
+ canvas.width=sourceCanvas.width;canvas.height=sourceCanvas.height;
+ const ctx=canvas.getContext('2d',{alpha:false});
+ ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+ ctx.translate(canvas.width/2,canvas.height/2);
+ ctx.rotate(-angle*Math.PI/180);
+ ctx.drawImage(sourceCanvas,-sourceCanvas.width/2,-sourceCanvas.height/2);
+ return {canvas,angle};
 }
 async function parsePdf(f,silentProgress){
  const data=await f.arrayBuffer(), pdf=await pdfjsLib.getDocument({data,disableWorker:true}).promise, pages=[], textChunks=[];
@@ -226,9 +274,9 @@ async function parsePdf(f,silentProgress){
  const allText=pages.map(p=>wordText(p.words)).join(' ');
  const hasGlobalHeader=/requirements?/i.test(allText)&&/descriptions?/i.test(allText);
  if(!hasGlobalHeader){
-  // If the document has numbered table rows but no readable header text, its text layer
-  // may be corrupt or flattened incorrectly. OCR those pages instead of trusting it.
-  pages.forEach((p,i)=>{if(p.words.some(w=>/^\d{1,2}\.\d{1,2}\.?$/.test(w.t))&&!ocrPages.includes(i))ocrPages.push(i)});
+  // Partial/scanned URSs often start at an internal page number and have no Sl. No.
+  // Header. OCR each page for comparison; retain the embedded text when it is clearer.
+  pages.forEach((p,i)=>{if(!ocrPages.includes(i))ocrPages.push(i)});
  }
  if(ocrPages.length){
   if(!silentProgress)setStatus(38,'Checking '+ocrPages.length+' page(s) with OCR…');
@@ -241,16 +289,18 @@ async function parsePdf(f,silentProgress){
    for(let k=0;k<ocrPages.length;k++){
     const i=ocrPages[k],pg=await pdf.getPage(i+1),vp=pg.getViewport({scale:1}),ocrScale=2.5,ovp=pg.getViewport({scale:ocrScale}),canvas=document.createElement('canvas');
     canvas.width=Math.ceil(ovp.width);canvas.height=Math.ceil(ovp.height);
-    await pg.render({canvasContext:canvas.getContext('2d'),viewport:ovp}).promise;
-    const ocrColumns=detectTableColumnRules(canvas);
-    const res=await worker.recognize(canvas);
+    await pg.render({canvasContext:canvas.getContext('2d'),viewport:ovp,background:'rgb(255,255,255)'}).promise;
+    const corrected=deskewCanvas(canvas);
+    const deskewedCanvas=corrected.canvas;
+    const ocrColumns=detectTableColumnRules(deskewedCanvas);
+    const res=await worker.recognize(deskewedCanvas);
     const ws=(res.data.words||[]).filter(w=>w.text&&w.text.trim()).map(w=>({
      t:w.text.trim(),x0:w.bbox.x0/ocrScale,x1:w.bbox.x1/ocrScale,
      y0:w.bbox.y0/ocrScale,y1:w.bbox.y1/ocrScale,conf:w.confidence
     }));
     const oldScore=qualityScore(pages[i].words),newScore=qualityScore(ws);
-    const forceReplace=pages[i].words.length<35||/[\uFFFD\uE000-\uF8FF\u0000-\u0008]/.test(wordText(pages[i].words))||(!hasGlobalHeader&&ws.length>0);
-    if(ws.length&&(forceReplace||newScore>oldScore+0.04))pages[i]={w:vp.width,h:vp.height,words:ws,columns:pages[i].columns||ocrColumns||null};else if(!pages[i].columns&&ocrColumns)pages[i].columns=ocrColumns;
+    const forceReplace=pages[i].words.length<35||/[\uFFFD\uE000-\uF8FF\u0000-\u0008]/.test(wordText(pages[i].words));
+    if(ws.length&&(forceReplace||newScore>oldScore+0.04))pages[i]={w:vp.width,h:vp.height,words:ws,columns:pages[i].columns||ocrColumns||null,deskewAngle:corrected.angle};else if(!pages[i].columns&&ocrColumns)pages[i].columns=ocrColumns;
     if(!silentProgress)setStatus(38+Math.round(45*(k+1)/ocrPages.length),'OCR complete: '+(k+1)+' of '+ocrPages.length+' pages');
    }
   }catch(e){
@@ -310,9 +360,11 @@ async function renderPdfPagesForAI(sourceFile){
   const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{alpha:false});
   canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
   await page.render({canvasContext:ctx,viewport,background:'rgb(255,255,255)'}).promise;
-  const image=canvas.toDataURL('image/jpeg',0.9);
-  pages.push({page:n,image,text:pageText});
+  const corrected=deskewCanvas(canvas);
+  const image=corrected.canvas.toDataURL('image/jpeg',0.9);
+  pages.push({page:n,image,text:pageText,deskewDegrees:corrected.angle});
   canvas.width=1;canvas.height=1;
+  if(corrected.canvas!==canvas){corrected.canvas.width=1;corrected.canvas.height=1;}
   page.cleanup();
  }
  return pages;
@@ -585,7 +637,7 @@ btn.addEventListener('click',async()=>{
   conversionStage='Opening the CS Excel template';
   const workbookStarted=performance.now(),wb=new ExcelJS.Workbook();
   try{await wb.xlsx.load(template)}catch(templateError){throw new Error('The CS Excel template was downloaded but could not be opened. The published template may be corrupted or an old cached copy is being used. Details: '+(templateError.message||templateError));}
-  const title=titleFromText(parsed.text||'',file.name);
+  const title=titleFromText(parsed.text||'')||parsed.equipmentName||userMeta.equipmentName;
   conversionStage='Filling the CS template with extracted requirements';
   CSBuilder.fillTemplate(wb,{title:'CS File of '+title,sheets});
   setStatus(97,'Building the formatted CS workbook…');
