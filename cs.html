@@ -75,7 +75,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-<script src="./core.js?v=cs-partial-scan-block-columns-20261112-v2"></script><script src="./builder.js?v=cs-vendor-sheet-format-20261112-v2"></script><script src="./ai-config.js?v=cloudflare-endpoint-20261112"></script>
+<script src="./core.js?v=cs-partial-scan-block-columns-20261112-v3"></script><script src="./builder.js?v=cs-vendor-sheet-format-20261112-v2"></script><script src="./ai-config.js?v=cloudflare-endpoint-20261112"></script>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -460,7 +460,7 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
  if(!healthResponse.ok||!healthData?.configured){
   throw new Error('The Cloudflare Worker responded, but its AI binding is not ready. HTTP '+healthResponse.status+'. '+String(healthData?.error||'AI binding status is false or missing.'));
  }
- const expectedWorkerBuild='cs-partial-scan-cs-format-20261112-v4';
+ const expectedWorkerBuild='cs-partial-scan-cs-format-20261112-v5';
  const liveWorkerBuild=String(healthData?.diagnostic?.build||'');
  if(liveWorkerBuild!==expectedWorkerBuild){
   throw new Error('The AI service has not received the latest CS extraction update. Live Worker build: '+(liveWorkerBuild||'unknown')+'. Required build: '+expectedWorkerBuild+'. No workbook was generated. The Cloudflare Worker must be deployed from the latest GitHub main branch before conversion can continue.');
