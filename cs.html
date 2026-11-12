@@ -405,7 +405,7 @@ async function extractWithAI(sourceFile){
  if(!healthResponse.ok||!healthData?.configured){
   throw new Error('The Cloudflare Worker responded, but its AI binding is not ready. HTTP '+healthResponse.status+'. '+String(healthData?.error||'AI binding status is false or missing.'));
  }
- const expectedWorkerBuild='cs-accuracy-flat-rows-ocr-hints-20261112';
+ const expectedWorkerBuild='cs-accuracy-flat-cs-v2-20261112';
  const liveWorkerBuild=String(healthData?.diagnostic?.build||'');
  if(liveWorkerBuild!==expectedWorkerBuild){
   throw new Error('The AI service has not received the latest CS extraction update. Live Worker build: '+(liveWorkerBuild||'unknown')+'. Required build: '+expectedWorkerBuild+'. No workbook was generated. The Cloudflare Worker must be deployed from the latest GitHub main branch before conversion can continue.');
