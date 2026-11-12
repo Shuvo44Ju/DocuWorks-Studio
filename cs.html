@@ -85,14 +85,29 @@ function formatFileSize(bytes){
  if(size<1024*1024)return (size/1024).toFixed(2)+' KB';
  return (size/(1024*1024)).toFixed(2)+' MB';
 }
-function choose(selectedFile){
+async function choose(selectedFile){
  clearError();
  if(!selectedFile)return;
- const f=selectedFile;
- if(typeof f.size!=='number'||!Number.isFinite(f.size)){error('The browser could not read this file’s size. Please try selecting it with Browse instead of dragging it.');return}
- if(f.size===0){error('The selected file appears to be empty (0 bytes). Please check the original file and try again.');return}
+ let f=selectedFile;
  const ext=String(f.name||'').toLowerCase().split('.').pop();
  if(!['pdf','docx'].includes(ext)){error('Please choose a PDF or DOCX file.');return}
+ // Some browser drag-and-drop providers expose a File with size=0 before its
+ // bytes are materialized. Verify the bytes once before treating it as empty.
+ if(typeof f.size!=='number'||!Number.isFinite(f.size)||f.size===0){
+  try{
+   if(typeof f.arrayBuffer!=='function')throw new Error('File data cannot be read');
+   const bytes=await f.arrayBuffer();
+   if(bytes.byteLength>0){
+    f=new File([bytes],f.name,{type:f.type||'',lastModified:f.lastModified||Date.now()});
+   }else{
+    error('The browser received this file as 0 bytes. Please use Browse to select the original PDF/DOCX, or copy it to your computer first if it is stored in cloud storage.');
+    return;
+   }
+  }catch(readError){
+   error('The browser could not read the selected file. Please use Browse to select it again. Details: '+(readError.message||readError));
+   return;
+  }
+ }
  if(f.size>50*1024*1024){error('File exceeds 50 MB.');return}
  file=f;
  $('file-name').textContent=f.name;
@@ -109,9 +124,15 @@ input.addEventListener('change',()=>choose(input.files&&input.files[0]));
 ['dragenter','dragover'].forEach(n=>zone.addEventListener(n,e=>{e.preventDefault();e.stopPropagation();zone.classList.add('border-blue-500','bg-blue-50/50')}));
 ['dragleave','drop'].forEach(n=>zone.addEventListener(n,e=>{e.preventDefault();e.stopPropagation();zone.classList.remove('border-blue-500','bg-blue-50/50')}));
 zone.addEventListener('drop',e=>{
- const droppedFiles=e.dataTransfer&&e.dataTransfer.files;
- if(!droppedFiles||!droppedFiles.length){error('No file was received. Please drop a PDF or DOCX file directly into the upload area.');return}
- choose(droppedFiles[0]);
+ const transfer=e.dataTransfer;
+ let droppedFile=transfer&&transfer.files&&transfer.files[0];
+ if(!droppedFile&&transfer&&transfer.items){
+  for(const item of transfer.items){
+   if(item.kind==='file'){droppedFile=item.getAsFile();if(droppedFile)break;}
+  }
+ }
+ if(!droppedFile){error('No file was received. Please drop a PDF or DOCX file directly into the upload area.');return}
+ choose(droppedFile);
 });
 $('remove-file-btn').addEventListener('click',()=>{file=null;input.value='';info.classList.add('hidden');info.classList.remove('flex');zone.classList.remove('hidden');prog.classList.add('hidden');clearError();setReady(false)});
 function titleFromText(t,name){const m=CSCore.extractMeta(t);return m.equipment||m.title||name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').trim()||'Untitled URS Document'}
