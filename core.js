@@ -281,7 +281,7 @@ function groupLines(words) {
 }
 const ROWNUM = /^\d{1,2}\.\d{1,2}\.?$/;
 const SECKEY = /^(general\s*information|functional|utility\s*services|validation\s*aspects|maintenance|after\s*sales|process\/?\s*functional)/i;
-const median = a => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
+const median = a => { const s = a.filter(Number.isFinite).slice().sort((x, y) => x - y); if (!s.length) return null; const mid = Math.floor(s.length / 2); return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2; };
 
 function estimateColumns(pagesLines) {
   const s2 = [], s3 = [], bins = {};
