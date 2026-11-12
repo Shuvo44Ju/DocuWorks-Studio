@@ -187,11 +187,12 @@ function parseDocxDocument(doc) {
 }
 
 /* ---------- PDF / OCR (geometry) ---------- */
-const CANON = ['Description', 'Capacity/Memory', 'Utilization', 'Room condition', 'Design parameters/Dimensions',
-  'Controlling system', 'Measuring/ Calibration parameters', 'Safety & Alarms', 'Power failure & recovery',
-  'Material of construction (MOC)', 'Ink Jet/ USB/ SD Card supported print out option', 'Electrical requirements',
-  'Main services/Utilities', 'Qualification documents', 'Cleaning requirements',
-  'Complies 21 CFR part 11 or Data integrity', 'Document language', 'Calibration & Maintenance support'];
+const CANON = ['Description', 'Capacity/Memory', 'Readability', 'Platform Size', 'Utilization', 'Room condition',
+  'Design parameters/Dimensions', 'Controlling system', 'Measuring/ Calibration parameters', 'Safety & Alarms',
+  'Power failure & recovery', 'Material of construction (MOC)', 'Ink Jet/ USB/ SD Card supported print out option',
+  'Electrical requirements', 'Voltage', 'Current', 'Phase', 'Frequency', 'Main services/Utilities',
+  'Qualification documents', 'Cleaning requirements', 'Complies 21 CFR part 11 or Data integrity',
+  'Document language', 'Calibration & Maintenance support'];
 const alnum = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
 function lev(a, b) {
   const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
@@ -315,10 +316,10 @@ function isTableHeaderLine(line) {
   return /\brequirements?\b/i.test(text) && /\bdescriptions?\b/i.test(text);
 }
 function labelValueLine(text) {
-  const t = String(text || '').trim();
-  if (!/^[A-Za-z][^:=]{1,65}\s*[:=]\s*\S/.test(t)) return false;
-  const right = t.replace(/^[^:=]{1,65}\s*[:=]\s*/, '');
-  return !/\b[A-Za-z][A-Za-z0-9&/().,_ -]{0,18}\s*[:=]\s*\S/.test(right);
+  // Start a new description-cell row at any "Label: value" / "Label = value"
+  // line. splitLabelValue() later decides whether the line contains multiple
+  // labelled values that must remain together as one specification.
+  return /^[A-Za-z][^:=]{1,65}\s*[:=]\s*\S/.test(String(text || '').trim());
 }
 function canonicalSpan(words) {
   if (!words || !words.length) return null;
@@ -519,7 +520,7 @@ function parsePages(pages) {
       } else if (cur && col2 && cur.hasLabel && cur.lines.length) {
         const pageBoundaryLabel = cur.page < pg.idx;
         const separatedLabel = cur.lastLabelY != null && (L.y0 - cur.lastLabelY) > typicalLineHeight * 1.4;
-        if (labelAnchor || pageBoundaryLabel || separatedLabel) flush();
+        if (labelAnchor || genericRowLabel || pageBoundaryLabel || separatedLabel) flush();
       }
 
       if (!cur && (hasNum || col2 || c3w.length)) {
