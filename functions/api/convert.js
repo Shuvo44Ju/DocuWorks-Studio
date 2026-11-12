@@ -69,12 +69,12 @@ function splitInlineParameterPairs(text) {
   if (!/[;\n]/.test(source)) return [];
   // Split only when the next segment looks like another named parameter.
   // Colons inside a value (for example, L: 140±20, W: 400±20) remain intact.
-  const parts = source.split(/(?:;\s*|\n+)(?=[A-Za-z][A-Za-z0-9&/().,+ _-]{1,85}\s*[:=])/g)
+  const parts = source.split(/(?:;\s*|\n+)(?=[A-Za-z][A-Za-z0-9&/().,+ _-]{0,85}\s*[:=])/g)
     .map(part => part.trim()).filter(Boolean);
   if (parts.length < 2) return [];
   const pairs = parts.map(part => {
     const separator = part.search(/[:=]/);
-    if (separator < 2) return null;
+    if (separator < 1) return null;
     const label = part.slice(0, separator).trim().replace(/^[•*\-–]+\s*/, "");
     const specification = part.slice(separator + 1).trim();
     if (!label || !specification || label.length > 90 || label.split(/\s+/).length > 12) return null;
