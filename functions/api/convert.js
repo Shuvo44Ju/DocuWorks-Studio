@@ -312,6 +312,8 @@ async function handlePost({ request, env }) {
   const documentHtml = String(form.get("documentHtml") || "");
   const pageImagesRaw = String(form.get("pageImages") || "");
   const referenceStructureRaw = String(form.get("referenceStructure") || "");
+  const equipmentNameOverride = String(form.get("equipmentNameOverride") || "").trim().slice(0,180);
+  const ursNumberOverride = String(form.get("ursNumberOverride") || "").trim().slice(0,100);
   const extension = fileName.toLowerCase().split(".").pop();
   let userContent = [];
   let description = "Filename: " + fileName + "\n";
@@ -448,7 +450,11 @@ async function handlePost({ request, env }) {
   try {
     const validationStartedAt = Date.now();
     const extracted = extractJson(result);
-    const data = normalizeForCsTemplate(validateExtraction(extracted));
+    const validated = validateExtraction(extracted);
+    // Explicit values entered by the user take precedence over OCR/model guesses.
+    if (equipmentNameOverride) validated.equipmentName = equipmentNameOverride;
+    if (ursNumberOverride) validated.ursNumber = ursNumberOverride;
+    const data = normalizeForCsTemplate(validated);
     const validationMs = Date.now() - validationStartedAt;
     data.model = MODEL;
     data.usage = result?.usage || null;
@@ -479,7 +485,7 @@ export async function onRequestGet({request,env}) {
     architecture:"Mixture of Experts (4B active parameters)",
     reasoningEffort:"medium",
     diagnostic:{
-      build:"cs-accuracy-flat-cs-v2-20261112",
+      build:"cs-partial-scan-20261112-v1",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
