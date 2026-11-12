@@ -26,12 +26,17 @@ function cleanLabel(s) {
 function balanced(s) { return (s.match(/\(/g) || []).length === (s.match(/\)/g) || []).length; }
 function splitLabelValue(text) {
   const t = NORM(text);
-  let m = t.match(/^([^:]{1,70}?)\s*:\s*([\s\S]*)$/);
+  let m = t.match(/^([^:=]{1,70}?)\s*([:=])\s*([\s\S]*)$/);
   if (m) {
-    const label = m[1].trim(), val = m[2].trim();
+    const label = m[1].trim(), val = m[3].trim();
     const words = label.split(/\s+/).length;
-    if (words <= 8 && balanced(label) && !/\b[A-Za-z]{1,4}\s*:\s*\S/.test(val) && !/\d$/.test(label) && !/^(e\.g|i\.e|note)$/i.test(label) && label.length >= 2)
-      return { label: label.replace(/[\s\.]+$/, ''), value: cleanMarker(val) };
+    // If the right-hand side contains another labelled value (for example,
+    // "ID: 4.8 mm, OD: 8.0 mm"), preserve the entire source line in one row.
+    const hasSecondPair = /\b[A-Za-z][A-Za-z0-9&/().,_ -]{0,18}\s*[:=]\s*\S/.test(val);
+    if (words <= 8 && balanced(label) && !hasSecondPair && !/\d$/.test(label) &&
+        !/^(e\.g|i\.e|note)$/i.test(label) && label.length >= 2) {
+      return { label: label.replace(/[\s\.]+$/, ''), value: val };
+    }
   }
   m = t.match(/^([A-Z][A-Za-z&\/\-' ()]{1,48}?)\s+((?:[<>≤≥±~≈]\s*)?\d[\s\S]*)$/);
   if (m) {
@@ -41,7 +46,6 @@ function splitLabelValue(text) {
   }
   return { label: '', value: t };
 }
-
 /* items: [{text, li}]  ->  [{req, desc}] */
 function sameAs(a, b) { return alnum0(a) && alnum0(a) === alnum0(b); }
 function alnum0(x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
@@ -302,129 +306,279 @@ function rowNumberInfo(words, pageWidth) {
   return null;
 }
 
+function isSectionHeadingLine(line) {
+  const text = ONE(line && line.text || '').replace(/^\s*\d{1,2}(?:\.\d{1,2})?[.)]?\s*/, '').trim();
+  return /^(?:general\s+information|functional(?:\s*\/\s*operational)?\s+requirements?|utility\s+services|validation\s+aspects(?:\s*\/\s*regulatory\s*requirements?)?|maintenance(?:\s*\/\s*(?:yearly\s*)?calibration)?|after\s*sales\s*support|process\s*\/?\s*functional(?:\s*requirements?)?)(?:\s*[:.]?\s*)$/i.test(text);
+}
+function isTableHeaderLine(line) {
+  const text = String(line && line.text || '');
+  return /\brequirements?\b/i.test(text) && /\bdescriptions?\b/i.test(text);
+}
+function labelValueLine(text) {
+  const t = String(text || '').trim();
+  if (!/^[A-Za-z][^:=]{1,65}\s*[:=]\s*\S/.test(t)) return false;
+  const right = t.replace(/^[^:=]{1,65}\s*[:=]\s*/, '');
+  return !/\b[A-Za-z][A-Za-z0-9&/().,_ -]{0,18}\s*[:=]\s*\S/.test(right);
+}
+function canonicalSpan(words) {
+  if (!words || !words.length) return null;
+  const text = words.map(w => w.t).join(' ');
+  const compact = alnum(text);
+  let best = null;
+  for (const label of CANON) {
+    const key = alnum(label);
+    if (key.length >= 5 && compact.startsWith(key)) {
+      let end = 0, accumulated = '';
+      while (end < words.length && accumulated.length < key.length) {
+        accumulated += alnum(words[end].t);
+        end++;
+      }
+      if (accumulated.length >= key.length && (!best || end > best.end)) best = { label, end };
+    }
+  }
+  return best;
+}
+function estimateBlockColumns(lines, pageWidth) {
+  const w = Math.max(1, pageWidth || 1);
+  const headers = (lines || []).filter(isTableHeaderLine);
+  const numbered = [], canonical = [], gapStarts = [], lineStarts = [];
+  let headerBounds = null;
+
+  if (headers.length) {
+    const h = headers[0].words || [];
+    const reqIndex = h.findIndex(x => /^(?:requirements?|requirement)$/i.test(x.t.replace(/[.:]/g,'')));
+    const descIndex = h.findIndex(x => /^(?:descriptions?|description)$/i.test(x.t.replace(/[.:]/g,'')));
+    if (reqIndex >= 0 && descIndex > reqIndex) {
+      const serialIndex = h.findIndex(x => /^(?:sl|sr|serial)$/i.test(x.t.replace(/[.:]/g,'')));
+      const reqX = h[reqIndex].x0;
+      const descX = h[descIndex].x0;
+      headerBounds = {
+        b1: serialIndex >= 0 ? Math.max(0, (h[serialIndex].x1 + reqX) / 2) : Math.max(0, reqX - w * 0.02),
+        b2: Math.min(w, Math.max(reqX + w * 0.08, descX - w * 0.015)),
+        numbered: serialIndex >= 0,
+        source: 'header'
+      };
+    }
+  }
+
+  for (const line of (lines || [])) {
+    if (!line || !line.words || !line.words.length || isSectionHeadingLine(line) || isTableHeaderLine(line)) continue;
+    const words = line.words;
+    const rn = rowNumberInfo(words, w);
+    if (rn && words.length >= rn.parts + 2) {
+      const labelStart = words[rn.parts].x0;
+      let bestGap = 0, bestIndex = -1;
+      for (let i = rn.parts + 1; i < words.length; i++) {
+        const gap = words[i].x0 - words[i - 1].x1;
+        if (gap > bestGap) { bestGap = gap; bestIndex = i; }
+      }
+      if (bestIndex > rn.parts && bestGap > w * 0.018) {
+        numbered.push({ label: labelStart, desc: words[bestIndex].x0, gap: bestGap });
+      }
+    }
+
+    const span = canonicalSpan(words);
+    if (span) {
+      const labelStart = words[0].x0;
+      const labelEnd = words[Math.max(0, span.end - 1)].x1;
+      let bestGap = 0, desc = null;
+      for (let i = span.end; i < words.length; i++) {
+        const gap = words[i].x0 - (i === span.end ? labelEnd : words[i - 1].x1);
+        if (gap > bestGap) { bestGap = gap; desc = words[i].x0; }
+      }
+      canonical.push({ label: labelStart, desc: bestGap > w * 0.018 ? desc : null, gap: bestGap });
+    }
+
+    if (words.length >= 2) {
+      lineStarts.push(words[0].x0);
+      let bestGap = 0, bestIndex = -1;
+      for (let i = 1; i < words.length; i++) {
+        const gap = words[i].x0 - words[i - 1].x1;
+        if (gap > bestGap) { bestGap = gap; bestIndex = i; }
+      }
+      if (bestIndex > 0 && bestGap > w * 0.035) gapStarts.push(words[bestIndex].x0);
+    }
+  }
+
+  const med = values => median(values.filter(Number.isFinite));
+  if (headerBounds) return headerBounds;
+
+  let labelStart = null, descStart = null, source = 'block-text';
+  if (numbered.length) {
+    labelStart = med(numbered.map(x => x.label));
+    descStart = med(numbered.map(x => x.desc));
+    source = 'numbered-rows-in-block';
+  } else if (canonical.length) {
+    labelStart = med(canonical.map(x => x.label));
+    const descValues = canonical.filter(x => x.desc != null).map(x => x.desc);
+    descStart = descValues.length ? med(descValues) : null;
+    source = 'canonical-labels-in-block';
+  }
+
+  if (labelStart == null && lineStarts.length) labelStart = med(lineStarts);
+  if (descStart == null && gapStarts.length) descStart = med(gapStarts);
+
+  // One-page / partial URS files often omit the Sl. No. column and its header.
+  // Infer the two content columns from repeated label starts and the gaps in this block only.
+  if (labelStart == null) labelStart = w * 0.12;
+  if (descStart == null || descStart <= labelStart + w * 0.07) {
+    descStart = Math.max(labelStart + w * 0.24, w * 0.48);
+  }
+  const b1 = Math.max(0, Math.min(w * 0.55, labelStart - w * 0.015));
+  const b2 = Math.max(b1 + w * 0.08, Math.min(w * 0.94, descStart - w * 0.01));
+  return { b1, b2, numbered: numbered.length > 0, source };
+}
+
 function parsePages(pages) {
-  const pl = pages.map((p, i) => ({ w: p.w, h: p.h, idx: i + 1, columns: p.columns || null, lines: groupLines(p.words) }));
-  const { c2, c3 } = estimateColumns(pl);
+  const pl = pages.map((p, i) => ({
+    w: p.w, h: p.h, idx: i + 1, lines: groupLines(p.words)
+  }));
   const out = [], fullText = [], processedPages = [];
-  let cur = null, sec = 0, tableStarted = false, stop = false;
-  const createCurrent = page => ({ num: null, label: [], lines: [], hasLabel: false, page, lastLabelY: null });
+  let cur = null, sectionNumber = 0, stop = false, activeSection = '';
+
   const flush = () => {
     if (!cur) return;
-    const label = snapLabel(cleanLabel(cur.label.join(' ')));
+    const label = ONE(cur.label.join(' '));
     const items = [];
     let prev = null;
     for (const ln of cur.lines) {
-      ln.text = ln.text.replace(/(\d)\s+[0⁰]\s*C\b/g, '$1°C').replace(/(\d)\s*[⁰º]\s*C\b/g, '$1°C');
       const docRef = /^\(?[A-Z]{2,}\/[A-Z0-9\/\-]{5,}\)?$/.test(ln.text);
-      const startNew = !docRef && (!prev || hasMarker(ln.text) || ln.bullet || /:$/.test(prev.text) || prev.x1 < ln.R - 0.07 * ln.w);
-      if (startNew) items.push({ text: ln.text, li: !!ln.bullet || new RegExp('^\\s*[' + BUL + ']\\s').test(ln.text) });
+      const startsLabelValue = labelValueLine(ln.text);
+      const startsNew = !docRef && (!prev || hasMarker(ln.text) || ln.bullet ||
+        startsLabelValue || /:$/.test(prev.text) || prev.x1 < ln.R - 0.07 * ln.w);
+      if (startsNew) items.push({ text: ln.text, li: !!ln.bullet || new RegExp('^\\s*[' + BUL + ']\\s').test(ln.text) });
       else items[items.length - 1].text += ' ' + ln.text;
       prev = ln;
     }
     const confs = cur.lines.map(l => l.conf).filter(x => x != null);
-    const conf = confs.length ? Math.round(confs.reduce((a, b) => a + b, 0) / confs.length) : null;
     const minConf = confs.length ? Math.round(Math.min(...confs)) : null;
-    buildRows(label, items.map(i => ({ text: i.text, li: i.li })), 'page ' + cur.page).forEach(r => {
-      const junk = alRatio(r.desc) < 0.55 || (r.desc && r.desc.length < 2);
-      out.push({ type: 'row', req: r.req, desc: r.desc, raw: r.raw, loc: r.loc,
-        parent: r.parent, group: r.group, label: r.label, conf, minConf,
-        review: (minConf != null && minConf < 80) || junk });
+    const confidence = confs.length ? Math.round(confs.reduce((a, b) => a + b, 0) / confs.length) : null;
+    buildRows(label, items, 'page ' + cur.page).forEach(r => {
+      const junk = alRatio(r.desc) < 0.45 || (r.desc && r.desc.length < 2);
+      const uncertain = minConf != null && minConf < 80;
+      out.push({
+        type: 'row', req: r.req, desc: r.desc, raw: r.raw, loc: r.loc,
+        parent: r.parent, group: r.group, label: r.label,
+        conf: confidence, minConf,
+        review: uncertain || junk || !label || !r.desc,
+        reviewReason: uncertain ? 'One or more OCR words in this cell have confidence below 80%. Verify the exact text and values against the scan.' :
+          (!r.desc ? 'The description/value cell could not be read confidently.' : (junk ? 'The extracted cell contains very little readable text.' : ''))
+      });
     });
     cur = null;
   };
 
-  for (const pg of pl) {
-    const { w, h, lines } = pg;
-    lines.forEach(L => fullText.push(L.text));
-    if (stop || !lines.length) continue;
+  const parseBlock = (pg, blockLines) => {
+    if (!blockLines.length || stop) return;
+    let lines = blockLines.filter(L => !/^format\s*no/i.test(L.text) &&
+      !(L.yc > 0.965 * pg.h && /page|format/i.test(L.text)) &&
+      !/^(prepared\s*by|reviewed\s*by|approved\s*by|authorised\s*by|authorized\s*by)\b/i.test(L.text));
+    if (!lines.length) return;
 
-    const hi = lines.findIndex(L => /requirement/i.test(L.text) && /description/i.test(L.text));
-    const hasNumberedRow = lines.some(L => {
-      const rn = rowNumberInfo(L.words, w);
-      return !!rn && L.words[0].x0 < 0.35 * w;
-    });
-    if (hi >= 0 || hasNumberedRow) tableStarted = true;
-    // A continued table page may have neither a repeated header nor row number.
-    if (!tableStarted) continue;
-
-    let cut = hi >= 0 ? lines[hi].y1 : -1;
-    if (hi < 0) {
-      const vi = lines.findIndex(L => /version/i.test(L.text) && L.yc < 0.3 * h);
-      if (vi >= 0 && !hasNumberedRow) cut = lines[vi].y1;
-    }
-    const b1 = (c2 - 0.02) * w, b2 = (c3 - 0.02) * w;
-    const body = lines.filter(L => L.y0 > cut - 1 && !/^format\s*no/i.test(L.text) &&
-      !(L.yc > 0.94 * h && /page|format/i.test(L.text)));
-    const continuationLines = body.filter(L => {
-      const rn = rowNumberInfo(L.words, w);
-      return !!rn || L.words.some(x => x.x0 >= b1);
-    });
-    if (hi < 0 && !hasNumberedRow && !continuationLines.length) continue;
-    processedPages.push(pg.idx);
-
-    const rs = body.flatMap(L => L.words.filter(x => x.x0 >= b2).map(x => x.x1)).sort((a, b) => a - b);
-    const R = rs.length ? rs[Math.floor(rs.length * 0.95)] : w * 0.95;
-    const lineHeights = body.flatMap(L => L.words.map(x => x.h)).filter(x => x > 0).sort((a, b) => a - b);
+    const hi = lines.findIndex(isTableHeaderLine);
+    const headerLines = hi >= 0 ? [lines[hi]] : [];
+    if (hi >= 0) lines = lines.slice(hi + 1);
+    const bounds = estimateBlockColumns(headerLines.concat(lines), pg.w);
+    const b1 = bounds.b1 == null ? pg.w * 0.04 : bounds.b1;
+    const b2 = bounds.b2;
+    const lineHeights = lines.flatMap(L => L.words.map(x => x.h)).filter(x => x > 0).sort((a, b) => a - b);
     const typicalLineHeight = lineHeights.length ? lineHeights[Math.floor(lineHeights.length / 2)] : 10;
+    const hasAnyRowSignal = lines.some(L => {
+      const rn = rowNumberInfo(L.words, pg.w);
+      const content = L.words.filter(x => x.x0 >= b1 && x.x0 < b2).map(x => x.t).join(' ');
+      return !!rn || startsLikeCanon(content) || !!canonicalSpan(L.words);
+    });
+    if (!hasAnyRowSignal && !headerLines.length) return;
+    if (!processedPages.includes(pg.idx)) processedPages.push(pg.idx);
 
-    for (const L of body) {
+    const rightEdges = lines.flatMap(L => L.words.filter(x => x.x0 >= b2).map(x => x.x1)).sort((a,b)=>a-b);
+    const R = rightEdges.length ? rightEdges[Math.floor(rightEdges.length * 0.95)] : pg.w * 0.95;
+
+    for (const L of lines) {
       if (/revision\s*history/i.test(L.text)) { flush(); stop = true; break; }
-      if (/^(prepared\s*by|reviewed\s*by|approved\s*by|authorised\s*by|authorized\s*by)\b/i.test(L.text) && !rowNumberInfo(L.words, w)) continue;
-
-      const ws = L.words;
-      const first = ws[0];
-      const rn = rowNumberInfo(ws, w);
-      const hasNum = !!rn && first.x0 < b1;
-      const col2w = ws.filter(x => x.x0 >= b1 && x.x0 < b2);
+      const ws = L.words || [];
+      if (!ws.length) continue;
+      const rn = rowNumberInfo(ws, pg.w);
+      const hasNum = !!rn && ws[0].x0 < b1;
+      const col2w = ws.filter((x,i) => x.x0 >= b1 && x.x0 < b2 && !(hasNum && i < rn.parts));
       const c3w = ws.filter(x => x.x0 >= b2);
-      const col2 = col2w.map(x => x.t).join(' ');
+      let col2 = col2w.map(x => x.t).join(' ').trim();
 
-      const restText = ws.slice(rn ? rn.parts : 1).map(x => x.t).join(' ');
-      const numTok = /^\d{1,2}\.?$/.test(first.t) && first.x0 < b1;
-      const secKey = first.x0 < b1 && (SECKEY.test(L.text) || (numTok && SECKEY.test(restText)));
-      if (secKey || (numTok && !ROWNUM.test(first.t) && restText && /^[A-Z]/.test(ws[1] ? ws[1].t : '') && c3w.length === 0)) {
-        flush();
-        let title = L.text.replace(/[\s\.:]+$/, '').replace(/^\d{1,2}\.?\s*/, '');
-        title = title.replace(/\s*\/\s*/g, '/ ').replace(/\/ $/, '/').replace(/\s+/g, ' ');
-        const km = title.match(/(general\s*information|functional\/?\s*operational\s*requirements|utility\s*services|validation\s*aspects\/?\s*regulatory\s*requirements|maintenance\s*\/?\s*(?:yearly\s*)?calibration|after\s*sales\s*support)/i);
-        if (km) title = km[1].replace(/\s*\/\s*/g, '/ ').replace(/\/ $/, '/').replace(/\s+/g, ' ');
-        out.push({ type: 'section', title: (++sec) + '. ' + title });
-        continue;
+      if (!col2 && !hasNum && canonicalSpan(ws)) {
+        const span = canonicalSpan(ws);
+        col2 = ws.slice(0, span.end).map(x => x.t).join(' ').trim();
       }
 
-      const labelAnchor = col2 && startsLikeCanon(col2);
+      const labelAnchor = !!col2 && (startsLikeCanon(col2) || !!canonicalSpan(col2w));
+      const genericRowLabel = !!col2 && col2.split(/\s+/).length <= 9 && c3w.length > 0;
+      const isNewLabel = labelAnchor || (genericRowLabel && (!cur || cur.lines.length > 0));
+
       if (hasNum) {
-        if (cur && (cur.num || cur.hasLabel || cur.lines.length)) flush();
-        cur = createCurrent(pg.idx);
-        cur.num = rn.value;
-      } else {
-        const pageBoundaryLabel = !!(cur && cur.page < pg.idx && col2 && cur.hasLabel);
-        const separatedLabel = !!(cur && col2 && cur.hasLabel && cur.lines.length &&
-          cur.lastLabelY != null && (L.y0 - cur.lastLabelY) > typicalLineHeight * 1.55);
-        if (cur && col2 && cur.hasLabel && (labelAnchor || pageBoundaryLabel || separatedLabel)) flush();
+        if (cur && (cur.hasLabel || cur.lines.length)) flush();
+        cur = { num: rn.value, label: [], lines: [], hasLabel: false, page: pg.idx, lastLabelY: null };
+      } else if (cur && col2 && cur.hasLabel && cur.lines.length) {
+        const pageBoundaryLabel = cur.page < pg.idx;
+        const separatedLabel = cur.lastLabelY != null && (L.y0 - cur.lastLabelY) > typicalLineHeight * 1.4;
+        if (labelAnchor || pageBoundaryLabel || separatedLabel) flush();
       }
 
-      if (!cur && (hasNum || col2 || c3w.length)) cur = createCurrent(pg.idx);
+      if (!cur && (hasNum || col2 || c3w.length)) {
+        cur = { num: null, label: [], lines: [], hasLabel: false, page: pg.idx, lastLabelY: null };
+      }
       if (!cur) continue;
+
       if (col2) {
         cur.label.push(col2);
         cur.hasLabel = true;
         cur.lastLabelY = L.y0;
       }
+
       if (c3w.length) {
-        let bullet = false, tw = c3w.slice();
+        let tw = c3w.slice(), bullet = false;
         if (tw.length > 1 && tw[0].t.length === 1 && /^[^A-Za-z0-9\(]$|^[eo©®»«]$/.test(tw[0].t) &&
-            (tw[0].x1 - tw[0].x0) < 0.025 * w && tw[1].x0 - tw[0].x1 < 0.04 * w) { bullet = true; tw = tw.slice(1); }
-        const txt = tw.map(x => x.t).join(' ').replace(/^[\|\-–—_]+\s*/, '');
-        if (txt) cur.lines.push({ text: txt, x1: Math.max(...tw.map(x => x.x1)), bullet, R, w, conf: avgConf(tw) });
+            (tw[0].x1 - tw[0].x0) < 0.025 * pg.w && tw[1].x0 - tw[0].x1 < 0.04 * pg.w) {
+          bullet = true; tw = tw.slice(1);
+        }
+        const txt = tw.map(x => x.t).join(' ').trim();
+        if (txt) cur.lines.push({
+          text: txt, x1: Math.max(...tw.map(x => x.x1)), bullet, R, w: pg.w,
+          conf: avgConf(tw), minConf: tw.some(x=>x.conf!=null) ? Math.min(...tw.map(x=>x.conf==null?100:x.conf)) : null
+        });
+      } else if (col2 && !cur.lines.length && !cur.num) {
+        // A single-column OCR line with a label is retained for review rather than dropped.
+        cur.lines.push({ text: '', x1: col2w.length ? Math.max(...col2w.map(x=>x.x1)) : L.x1, bullet: false, R, w: pg.w, conf: avgConf(col2w), minConf: 100 });
       }
     }
+  };
+
+  for (const pg of pl) {
+    pg.lines.forEach(L => fullText.push(L.text));
+    if (stop || !pg.lines.length) continue;
+
+    const headingIndexes = [];
+    pg.lines.forEach((L, i) => { if (isSectionHeadingLine(L)) headingIndexes.push(i); });
+    let cursor = 0;
+    for (const index of headingIndexes) {
+      if (index > cursor) parseBlock(pg, pg.lines.slice(cursor, index));
+      flush();
+      const headingLine = pg.lines[index];
+      const raw = ONE(headingLine.text).replace(/[\s.:]+$/, '');
+      const numberMatch = raw.match(/^\s*(\d{1,2})[.)]?\s*/);
+      const title = raw.replace(/^\s*\d{1,2}[.)]?\s*/, '').trim();
+      sectionNumber = numberMatch ? Number(numberMatch[1]) : sectionNumber + 1;
+      activeSection = (numberMatch ? numberMatch[1] : String(sectionNumber)) + '. ' + title;
+      out.push({ type: 'section', title: activeSection });
+      cursor = index + 1;
+    }
+    if (cursor < pg.lines.length) parseBlock(pg, pg.lines.slice(cursor));
   }
   flush();
-  return { rows: out, text: fullText.join('\n'), pageCount: pages.length,
-    processedPages, pagesWithContent: processedPages.length, stoppedAtRevisionHistory: stop };
+  return {
+    rows: out, text: fullText.join('\n'), pageCount: pages.length,
+    processedPages, pagesWithContent: processedPages.length,
+    stoppedAtRevisionHistory: stop
+  };
 }
-
-root.CSCore = { NORM, ONE, buildRows, splitLabelValue, cleanLabel, extractMeta, prepHtml, parseDocxDocument, parsePages, estimateColumns, groupLines, snapLabel };
+root.CSCore = { NORM, ONE, buildRows, splitLabelValue, cleanLabel, extractMeta, prepHtml, parseDocxDocument, parsePages, estimateColumns, estimateBlockColumns, groupLines, snapLabel };
 if (typeof module !== 'undefined') module.exports = root.CSCore;
 })(typeof window !== 'undefined' ? window : globalThis);
