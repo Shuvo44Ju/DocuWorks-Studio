@@ -511,13 +511,13 @@ async function extractWithAI(sourceFile){
    let desc=String(item.specification||'').trim();
    const parentRequirement=String(item.parentRequirement||'').trim();
    // Safety net: retain a genuine child hierarchy in the same requirement cell.
-   const parentIsSection=/^(?:[1-5][.)]?\\s*)?(?:general information|functional(?:\\s*\\/\\s*operational)? requirements|utility services|validation aspects|maintenance)/i.test(parentRequirement);
+   const parentIsSection=/^(?:[1-5][.)]?\s*)?(?:general information|functional.*requirements|utility services|validation aspects|maintenance)/i.test(parentRequirement);
    if(parentRequirement&&!parentIsSection&&req&&!req.toLowerCase().startsWith(parentRequirement.toLowerCase())){
     req=parentRequirement+' – '+req;
    }
    // Remove only a duplicate CS category prefix; never strip a real parent label.
    if(sectionTitle&&req.toLowerCase().startsWith(sectionTitle.toLowerCase())){
-    const remainder=req.slice(sectionTitle.length).replace(/^[\\s:|–—-]+/,'').trim();
+    const remainder=req.slice(sectionTitle.length).replace(/^[\s:|–—-]+/,'').trim();
     if(remainder)req=remainder;
    }
    if(!req&&!desc)continue;
@@ -572,7 +572,7 @@ btn.addEventListener('click',async()=>{
   conversionStage='Opening the CS Excel template';
   const workbookStarted=performance.now(),wb=new ExcelJS.Workbook();
   try{await wb.xlsx.load(template)}catch(templateError){throw new Error('The CS Excel template was downloaded but could not be opened. The published template may be corrupted or an old cached copy is being used. Details: '+(templateError.message||templateError));}
-  const title=titleFromText(parsed.text||'',parsed.equipmentName||file.name);
+  const title=titleFromText(parsed.text||'',file.name);
   conversionStage='Filling the CS template with extracted requirements';
   CSBuilder.fillTemplate(wb,{title:'CS File of '+title,sheets});
   setStatus(97,'Building the formatted CS workbook…');
