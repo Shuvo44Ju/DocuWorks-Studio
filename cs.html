@@ -277,6 +277,21 @@ async function extractWithAI(sourceFile){
   form.append('documentHtml',res.value);
  }else throw new Error('Please upload a PDF or DOCX file.');
  diagnostics.documentPreparationMs=Math.round(performance.now()-preparationStarted);
+
+ // Verify the endpoint from this page's actual origin before uploading a document.
+ // Opening the Worker URL directly in a new tab does not test cross-origin CORS.
+ conversionStage='Checking the Cloudflare AI connection';
+ setStatus(22,'Checking the Cloudflare AI connection…');
+ let healthResponse,healthData;
+ try{
+  healthResponse=await fetch(endpoint,{method:'GET',mode:'cors',credentials:'omit',cache:'no-store'});
+  healthData=await healthResponse.json();
+ }catch(healthError){
+  throw new Error('The CS Converter cannot reach the Cloudflare Worker from this page. '+(healthError?.name||'NetworkError')+': '+(healthError?.message||healthError)+' Endpoint: '+endpoint);
+ }
+ if(!healthResponse.ok||!healthData?.configured){
+  throw new Error('The Cloudflare Worker responded, but its AI binding is not ready. HTTP '+healthResponse.status+'. '+String(healthData?.error||'AI binding status is false or missing.'));
+ }
  conversionStage='Sending the prepared document to Cloudflare AI';
  setStatus(25,'Uploading source pages to Cloudflare Workers AI…');
  const controller=new AbortController();
@@ -312,22 +327,16 @@ async function extractWithAI(sourceFile){
   }
   diagnostics.requestRoundTripMs=Math.round(performance.now()-roundTripStarted);
  }catch(e){
-  // Chromium can surface a missing remote resource as NotFoundError. The
-  // converter already has a complete local parser, so keep conversion usable
-  // instead of failing the whole workbook generation.
-  if(e&&e.name==='NotFoundError'){
-   console.warn('Cloudflare AI endpoint remained unavailable after retry; using local extraction fallback.',e);
-   try{
-    return await extractLocallyWhenQuotaIsExhausted(sourceFile);
-   }catch(fallbackError){
-    if(fallbackError&&fallbackError.name==='NotFoundError'){
-     throw new Error('The Cloudflare AI Worker could not be reached, and the local fallback also hit a missing browser resource. Please refresh this page with Ctrl+Shift+R and retry. If it still fails, the Cloudflare Worker deployment is the remaining issue.');
-    }
-    throw fallbackError;
-   }
-  }
   if(e&&e.name==='AbortError')throw new Error('Cloudflare AI did not finish within 3 minutes. Try a smaller PDF (fewer pages or lower scan resolution) and retry. No Excel file was generated.');
-  throw new Error('Could not connect to Cloudflare Workers AI. Check the Worker deployment and retry.');
+  // Do not silently switch to the local parser after a browser/network exception.
+  // The local fallback can fail for unrelated PDF/OCR reasons and hide the real
+  // POST problem. The GET health check above already verifies the Worker + CORS.
+  const requestErrorName=String(e?.name||'NetworkError');
+  const requestErrorMessage=String(e?.message||e||'Unknown request error');
+  console.error('Cloudflare Worker POST request failed after health check:',{
+   endpoint,origin:location.origin,name:requestErrorName,message:requestErrorMessage,stack:e?.stack||''
+  });
+  throw new Error('The Cloudflare Worker health check passed, but the document-upload request failed in the browser. '+requestErrorName+': '+requestErrorMessage+' Endpoint: '+endpoint);
  }finally{
   if(progressTimer)clearInterval(progressTimer);
   if(timeoutTimer)clearTimeout(timeoutTimer);
