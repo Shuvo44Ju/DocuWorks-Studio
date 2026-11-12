@@ -457,12 +457,15 @@ function estimateBlockColumns(lines, pageWidth) {
   } else if (canonical.length) {
     labelStart = med(canonical.map(x => x.label));
     const descValues = canonical.filter(x => x.desc != null).map(x => x.desc);
-    descStart = descValues.length ? med(descValues) : null;
+    // In a description column, cell text may be indented or right-aligned.
+    // Use the leftmost clear description start in this block as the safe divider;
+    // a later start in another row must not push the boundary through real text.
+    descStart = descValues.length ? Math.min(...descValues) : null;
     source = 'canonical-labels-in-block';
   }
 
   if (labelStart == null && lineStarts.length) labelStart = med(lineStarts);
-  if (descStart == null && gapStarts.length) descStart = med(gapStarts);
+  if (descStart == null && gapStarts.length) descStart = Math.min(...gapStarts);
 
   // One-page / partial URS files often omit the Sl. No. column and its header.
   // Infer the two content columns from repeated label starts and the gaps in this block only.
