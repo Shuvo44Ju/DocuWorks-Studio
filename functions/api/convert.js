@@ -479,7 +479,7 @@ export async function onRequestGet({request,env}) {
     architecture:"Mixture of Experts (4B active parameters)",
     reasoningEffort:"medium",
     diagnostic:{
-      build:"cs-accuracy-flat-rows-ocr-hints-20261112",
+      build:"cs-accuracy-flat-cs-v2-20261112",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
