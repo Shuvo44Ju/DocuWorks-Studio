@@ -754,7 +754,7 @@ async function createCsWorkbook(){
  const warnings=Array.isArray(pendingParsed.warnings)?pendingParsed.warnings.map(x=>String(x||'').trim()).filter(Boolean):[];
  const findings=[];
  if(warnings.length)findings.push('Source findings: '+warnings.join(' | '));
- if(reviewRows.length)findings.push('Unreadable / uncertain cells: '+reviewRows.map(r=>(r.req||r.requirementId||'Unlabelled point')+(r.loc?' ('+r.loc+')':'')).join('; '));
+ if(reviewRows.length)findings.push('Unreadable / uncertain cells: '+reviewRows.map(r=>(r.req||r.requirementId||'Unlabelled point')+(r.loc?' ('+r.loc+')':'')+(r.reviewReason?': '+r.reviewReason:' — verify against the source')).join('; '));
  if(!findings.length)findings.push('No OCR correction, missing page or unreadable cell was reported by the extractor.');
  rowReviewNote.textContent='After-export source check:\n'+findings.join('\n');
  setStatus(100,'Downloaded '+CSBuilder.getFilename(model)+'. '+total+' requirement row(s); '+reviewRows.length+' flagged for review. See the source findings below the section list.');
