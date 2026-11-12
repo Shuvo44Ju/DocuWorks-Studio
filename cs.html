@@ -538,7 +538,14 @@ async function extractWithAI(sourceFile){
  }
  const actual=rows.filter(r=>r.type==='row').length;
  if(actual<1)throw new Error('AI extraction returned no requirement rows. No Excel file was generated.');
- const metadata=[data.equipmentName,data.ursNumber,data.referenceDocumentNumber,data.version,data.department].filter(Boolean).join('\n');
+ const metadata=[
+  data.equipmentName ? 'Equipment Name: '+data.equipmentName : '',
+  data.title ? 'Document Title: '+data.title : '',
+  data.ursNumber ? 'URS No: '+data.ursNumber : '',
+  data.referenceDocumentNumber ? 'Ref. Doc No: '+data.referenceDocumentNumber : '',
+  data.version ? 'Version: '+data.version : '',
+  data.department ? 'User Department: '+data.department : ''
+ ].filter(Boolean).join('\n');
  diagnostics.responseProcessingMs=Math.round(performance.now()-responseParseStarted-diagnostics.responseJsonMs);
  console.info('DocuWorks conversion timing (ms)',diagnostics);
  return {
