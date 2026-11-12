@@ -291,10 +291,11 @@ async function handlePost({ request, env }) {
         {role:"system",content:SYSTEM_PROMPT},
         {role:"user",content:userContent}
       ],
-      // Ask the model runtime to enforce valid JSON instead of relying on prompt wording.
-      response_format:{type:"json_object"},
-      // Allow longer URS documents to finish their extraction without truncating the JSON.
-      max_completion_tokens:10000,
+      // Gemma 4 is not listed among Cloudflare's currently supported JSON Mode
+      // models, so do not send response_format here. The extraction prompt and
+      // the defensive JSON parser below enforce the response shape instead.
+      // Use the Workers AI option name supported by the binding.
+      max_tokens:10000,
       temperature:0.1,
       top_p:0.9,
       // Gemma 4 has a built-in thinking channel. Disable it so the token
@@ -325,6 +326,9 @@ async function handlePost({ request, env }) {
     if (/daily free allocation|neurons|quota/i.test(msg)) return jsonResponse({
       error:"The Cloudflare AI free daily allowance has been used. Please try again after the daily quota resets (00:00 UTC)."
     },429,origin);
+    if (/not.?found|model.*not.*found|unknown model|does not exist/i.test(msg)) return jsonResponse({
+      error:"The configured Cloudflare Workers AI model could not be found by the deployed Worker. The model ID is currently configured as " + MODEL + ". Please redeploy the latest Worker so the current AI binding and model configuration are used."
+    },502,origin);
     if (/model agreement|5016|acceptable use|license/i.test(msg)) return jsonResponse({
       error:"Cloudflare requires acceptance of the model's license and acceptable-use policy before first use. Please review the model terms in Cloudflare Workers AI and retry."
     },403,origin);
