@@ -278,12 +278,31 @@ async function renderPdfPagesForAI(sourceFile){
  for(let n=1;n<=pdf.numPages;n++){
   setStatus(8+Math.round((n/pdf.numPages)*12),'Preparing PDF page '+n+' of '+pdf.numPages+' for AI vision…');
   conversionStage='Rendering PDF page '+n+' of '+pdf.numPages;
-  const page=await pdf.getPage(n),viewport=page.getViewport({scale:1.3});
+  const page=await pdf.getPage(n);
+  // Keep the PDF's embedded text layer as a second, searchable source of truth.
+  // Coordinates help the model associate text with the correct table columns.
+  const textContent=await page.getTextContent();
+  const positioned=(textContent.items||[]).filter(item=>item.str&&item.str.trim()).map(item=>{
+   const tx=pdfjsLib.Util.transform(page.getViewport({scale:1}).transform,item.transform);
+   return {text:item.str.trim(),x:Math.round(tx[4]),y:Math.round(tx[5])};
+  }).sort((a,b)=>Math.abs(b.y-a.y)>3?b.y-a.y:a.x-b.x);
+  const textLines=[];
+  for(const item of positioned){
+   let line=textLines.find(row=>Math.abs(row.y-item.y)<=3);
+   if(!line){line={y:item.y,items:[]};textLines.push(line);}
+   line.items.push(item);
+  }
+  const pageText=textLines.sort((a,b)=>b.y-a.y).map(line=>
+   line.items.sort((a,b)=>a.x-b.x).map(item=>'['+item.x+'] '+item.text).join(' | ')
+  ).join('\\n').slice(0,45000);
+  // Render at higher resolution and JPEG quality so small table text, units,
+  // decimal points and tolerance symbols remain legible to the vision model.
+  const viewport=page.getViewport({scale:2});
   const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{alpha:false});
   canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
-  await page.render({canvasContext:ctx,viewport}).promise;
-  const image=canvas.toDataURL('image/jpeg',0.72);
-  pages.push({page:n,image});
+  await page.render({canvasContext:ctx,viewport,background:'rgb(255,255,255)'}).promise;
+  const image=canvas.toDataURL('image/jpeg',0.9);
+  pages.push({page:n,image,text:pageText});
   canvas.width=1;canvas.height=1;
   page.cleanup();
  }
