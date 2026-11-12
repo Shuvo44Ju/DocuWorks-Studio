@@ -256,7 +256,7 @@ async function handlePost({ request, env }) {
     description += "The user supplied " + pageImages.length + " rendered PDF page images plus any embedded PDF text layer. Read every page in order. Use the image as the visual authority for layout and the embedded text as a transcription aid. Reconcile differences; never silently omit text that is visible in the image.";
     userContent.push({type:"text",text:description});
     for (const p of pageImages) {
-      userContent.push({type:"text",text:"SOURCE PDF PAGE " + p.page + (p.text ? "\\nPOSITIONED EMBEDDED TEXT (x-coordinates in PDF points; use to verify small text and exact values, but preserve visual row/column alignment):\\n" + String(p.text).slice(0,45000) : "\\nNo embedded text layer was available; read the page image carefully.")});
+      userContent.push({type:"text",text:"SOURCE PDF PAGE " + p.page + (p.text ? "\nPOSITIONED EMBEDDED TEXT (x-coordinates in PDF points; use to verify small text and exact values, but preserve visual row/column alignment):\\n" + String(p.text).slice(0,45000) : "\nNo embedded text layer was available; read the page image carefully.")});
       userContent.push({type:"image_url",image_url:{url:p.image}});
     }
   } else if (extension === "docx") {
@@ -272,7 +272,10 @@ async function handlePost({ request, env }) {
     "Preserve source order, exact wording, values, units, tolerances, inequality signs, decimal places, ranges, punctuation and table row associations. Distinguish requirement labels from their descriptions/acceptance criteria using the actual table columns. " +
     "Separate every distinct labeled parameter:value pair into its own requirement object, even when several pairs appear in one source cell and are separated by semicolons or line breaks. Do not combine multiple parameters into one specification. Keep a compound value such as L: 140±20, W: 400±20 together under its Platform Size parameter. " +
     "Return ONLY one JSON object matching this schema exactly; do not add markdown fences or commentary. " +
-    "If uncertain, preserve the source text and set reviewRequired=true. Never invent data.\n\n" +
+    "If uncertain, preserve the closest verbatim source wording, set reviewRequired=true, and explain the specific ambiguity. Do not fill gaps from general knowledge. " +
+    "Before returning, cross-check that each visible substantive table row is represented exactly once and that no values have moved between rows or columns. " +
+    "For a numbered parent requirement with multiple child parameters, set parentRequirement to the exact parent text, parameterized=true, and put only each child label in requirement. Do not combine sibling parameters. For a single standalone requirement, parameterized=false and leave parentRequirement empty. " +
+    "sourceQuote must be a short verbatim excerpt supporting that exact pair; sourcePages must identify its actual page. Confidence must reflect legibility and association accuracy, not guesswork.\n\n" +
     "JSON schema:\n" + JSON.stringify(OUTPUT_SCHEMA);
   userContent[0].text += prompt;
   const inputPreparedAt = Date.now();
