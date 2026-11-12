@@ -59,7 +59,7 @@
 <section id="row-review-panel" class="hidden rounded-xl border border-slate-200 bg-white p-4 space-y-3">
  <div><h2 id="row-review-title" class="text-sm font-bold text-slate-800">Detected requirements</h2><p id="row-review-summary" class="text-xs text-slate-600 mt-1"></p></div>
  <div id="row-review-content" class="space-y-3 max-h-[520px] overflow-y-auto"></div>
- <p id="row-review-note" class="text-xs text-slate-500"></p>
+ <p id="row-review-note" class="text-xs text-slate-500 whitespace-pre-line"></p>
 </section>
 <div id="progress-container" class="hidden rounded-xl border border-blue-100 bg-blue-50/50 p-4 space-y-3">
  <div class="flex items-center justify-between gap-3"><span class="text-sm font-semibold text-slate-700">Conversion progress</span><strong id="progress-percent" class="text-sm font-bold text-blue-700 tabular-nums">0%</strong></div>
@@ -75,7 +75,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-<script src="./core.js?v=cs-accuracy-20261112"></script><script src="./builder.js?v=claude-flat-cs-output-v1-20261112"></script><script src="./ai-config.js?v=cloudflare-endpoint-20261112"></script>
+<script src="./core.js?v=cs-partial-scan-block-columns-20261112-v2"></script><script src="./builder.js?v=cs-vendor-sheet-format-20261112-v2"></script><script src="./ai-config.js?v=cloudflare-endpoint-20261112"></script>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -460,7 +460,7 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
  if(!healthResponse.ok||!healthData?.configured){
   throw new Error('The Cloudflare Worker responded, but its AI binding is not ready. HTTP '+healthResponse.status+'. '+String(healthData?.error||'AI binding status is false or missing.'));
  }
- const expectedWorkerBuild='cs-partial-scan-cs-format-20261112-v2';
+ const expectedWorkerBuild='cs-partial-scan-cs-format-20261112-v3';
  const liveWorkerBuild=String(healthData?.diagnostic?.build||'');
  if(liveWorkerBuild!==expectedWorkerBuild){
   throw new Error('The AI service has not received the latest CS extraction update. Live Worker build: '+(liveWorkerBuild||'unknown')+'. Required build: '+expectedWorkerBuild+'. No workbook was generated. The Cloudflare Worker must be deployed from the latest GitHub main branch before conversion can continue.');
@@ -617,24 +617,40 @@ function escapeReviewText(value){
 }
 function renderRowsReview(parsed,kind){
  const groups=groupsFromParsed(parsed);
- const total=groups.reduce((n,g)=>n+g.rows.length,0);
- const reviewCount=groups.reduce((n,g)=>n+g.rows.filter(r=>r.review).length,0);
+ const allRows=groups.flatMap(group=>group.rows);
+ const total=allRows.length;
+ const reviewRows=allRows.filter(row=>row.review);
+ const warnings=Array.isArray(parsed?.warnings)?parsed.warnings.map(x=>String(x||'').trim()).filter(Boolean):[];
  rowReviewTitle.textContent=kind==='ai'?'Extracted rows by URS section':'Preliminary OCR rows by URS section';
- rowReviewSummary.textContent=total+' row(s) found in '+groups.length+' section(s)'+(reviewCount?' · '+reviewCount+' flagged for review':'')+'.';
- rowReviewNote.textContent=kind==='ai'
-  ?'Check the section titles and row counts before creating the Excel workbook. Vendor columns will remain blank.'
-  :'Preliminary OCR count only. OCR candidates are not used as final CS output; the AI will verify the source and produce the final row list.';
+ rowReviewSummary.textContent=total+' row(s) found in '+groups.length+' section(s)'+(reviewRows.length?' · '+reviewRows.length+' flagged for review':'')+'.';
+ if(kind==='ai'){
+  const findings=[];
+  if(warnings.length)findings.push('Source findings: '+warnings.join(' | '));
+  if(reviewRows.length){
+   findings.push('Unreadable / uncertain cells to check: '+reviewRows.map(row=>{
+    const label=row.requirementId||row.req||row.id||'Unlabelled point';
+    const location=row.loc?' ('+row.loc+')':'';
+    const reason=row.reviewReason?': '+row.reviewReason:'';
+    return label+location+reason;
+   }).join(' ; '));
+  }else{
+   findings.push('No unreadable or uncertain cell was flagged by the extractor. This does not replace checking the original URS.');
+  }
+  rowReviewNote.textContent='Review the section counts and source points before creating the workbook. Vendor columns will remain blank.\n\n'+findings.join('\n\n');
+ }else{
+  rowReviewNote.textContent='Preliminary OCR count only. OCR candidates are not used as final CS output; the AI will verify the source and produce the final row list.';
+ }
  if(!total){
   rowReviewContent.innerHTML='<p class="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">No structured rows were detected by local OCR. The AI will still inspect the page images and embedded text.</p>';
  }else{
   rowReviewContent.innerHTML=groups.map((group,i)=>{
-   const items=group.rows.map((row,j)=>{
+   const items=group.rows.map(row=>{
     const label=row.requirementId||row.req||row.id||'Unlabelled point';
     const priority=row.priority?' <span class="text-slate-500">[Priority '+escapeReviewText(row.priority)+']</span>':'';
     const review=row.review?' <span class="font-bold text-amber-700">· Review</span>':'';
     return '<li class="py-1 text-xs text-slate-700"><div class="font-semibold">'+escapeReviewText(label)+priority+review+'</div><div class="whitespace-pre-wrap text-slate-600">'+escapeReviewText(row.desc||'')+'</div></li>';
    }).join('');
-   return '<details '+(i<6?'open':'')+' class="overflow-hidden rounded-lg border border-slate-200"><summary class="cursor-pointer bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800">'+escapeReviewText(group.title)+' <span class="font-semibold text-slate-500">('+group.rows.length+')</span></summary><ol class="list-decimal space-y-1 py-2 pl-8 pr-3">'+items+'</ol></details>';
+   return '<details '+(i<6?'open':'')+' class="overflow-hidden rounded-lg border border-slate-200"><summary class="cursor-pointer bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800">'+escapeReviewText(group.title)+' <span class="font-semibold text-slate-500">('+group.rows.length+' rows)</span></summary><ol class="list-decimal space-y-1 py-2 pl-8 pr-3">'+items+'</ol></details>';
   }).join('');
  }
  rowReviewPanel.classList.remove('hidden');
@@ -726,8 +742,15 @@ async function createCsWorkbook(){
  a.href=url;a.download=CSBuilder.getFilename(model);
  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
  const total=(pendingParsed.sheets||[]).flatMap(s=>s.rows||[]).filter(r=>r.type==='row').length;
- const reviewCount=(pendingParsed.sheets||[]).flatMap(s=>s.rows||[]).filter(r=>r.type==='row'&&r.review).length;
- setStatus(100,'Completed: '+total+' requirement row(s) exported; '+reviewCount+' flagged for source review. Check the review notes against the URS.');
+ const exportedRows=(pendingParsed.sheets||[]).flatMap(s=>s.rows||[]).filter(r=>r.type==='row');
+ const reviewRows=exportedRows.filter(r=>r.review);
+ const warnings=Array.isArray(pendingParsed.warnings)?pendingParsed.warnings.map(x=>String(x||'').trim()).filter(Boolean):[];
+ const findings=[];
+ if(warnings.length)findings.push('Source findings: '+warnings.join(' | '));
+ if(reviewRows.length)findings.push('Unreadable / uncertain cells: '+reviewRows.map(r=>(r.req||r.requirementId||'Unlabelled point')+(r.loc?' ('+r.loc+')':'')).join('; '));
+ if(!findings.length)findings.push('No OCR correction, missing page or unreadable cell was reported by the extractor.');
+ rowReviewNote.textContent='After-export source check:\n'+findings.join('\n');
+ setStatus(100,'Downloaded '+CSBuilder.getFilename(model)+'. '+total+' requirement row(s); '+reviewRows.length+' flagged for review. See the source findings below the section list.');
  workflowStep='done';
  btn.textContent='Create Another CS File';
  setReady(true);
