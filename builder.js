@@ -1,316 +1,237 @@
-/* Template-preserving CS writer. ExcelJS API (identical in browser and Node). */
+/* Builds the exact CS Vendor Feedback workbook layout. */
 (function (root) {
 'use strict';
-const clone = o => JSON.parse(JSON.stringify(o || {}));
-const FIRST_BODY_ROW = 8;               // verified: rows 1-7 are title, header, vendor block in CS.xlsx
-
-function readPrototypes(ws) {
-  return {
-    section: [1, 2, 3].map(c => clone(ws.getCell(8, c).style)),    // row 8  = merged section row (fill D9E1F2)
-    body:    [1, 2, 3].map(c => clone(ws.getCell(9, c).style)),    // row 9  = ordinary requirement row
-  };
+function cleanSheetName(value) {
+  const base = String(value || 'Equipment').replace(/[\\\/?*\[\]:]/g, ' ').replace(/\s+/g, ' ').trim() || 'Equipment';
+  return ('CS-' + base).slice(0,31);
 }
+function safeFilenamePart(value) {
+  return String(value || '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g,' ').trim().replace(/[. ]+$/,'');
+}
+function makeBanner(model) {
+  const parts = [];
+  if (model.equipmentName) parts.push('CS File of ' + model.equipmentName);
+  else parts.push('CS File');
+  if (model.department) parts[0] += ' – ' + model.department;
+  if (model.ursNumber) parts[0] += '  |  ' + model.ursNumber;
+  return parts.join('');
+}
+function setFont(range, options) {
+  range.font = Object.assign({ name: 'Arial' }, options || {});
+}
+function addMergedText(ws, range, text, style) {
+  ws.mergeCells(range);
+  const cell = ws.getCell(range.split(':')[0]);
+  cell.value = text;
+  if (style) Object.assign(cell, style);
+  return cell;
+}
+function setTopBlock(ws, model, lastCol) {
+  const lastLetter = lastCol === 5 ? 'E' : 'D';
+  addMergedText(ws, 'A1:' + lastLetter + '1', makeBanner(model), {
+    font: { name: 'Arial', size: 13, bold: true, color: { argb: 'FFFFFFFF' } },
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } },
+    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true }
+  });
+  ws.getRow(1).height = 28;
 
-function fillTemplate(wb, model) {
-  // model: { title, sheets:[{layout, rows:[{type:'section'|'row'|'sw', ...}]}] }
-  const ws = wb.getWorksheet('CS');
-  if (!ws) throw new Error("Template worksheet 'CS' not found");
-  const proto = readPrototypes(ws);
-
-  // 1) title: only A1 text changes (A1:C1 stays merged and styled)
-  ws.getCell('A1').value = model.title;
-
-  // 2) clear the skeleton below the vendor block (rows >= 8): un-merge, wipe values and styles
-  ws.model.merges.slice().forEach(m => { const r = parseInt(String(m).match(/\d+/)[0], 10); if (r >= FIRST_BODY_ROW) ws.unMergeCells(m); });
-  const last = Math.max(ws.rowCount, 71);
-  for (let r = FIRST_BODY_ROW; r <= last; r++) { const row = ws.getRow(r); row.height = undefined; for (let c = 1; c <= 4; c++) { const cell = row.getCell(c); cell.value = null; cell.style = {}; } }
-
-  // 3) write rows  (column A = the point's own headline; the URS requirement becomes a sub-heading row when it has 2+ labelled points)
-  let r = FIRST_BODY_ROW;
-  const sectionRow = t => { const row = ws.getRow(r); [1, 2, 3].forEach(c => { row.getCell(c).style = clone(proto.section[c - 1]); }); row.getCell(1).value = t; ws.mergeCells(r, 1, r, 3); r++; };
-  // Normalize only the text written into Requirement (A) and Description (B).
-  const stripNum = value => String(value == null ? '' : value)
-    .replace(/^\s*(?:\d{1,3}(?:\.\d{1,3})+[.)]?|\d{1,3}[.)])\s+/, '');
-  const tidy = value => stripNum(value)
-    .replace(/\.\s*\/\s*/g, '/')
-    .replace(/[\s.:]+$/, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  const isMarker = value => /^(?:\([A-Za-z0-9]{1,3}\)|[A-Za-z][.)]|\(?[ivx]{1,4}\)?[.)]?|\d{1,3}[.)]|[•\-–—*])$/i.test(String(value || '').trim());
-  const isSentence = value => {
-    const text = String(value || '').trim();
-    return text.split(/\s+/).filter(Boolean).length > 10 ||
-      /[.!?]$/.test(text) ||
-      /\b(?:shall|should|must|will|would|can|may|is|are|was|were|has|have|had)\b/i.test(text);
-  };
-  const requirementText = (fallback, source) => {
-    const parent = source && (source.parentDisplay || source.parentRequirement || source.parent || '') || '';
-    const isChild = Boolean(source && (source.parentDisplay || source.parameterized));
-    // A child row must never fall back to its parent or to an uncleaned raw
-    // requirement. Check every possible label source through the same guard.
-    const candidates = source
-      ? [fallback, source.label, source.group, source.req]
-      : [fallback];
-    let label = '';
-    for (const candidate of candidates) {
-      const raw = String(candidate == null ? '' : candidate).trim();
-      const cleaned = stripParentPrefix(tidy(raw), parent);
-      if (!cleaned || isMarker(raw) || isSentence(cleaned) ||
-          (parent && cleaned.toLowerCase() === tidy(parent).toLowerCase())) continue;
-      label = cleaned;
-      break;
-    }
-    // For a child, blank is safer than accidentally writing the parent title
-    // into Column A. The merged parent heading is written separately.
-    const result = isChild ? label : tidy(label || (source && source.req) || '');
-    return isMarker(result) ? '' : result;
-  };
-  const removeLeadingListMarker = value => {
-    if (typeof value !== 'string') return value;
-    return value.replace(/^\s*(?:\([A-Za-z0-9]{1,3}\)|[A-Za-z][.)]|[ivx]{1,4}[.)]|\d{1,3}[.)]|[•·●○◦▪■□◆◇❖➢➤➔►▶◊*]|[-–—])\s+/, '');
-  };
-  const isRealLabel = (value, parent) => {
-    const raw = String(value == null ? '' : value).trim();
-    const cleaned = tidy(raw);
-    if (!cleaned || isMarker(raw) || isSentence(raw) ||
-        cleaned.toLowerCase() === tidy(parent).toLowerCase() ||
-        cleaned.split(/\s+/).filter(Boolean).length > 10) return '';
-    return cleaned;
-  };
-  const labelledPairs = value => {
-    const text = String(value == null ? '' : value).trim();
-    if (!text) return [];
-    // Semicolons and label-led new lines are the only split boundaries.
-    // Commas and additional colons inside a value remain untouched.
-    const parts = text.split(/;\s*|\r?\n(?=[^:\r\n]{2,90}\s*:)/)
-      .map(part => part.trim()).filter(Boolean);
-    const pairs = parts.map(part => {
-      const colon = part.indexOf(':');
-      if (colon < 2) return null;
-      const firstLabel = isRealLabel(part.slice(0, colon), '');
-      const firstValue = part.slice(colon + 1).trim();
-      if (firstLabel && firstValue) return { label: firstLabel, specification: firstValue };
-
-      // A sentence-like introduction may precede a real pair in the same
-      // cell, such as "The room ... environment: Room temperature: NMT 25°C".
-      // Discard only that non-label introduction and retain the actual pair.
-      const nestedColon = firstValue.indexOf(':');
-      if (nestedColon > 1) {
-        const nestedLabel = isRealLabel(firstValue.slice(0, nestedColon), '');
-        const nestedValue = firstValue.slice(nestedColon + 1).trim();
-        if (nestedLabel && nestedValue) return { label: nestedLabel, specification: nestedValue };
-      }
-      return null;
+  addMergedText(ws, 'A2:' + lastLetter + '2',
+    'VENDOR FEEDBACK SHEET AGAINST USER REQUIREMENT SPECIFICATION (URS)', {
+      font: { name: 'Arial', size: 12, bold: true, color: { argb: 'FF1F4E78' } },
+      alignment: { horizontal: 'center', vertical: 'middle', wrapText: true }
     });
-    return pairs.length && pairs.every(Boolean) ? pairs : [];
-  };
-  const parentInfo = source => {
-    if (!source) return { title: '', key: '' };
-    const explicitParent = source.parentRequirement || source.parent || '';
-    // In the AI output, req may be the numbered requirement while parent is
-    // only the broader document section. Use the explicit parent for known
-    // child rows, otherwise use the row's own requirement name.
-    const rawTitle = source.parameterized || source.label || source.group
-      ? (explicitParent || source.req || '')
-      : (source.req || explicitParent || '');
-    const title = tidy(rawTitle);
-    const numberSource = String(rawTitle || '');
-    const number = numberSource.match(/^\s*(\d{1,3}(?:\.\d{1,3})+)[.)]?\s+/);
-    return { title, key: number ? 'number:' + number[1] : 'title:' + title.toLowerCase() };
-  };
-  const rowParent = source => source && source.parentDisplay || parentInfo(source).title;
-  const rowParentKey = source => source && source.parentKey || parentInfo(source).key;
-  const stripParentPrefix = (label, parent) => {
-    let child = tidy(label);
-    const parentText = tidy(parent);
-    if (!child || !parentText) return child;
-    // Strip repeated parent prefixes and common hierarchy separators. This
-    // rule is generic and does not depend on any particular URS heading.
-    const separators = ' \t.:/\\|>→–—-';
-    while (child.toLowerCase().startsWith(parentText.toLowerCase())) {
-      const remainder = child.slice(parentText.length);
-      if (remainder && !separators.includes(remainder[0])) break;
-      let offset = 0;
-      while (offset < remainder.length && separators.includes(remainder[offset])) offset++;
-      child = remainder.slice(offset).trim();
-      if (!child) return '';
-    }
-    return child;
-  };
-  const rowLabel = source => {
-    if (!source) return '';
-    const parent = source.parentDisplay || source.parentRequirement || source.parent || parentInfo(source).title;
-    return stripParentPrefix(
-      isRealLabel(source.label, parent) || isRealLabel(source.group, parent) || '',
-      parent
-    );
-  };
-  const prepareRows = inputRows => {
-    const output = [];
-    const rows = inputRows || [];
-    const hierarchyPrefix = source => {
-      if (!source || source.type !== 'row' || source.flattenHierarchy || source.parameterized ||
-          source.parentDisplay || source.parentRequirement || source.label || source.group) return null;
-      const raw = String(source.req || '').trim();
-      const match = raw.match(/^(.+?)(?:\s+[-–—]|\s*[→>|]|\.)\s+(.+)$/);
-      if (!match) return null;
-      const parent = tidy(match[1]);
-      const child = isRealLabel(match[2], parent);
-      if (!parent || !child || parent.split(/\s+/).length > 12) return null;
-      return {
-        parent,
-        child,
-        key: parent.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
-      };
+  ws.getRow(2).height = 24;
+
+  const info = [
+    ['Equipment Name', model.equipmentName],
+    ['URS No.', model.ursNumber],
+    ['Ref. Doc. No.', model.referenceDocumentNumber],
+    ['Version No.', model.version],
+    ['Department', model.department]
+  ].filter(pair => String(pair[1] || '').trim());
+
+  let row = 3;
+  for (const [label, value] of info) {
+    ws.mergeCells('A' + row + ':B' + row);
+    ws.mergeCells('C' + row + ':' + lastLetter + row);
+    ws.getCell('A' + row).value = label;
+    ws.getCell('C' + row).value = value;
+    setFont(ws.getCell('A' + row), { size: 10, bold: true, color: { argb: 'FF333333' } });
+    setFont(ws.getCell('C' + row), { size: 10, color: { argb: 'FF333333' } });
+    ws.getRow(row).height = 19;
+    row++;
+  }
+  row++;
+  const instruction = 'Instructions to Vendor: Review each requirement and fill in the Vendor Compliance (\'Comply\' / \'Partial Comply\' / \'Not Comply\') and the Vendor Remarks / Deviation & Justification column.';
+  const instructionCell = addMergedText(ws, 'A' + row + ':' + lastLetter + row, instruction, {
+    font: { name: 'Arial', size: 9, italic: true, color: { argb: 'FF777777' } },
+    alignment: { horizontal: 'left', vertical: 'middle', wrapText: true }
+  });
+  instructionCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+  ws.getRow(row).height = 32;
+  return row + 2;
+}
+function styleHeader(ws, row, labels, lastCol) {
+  labels.forEach((label, i) => {
+    const cell = ws.getCell(row, i + 1);
+    cell.value = label;
+    cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFB7B7B7' } },
+      left: { style: 'thin', color: { argb: 'FFB7B7B7' } },
+      bottom: { style: 'thin', color: { argb: 'FFB7B7B7' } },
+      right: { style: 'thin', color: { argb: 'FFB7B7B7' } }
     };
-    const makeChild = (source, parent, child, key) => ({
-      ...source,
-      req: child,
-      label: child,
-      group: '',
-      parent,
-      parentDisplay: parent,
-      parentRequirement: parent,
-      parentKey: 'inferred:' + key,
-      parameterized: true
-    });
-    const isContinuationPair = source => {
-      if (!source || source.type !== 'row' || source.parameterized ||
-          source.parentDisplay || source.parentRequirement || source.label || source.group) return false;
-      const label = tidy(source.req || '');
-      const value = String(source.desc == null ? '' : source.desc).trim();
-      const words = value.split(/\s+/).filter(Boolean);
-      if (!label || !value || label.split(/\s+/).length > 7 || words.length > 10) return false;
-      if (/\b(shall|should|must|will|would|can|may|is|are|was|were|has|have|had|ensures?|requires?|provides?)\b/i.test(value)) return false;
-      return true;
+  });
+  ws.getRow(row).height = 36;
+  return row;
+}
+function styleBodyRow(ws, row, lastCol, isReview) {
+  for (let col = 1; col <= lastCol; col++) {
+    const cell = ws.getCell(row, col);
+    cell.font = { name: 'Arial', size: 10, color: { argb: 'FF222222' } };
+    cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFB7B7B7' } },
+      left: { style: 'thin', color: { argb: 'FFB7B7B7' } },
+      bottom: { style: 'thin', color: { argb: 'FFB7B7B7' } },
+      right: { style: 'thin', color: { argb: 'FFB7B7B7' } }
     };
-
-    // Some AI responses flatten a hierarchy into repeated "Parent - Child"
-    // requirement strings. Rebuild the parent only when the same prefix is
-    // repeated in at least two adjacent rows, so ordinary hyphenated labels
-    // remain untouched.
-    for (let i = 0; i < rows.length;) {
-      const first = hierarchyPrefix(rows[i]);
-      if (!first) {
-        output.push(rows[i]);
-        i++;
+  }
+  if (isReview) {
+    ws.getCell(row, 1).font = { name: 'Arial', size: 10, color: { argb: 'FF9C6500' }, bold: true };
+  }
+}
+function sectionRow(ws, row, title, lastCol) {
+  const lastLetter = lastCol === 5 ? 'E' : 'D';
+  ws.mergeCells('A' + row + ':' + lastLetter + row);
+  const cell = ws.getCell(row, 1);
+  cell.value = title;
+  cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF222222' } };
+  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
+  cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+  ws.getRow(row).height = 20;
+}
+function writeStandardBody(ws, startRow, model) {
+  let row = startRow;
+  sectionRow(ws, row++, 'Vendor / Product Information', 4);
+  for (const label of ['Manufacturer', 'Local Agent', 'Origin', 'Model']) {
+    ws.getCell(row, 1).value = label;
+    ws.getCell(row, 2).value = 'NA';
+    ws.getCell(row, 3).value = null;
+    ws.getCell(row, 4).value = null;
+    styleBodyRow(ws, row, 4, false);
+    row++;
+  }
+  for (const sheet of model.sheets || []) {
+    for (const item of sheet.rows || []) {
+      if (item.type === 'section') {
+        sectionRow(ws, row++, item.title || 'Section', 4);
         continue;
       }
-      let j = i;
-      const group = [];
-      while (j < rows.length) {
-        const candidate = hierarchyPrefix(rows[j]);
-        if (!candidate || candidate.key !== first.key) break;
-        group.push({ source: rows[j], child: candidate.child });
-        j++;
+      if (item.type !== 'row' && item.type !== 'sw') continue;
+      const req = item.req || item.id || '';
+      const desc = item.desc || '';
+      ws.getCell(row, 1).value = req;
+      ws.getCell(row, 2).value = desc;
+      ws.getCell(row, 3).value = null;
+      ws.getCell(row, 4).value = null;
+      styleBodyRow(ws, row, 4, Boolean(item.review));
+      if (item.review) {
+        ws.getCell(row, 2).note = [
+          item.reviewReason || 'This cell needs verification against the original URS.',
+          item.loc ? 'Source: ' + item.loc : '',
+          item.minConf != null ? 'Minimum OCR confidence: ' + item.minConf + '%' : '',
+          item.raw ? 'OCR source text: ' + item.raw : ''
+        ].filter(Boolean).join('\n');
       }
-      if (group.length < 2) {
-        output.push(rows[i]);
-        i++;
-        continue;
-      }
-
-      for (const item of group) output.push(makeChild(item.source, first.parent, item.child, first.key));
-
-      // A parent cell may continue on the next page with blank serial/requirement
-      // cells. Keep concise label/value continuation rows under that parent
-      // until the next full prose requirement or another parent group.
-      while (j < rows.length && isContinuationPair(rows[j]) && !hierarchyPrefix(rows[j])) {
-        const next = rows[j];
-        output.push(makeChild(next, first.parent, tidy(next.req), first.key));
-        j++;
-      }
-      i = j;
-    }
-
-    const prepared = [];
-    for (const source of output) {
-      if (!source || source.type !== 'row') {
-        prepared.push(source);
-        continue;
-      }
-      const pairs = labelledPairs(source.desc);
-      if (!pairs.length) {
-        prepared.push(source);
-        continue;
-      }
-      const info = parentInfo(source);
-      if (!info.title) {
-        prepared.push(source);
-        continue;
-      }
-      for (const pair of pairs) {
-        prepared.push({
-          ...source,
-          req: pair.label,
-          desc: pair.specification,
-          parent: info.title,
-          parentDisplay: info.title,
-          parentKey: info.key,
-          parentRequirement: info.title,
-          group: '',
-          label: pair.label,
-          parameterized: pairs.length > 1 || Boolean(source.parameterized)
-        });
-      }
-    }
-    return prepared;
-  };
-  const put = (a, b, review, source) => {
-    const row = ws.getRow(r);
-    const columnA = requirementText(a, source);
-    const columnB = removeLeadingListMarker(b);
-    [columnA, columnB, ''].forEach((v, i) => { const cell = row.getCell(i + 1); cell.value = v === '' ? null : v; cell.style = clone(proto.body[i]); });
-    if (review) {
-      const details = [
-        'Review against the original URS source.',
-        source && source.loc ? 'Location: ' + source.loc : '',
-        source && source.minConf != null ? 'Minimum OCR confidence: ' + source.minConf + '%' : '',
-        source && source.raw ? 'Extracted source text: ' + String(source.raw).slice(0, 800) : ''
-      ].filter(Boolean);
-      row.getCell(2).note = details.join('\\n');
-    }
-    r++;
-  };
-  for (const sh of model.sheets) {
-    const rows = prepareRows(sh.rows);
-    for (let i = 0; i < rows.length;) {
-      const x = rows[i];
-      if (x.type === 'section') { sectionRow(x.title); i++; continue; }
-      if (x.type === 'sw') { put(x.id, x.desc + (x.pri ? '  [Priority ' + x.pri + ']' : ''), false, null); i++; continue; }
-
-      const label = rowLabel(x);
-      const parent = rowParent(x);
-      const parentKey = rowParentKey(x);
-      if (label && parent) {
-        let j = i + 1;
-        while (j < rows.length &&
-          rows[j].type === 'row' &&
-          rowParentKey(rows[j]) === parentKey &&
-          rowLabel(rows[j])) j++;
-        const group = rows.slice(i, j);
-        if (group.length >= 2) {
-          // Use the most informative available parent title when the same
-          // numbered requirement continues on another page with a shorter title.
-          const heading = group.map(rowParent).sort((a, b) => b.length - a.length)[0] || parent;
-          sectionRow(tidy(heading));
-          for (const item of group) put(rowLabel(item), item.desc, item.review, item);
-        } else {
-          // A single labelled value remains a normal row; no parent heading.
-          put(label, x.desc, x.review, x);
-        }
-        i = j;
-        continue;
-      }
-
-      // For a normal one-value requirement, use its own requirement name.
-      put(x.req || x.parent || '', x.desc, x.review, x);
-      i++;
+      row++;
     }
   }
-  // 4) review notes (hover comments only; no layout change)
-  return ws;
+  return row - 1;
 }
-root.CSBuilder = { fillTemplate, FIRST_BODY_ROW };
+function writeSoftwareBody(ws, startRow, model) {
+  let row = startRow;
+  for (const sheet of model.sheets || []) {
+    for (const item of sheet.rows || []) {
+      if (item.type === 'section') {
+        sectionRow(ws, row++, item.title || 'Sub-section', 5);
+        continue;
+      }
+      if (item.type !== 'row' && item.type !== 'sw') continue;
+      const description = [item.req, item.desc].filter(Boolean).join(item.req && item.desc ? '\n' : '');
+      ws.getCell(row, 1).value = item.requirementId || item.id || '';
+      ws.getCell(row, 2).value = description;
+      ws.getCell(row, 3).value = item.priority || '';
+      ws.getCell(row, 4).value = null;
+      ws.getCell(row, 5).value = null;
+      styleBodyRow(ws, row, 5, Boolean(item.review));
+      if (item.review) {
+        ws.getCell(row, 2).note = [
+          item.reviewReason || 'This cell needs verification against the original URS.',
+          item.loc ? 'Source: ' + item.loc : '',
+          item.minConf != null ? 'Minimum OCR confidence: ' + item.minConf + '%' : '',
+          item.raw ? 'OCR source text: ' + item.raw : ''
+        ].filter(Boolean).join('\n');
+      }
+      row++;
+    }
+  }
+  return row - 1;
+}
+function createWorkbook(model) {
+  if (!root.ExcelJS || !root.ExcelJS.Workbook) throw new Error('ExcelJS is not available.');
+  const workbook = new root.ExcelJS.Workbook();
+  const software = String(model.layout || '').toLowerCase() === 'software';
+  const lastCol = software ? 5 : 4;
+  const ws = workbook.addWorksheet(cleanSheetName(model.equipmentName));
+  ws.properties.defaultRowHeight = 18;
+  ws.views = [{ showGridLines: false }];
+  ws.getRow(1).height = 28;
+  if (software) {
+    ws.columns = [
+      { width: 24 }, { width: 70 }, { width: 18 }, { width: 22 }, { width: 42 }
+    ];
+  } else {
+    ws.columns = [
+      { width: 34 }, { width: 52 }, { width: 18 }, { width: 38 }
+    ];
+  }
+  const headerRow = setTopBlock(ws, model, lastCol);
+  const labels = software
+    ? ['Requirement ID', 'Requirement Description', 'Priority (1=Regulatory, 2=Business, 3=Desired)', 'Vendor Compliance', 'Vendor Remarks']
+    : ['Requirement', 'Incepta Specification / Description', 'Vendor Compliance (Comply / Partial / Not Comply)', 'Vendor Remarks / Offered Specification / Deviation & Justification (if any)'];
+  styleHeader(ws, headerRow, labels, lastCol);
+  const lastDataRow = software
+    ? writeSoftwareBody(ws, headerRow + 1, model)
+    : writeStandardBody(ws, headerRow + 1, model);
+  ws.views = [{
+    state: 'frozen',
+    ySplit: headerRow,
+    xSplit: 0,
+    topLeftCell: 'A' + (headerRow + 1),
+    showGridLines: false
+  }];
+  ws.autoFilter = undefined;
+  ws.pageSetup = {
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    paperSize: 9,
+    margins: { left: 0.25, right: 0.25, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 }
+  };
+  ws.headerFooter = { oddFooter: '&CPage &P of &N' };
+  ws.printArea = 'A1:' + (software ? 'E' : 'D') + lastDataRow;
+  return { workbook, worksheet: ws, lastRow: lastDataRow, sheetName: ws.name, layout: software ? 'software' : 'equipment' };
+}
+function getFilename(model) {
+  const equipment = safeFilenamePart(model.equipmentName) || 'Equipment';
+  const urs = safeFilenamePart(model.ursNumber) || 'URS';
+  return 'CS_' + equipment + '_' + urs + '.xlsx';
+}
+root.CSBuilder = { createWorkbook, getFilename, cleanSheetName, makeBanner };
 if (typeof module !== 'undefined') module.exports = root.CSBuilder;
 })(typeof window !== 'undefined' ? window : globalThis);
