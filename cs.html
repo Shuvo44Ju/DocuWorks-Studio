@@ -64,7 +64,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-<script src="./core.js?v=columns-20261103"></script><script src="./builder.js?v=parent-points-output-v14-20261108"></script><script src="./ai-config.js?v=20261104-cloudflare-ai-speedfix"></script>
+<script src="./core.js?v=cs-accuracy-20261112"></script><script src="./builder.js?v=claude-flat-cs-output-v1-20261112"></script><script src="./ai-config.js?v=cloudflare-endpoint-20261112"></script>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -405,6 +405,11 @@ async function extractWithAI(sourceFile){
  if(!healthResponse.ok||!healthData?.configured){
   throw new Error('The Cloudflare Worker responded, but its AI binding is not ready. HTTP '+healthResponse.status+'. '+String(healthData?.error||'AI binding status is false or missing.'));
  }
+ const expectedWorkerBuild='cs-accuracy-flat-rows-ocr-hints-20261112';
+ const liveWorkerBuild=String(healthData?.diagnostic?.build||'');
+ if(liveWorkerBuild!==expectedWorkerBuild){
+  throw new Error('The AI service has not received the latest CS extraction update. Live Worker build: '+(liveWorkerBuild||'unknown')+'. Required build: '+expectedWorkerBuild+'. No workbook was generated. The Cloudflare Worker must be deployed from the latest GitHub main branch before conversion can continue.');
+ }
  conversionStage='Sending the prepared document to Cloudflare AI';
  setStatus(25,'Uploading source pages to Cloudflare Workers AI…');
  const controller=new AbortController();
@@ -470,15 +475,17 @@ async function extractWithAI(sourceFile){
  if(!response.ok){
   const quotaMessage=String(data.error||'');
   if(response.status===429 && /daily free allocation|daily allowance|quota|neurons/i.test(quotaMessage)){
-   return await extractLocallyWhenQuotaIsExhausted(sourceFile);
+   throw new Error('Cloudflare AI daily quota is exhausted. The converter did not create a low-accuracy local-parser workbook. Retry after the quota resets, then convert again.');
   }
   if(response.status===502 && /model.*could not be found|not.?found|unknown model/i.test(quotaMessage)){
-   console.warn('Cloudflare AI model is unavailable; using local extraction fallback.',quotaMessage);
-   return await extractLocallyWhenQuotaIsExhausted(sourceFile);
+   throw new Error('Cloudflare is not running the configured AI model. No workbook was generated because the local OCR parser would not meet the required extraction accuracy. '+quotaMessage);
   }
-  throw new Error(quotaMessage||('AI extraction failed (HTTP '+response.status+').'));
+  throw new Error(quotaMessage||('AI extraction failed (HTTP '+response.status+'). No workbook was generated.'));
  }
  if(!Array.isArray(data.sections)||!data.sections.length)throw new Error('The AI returned no usable requirement sections. No Excel file was generated.');
+ diagnostics.aiExtractionConfirmed=true;
+ diagnostics.localFallbackUsed=false;
+ diagnostics.workerBuild=expectedWorkerBuild;
  const rows=[];
  for(const section of data.sections){
   const sectionTitle=String(section.title||'').trim();
