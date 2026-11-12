@@ -114,7 +114,7 @@ function isCsDocumentFurniture(requirement, specification, sourceTitle) {
   const r = String(requirement || "").replace(/[|:;]+/g, " ").replace(/\s+/g, " ").trim();
   const s = String(specification || "").replace(/\s+/g, " ").trim();
   const h = String(sourceTitle || "").trim();
-  if (/vendor\s*\/?\s*product information/i.test(h)) return true;
+  if (/vendor\s*\/?\s*product information/i.test(h) || /^(?:user requirements?|user requirement specification|requirements?\s*(?:and|\/|&)\s*descriptions?)$/i.test(h)) return true;
   if (/^(?:incepta pharmaceuticals?(?: ltd)?|hygiene division|user requirements?|user requirement specification|requirements?\s*(?:\/|and|&)\s*descriptions?|description\s*\/\s*requirement|manufacturer|local agent|origin|model)$/i.test(r)) return true;
   if (/\b(?:incepta pharmaceuticals|hygiene division)\b/i.test(r) && !s) return true;
   if (/^(?:page\s*)?\d+(?:\s+of\s+\d+)?$/i.test(r)) return true;
