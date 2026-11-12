@@ -204,15 +204,30 @@ function validateExtraction(value) {
       // A source cell can contain multiple labeled parameter/value pairs.
       // Expand these into separate rows instead of leaving a semicolon list.
       const pairs = splitInlineParameterPairs(base.specification);
-      if (pairs.length >= 2) {
-        return pairs.map(pair => ({
-          ...base,
-          requirement: pair.label,
-          specification: pair.specification,
-          parentRequirement: base.parentRequirement || base.requirement,
-          parameterized: true,
-          sourceQuote: pair.sourceQuote.slice(0,1200)
-        }));
+      const timePairs = base.specification.match(/(\d+(?:\.\d+)?\s*(?:hours?|hrs?)\s+per\s+day)[,;\/\n]+(\d+(?:\.\d+)?\s*(?:days?|weeks?)\s+per\s+(?:week|month))/i);
+      const labelledPairs = pairs.length >= 2 &&
+        !(pairs.some(p => /^id$/i.test(p.label)) && pairs.some(p => /^od$/i.test(p.label)));
+      if (labelledPairs) {
+        return pairs.map(pair => {
+          const alias = pair.label.trim().toLowerCase();
+          const capacityOrReadability = /capacity|readability|measuring|weighing/i.test(base.requirement + " " + base.parentRequirement);
+          const specialLabel = capacityOrReadability && alias === "max" ? "Capacity" :
+            capacityOrReadability && alias === "d" ? "Readability" : "";
+          return ({
+            ...base,
+            requirement: specialLabel || pair.label,
+            specification: pair.specification,
+            parentRequirement: specialLabel ? "" : (base.parentRequirement || base.requirement),
+            parameterized: !specialLabel,
+            sourceQuote: pair.sourceQuote.slice(0,1200)
+          });
+        });
+      }
+      if (timePairs) {
+        return [
+          {...base,requirement:"Hours per Day",specification:timePairs[1],parentRequirement:"",parameterized:false},
+          {...base,requirement:"Days per Week",specification:timePairs[2],parentRequirement:"",parameterized:false}
+        ];
       }
       return [{ ...base, parameterized: Boolean(base.parentRequirement) }];
     }).filter(x => x.requirement || x.specification)
