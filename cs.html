@@ -298,6 +298,13 @@ async function extractWithAI(sourceFile){
   response=await fetch(endpoint,{method:'POST',body:form,signal:controller.signal});
   diagnostics.requestRoundTripMs=Math.round(performance.now()-roundTripStarted);
  }catch(e){
+  // Chromium can surface a missing remote resource as NotFoundError. The
+  // converter already has a complete local parser, so keep conversion usable
+  // instead of failing the whole workbook generation.
+  if(e&&e.name==='NotFoundError'){
+   console.warn('Cloudflare AI endpoint returned NotFoundError; using local extraction fallback.',e);
+   return await extractLocallyWhenQuotaIsExhausted(sourceFile);
+  }
   if(e&&e.name==='AbortError')throw new Error('Cloudflare AI did not finish within 3 minutes. Try a smaller PDF (fewer pages or lower scan resolution) and retry. No Excel file was generated.');
   throw new Error('Could not connect to Cloudflare Workers AI. Check the Worker deployment and retry.');
  }finally{
@@ -320,6 +327,10 @@ async function extractWithAI(sourceFile){
  if(!response.ok){
   const quotaMessage=String(data.error||'');
   if(response.status===429 && /daily free allocation|daily allowance|quota|neurons/i.test(quotaMessage)){
+   return await extractLocallyWhenQuotaIsExhausted(sourceFile);
+  }
+  if(response.status===502 && /model.*could not be found|not.?found|unknown model/i.test(quotaMessage)){
+   console.warn('Cloudflare AI model is unavailable; using local extraction fallback.',quotaMessage);
    return await extractLocallyWhenQuotaIsExhausted(sourceFile);
   }
   throw new Error(quotaMessage||('AI extraction failed (HTTP '+response.status+').'));
