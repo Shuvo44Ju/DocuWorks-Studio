@@ -17,7 +17,7 @@ const OUTPUT_SCHEMA = {
           type: "object", additionalProperties: false,
           properties: {
             requirement: { type: "string" }, specification: { type: "string" },
-            parentRequirement: { type: "string" },
+            parentRequirement: { type: "string" }, parameterized: { type: "boolean" },
             sourcePages: { type: "array", items: { type: "integer" } },
             sourceQuote: { type: "string" }, confidence: { type: "number" },
             reviewRequired: { type: "boolean" }, reviewReason: { type: "string" }
@@ -253,10 +253,10 @@ async function handlePost({ request, env }) {
         return jsonResponse({error:"A rendered PDF page image is invalid. Please retry the upload."},400,origin);
       }
     }
-    description += "The user supplied " + pageImages.length + " rendered PDF page images. Read every page in order. Page numbers are supplied before each image.";
+    description += "The user supplied " + pageImages.length + " rendered PDF page images plus any embedded PDF text layer. Read every page in order. Use the image as the visual authority for layout and the embedded text as a transcription aid. Reconcile differences; never silently omit text that is visible in the image.";
     userContent.push({type:"text",text:description});
     for (const p of pageImages) {
-      userContent.push({type:"text",text:"SOURCE PDF PAGE " + p.page});
+      userContent.push({type:"text",text:"SOURCE PDF PAGE " + p.page + (p.text ? "\\nPOSITIONED EMBEDDED TEXT (x-coordinates in PDF points; use to verify small text and exact values, but preserve visual row/column alignment):\\n" + String(p.text).slice(0,45000) : "\\nNo embedded text layer was available; read the page image carefully.")});
       userContent.push({type:"image_url",image_url:{url:p.image}});
     }
   } else if (extension === "docx") {
@@ -268,8 +268,8 @@ async function handlePost({ request, env }) {
   } else return jsonResponse({error:"Please upload a PDF or DOCX document."},415,origin);
 
   const prompt = "\n\n" +
-    "Extract every substantive URS requirement and its correct corresponding specification from this source. " +
-    "Preserve source order, values, units, tolerances and table row associations. " +
+    "Perform a completeness-first extraction. Inspect every supplied page, including continuation pages. Extract every substantive URS requirement and its exact corresponding specification from this source; do not summarize, paraphrase, merge, or skip rows. " +
+    "Preserve source order, exact wording, values, units, tolerances, inequality signs, decimal places, ranges, punctuation and table row associations. Distinguish requirement labels from their descriptions/acceptance criteria using the actual table columns. " +
     "Separate every distinct labeled parameter:value pair into its own requirement object, even when several pairs appear in one source cell and are separated by semicolons or line breaks. Do not combine multiple parameters into one specification. Keep a compound value such as L: 140±20, W: 400±20 together under its Platform Size parameter. " +
     "Return ONLY one JSON object matching this schema exactly; do not add markdown fences or commentary. " +
     "If uncertain, preserve the source text and set reviewRequired=true. Never invent data.\n\n" +
