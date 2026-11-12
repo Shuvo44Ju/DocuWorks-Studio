@@ -201,7 +201,7 @@ function validateExtraction(value) {
       // A source cell can contain multiple labeled parameter/value pairs.
       // Expand these into separate rows instead of leaving a semicolon list.
       const pairs = splitInlineParameterPairs(base.specification);
-      const timePairs = base.specification.match(/(\d+(?:\.\d+)?\s*(?:hours?|hrs?)\s+per\s+day)[,;\/\n]+(\d+(?:\.\d+)?\s*(?:days?|weeks?)\s+per\s+(?:week|month))/i);
+      const timePairs = base.specification.match(/(\d+(?:\.\d+)?\s*(?:hours?|hrs?)\s+per\s+day)[,;\/\n]+\s*(\d+(?:\.\d+)?\s*(?:days?|weeks?)\s+per\s+(?:week|month))/i);
       const labelledPairs = pairs.length >= 2 &&
         !(pairs.some(p => /^id$/i.test(p.label)) && pairs.some(p => /^od$/i.test(p.label)));
       if (labelledPairs) {
@@ -507,7 +507,7 @@ export async function onRequestGet({request,env}) {
     architecture:"Mixture of Experts (4B active parameters)",
     reasoningEffort:"medium",
     diagnostic:{
-      build:"cs-partial-scan-cs-format-20261112-v6",
+      build:"cs-partial-scan-cs-format-20261112-v7",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
