@@ -149,7 +149,7 @@ function fillTemplate(wb, model) {
     const output = [];
     const rows = inputRows || [];
     const hierarchyPrefix = source => {
-      if (!source || source.type !== 'row' || source.parameterized ||
+      if (!source || source.type !== 'row' || source.flattenHierarchy || source.parameterized ||
           source.parentDisplay || source.parentRequirement || source.label || source.group) return null;
       const raw = String(source.req || '').trim();
       const match = raw.match(/^(.+?)(?:\s+[-–—]|\s*[→>|]|\.)\s+(.+)$/);
