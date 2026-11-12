@@ -49,6 +49,36 @@ function splitLabelValue(text) {
 /* items: [{text, li}]  ->  [{req, desc}] */
 function sameAs(a, b) { return alnum0(a) && alnum0(a) === alnum0(b); }
 function alnum0(x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function splitSemanticPairs(text) {
+  const source = NORM(text);
+  const time = source.match(/(\d+(?:\.\d+)?\s*(?:hours?|hrs?)\s*(?:per\s*day|\/\s*day))\s*[,;\/]\s*(\d+(?:\.\d+)?\s*(?:days?|weeks?)\s*(?:per\s*week|\/\s*week))/i);
+  if (time) return [
+    { label: 'Hours per Day', value: time[1].trim() },
+    { label: 'Days per Week', value: time[2].trim() }
+  ];
+
+  // Split only well-understood, semantically different pairs. ID + OD describe
+  // one combined size and must remain together in a single specification cell.
+  const parts = source.split(/[;,]\s*(?=[A-Za-z][A-Za-z0-9 /()_-]{0,18}\s*[:=])/);
+  if (parts.length < 2) return [];
+  const pairs = parts.map(part => {
+    const m = part.match(/^\s*([A-Za-z][A-Za-z0-9 /()_-]{0,18})\s*[:=]\s*(.+?)\s*$/);
+    return m ? { sourceLabel: m[1].trim(), value: m[2].trim() } : null;
+  });
+  if (pairs.some(p => !p)) return [];
+  const keys = pairs.map(p => p.sourceLabel.toLowerCase().replace(/[^a-z]/g, ''));
+  if (keys.includes('id') && keys.includes('od')) return [];
+  const aliases = {
+    max: 'Capacity', capacity: 'Capacity', d: 'Readability', readability: 'Readability',
+    voltage: 'Voltage', volts: 'Volts', current: 'Current', phase: 'Phase',
+    frequency: 'Frequency', temperature: 'Temperature', humidity: 'Relative Humidity'
+  };
+  if (!keys.every(key => aliases[key])) return [];
+  const labels = keys.map(key => aliases[key]);
+  if (new Set(labels).size !== labels.length) return [];
+  return pairs.map((p, i) => ({ label: labels[i], value: p.value }));
+}
+
 function buildRows(parent, items, loc) {
   const out = [];
   let group = '';
@@ -75,6 +105,21 @@ function buildRows(parent, items, loc) {
         j++;
       }
       i = j - 1; group = '';
+      continue;
+    }
+    const semanticPairs = splitSemanticPairs(txt);
+    if (semanticPairs.length >= 2) {
+      for (const pair of semanticPairs) {
+        out.push({
+          req: pair.label,
+          desc: pair.value,
+          raw: it.text,
+          loc,
+          parent: '',
+          group: '',
+          label: pair.label
+        });
+      }
       continue;
     }
     const sv = splitLabelValue(txt);
