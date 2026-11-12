@@ -61,7 +61,6 @@ function setTopBlock(ws, model, lastCol) {
     ws.getRow(row).height = 19;
     row++;
   }
-  row++;
   const instruction = 'Instructions to Vendor: Review each requirement and fill in the Vendor Compliance (\'Comply\' / \'Partial Comply\' / \'Not Comply\') and the Vendor Remarks / Deviation & Justification column.';
   const instructionCell = addMergedText(ws, 'A' + row + ':' + lastLetter + row, instruction, {
     font: { name: 'Arial', size: 9, italic: true, color: { argb: 'FF777777' } },
@@ -183,6 +182,9 @@ function writeSoftwareBody(ws, startRow, model) {
 }
 function createWorkbook(model) {
   if (!root.ExcelJS || !root.ExcelJS.Workbook) throw new Error('ExcelJS is not available.');
+  if (!String(model.equipmentName || '').trim() || !String(model.ursNumber || '').trim()) {
+    throw new Error('Equipment Name and URS No. are required. Enter the missing value from the URS before creating the CS file.');
+  }
   const workbook = new root.ExcelJS.Workbook();
   const software = String(model.layout || '').toLowerCase() === 'software';
   const lastCol = software ? 5 : 4;
@@ -223,13 +225,16 @@ function createWorkbook(model) {
     paperSize: 9,
     margins: { left: 0.25, right: 0.25, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 }
   };
-  ws.headerFooter = { oddFooter: '&CPage &P of &N' };
+  // Do not add source/page numbering to the generated CS sheet.
   ws.printArea = 'A1:' + (software ? 'E' : 'D') + lastDataRow;
   return { workbook, worksheet: ws, lastRow: lastDataRow, sheetName: ws.name, layout: software ? 'software' : 'equipment' };
 }
 function getFilename(model) {
-  const equipment = safeFilenamePart(model.equipmentName) || 'Equipment';
-  const urs = safeFilenamePart(model.ursNumber) || 'URS';
+  const equipment = safeFilenamePart(model.equipmentName);
+  const urs = safeFilenamePart(model.ursNumber);
+  if (!equipment || !urs) {
+    throw new Error('The output filename requires the Equipment Name and URS No. from the URS or the manual metadata field.');
+  }
   return 'CS_' + equipment + '_' + urs + '.xlsx';
 }
 root.CSBuilder = { createWorkbook, getFilename, cleanSheetName, makeBanner };
