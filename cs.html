@@ -295,15 +295,36 @@ async function extractWithAI(sourceFile){
   };
   updateEstimate();
   progressTimer=setInterval(updateEstimate,1000);
-  response=await fetch(endpoint,{method:'POST',body:form,signal:controller.signal});
+  try{
+   response=await fetch(endpoint,{method:'POST',body:form,signal:controller.signal,cache:'no-store'});
+  }catch(firstFetchError){
+   // Retry once with a cache-busting URL. This handles stale service-worker/browser
+   // resource entries that can surface as a Chromium NotFoundError even when the
+   // Cloudflare Worker itself is available.
+   if(firstFetchError&&firstFetchError.name==='NotFoundError'){
+    console.warn('Initial AI request raised NotFoundError; retrying the Worker endpoint.',firstFetchError);
+    const retryUrl=new URL(endpoint);
+    retryUrl.searchParams.set('_dw_retry',String(Date.now()));
+    response=await fetch(retryUrl.href,{method:'POST',body:form,signal:controller.signal,cache:'no-store'});
+   }else{
+    throw firstFetchError;
+   }
+  }
   diagnostics.requestRoundTripMs=Math.round(performance.now()-roundTripStarted);
  }catch(e){
   // Chromium can surface a missing remote resource as NotFoundError. The
   // converter already has a complete local parser, so keep conversion usable
   // instead of failing the whole workbook generation.
   if(e&&e.name==='NotFoundError'){
-   console.warn('Cloudflare AI endpoint returned NotFoundError; using local extraction fallback.',e);
-   return await extractLocallyWhenQuotaIsExhausted(sourceFile);
+   console.warn('Cloudflare AI endpoint remained unavailable after retry; using local extraction fallback.',e);
+   try{
+    return await extractLocallyWhenQuotaIsExhausted(sourceFile);
+   }catch(fallbackError){
+    if(fallbackError&&fallbackError.name==='NotFoundError'){
+     throw new Error('The Cloudflare AI Worker could not be reached, and the local fallback also hit a missing browser resource. Please refresh this page with Ctrl+Shift+R and retry. If it still fails, the Cloudflare Worker deployment is the remaining issue.');
+    }
+    throw fallbackError;
+   }
   }
   if(e&&e.name==='AbortError')throw new Error('Cloudflare AI did not finish within 3 minutes. Try a smaller PDF (fewer pages or lower scan resolution) and retry. No Excel file was generated.');
   throw new Error('Could not connect to Cloudflare Workers AI. Check the Worker deployment and retry.');
