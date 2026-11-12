@@ -141,7 +141,16 @@ zone.addEventListener('drop',e=>{
  choose(droppedFile);
 });
 $('remove-file-btn').addEventListener('click',()=>{file=null;input.value='';info.classList.add('hidden');info.classList.remove('flex');zone.classList.remove('hidden');prog.classList.add('hidden');clearError();setReady(false)});
-function titleFromText(t,name){const m=CSCore.extractMeta(t);return m.equipment||m.title||name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').trim()||'Untitled URS Document'}
+function titleFromText(t,name){
+ const meta=CSCore.extractMeta(t);
+ const clean=value=>String(value||'').replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').replace(/^\s*(?:URS|User Requirement Specification|User Requirements?)\s*[-:–—]*\s*/i,'').replace(/\s+/g,' ').trim();
+ let candidate=clean(meta.equipment||meta.title||name);
+ if(!candidate||/^(?:urs|user requirement specification|user requirements?|document|cs)$/i.test(candidate)){
+  candidate=clean(name);
+ }
+ if(!candidate||/^(?:urs|user requirement specification|user requirements?|document|cs)$/i.test(candidate)) candidate='Equipment';
+ return candidate;
+}
 function detectTableColumnRules(canvas) {
  try {
   const ctx=canvas.getContext('2d',{willReadFrequently:true}),w=canvas.width,h=canvas.height;
@@ -171,7 +180,7 @@ function detectTableColumnRules(canvas) {
   return {numberEnd:number.x/w,requirementEnd:requirement.x/w};
  } catch(e) { console.warn('Table-rule detection skipped:',e); return null; }
 }
-async function parsePdf(f){
+async function parsePdf(f,silentProgress){
  const data=await f.arrayBuffer(), pdf=await pdfjsLib.getDocument({data,disableWorker:true}).promise, pages=[], textChunks=[];
  let textWords=0, ocrPages=[];
  const qualityScore=words=>{
@@ -184,7 +193,7 @@ async function parsePdf(f){
  };
  const wordText=words=>words.map(w=>w.t).join(' ');
  for(let n=1;n<=pdf.numPages;n++){
-  setStatus(5+Math.round(30*n/pdf.numPages),'Reading PDF page '+n+' of '+pdf.numPages+'…');
+  if(!silentProgress)setStatus(5+Math.round(30*n/pdf.numPages),'Reading PDF page '+n+' of '+pdf.numPages+'…');
   const pg=await pdf.getPage(n),vp=pg.getViewport({scale:1}),tc=await pg.getTextContent(),words=[];
   for(const it of tc.items){
    if(!it.str||!it.str.trim())continue;
@@ -222,11 +231,11 @@ async function parsePdf(f){
   pages.forEach((p,i)=>{if(p.words.some(w=>/^\d{1,2}\.\d{1,2}\.?$/.test(w.t))&&!ocrPages.includes(i))ocrPages.push(i)});
  }
  if(ocrPages.length){
-  setStatus(38,'Checking '+ocrPages.length+' page(s) with OCR…');
+  if(!silentProgress)setStatus(38,'Checking '+ocrPages.length+' page(s) with OCR…');
   let worker;
   try{
    worker=await Tesseract.createWorker('eng',1,{logger:m=>{
-    if(m.status==='recognizing text')setStatus(38+Math.round((m.progress||0)*45),'OCR recognition '+Math.round((m.progress||0)*100)+'%');
+    if(!silentProgress&&m.status==='recognizing text')setStatus(38+Math.round((m.progress||0)*45),'OCR recognition '+Math.round((m.progress||0)*100)+'%');
    }});
    try{await worker.setParameters({tessedit_pageseg_mode:'6'})}catch(_){}
    for(let k=0;k<ocrPages.length;k++){
@@ -242,7 +251,7 @@ async function parsePdf(f){
     const oldScore=qualityScore(pages[i].words),newScore=qualityScore(ws);
     const forceReplace=pages[i].words.length<35||/[\uFFFD\uE000-\uF8FF\u0000-\u0008]/.test(wordText(pages[i].words))||(!hasGlobalHeader&&ws.length>0);
     if(ws.length&&(forceReplace||newScore>oldScore+0.04))pages[i]={w:vp.width,h:vp.height,words:ws,columns:pages[i].columns||ocrColumns||null};else if(!pages[i].columns&&ocrColumns)pages[i].columns=ocrColumns;
-    setStatus(38+Math.round(45*(k+1)/ocrPages.length),'OCR complete: '+(k+1)+' of '+ocrPages.length+' pages');
+    if(!silentProgress)setStatus(38+Math.round(45*(k+1)/ocrPages.length),'OCR complete: '+(k+1)+' of '+ocrPages.length+' pages');
    }
   }catch(e){
    console.error('OCR failed:',e);
@@ -294,7 +303,7 @@ async function renderPdfPagesForAI(sourceFile){
   }
   const pageText=textLines.sort((a,b)=>b.y-a.y).map(line=>
    line.items.sort((a,b)=>a.x-b.x).map(item=>'['+item.x+'] '+item.text).join(' | ')
-  ).join('\\n').slice(0,45000);
+  ).join('\n').slice(0,45000);
   // Render at higher resolution and JPEG quality so small table text, units,
   // decimal points and tolerance symbols remain legible to the vision model.
   const viewport=page.getViewport({scale:2});
@@ -349,6 +358,31 @@ async function extractWithAI(sourceFile){
   conversionStage='Preparing PDF pages for analysis';
   const pages=await renderPdfPagesForAI(sourceFile);
   form.append('pageImages',JSON.stringify(pages));
+  // Supply row/column-aware local extraction as a second reference. The AI must
+  // verify these candidates against the page images rather than copying them blindly.
+  try{
+   conversionStage='Checking PDF table structure and OCR';
+   setStatus(20,'Checking table rows and text alignment…');
+   const localReference=await parsePdf(sourceFile,true);
+   const referenceRows=(localReference.sheets||[]).flatMap(sh=>(sh.rows||[]).map(row=>({
+    type:row.type, title:row.title, req:row.req, desc:row.desc, parent:row.parent,
+    group:row.group, label:row.label, loc:row.loc, conf:row.conf, minConf:row.minConf
+   }))).slice(0,350);
+   const referenceStructure={
+    rows:referenceRows,
+    text:String(localReference.text||'').slice(0,45000),
+    ocrUsed:Boolean(localReference.ocr),
+    ocrPages:Number(localReference.ocrPages||0),
+    pageCount:Number(localReference.pageCount||pages.length)
+   };
+   form.append('referenceStructure',JSON.stringify(referenceStructure));
+   setStatus(21,'PDF table structure prepared. Starting AI review…');
+   diagnostics.localOcrPages=referenceStructure.ocrPages;
+   diagnostics.localCandidateRows=referenceRows.filter(row=>row.type==='row').length;
+  }catch(referenceError){
+   console.warn('Supplemental PDF OCR/table extraction was unavailable; continuing with page images and embedded text.',referenceError);
+   diagnostics.localReferenceUnavailable=true;
+  }
  }else if(ext==='docx'){
   if(!window.mammoth)throw new Error('The DOCX reader did not load. Refresh and retry.');
   const res=await mammoth.convertToHtml({arrayBuffer:await sourceFile.arrayBuffer()});
@@ -475,32 +509,30 @@ async function extractWithAI(sourceFile){
     }
    }
    let desc=String(item.specification||'').trim();
-   let parameterized=Boolean(item.parameterized);
-   let parentRequirement=String(item.parentRequirement||'').trim();
-   const hasParent=parameterized||Boolean(parentRequirement);
-
-   // Remove a repeated subsection heading from the start of the requirement label.
-   // The heading is already emitted once as its own section row in the CS sheet.
-   const repeatedPrefixes=[parentRequirement,sectionTitle].filter(Boolean).sort((a,b)=>b.length-a.length);
-   for(const prefix of repeatedPrefixes){
-    if(req.slice(0,prefix.length).toLowerCase()===prefix.toLowerCase()){
-     const remainder=req.slice(prefix.length).replace(/^[\s:|–—-]+/,'').trim();
-     if(remainder){req=remainder;break;}
-    }
+   const parentRequirement=String(item.parentRequirement||'').trim();
+   // Safety net: retain a genuine child hierarchy in the same requirement cell.
+   const parentIsSection=/^(?:[1-5][.)]?\\s*)?(?:general information|functional(?:\\s*\\/\\s*operational)? requirements|utility services|validation aspects|maintenance)/i.test(parentRequirement);
+   if(parentRequirement&&!parentIsSection&&req&&!req.toLowerCase().startsWith(parentRequirement.toLowerCase())){
+    req=parentRequirement+' – '+req;
+   }
+   // Remove only a duplicate CS category prefix; never strip a real parent label.
+   if(sectionTitle&&req.toLowerCase().startsWith(sectionTitle.toLowerCase())){
+    const remainder=req.slice(sectionTitle.length).replace(/^[\\s:|–—-]+/,'').trim();
+    if(remainder)req=remainder;
    }
    if(!req&&!desc)continue;
    const confidence=Number.isFinite(Number(item.confidence))?Math.max(0,Math.min(1,Number(item.confidence))):0;
    const pages=Array.isArray(item.sourcePages)?item.sourcePages.filter(n=>Number.isInteger(n)&&n>0):[];
    rows.push({
     type:'row',req:req||'UNRESOLVED REQUIREMENT — REVIEW SOURCE',desc,
-    parent:hasParent?(parentRequirement||sectionTitle):sectionTitle,
-    parentDisplay:hasParent?(parentRequirement||sectionTitle):'',
-    group:'',label:hasParent?req:'',
+    parent:'',parentDisplay:'',
+    group:'',label:'',
+    flattenHierarchy:true,
     loc:pages.length?'Source page(s): '+pages.join(', '):'Source location not identified',
     minConf:Math.round(confidence*100),conf:Math.round(confidence*100),
     review:Boolean(item.reviewRequired)||confidence<0.8||!req,
     reviewReason:String(item.reviewReason||''),
-    parameterized:hasParent
+    parameterized:false
    });
   }
  }
@@ -540,7 +572,7 @@ btn.addEventListener('click',async()=>{
   conversionStage='Opening the CS Excel template';
   const workbookStarted=performance.now(),wb=new ExcelJS.Workbook();
   try{await wb.xlsx.load(template)}catch(templateError){throw new Error('The CS Excel template was downloaded but could not be opened. The published template may be corrupted or an old cached copy is being used. Details: '+(templateError.message||templateError));}
-  const title=parsed.equipmentName||titleFromText(parsed.text||'',file.name);
+  const title=titleFromText(parsed.text||'',parsed.equipmentName||file.name);
   conversionStage='Filling the CS template with extracted requirements';
   CSBuilder.fillTemplate(wb,{title:'CS File of '+title,sheets});
   setStatus(97,'Building the formatted CS workbook…');
