@@ -88,7 +88,7 @@ let workflowStep='inspect', sourcePreflight=null, sourceMeta={equipmentName:'',u
 function error(m){err.textContent=m;err.classList.remove('hidden')}
 function clearError(){err.textContent='';err.classList.add('hidden')}
 function setStatus(p,m){progressValue=Math.max(progressValue,Math.max(0,Math.min(100,Math.round(p))));prog.classList.remove('hidden');bar.style.width=progressValue+'%';bar.setAttribute('aria-valuenow',String(progressValue));pct.textContent=progressValue+'%';status.textContent=m}
-function setReady(v){btn.disabled=!v;btn.className='w-full font-bold py-3 px-4 rounded-xl transition-all '+(v?'bg-blue-600 hover:bg-blue-700 text-white':'bg-slate-200 text-slate-400 cursor-not-allowed');btn.textContent=v?'Convert & Download CS Excel':'Upload a URS file first'}
+function setReady(v){btn.disabled=!v;btn.className='w-full font-bold py-3 px-4 rounded-xl transition-all '+(v?'bg-blue-600 hover:bg-blue-700 text-white':'bg-slate-200 text-slate-400 cursor-not-allowed');btn.textContent=v?'Convert & Review Rows':'Upload a URS file first'}
 function formatFileSize(bytes){
  const size=Number(bytes);
  if(!Number.isFinite(size)||size<0)return 'Size unavailable';
@@ -99,6 +99,7 @@ function formatFileSize(bytes){
 }
 async function choose(selectedFile){
  clearError();
+ resetReviewWorkflow();
  if(!selectedFile)return;
  const original=selectedFile;
  const ext=String(original.name||'').toLowerCase().split('.').pop();
@@ -152,7 +153,7 @@ zone.addEventListener('drop',e=>{
  if(!droppedFile){error('No file was received. Please drop a PDF or DOCX file directly into the upload area.');return}
  choose(droppedFile);
 });
-$('remove-file-btn').addEventListener('click',()=>{file=null;input.value='';info.classList.add('hidden');info.classList.remove('flex');zone.classList.remove('hidden');prog.classList.add('hidden');clearError();setReady(false)});
+$('remove-file-btn').addEventListener('click',()=>{file=null;input.value='';resetReviewWorkflow();info.classList.add('hidden');info.classList.remove('flex');zone.classList.remove('hidden');prog.classList.add('hidden');clearError();setReady(false)});
 function titleFromText(t){
  const meta=CSCore.extractMeta(t);
  const candidate=String(meta.equipment||'').replace(/\s+/g,' ').trim();
@@ -396,7 +397,7 @@ async function extractLocallyWhenQuotaIsExhausted(sourceFile){
   diagnostics:{fallback:'local-parser',cloudflareQuotaExhausted:true}
  };
 }
-async function extractWithAI(sourceFile){
+async function extractWithAI(sourceFile,preflight,metadataOverrides){
  conversionStage='Connecting to the document extraction service';
  const endpoint=getAIEndpoint();
  if(!endpoint)throw new Error('AI document understanding is not connected to the Cloudflare Worker. See AI_BACKEND_SETUP.md.');
@@ -406,6 +407,8 @@ async function extractWithAI(sourceFile){
  const diagnostics={};
  const ext=sourceFile.name.toLowerCase().split('.').pop(),form=new FormData();
  form.append('fileName',sourceFile.name);
+ form.append('equipmentNameOverride',String(metadataOverrides?.equipmentName||''));
+ form.append('ursNumberOverride',String(metadataOverrides?.ursNumber||''));
  if(ext==='pdf'){
   conversionStage='Preparing PDF pages for analysis';
   const pages=await renderPdfPagesForAI(sourceFile);
@@ -415,7 +418,7 @@ async function extractWithAI(sourceFile){
   try{
    conversionStage='Checking PDF table structure and OCR';
    setStatus(20,'Checking table rows and text alignment…');
-   const localReference=await parsePdf(sourceFile,true);
+   const localReference=preflight||await parsePdf(sourceFile,true);
    const referenceRows=(localReference.sheets||[]).flatMap(sh=>(sh.rows||[]).map(row=>({
     type:row.type, title:row.title, req:row.req, desc:row.desc, parent:row.parent,
     group:row.group, label:row.label, loc:row.loc, conf:row.conf, minConf:row.minConf
@@ -457,7 +460,7 @@ async function extractWithAI(sourceFile){
  if(!healthResponse.ok||!healthData?.configured){
   throw new Error('The Cloudflare Worker responded, but its AI binding is not ready. HTTP '+healthResponse.status+'. '+String(healthData?.error||'AI binding status is false or missing.'));
  }
- const expectedWorkerBuild='cs-accuracy-flat-cs-v2-20261112';
+ const expectedWorkerBuild='cs-partial-scan-cs-format-20261112-v2';
  const liveWorkerBuild=String(healthData?.diagnostic?.build||'');
  if(liveWorkerBuild!==expectedWorkerBuild){
   throw new Error('The AI service has not received the latest CS extraction update. Live Worker build: '+(liveWorkerBuild||'unknown')+'. Required build: '+expectedWorkerBuild+'. No workbook was generated. The Cloudflare Worker must be deployed from the latest GitHub main branch before conversion can continue.');
@@ -543,55 +546,25 @@ async function extractWithAI(sourceFile){
   const sectionTitle=String(section.title||'').trim();
   if(sectionTitle)rows.push({type:'section',title:sectionTitle});
   const sectionItems=Array.isArray(section.requirements)?section.requirements:[];
-  // Some URS tables repeat one shared parenthetical qualifier in every child
-  // label (for example, "(Min to Max range) Capacity", "(Min to Max range) Readability").
-  // Detect only repeated, descriptive qualifiers; keep one-off parentheses and
-  // short list markers such as (a) or (i) unchanged.
-  const qualifierCounts=new Map();
-  for(const entry of sectionItems){
-   const match=String(entry?.requirement||'').trim().match(/^\(([^()]{8,})\)\s+/);
-   if(match){
-    const qualifier=match[1].replace(/\s+/g,' ').trim();
-    if(qualifier.split(/\s+/).length>=2){
-     const key=qualifier.toLowerCase();
-     qualifierCounts.set(key,(qualifierCounts.get(key)||0)+1);
-    }
-   }
-  }
   for(const item of sectionItems){
    let req=String(item.requirement||'').trim();
-   const qualifierMatch=req.match(/^\(([^()]{8,})\)\s+/);
-   if(qualifierMatch){
-    const qualifier=qualifierMatch[1].replace(/\s+/g,' ').trim();
-    if(qualifier.split(/\s+/).length>=2 && (qualifierCounts.get(qualifier.toLowerCase())||0)>=2){
-     req=req.slice(qualifierMatch[0].length).trim();
-    }
-   }
-   let desc=String(item.specification||'').trim();
    const parentRequirement=String(item.parentRequirement||'').trim();
-   // Safety net: retain a genuine child hierarchy in the same requirement cell.
-   const parentIsSection=/^(?:[1-5][.)]?\s*)?(?:general information|functional.*requirements|utility services|validation aspects|maintenance)/i.test(parentRequirement);
-   if(parentRequirement&&!parentIsSection&&req&&!req.toLowerCase().startsWith(parentRequirement.toLowerCase())){
+   if(parentRequirement&&req&&!req.toLowerCase().startsWith(parentRequirement.toLowerCase())){
     req=parentRequirement+' – '+req;
    }
-   // Remove only a duplicate CS category prefix; never strip a real parent label.
-   if(sectionTitle&&req.toLowerCase().startsWith(sectionTitle.toLowerCase())){
-    const remainder=req.slice(sectionTitle.length).replace(/^[\s:|–—-]+/,'').trim();
-    if(remainder)req=remainder;
-   }
+   const desc=String(item.specification||'').trim();
    if(!req&&!desc)continue;
    const confidence=Number.isFinite(Number(item.confidence))?Math.max(0,Math.min(1,Number(item.confidence))):0;
    const pages=Array.isArray(item.sourcePages)?item.sourcePages.filter(n=>Number.isInteger(n)&&n>0):[];
    rows.push({
     type:'row',req:req||'UNRESOLVED REQUIREMENT — REVIEW SOURCE',desc,
-    parent:'',parentDisplay:'',
-    group:'',label:'',
-    flattenHierarchy:true,
+    requirementId:String(item.requirementId||'').trim(),
+    priority:item.priority==null?'':String(item.priority).trim(),
     loc:pages.length?'Source page(s): '+pages.join(', '):'Source location not identified',
+    raw:String(item.sourceQuote||''),
     minConf:Math.round(confidence*100),conf:Math.round(confidence*100),
     review:Boolean(item.reviewRequired)||confidence<0.8||!req,
-    reviewReason:String(item.reviewReason||''),
-    parameterized:false
+    reviewReason:String(item.reviewReason||'')
    });
   }
  }
@@ -607,51 +580,213 @@ async function extractWithAI(sourceFile){
  diagnostics.responseProcessingMs=Math.round(performance.now()-responseParseStarted-diagnostics.responseJsonMs);
  console.info('DocuWorks conversion timing (ms)',diagnostics);
  return {
-  sheets:[{layout:'equipment',rows}],text:metadata,diagnostics,
-  equipmentName:String(data.equipmentName||data.title||'').trim(),
+  sheets:[{layout:data.layout||'equipment',rows}],text:metadata,diagnostics,
+  equipmentName:String(data.equipmentName||'').trim(),
+  ursNumber:String(data.ursNumber||'').trim(),
+  referenceDocumentNumber:String(data.referenceDocumentNumber||'').trim(),
+  version:String(data.version||'').trim(),
+  department:String(data.department||'').trim(),
+  layout:String(data.layout||'equipment'),
   warnings:Array.isArray(data.warnings)?data.warnings:[],
   rowCount:actual,ai:true,model:data.model||''
  };
 }
+function resetReviewWorkflow(){
+ workflowStep='inspect';sourcePreflight=null;sourceMeta={equipmentName:'',ursNumber:'',referenceDocumentNumber:'',version:'',department:''};
+ userMeta={equipmentName:'',ursNumber:''};pendingParsed=null;
+ metadataPanel.classList.add('hidden');metadataInput.value='';
+ rowReviewPanel.classList.add('hidden');rowReviewContent.innerHTML='';rowReviewNote.textContent='';
+ setReady(true);
+}
+function groupsFromParsed(parsed){
+ const groups=[];let current=null;
+ for(const sheet of (parsed?.sheets||[])){
+  for(const row of (sheet.rows||[])){
+   if(row.type==='section'){
+    current={title:String(row.title||'URS section'),rows:[]};groups.push(current);
+   }else if(row.type==='row'||row.type==='sw'){
+    if(!current){current={title:'Detected requirements',rows:[]};groups.push(current);}
+    current.rows.push(row);
+   }
+  }
+ }
+ return groups.filter(group=>group.rows.length);
+}
+function escapeReviewText(value){
+ return String(value==null?'':value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function renderRowsReview(parsed,kind){
+ const groups=groupsFromParsed(parsed);
+ const total=groups.reduce((n,g)=>n+g.rows.length,0);
+ const reviewCount=groups.reduce((n,g)=>n+g.rows.filter(r=>r.review).length,0);
+ rowReviewTitle.textContent=kind==='ai'?'Extracted rows by URS section':'Preliminary OCR rows by URS section';
+ rowReviewSummary.textContent=total+' row(s) found in '+groups.length+' section(s)'+(reviewCount?' · '+reviewCount+' flagged for review':'')+'.';
+ rowReviewNote.textContent=kind==='ai'
+  ?'Check the section titles and row counts before creating the Excel workbook. Vendor columns will remain blank.'
+  :'Preliminary OCR count only. OCR candidates are not used as final CS output; the AI will verify the source and produce the final row list.';
+ if(!total){
+  rowReviewContent.innerHTML='<p class="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">No structured rows were detected by local OCR. The AI will still inspect the page images and embedded text.</p>';
+ }else{
+  rowReviewContent.innerHTML=groups.map((group,i)=>{
+   const items=group.rows.map((row,j)=>{
+    const label=row.requirementId||row.req||row.id||'Unlabelled point';
+    const priority=row.priority?' <span class="text-slate-500">[Priority '+escapeReviewText(row.priority)+']</span>':'';
+    const review=row.review?' <span class="font-bold text-amber-700">· Review</span>':'';
+    return '<li class="py-1 text-xs text-slate-700"><div class="font-semibold">'+escapeReviewText(label)+priority+review+'</div><div class="whitespace-pre-wrap text-slate-600">'+escapeReviewText(row.desc||'')+'</div></li>';
+   }).join('');
+   return '<details '+(i<6?'open':'')+' class="overflow-hidden rounded-lg border border-slate-200"><summary class="cursor-pointer bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800">'+escapeReviewText(group.title)+' <span class="font-semibold text-slate-500">('+group.rows.length+')</span></summary><ol class="list-decimal space-y-1 py-2 pl-8 pr-3">'+items+'</ol></details>';
+  }).join('');
+ }
+ rowReviewPanel.classList.remove('hidden');
+}
+function metadataFromParsed(parsed){
+ const found=CSCore.extractMeta(String(parsed?.text||''));
+ sourceMeta={
+  equipmentName:String(found.equipment||'').trim(),
+  ursNumber:String(found.ursNo||'').trim(),
+  referenceDocumentNumber:String(found.refNo||'').trim(),
+  version:String(found.version||'').trim(),
+  department:String(found.department||'').trim()
+ };
+}
+function parseManualMetadata(value){
+ const text=String(value||'').trim();
+ const equipmentMatch=text.match(/(?:equipment(?:\s*\/\s*system)?\s*name|equipment)\s*[:=]\s*([^;\n|]+)/i);
+ const ursMatch=text.match(/\bURS\s*(?:No\.?|Number)\s*[:=]\s*([^;\n|]+)/i);
+ const result={equipmentName:sourceMeta.equipmentName,ursNumber:sourceMeta.ursNumber};
+ if(equipmentMatch)result.equipmentName=equipmentMatch[1].trim();
+ if(ursMatch)result.ursNumber=ursMatch[1].trim();
+ const missingEquipment=!sourceMeta.equipmentName,missingUrs=!sourceMeta.ursNumber;
+ if(!equipmentMatch&&!ursMatch){
+  if(missingEquipment&&!missingUrs)result.equipmentName=text;
+  else if(missingUrs&&!missingEquipment)result.ursNumber=text;
+ }
+ if(missingEquipment&&!result.equipmentName)throw new Error('Enter the equipment name shown in the URS.');
+ if(missingUrs&&!result.ursNumber)throw new Error('Enter the URS number shown in the URS.');
+ return result;
+}
+async function inspectSourceBeforeAI(){
+ if(sourcePreflight)return sourcePreflight;
+ setStatus(4,'Reading the URS and checking its metadata…');
+ conversionStage='Reading the URS for metadata and row counts';
+ const ext=file.name.toLowerCase().split('.').pop();
+ sourcePreflight=ext==='pdf'?await parsePdf(file,true):await parseDocx(file);
+ metadataFromParsed(sourcePreflight);
+ renderRowsReview(sourcePreflight,'ocr');
+ return sourcePreflight;
+}
+async function runAIExtraction(){
+ setReady(false);clearError();
+ try{
+  if(!sourcePreflight)await inspectSourceBeforeAI();
+  const overrides={
+   equipmentName:userMeta.equipmentName||sourceMeta.equipmentName,
+   ursNumber:userMeta.ursNumber||sourceMeta.ursNumber
+  };
+  conversionStage='Extracting requirements with AI';
+  pendingParsed=await extractWithAI(file,sourcePreflight,overrides);
+  // Use only fields obtained from the URS or supplied in the missing-information field.
+  pendingParsed.equipmentName=String(userMeta.equipmentName||pendingParsed.equipmentName||sourceMeta.equipmentName||'').trim();
+  pendingParsed.ursNumber=String(userMeta.ursNumber||pendingParsed.ursNumber||sourceMeta.ursNumber||'').trim();
+  pendingParsed.referenceDocumentNumber=pendingParsed.referenceDocumentNumber||sourceMeta.referenceDocumentNumber;
+  pendingParsed.version=pendingParsed.version||sourceMeta.version;
+  pendingParsed.department=pendingParsed.department||sourceMeta.department;
+  if(!pendingParsed.equipmentName)throw new Error('The equipment name is still missing. No workbook was generated.');
+  if(!pendingParsed.ursNumber)throw new Error('The URS number is still missing. No workbook was generated.');
+  renderRowsReview(pendingParsed,'ai');
+  workflowStep='build';
+  setReady(true);
+  btn.textContent='Confirm Rows & Create CS Excel';
+  setStatus(90,pendingParsed.rowCount+' AI-extracted row(s) found. Review the section list, then create the workbook.');
+ }catch(e){
+  console.error('URS preflight / AI extraction failed:',conversionStage,e);
+  error('Failed during: '+conversionStage+'. '+(e&&e.message?e.message:String(e))+' No Excel file was generated.');
+  workflowStep='extract';
+  btn.textContent='Retry AI Extraction';
+  setReady(true);
+  prog.classList.add('hidden');
+ }
+}
+async function createCsWorkbook(){
+ if(!pendingParsed)throw new Error('There is no reviewed extraction ready to export.');
+ setReady(false);
+ const model={
+  equipmentName:pendingParsed.equipmentName,
+  ursNumber:pendingParsed.ursNumber,
+  referenceDocumentNumber:pendingParsed.referenceDocumentNumber,
+  version:pendingParsed.version,
+  department:pendingParsed.department,
+  layout:pendingParsed.layout||'equipment',
+  sheets:pendingParsed.sheets
+ };
+ const built=CSBuilder.createWorkbook(model);
+ const out=await built.workbook.xlsx.writeBuffer();
+ const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=CSBuilder.getFilename(model);
+ document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+ const total=(pendingParsed.sheets||[]).flatMap(s=>s.rows||[]).filter(r=>r.type==='row').length;
+ const reviewCount=(pendingParsed.sheets||[]).flatMap(s=>s.rows||[]).filter(r=>r.type==='row'&&r.review).length;
+ setStatus(100,'Completed: '+total+' requirement row(s) exported; '+reviewCount+' flagged for source review. Check the review notes against the URS.');
+ workflowStep='done';
+ btn.textContent='Create Another CS File';
+ setReady(true);
+}
 btn.addEventListener('click',async()=>{
- if(!file)return;clearError();setReady(false);conversionStage='Checking required libraries';
+ clearError();
+ if(!file)return;
+ if(workflowStep==='build'){
+  try{await createCsWorkbook()}catch(e){error('Failed while creating the CS Excel workbook. '+(e?.message||e));setReady(true);}
+  return;
+ }
+ if(workflowStep==='done'){
+  resetReviewWorkflow();
+  btn.textContent='Convert & Review Rows';
+ }
+ if(workflowStep==='metadata'){
+  error('Complete the missing metadata field below, then select Continue to conversion.');
+  return;
+ }
+ if(!window.ExcelJS||!window.CSBuilder){error('A required workbook library did not load. Refresh the page and retry.');return;}
+ setReady(false);
  progressValue=0;bar.style.width='0%';bar.setAttribute('aria-valuenow','0');pct.textContent='0%';elapsedLabel.textContent='';
  try{
-  if(!window.ExcelJS||!window.CSBuilder)throw new Error('A required workbook library did not load. Refresh the page and retry.');
-  const ext=file.name.toLowerCase().split('.').pop();
-  setStatus(3,'Starting URS extraction…');
-  conversionStage='Extracting requirements from the URS';
-  const parsed=await extractWithAI(file);
-  const sheets=(parsed.sheets||[]).filter(s=>s.rows&&s.rows.length);
-  const allRows=sheets.flatMap(s=>s.rows);
-  if(!allRows.length)throw new Error('No requirements could be extracted. No Excel file was generated.');
-  const actual=allRows.filter(r=>r.type==='row'||r.type==='sw').length;
-  conversionStage='Downloading the original CS.xlsx template';
-  setStatus(92,'Loading the original CS.xlsx template…');
-  const templateUrl=new URL('./CS.xlsx',document.baseURI);
-  templateUrl.searchParams.set('v','e5e11cefaa27c55d');
-  const response=await fetch(templateUrl.href,{cache:'no-store',credentials:'same-origin'});
-  if(!response.ok)throw new Error('The CS Excel template could not be found on the published site (HTTP '+response.status+'). Please refresh the page after the latest site deployment.');
-  const template=await response.arrayBuffer();
-  if(template.byteLength<5000)throw new Error('The CS Excel template download was incomplete ('+template.byteLength+' bytes). Refresh the page and retry.');
-  conversionStage='Opening the CS Excel template';
-  const workbookStarted=performance.now(),wb=new ExcelJS.Workbook();
-  try{await wb.xlsx.load(template)}catch(templateError){throw new Error('The CS Excel template was downloaded but could not be opened. The published template may be corrupted or an old cached copy is being used. Details: '+(templateError.message||templateError));}
-  const title=titleFromText(parsed.text||'')||parsed.equipmentName||userMeta.equipmentName;
-  conversionStage='Filling the CS template with extracted requirements';
-  CSBuilder.fillTemplate(wb,{title:'CS File of '+title,sheets});
-  setStatus(97,'Building the formatted CS workbook…');
-  conversionStage='Generating the Excel workbook';
-  const out=await wb.xlsx.writeBuffer(),blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-  console.info('DocuWorks workbook generation (ms)',Math.round(performance.now()-workbookStarted));
-  conversionStage='Starting the Excel file download';
-  a.href=url;a.download='CS_'+title.replace(/[^\w.-]+/g,'_').slice(0,70)+'.xlsx';
-  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
-  const reviewCount=allRows.filter(r=>r.review).length;
-  const warningText=parsed.warnings.length?' AI warnings: '+parsed.warnings.slice(0,3).join(' | '):'';
-  setStatus(100,(parsed.ai?'Completed using AI document understanding: ':'Completed using local extraction: ')+actual+' requirement rows exported; '+reviewCount+' row(s) flagged for source review.'+warningText+' Please verify against every source page before approval.');
- }catch(e){console.error('DocuWorks CS conversion failed at stage:',conversionStage,e);const detail=e&&e.message?e.message:String(e);error('Failed during: '+conversionStage+'. '+(e&&e.name?e.name+': ':'')+detail+' Open browser DevTools (F12) → Console if further diagnostics are needed.');prog.classList.add('hidden')}
- finally{setReady(!!file)}
+  if(!sourcePreflight)await inspectSourceBeforeAI();
+  const missing=[];
+  if(!sourceMeta.equipmentName)missing.push('Equipment Name');
+  if(!sourceMeta.ursNumber)missing.push('URS No.');
+  if(missing.length){
+   metadataPanel.classList.remove('hidden');
+   metadataHelp.textContent='The uploaded URS does not provide a readable '+missing.join(' and ')+'. Enter '+(missing.length===2?'both values using labels, for example: Equipment Name: Balance; URS No.: URS-001.':'the '+missing[0]+' exactly as written in the URS.')+' The filename will not be used.';
+   metadataInput.placeholder=missing.length===2?'Equipment Name: …; URS No.: …':'Enter '+missing[0];
+   workflowStep='metadata';
+   btn.textContent='Waiting for missing metadata';
+   setReady(false);
+   metadataInput.focus();
+   setStatus(30,'OCR inspection complete. Please enter the missing URS information.');
+   return;
+  }
+  workflowStep='extract';
+  await runAIExtraction();
+ }catch(e){
+  console.error('URS preflight failed:',conversionStage,e);
+  error('Failed during: '+conversionStage+'. '+(e?.message||e)+' No Excel file was generated.');
+  workflowStep='inspect';
+  setReady(true);
+  btn.textContent='Retry URS Inspection';
+ }
+});
+metadataContinue.addEventListener('click',async()=>{
+ clearError();
+ try{
+  userMeta=parseManualMetadata(metadataInput.value);
+  metadataPanel.classList.add('hidden');
+  workflowStep='extract';
+  await runAIExtraction();
+ }catch(e){
+  error(e?.message||String(e));
+  metadataInput.focus();
+ }
 });
 </script>
 <script src="./theme.js?v=2" defer></script>
