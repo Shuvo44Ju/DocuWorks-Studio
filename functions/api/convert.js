@@ -9,6 +9,7 @@ const OUTPUT_SCHEMA = {
     referenceDocumentNumber: { type: "string" }, version: { type: "string" },
     department: { type: "string" }, title: { type: "string" },
     warnings: { type: "array", items: { type: "string" } },
+    layout: { type: "string", enum: ["equipment", "software"] },
     sections: { type: "array", items: {
       type: "object", additionalProperties: false,
       properties: {
@@ -17,6 +18,7 @@ const OUTPUT_SCHEMA = {
           type: "object", additionalProperties: false,
           properties: {
             requirement: { type: "string" }, specification: { type: "string" },
+            requirementId: { type: "string" }, priority: { type: ["string", "integer"] },
             parentRequirement: { type: "string" }, parameterized: { type: "boolean" },
             sourcePages: { type: "array", items: { type: "integer" } },
             sourceQuote: { type: "string" }, confidence: { type: "number" },
@@ -31,7 +33,7 @@ const OUTPUT_SCHEMA = {
   required: ["equipmentName","ursNumber","referenceDocumentNumber","version","department","title","warnings","sections"]
 };
 
-const SYSTEM_PROMPT = "You are a meticulous pharmaceutical URS-to-CS extraction engine. Convert the uploaded URS into complete, source-grounded requirement/specification pairs for the company's CS comparison template.\nRead the entire document page by page. Identify the actual equipment name from the main document title or an explicit equipment-name field; never use the company name, logo text, division name, or a generic heading such as URS as the equipment name. If the equipment name is not identifiable, return an empty string.\nExtract every substantive leaf-level requirement exactly once. Preserve the original meaning and wording, values, units, tolerances, inequality signs, decimal places, ranges, punctuation, and all relevant qualifiers. Never invent or silently repair uncertain values. Do not summarize a long description.\nRead tables by their true row and column boundaries, not by the nearest text fragment. The requirement/parameter label belongs in requirement; its matching value, acceptance criterion, or description belongs in specification. A value from one row or column must never be attached to another label. Keep compound values together when they describe one parameter.\nWhen a requirement has a parent label and child parameters, return each child as its own row and write its full hierarchy directly in requirement, joined with ' – ' (example: 'Room Condition – Room Temperature'). Leave parentRequirement empty and set parameterized=false. Do not create separate parent-only rows or merge multiple children into one row.\nGroup the extracted rows under the standard CS template sections, using these meanings: '1. General Information' for equipment description, capacity, readability, platform size, utilization/intended use, room conditions and environmental conditions; '2. Functional Requirements' for design/working parameters, performance, display, units, keys/controls, accessories, MOC, safety, alarms and other operating functions; '3. Utility Services' for electrical requirements, voltage, current, phase, frequency, power supply and other building utilities; '4. Validation Aspects / Regulatory Requirements' for qualification/IQ/OQ/PQ, validation, cleaning, documentation, document language, GMP/GLP, data integrity and regulatory compliance; '5. Maintenance / Yearly Calibration' for maintenance, service support, spare parts, initial/annual/yearly calibration and after-sales support. Use only sections that contain real requirements. Classify by the actual requirement, not merely the source heading.\nExclude non-requirement material: logos, company or division names, cover-page branding, document-control fields, revision history, signatures, page numbers, repeating headers/footers, table column headings such as Requirement and Description, and generic headings such as USER REQUIREMENT. Do not extract these as sections or rows. The CS template already contains Vendor / Product Information fields; do not populate Manufacturer, Local Agent, Origin, or Model from general document branding.\nIf a PDF includes positioned embedded text or OCR/table candidates, treat them as supplementary clues only. Verify them against the page image and preserve the true visual row/column associations. An OCR candidate is not authoritative when it conflicts with the source image.\nKeep rows in source order within each standard section. Include a short verbatim sourceQuote and accurate 1-based sourcePages for every row. Confidence is a 0-to-1 estimate of legibility and row/column association. Set reviewRequired=true and state the specific ambiguity whenever a character, unit, value, or association is unclear.\nReturn only one JSON object matching the supplied schema. Do not include markdown, commentary, assumptions, or invented example data.";
+const SYSTEM_PROMPT = "You are a meticulous URS-to-Commercial Specification (CS) extraction engine. Read the uploaded URS source pages, not the source filename, and return complete structured data for the exact CS Vendor Feedback Sheet layout.\nUse only facts visible in the URS. Never infer the equipment name, department/division, URS number, reference document number, or version from the filename, company logo, or assumptions. Leave metadata empty when the source does not show it.\nPreserve original URS section headings and their order. Do not reorder sections into a standard order. Keep a source heading as a section heading, and exclude page headers, approval/signature tables, revision history, Format No., and page numbers.\nCreate one requirement object for every independent point: each bullet, each (a)/(b)/(i) item, each separate line in a description cell, and each clear 'Label: value' or 'Label = value' pair. Do this even when the source line has no bullet. A short point name goes in requirement; the value or complete sentence goes in specification. If there is no separate point name, use the source URS requirement name as requirement and put the sentence in specification. Remove list markers from the requirement text, not from values.\nUse a concise, clear Title Case requirement label. Never repeat serial numbering such as 2.1 in the requirement label. When a short label is ambiguous, retain its group as 'Group – Label' (for example, 'Design Parameters – Material').\nRead table cells using the visible table grid and their own row/column positions. For a data table (for example capacity, size, readability), create one point per meaningful column heading per table row, with labels in the form 'Table Topic – Column Heading'. Keep all table rows in source order. Do not merge multiple table-row values into one.\nPreserve values exactly as written: numbers, decimals, units, symbols, ±, inequalities, ranges, model numbers, leading zeros, and N/A/NA. Never normalize, convert, round, correct or invent a value. If an OCR cell is uncertain, retain the closest readable OCR text exactly as seen, set reviewRequired=true, and explain the uncertain characters/cell in reviewReason. Do not guess.\nIf one source line contains two labelled values with different meanings (for example 'Max=6200 g; d=0.01 g'), create two rows, named 'Capacity' and 'Readability' as appropriate. But when the labels describe two dimensions of one combined item (for example 'ID: 4.8 mm, OD: 8.0 mm'), keep both values together in the same specification and do not drop either value. Separate independent time/quantity pairs such as '24 hours per day' and '07 days per week' into separate points.\nKeep every source sentence, qualification, option, and exception. Do not paraphrase or compress the specification. Preserve source order.\nDetect software/computerised-system URSs. When a source table has Requirement ID and Priority fields, set layout='software'; preserve the exact ID in requirementId, the complete requirement text in requirement, and the priority (1=Regulatory, 2=Business, 3=Desired) in priority. Keep subsection headings and their order. Do not merge the ID or priority into the description.\nFor normal equipment URSs, set layout='equipment'.\nUse sourcePages with the actual 1-based source page. sourceQuote must be a short verbatim excerpt from the correct cell. Confidence is a 0-to-1 estimate of legibility and cell association. Do not report high confidence for an unreadable or ambiguous OCR cell.\nReturn only one JSON object matching the supplied schema. No markdown, commentary, or invented example data."
 
 function isAllowedOrigin(origin) {
   if (!origin) return false;
@@ -127,52 +129,58 @@ function isCsDocumentFurniture(requirement, specification, sourceTitle) {
   return false;
 }
 function normalizeForCsTemplate(data) {
-  const buckets = new Map(CS_SECTION_ORDER.map(title => [title, []]));
+  const sourceSections = Array.isArray(data.sections) ? data.sections : [];
+  const software = String(data.layout || "").toLowerCase() === "software" ||
+    sourceSections.some(section => (section.requirements || []).some(item =>
+      String(item?.requirementId || "").trim() ||
+      String(item?.priority == null ? "" : item.priority).trim()
+    ));
+  data.layout = software ? "software" : "equipment";
   let discardedFurniture = 0;
-  for (const section of data.sections || []) {
+  const sections = [];
+
+  for (const section of sourceSections) {
     const sourceTitle = String(section?.title || "").trim();
+    const requirements = [];
     for (const item of section?.requirements || []) {
       let requirement = String(item?.requirement || "").trim();
       const specification = String(item?.specification || "").trim();
       const parent = String(item?.parentRequirement || "").trim();
       const parentIsSection = /^(?:[1-5][.)]?\s*)?(?:general information|functional requirements|utility services|validation aspects(?:\s*\/\s*regulatory requirements)?|maintenance(?:\s*\/\s*yearly calibration)?)$/i.test(parent);
-      if (parent && !parentIsSection &&
-          !requirement.toLowerCase().startsWith(parent.toLowerCase()) &&
-          requirement) {
+      if (parent && !parentIsSection && requirement &&
+          !requirement.toLowerCase().startsWith(parent.toLowerCase())) {
         requirement = parent + " – " + requirement;
       }
       if (isCsDocumentFurniture(requirement, specification, sourceTitle)) {
         discardedFurniture++;
         continue;
       }
-      const target = classifyCsSection(requirement, sourceTitle);
-      buckets.get(target).push({
+      requirements.push({
         ...item,
         requirement: requirement || "UNRESOLVED REQUIREMENT — REVIEW SOURCE",
         specification,
-        // The target CS sheet uses one flat row per complete requirement label.
-        // The hierarchy is retained in requirement rather than a separate merged heading.
         parentRequirement: "",
         parameterized: false
       });
     }
+    // Do not change the source section title or its order.
+    if (requirements.length || sourceTitle) {
+      sections.push({ title: sourceTitle, requirements });
+    }
   }
-  data.sections = CS_SECTION_ORDER
-    .filter(title => buckets.get(title).length)
-    .map(title => ({ title, requirements: buckets.get(title) }));
-  if (!data.sections.length) {
-    throw new Error("No substantive CS requirements remained after removing document headers and table furniture.");
+  data.sections = sections;
+  if (!data.sections.some(section => section.requirements.length)) {
+    throw new Error("No substantive requirement rows were found in the URS.");
   }
   if (discardedFurniture) {
     data.warnings = Array.isArray(data.warnings) ? data.warnings : [];
-    data.warnings.push("Excluded " + discardedFurniture + " non-requirement header, branding, or template item(s) from the CS rows.");
+    data.warnings.push("Excluded " + discardedFurniture + " non-requirement header/footer item(s).");
   }
   if (/^(?:urs|user requirements?|user requirement specification|document)$/i.test(String(data.equipmentName || "").trim())) {
     data.equipmentName = "";
   }
   return data;
 }
-
 function validateExtraction(value) {
   if (!value || !Array.isArray(value.sections)) throw new Error("The AI response did not include a section list.");
   const safe = { ...value, warnings: Array.isArray(value.warnings) ? value.warnings : [] };
@@ -183,6 +191,8 @@ function validateExtraction(value) {
       const base = {
         requirement: String(item?.requirement || "").trim(),
         specification: String(item?.specification || "").trim(),
+        requirementId: String(item?.requirementId || "").trim(),
+        priority: item?.priority == null ? "" : String(item.priority).trim(),
         parentRequirement: String(item?.parentRequirement || "").trim(),
         parameterized: Boolean(item?.parameterized),
         sourcePages: Array.isArray(item?.sourcePages) ? item.sourcePages.filter(n => Number.isInteger(n) && n > 0).slice(0,100) : [],
@@ -316,7 +326,7 @@ async function handlePost({ request, env }) {
   const ursNumberOverride = String(form.get("ursNumberOverride") || "").trim().slice(0,100);
   const extension = fileName.toLowerCase().split(".").pop();
   let userContent = [];
-  let description = "Filename: " + fileName + "\n";
+  let description = "Read the supplied URS source document only.\n";
 
   if (extension === "pdf") {
     let pageImages;
@@ -485,7 +495,7 @@ export async function onRequestGet({request,env}) {
     architecture:"Mixture of Experts (4B active parameters)",
     reasoningEffort:"medium",
     diagnostic:{
-      build:"cs-partial-scan-20261112-v1",
+      build:"cs-partial-scan-cs-format-20261112-v2",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
