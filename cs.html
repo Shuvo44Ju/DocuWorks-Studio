@@ -316,7 +316,12 @@ async function parsePdf(f,silentProgress){
 }
 async function parseDocx(f){
  const ab=await f.arrayBuffer(),res=await mammoth.convertToHtml({arrayBuffer:ab}),doc=new DOMParser().parseFromString(res.value,'text/html');
- const sheets=CSCore.parseDocxDocument(doc);if(!sheets.length)throw new Error('No supported requirement table was found in this DOCX. The reference parser expects a table with Requirement and Description columns.');return {sheets,text:doc.body.innerText||''};
+ const bodyText=doc.body.innerText||doc.body.textContent||'';
+ if(!String(res.value||'').trim()&&!String(bodyText||'').trim())throw new Error('No readable content was found in this DOCX.');
+ const sheets=CSCore.parseDocxDocument(doc);
+ // A partial DOCX may start on an inner URS page and contain no repeated table
+ // header. Keep its HTML and text for AI vision instead of aborting the workflow.
+ return {sheets:sheets.length?sheets:[{layout:'equipment',rows:[]}],text:bodyText};
 }
 function getAIEndpoint(){
  const configured=String(window.DOCUWORKS_AI_ENDPOINT||'').trim();
@@ -645,10 +650,12 @@ function renderRowsReview(parsed,kind){
  }else{
   rowReviewContent.innerHTML=groups.map((group,i)=>{
    const items=group.rows.map(row=>{
+    const software=String(parsed?.layout||parsed?.sheets?.[0]?.layout||'').toLowerCase()==='software';
     const label=row.requirementId||row.req||row.id||'Unlabelled point';
+    const preview=software?[row.req,row.desc].filter(Boolean).join('\n'):(row.desc||'');
     const priority=row.priority?' <span class="text-slate-500">[Priority '+escapeReviewText(row.priority)+']</span>':'';
     const review=row.review?' <span class="font-bold text-amber-700">· Review</span>':'';
-    return '<li class="py-1 text-xs text-slate-700"><div class="font-semibold">'+escapeReviewText(label)+priority+review+'</div><div class="whitespace-pre-wrap text-slate-600">'+escapeReviewText(row.desc||'')+'</div></li>';
+    return '<li class="py-1 text-xs text-slate-700"><div class="font-semibold">'+escapeReviewText(label)+priority+review+'</div><div class="whitespace-pre-wrap text-slate-600">'+escapeReviewText(preview)+'</div></li>';
    }).join('');
    return '<details '+(i<6?'open':'')+' class="overflow-hidden rounded-lg border border-slate-200"><summary class="cursor-pointer bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800">'+escapeReviewText(group.title)+' <span class="font-semibold text-slate-500">('+group.rows.length+' rows)</span></summary><ol class="list-decimal space-y-1 py-2 pl-8 pr-3">'+items+'</ol></details>';
   }).join('');
