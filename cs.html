@@ -465,7 +465,7 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
  if(!healthResponse.ok||!healthData?.configured){
   throw new Error('The Cloudflare Worker responded, but its AI binding is not ready. HTTP '+healthResponse.status+'. '+String(healthData?.error||'AI binding status is false or missing.'));
  }
- const expectedWorkerBuild='cs-partial-scan-cs-format-20261112-v5';
+ const expectedWorkerBuild='cs-partial-scan-cs-format-20261112-v6';
  const liveWorkerBuild=String(healthData?.diagnostic?.build||'');
  if(liveWorkerBuild!==expectedWorkerBuild){
   throw new Error('The AI service has not received the latest CS extraction update. Live Worker build: '+(liveWorkerBuild||'unknown')+'. Required build: '+expectedWorkerBuild+'. No workbook was generated. The Cloudflare Worker must be deployed from the latest GitHub main branch before conversion can continue.');
@@ -552,11 +552,7 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
   if(sectionTitle)rows.push({type:'section',title:sectionTitle});
   const sectionItems=Array.isArray(section.requirements)?section.requirements:[];
   for(const item of sectionItems){
-   let req=String(item.requirement||'').trim();
-   const parentRequirement=String(item.parentRequirement||'').trim();
-   if(parentRequirement&&req&&!req.toLowerCase().startsWith(parentRequirement.toLowerCase())){
-    req=parentRequirement+' – '+req;
-   }
+   const req=String(item.requirement||'').trim();
    const desc=String(item.specification||'').trim();
    if(!req&&!desc)continue;
    const confidence=Number.isFinite(Number(item.confidence))?Math.max(0,Math.min(1,Number(item.confidence))):0;
