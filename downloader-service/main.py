@@ -26,6 +26,13 @@ app = Flask(__name__)
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "*")
 CORS(app, origins=allowed_origins, expose_headers=["Content-Disposition"])
 
+@app.after_request
+def allow_local_network_access(response):
+    # Supports browsers that require an explicit private-network CORS response
+    # when a hosted HTTPS page connects to the user's local localhost service.
+    response.headers["Access-Control-Allow-Private-Network"] = "true"
+    return response
+
 MAX_FILE_BYTES = 500 * 1024 * 1024
 MAX_DURATION_SECONDS = 3 * 60 * 60
 
