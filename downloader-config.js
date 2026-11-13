@@ -1,4 +1,3 @@
-// Standalone Flask downloader service.
-// Render deploys this service at the URL below.
-// No API key or secret is stored in this browser file.
-window.DW_DOWNLOADER_API = "https://docuworks-youtube-downloader.onrender.com";
+// Local default: run start-downloader.bat on this PC.
+// Set this to your deployed HTTPS backend URL only after that service is actually deployed.
+window.DW_DOWNLOADER_API = "http://localhost:5000";
