@@ -43,7 +43,7 @@ Reload the DocuWorks Downloader page and test the connection. The local service 
 
 Deploy the `downloader-service` folder to a Docker/container host that provides a public HTTPS service.
 
-The repository Dockerfile installs FFmpeg, installs the Python dependencies, and starts the Flask application with `python main.py`. The container listens on port `5000); configure the hosting service to route public HTTPS traffic to that container port.
+The repository Dockerfile installs FFmpeg, installs the Python dependencies, and starts the Flask application with `python main.py`. The container listens on port `5000`; configure the hosting service to route public HTTPS traffic to that container port.
 
 Set this environment variable on the hosting service:
 
