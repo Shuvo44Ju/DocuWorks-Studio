@@ -3,7 +3,7 @@ Simple standalone backend for the DocuWorks Studio downloader.
 
 Run locally:
     pip install -r requirements.txt
-    python app.py
+    python main.py
 
 FFmpeg is required for MP3 conversion and MP4 video/audio merging.
 Keep yt-dlp updated because YouTube changes frequently.
@@ -47,7 +47,7 @@ def is_youtube_url(value):
 
 
 def safe_title(value):
-    value = re.sub(r"[\\/:*?"<>|]+", "_", value or "download")
+    value = re.sub(r'[\\\\/:*?"<>|]+', "_", value or "download")
     value = re.sub(r"\s+", " ", value).strip()
     return value[:150] or "download"
 
