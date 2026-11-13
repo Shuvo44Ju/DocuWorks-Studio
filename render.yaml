@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: docuworks-youtube-downloader
+    runtime: docker
+    dockerfilePath: ./downloader-service/Dockerfile
+    dockerContext: ./downloader-service
+    healthCheckPath: /healthz
+    envVars:
+      - key: ALLOWED_ORIGINS
+        value: "*"
