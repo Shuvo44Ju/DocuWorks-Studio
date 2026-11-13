@@ -7,6 +7,7 @@
 <meta name="description" content="Download authorized YouTube videos as MP4 or extract audio as MP3.">
 <title>Media Downloader | DocuWorks Studio</title>
 <link rel="stylesheet" href="./style.css">
+<script src="./downloader-config.js"></script>
 <style>
 :root{--yd-ink:#182622;--yd-muted:#788580;--yd-line:#e4eae6;--yd-green:#176b55;--yd-soft:#e4f4ed}
 body{padding-bottom:36px;background:#f5f7f6;color:var(--yd-ink)}
@@ -131,7 +132,7 @@ body{padding-bottom:36px;background:#f5f7f6;color:var(--yd-ink)}
 <p class="yd-foot">DocuWorks Studio · Media Downloader</p>
 </main>
 
-<form id="downloadForm" method="post" action="/api/youtube/download" target="downloadFrame" hidden>
+<form id="downloadForm" method="post" action="" target="downloadFrame" hidden>
 <input name="url" id="formUrl">
 <input name="format" id="formFormat">
 <input name="quality" id="formQuality">
@@ -142,6 +143,7 @@ body{padding-bottom:36px;background:#f5f7f6;color:var(--yd-ink)}
 
 <script>
 const $=id=>document.getElementById(id);
+const API_BASE=String(window.DW_DOWNLOADER_API||'').replace(/\/$/,'');
 const videoUrl=$('videoUrl'),analyzeBtn=$('analyzeBtn'),statusBox=$('status');
 const result=$('videoResult'),panel=$('downloadPanel'),downloadBtn=$('downloadBtn');
 const mp4Mode=$('mp4Mode'),mp3Mode=$('mp3Mode'),videoQuality=$('videoQuality'),audioQuality=$('audioQuality');
@@ -207,13 +209,14 @@ function showVideo(data){
  mode='mp4';updateMode();downloadBtn.disabled=!$('rightsCheck').checked;
 }
 async function analyze(){
+ if(!API_BASE){setStatus('Downloader backend is not connected yet.','error');return;}
  const url=videoUrl.value.trim();
  if(!url){setStatus('Paste a YouTube video link first.','error');return;}
  if(!isYouTubeUrl(url)){setStatus('Enter a valid YouTube video URL.','error');return;}
  resetAnalysis();clearStatus();analyzeBtn.disabled=true;analyzeBtn.innerHTML='<span class="yd-spinner"></span>Analyzing';
  setStatus('Checking the video and available formats…','info');
  try{
-  const response=await fetch('/api/youtube/info',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+  const response=await fetch(API_BASE+'/info',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
   let data={};try{data=await response.json();}catch{}
   if(!response.ok)throw new Error(data.detail||data.error||'Unable to analyze this video. Please try again.');
   showVideo(data);setStatus('Video analyzed. Select a format and confirm your download rights.','success');
@@ -231,12 +234,14 @@ videoQuality.addEventListener('change',estimateSize);
 $('rightsCheck').addEventListener('change',()=>{downloadBtn.disabled=!videoInfo||!$('rightsCheck').checked;});
 $('downloadBtn').addEventListener('click',()=>{
  if(!videoInfo||!$('rightsCheck').checked)return;
+ if(!API_BASE){setStatus('Downloader backend is not connected yet.','error');return;}
  $('formUrl').value=videoInfo.webpage_url||videoUrl.value.trim();
  $('formFormat').value=mode;
  $('formQuality').value=mode==='mp4'?videoQuality.value:'best';
  $('formAudioBitrate').value=audioQuality.value;
  setStatus('Preparing your file. Your browser should start the download when processing is complete.','info');
  downloadBtn.disabled=true;downloadBtn.textContent='Preparing…';
+ $('downloadForm').action=API_BASE+'/download';
  $('downloadForm').submit();
  window.setTimeout(()=>{downloadBtn.disabled=!$('rightsCheck').checked;downloadBtn.textContent='Download file';},4000);
 });
