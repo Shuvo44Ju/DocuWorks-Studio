@@ -3,288 +3,65 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#f5f7f6">
-<meta name="description" content="Download authorized YouTube videos as MP4 or extract audio as MP3.">
-<title>Media Downloader | DocuWorks Studio</title>
-<link rel="stylesheet" href="./style.css">
-<script src="./downloader-config.js"></script>
+<meta name="theme-color" content="#f7f9fc">
+<title>YouTube Downloader | DocuWorks Studio</title>
 <style>
-:root{--yd-ink:#182622;--yd-muted:#788580;--yd-line:#e4eae6;--yd-green:#176b55;--yd-soft:#e4f4ed}
-body{padding-bottom:36px;background:#f5f7f6;color:var(--yd-ink)}
-.yd-main{width:min(100% - 32px,780px);margin:0 auto;padding:28px 0 54px}
-.yd-hero{padding:12px 0 22px}
-.yd-eyebrow{font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:800;color:var(--yd-green);margin:0 0 10px}
-.yd-hero h1{font:800 clamp(30px,6vw,42px)/1.12 Manrope,system-ui,sans-serif;letter-spacing:-1.5px;margin:0}
-.yd-hero p{font-size:14px;line-height:1.6;color:var(--yd-muted);max-width:590px;margin:11px 0 0}
-.yd-card{background:#fff;border:1px solid var(--yd-line);border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 8px 28px #163b2b08}
-.yd-label{display:block;font-size:12px;font-weight:800;margin-bottom:8px}
-.yd-urlrow{display:flex;gap:9px}
-.yd-input,.yd-select{width:100%;min-width:0;height:46px;border:1px solid #dce5df;border-radius:11px;background:#fff;color:var(--yd-ink);padding:0 13px;font:500 13px 'DM Sans',sans-serif;outline:none}
-.yd-input:focus,.yd-select:focus{border-color:#70b89f;box-shadow:0 0 0 3px #176b5514}
-.yd-primary,.yd-secondary{min-height:45px;border-radius:11px;padding:0 17px;font:800 13px 'DM Sans',sans-serif;border:1px solid var(--yd-green);white-space:nowrap}
-.yd-primary{background:var(--yd-green);color:#fff}
-.yd-primary:disabled{opacity:.5;cursor:not-allowed}
-.yd-secondary{background:#fff;color:var(--yd-green)}
-.yd-hint{font-size:11px;line-height:1.55;color:var(--yd-muted);margin:9px 0 0}
-.yd-status{display:none;margin:13px 0 0;padding:11px 13px;border-radius:11px;font-size:12px;line-height:1.5}
-.yd-status.show{display:block}
-.yd-status.info{background:#edf3ff;color:#244b91}
-.yd-status.error{background:#fff0ef;color:#a52d2d}
-.yd-status.success{background:#eaf7f0;color:#176b55}
-.yd-spinner{display:inline-block;width:14px;height:14px;vertical-align:-3px;border:2px solid #b7c8bf;border-top-color:var(--yd-green);border-radius:50%;animation:ydspin .7s linear infinite;margin-right:7px}
-@keyframes ydspin{to{transform:rotate(360deg)}}
-.yd-result{display:none;gap:16px;align-items:flex-start}
-.yd-result.show{display:flex}
-.yd-thumb{width:190px;aspect-ratio:16/9;object-fit:cover;border-radius:12px;background:#edf1ee;flex:none}
-.yd-video-title{font-size:15px;font-weight:800;line-height:1.4;margin:1px 0 7px;overflow-wrap:anywhere}
-.yd-meta{font-size:11px;color:var(--yd-muted);line-height:1.7}
-.yd-section-title{font:800 15px Manrope,sans-serif;margin:0 0 15px}
-.yd-mode-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
-.yd-mode{border:1px solid #dfe7e2;border-radius:12px;padding:13px;background:#fff;color:var(--yd-ink);text-align:left}
-.yd-mode[aria-pressed=true]{border-color:var(--yd-green);background:#edf7f2;box-shadow:inset 0 0 0 1px var(--yd-green)}
-.yd-mode strong{display:block;font-size:13px}
-.yd-mode small{display:block;font-size:10px;color:var(--yd-muted);margin-top:4px}
-.yd-options{display:grid;grid-template-columns:1fr 1fr;gap:13px}
-.yd-option{min-width:0}
-.yd-advanced-note{padding:11px 13px;border-radius:11px;background:#f4f7f5;color:var(--yd-muted);font-size:11px;line-height:1.55;margin-top:13px}
-.yd-rights{display:flex;gap:10px;align-items:flex-start;padding:13px;border:1px solid #e4eae6;border-radius:12px;margin-top:17px}
-.yd-rights input{accent-color:var(--yd-green);width:16px;height:16px;margin:2px 0 0;flex:none}
-.yd-rights label{font-size:11px;line-height:1.55;color:#5e6e66}
-.yd-download-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:17px}
-.yd-estimate{font-size:11px;color:var(--yd-muted);line-height:1.5}
-.yd-download{min-width:164px}
-.yd-privacy{display:flex;gap:11px;align-items:flex-start;padding:14px 15px;border-radius:14px;background:var(--yd-soft);margin:17px 0 0}
-.yd-privacy .symbol{width:23px;height:23px;flex:none;border-radius:50%;background:var(--yd-green);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:900}
-.yd-privacy strong{font-size:12px}
-.yd-privacy p{font-size:11px;color:var(--yd-muted);line-height:1.55;margin:3px 0 0}
-.yd-foot{font-size:10px;color:#8a9991;line-height:1.6;text-align:center;margin-top:23px}
-@media(max-width:560px){.yd-main{width:min(100% - 26px,780px);padding-top:18px}.yd-card{padding:15px;border-radius:15px}.yd-urlrow{flex-direction:column}.yd-urlrow .yd-primary{width:100%}.yd-result.show{display:block}.yd-thumb{width:100%;max-width:100%;margin-bottom:12px}.yd-options{grid-template-columns:1fr}.yd-download-row{align-items:stretch;flex-direction:column}.yd-download{width:100%}}
+:root{color-scheme:light;--ink:#172b4d;--muted:#687a94;--line:#e3e9f2;--blue:#2458d3;--blue-dark:#1744ad;--canvas:#f5f7fb}
+*{box-sizing:border-box}body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:inherit;text-decoration:none}
+.topbar{display:flex;align-items:center;gap:14px;height:64px;padding:0 24px;background:#fff;border-bottom:1px solid var(--line)}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--blue);font-weight:700;font-size:13px}.brand{font-weight:800;letter-spacing:-.03em}
+main{max-width:650px;margin:32px auto;padding:0 16px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;box-shadow:0 2px 8px rgba(25,49,91,.04)}
+h1{margin:0 0 4px;font-size:22px;letter-spacing:-.03em}.sub{margin:0 0 20px;color:var(--muted);font-size:13px}
+label{display:block;font-size:12px;font-weight:700;color:#4b5d78;margin:0 0 6px}
+input,select{width:100%;height:44px;padding:0 12px;border:1px solid #dfe6f0;border-radius:10px;background:#fff;color:var(--ink);font:inherit;outline:none;margin-bottom:14px}
+input:focus,select:focus{border-color:#8daaf0;box-shadow:0 0 0 3px #2458d314}.row{display:flex;gap:12px}.row>div{flex:1;min-width:0}
+button{height:46px;border:0;border-radius:10px;background:var(--blue);color:#fff;font:inherit;font-weight:700;cursor:pointer;width:100%}button:hover{background:var(--blue-dark)}button:disabled{opacity:.55;cursor:wait}
+button.ghost{background:#f4f7ff;color:var(--blue);border:1px solid #d9e4fa;height:40px;width:auto;padding:0 14px;font-size:12px}
+#status{min-height:22px;margin-top:12px;font-size:13px;color:var(--muted);overflow-wrap:anywhere}#status.err{color:#c43f50}#status.ok{color:#138663}
+details{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}summary{cursor:pointer;font-weight:700;color:#4b5d78;font-size:13px}
+.conn{display:flex;gap:10px;align-items:center;margin-top:12px}.conn input{margin:0;flex:1;min-width:0}
+.rights{display:flex;align-items:flex-start;gap:9px;margin:5px 0 14px;color:#637590;font-size:11px;line-height:1.5}.rights input{width:16px;height:16px;margin:1px 0 0;flex:none}
+.note{margin-top:16px;font-size:11px;color:#8794a8;line-height:1.6}
+@media(max-width:520px){.topbar{padding:0 15px}main{margin:18px auto;padding:0 13px}.card{padding:17px}.row{gap:8px}.conn{align-items:stretch}.conn input{width:100%}}
 </style>
 </head>
 <body>
-<header class="dw-unified-header">
-<a class="dw-unified-home" href="./index.html">← Home</a>
-<a class="dw-unified-brand" href="./index.html"><span class="dw-unified-mark">D</span><span>DocuWorks <em>Studio</em></span></a>
-</header>
-<main class="yd-main">
-<section class="yd-hero">
-<p class="yd-eyebrow">Media tools</p>
+<header class="topbar"><a class="back" href="./index.html">← Home</a><span class="brand">DocuWorks Studio</span></header>
+<main><section class="card">
 <h1>YouTube Downloader</h1>
-<p>Save videos you own or are authorized to download as MP4, or extract their audio as MP3. Choose the available quality before downloading.</p>
-</section>
-
-<section class="yd-card" aria-label="Analyze YouTube video">
-<label class="yd-label" for="videoUrl">YouTube video link</label>
-<div class="yd-urlrow">
-<input class="yd-input" id="videoUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="url" inputmode="url">
-<button class="yd-primary" id="analyzeBtn" type="button">Analyze video</button>
+<p class="sub">Download authorized videos as MP4 or extract audio as MP3.</p>
+<label for="url">YouTube video link</label>
+<input id="url" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+<div class="row">
+<div><label for="format">Format</label><select id="format"><option value="mp4">MP4 · Video</option><option value="mp3">MP3 · Audio only</option></select></div>
+<div id="videoQualityWrap"><label for="quality">Video quality</label><select id="quality"><option value="best">Best available</option><option value="2160">2160p</option><option value="1440">1440p</option><option value="1080">1080p</option><option value="720">720p</option><option value="480">480p</option><option value="360">360p</option></select></div>
+<div id="audioQualityWrap" hidden><label for="bitrate">MP3 bitrate</label><select id="bitrate"><option value="320">320 kbps</option><option value="256">256 kbps</option><option value="192" selected>192 kbps</option><option value="128">128 kbps</option></select></div>
 </div>
-<p class="yd-hint">Paste a YouTube video URL. Playlists and non-YouTube links are not supported.</p>
-<div class="yd-status" id="status" role="status" aria-live="polite"></div>
-</section>
-
-<section class="yd-card yd-result" id="videoResult" aria-live="polite">
-<img class="yd-thumb" id="thumbnail" alt="Video thumbnail">
-<div>
-<h2 class="yd-video-title" id="videoTitle"></h2>
-<div class="yd-meta" id="videoMeta"></div>
-</div>
-</section>
-
-<section class="yd-card" id="downloadPanel" hidden>
-<h2 class="yd-section-title">Choose download format</h2>
-<div class="yd-mode-row">
-<button class="yd-mode" id="mp4Mode" type="button" aria-pressed="true"><strong>MP4 · Video</strong><small>Video with audio</small></button>
-<button class="yd-mode" id="mp3Mode" type="button" aria-pressed="false"><strong>MP3 · Audio</strong><small>Audio-only file</small></button>
-</div>
-<div class="yd-options">
-<div class="yd-option" id="videoQualityWrap">
-<label class="yd-label" for="videoQuality">Video quality</label>
-<select class="yd-select" id="videoQuality">
-<option value="best">Highest available</option>
-</select>
-</div>
-<div class="yd-option" id="audioQualityWrap" hidden>
-<label class="yd-label" for="audioQuality">MP3 bitrate</label>
-<select class="yd-select" id="audioQuality">
-<option value="320">320 kbps · Highest</option>
-<option value="256">256 kbps</option>
-<option value="192">192 kbps</option>
-<option value="128">128 kbps</option>
-</select>
-</div>
-</div>
-<div class="yd-advanced-note" id="qualityNote">The highest available MP4 video and audio streams will be selected. Actual quality depends on the source video.</div>
-<div class="yd-rights">
-<input id="rightsCheck" type="checkbox">
-<label for="rightsCheck">I own this video, have permission from the rights holder, or otherwise have the legal right to download it. I understand that YouTube may restrict downloads in other circumstances.</label>
-</div>
-<div class="yd-download-row">
-<div class="yd-estimate" id="sizeEstimate">Estimated file size will appear after analysis.</div>
-<button class="yd-primary yd-download" id="downloadBtn" type="button" disabled>Download file</button>
-</div>
-</section>
-
-<div class="yd-privacy">
-<span class="symbol">✓</span>
-<div><strong>Permission-based use</strong><p>Use this feature only for content you are entitled to download. It does not bypass DRM, private-video access controls, or other access restrictions.</p></div>
-</div>
-<p class="yd-foot">DocuWorks Studio · Media Downloader</p>
-</main>
-
-<form id="downloadForm" method="post" action="" target="downloadFrame" hidden>
-<input name="url" id="formUrl">
-<input name="format" id="formFormat">
-<input name="quality" id="formQuality">
-<input name="audioBitrate" id="formAudioBitrate">
-<input name="rightsConfirmed" value="true">
-</form>
-<iframe title="Download response" name="downloadFrame" id="downloadFrame" hidden></iframe>
-
+<label class="rights"><input id="rights" type="checkbox"><span>I own this video, have permission from the rights holder, or otherwise have the legal right to download it.</span></label>
+<button id="go" type="button">Download</button>
+<div id="status" role="status" aria-live="polite"></div>
+<details id="settings" open>
+<summary>Backend connection</summary>
+<div class="conn"><input id="api" type="url" placeholder="http://localhost:5000" aria-label="Backend address"><button class="ghost" id="test" type="button">Test connection</button></div>
+<p class="note">For use on this PC, keep http://localhost:5000 and run the supplied start-downloader.bat file. For a public service, enter the HTTPS address of your deployed downloader server.</p>
+</details>
+<p class="note">Only download content you are legally entitled to download. This tool does not bypass DRM, private-video access controls, or other restrictions. YouTube's terms may restrict downloading.</p>
+</section></main>
 <script>
 const $=id=>document.getElementById(id);
-const API_BASE=String(window.DW_DOWNLOADER_API||'').replace(/\/$/,'');
-const videoUrl=$('videoUrl'),analyzeBtn=$('analyzeBtn'),statusBox=$('status');
-const result=$('videoResult'),panel=$('downloadPanel'),downloadBtn=$('downloadBtn');
-const mp4Mode=$('mp4Mode'),mp3Mode=$('mp3Mode'),videoQuality=$('videoQuality'),audioQuality=$('audioQuality');
-let videoInfo=null,mode='mp4';
-
-function setStatus(message,type){
- statusBox.className='yd-status show '+type;
- statusBox.textContent=message;
-}
-function clearStatus(){statusBox.className='yd-status';statusBox.textContent='';}
-function isYouTubeUrl(value){
- try{
-  const u=new URL(value);
-  const h=u.hostname.toLowerCase().replace(/^www\./,'');
-  return (u.protocol==='https:'||u.protocol==='http:')&&(h==='youtube.com'||h.endsWith('.youtube.com')||h==='youtu.be');
- }catch{return false;}
-}
-function formatDuration(seconds){
- if(!Number.isFinite(Number(seconds)))return 'Duration unavailable';
- const n=Math.max(0,Math.floor(Number(seconds)));
- const h=Math.floor(n/3600),m=Math.floor((n%3600)/60),s=n%60;
- return h?[h,m,s].map((x,i)=>i?String(x).padStart(2,'0'):String(x)).join(':'):[m,s].map(x=>String(x).padStart(2,'0')).join(':');
-}
-function humanSize(bytes){
- if(!Number.isFinite(Number(bytes))||Number(bytes)<=0)return 'Not available';
- const units=['B','KB','MB','GB'];let n=Number(bytes),i=0;
- while(n>=1024&&i<units.length-1){n/=1024;i++;}
- return n.toFixed(i>1?1:0)+' '+units[i];
-}
-function estimateSize(){
- if(!videoInfo)return;
- const estimates=videoInfo.estimated_sizes||{};
- const key=mode==='mp3'?'mp3':(videoQuality.value||'best');
- $('sizeEstimate').textContent='Estimated size: '+humanSize(estimates[key])+' · actual size may vary';
-}
-function updateMode(){
- mp4Mode.setAttribute('aria-pressed',String(mode==='mp4'));
- mp3Mode.setAttribute('aria-pressed',String(mode==='mp3'));
- $('videoQualityWrap').hidden=mode==='mp3';
- $('audioQualityWrap').hidden=mode!=='mp3';
- $('qualityNote').textContent=mode==='mp3'
-  ?'Audio will be converted to MP3. Selecting 320 kbps does not increase quality beyond the original audio source.'
-  :'The highest available MP4 video and audio streams will be selected. Actual quality depends on the source video.';
- estimateSize();
-}
-function resetAnalysis(){
- videoInfo=null;result.classList.remove('show');panel.hidden=true;downloadBtn.disabled=true;
-}
-function showVideo(data){
- videoInfo=data;
- $('thumbnail').src=data.thumbnail||'';
- $('videoTitle').textContent=data.title||'Untitled video';
- $('videoMeta').textContent=(data.uploader||'YouTube')+' · '+formatDuration(data.duration);
- result.classList.add('show');panel.hidden=false;
- videoQuality.innerHTML='';
- const heights=Array.isArray(data.available_heights)?data.available_heights:[];
- const best=document.createElement('option');
- best.value='best';
- best.textContent='Highest available'+(data.max_height?' ('+data.max_height+'p)':'');
- videoQuality.appendChild(best);
- [2160,1440,1080,720,480,360].forEach(h=>{
-  if(heights.includes(h)){
-   const o=document.createElement('option');
-   o.value=String(h);o.textContent=h+'p';videoQuality.appendChild(o);
-  }
- });
- videoQuality.value='best';
- mode='mp4';updateMode();
- downloadBtn.disabled=!$('rightsCheck').checked;
-}
-async function analyze(){
- if(!API_BASE){setStatus('Downloader backend is not connected yet.','error');return;}
- const url=videoUrl.value.trim();
- if(!url){setStatus('Paste a YouTube video link first.','error');return;}
- if(!isYouTubeUrl(url)){setStatus('Enter a valid YouTube video URL.','error');return;}
- resetAnalysis();clearStatus();analyzeBtn.disabled=true;
- analyzeBtn.innerHTML='<span class="yd-spinner"></span>Analyzing';
- setStatus('Checking the video and available formats…','info');
- try{
-  const response=await fetch(API_BASE+'/info',{
-   method:'POST',
-   headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({url})
-  });
-  let data={};try{data=await response.json();}catch{}
-  if(!response.ok)throw new Error(data.error||'Unable to analyze this video. Please try again.');
-  showVideo(data);
-  setStatus('Video analyzed. Select a format and confirm your download rights.','success');
- }catch(error){
-  setStatus(error.message||'The downloader service could not be reached.','error');
- }finally{
-  analyzeBtn.disabled=false;analyzeBtn.textContent='Analyze video';
- }
-}
-async function downloadFile(){
- if(!videoInfo||!$('rightsCheck').checked)return;
- if(!API_BASE){setStatus('Downloader backend is not connected yet.','error');return;}
- downloadBtn.disabled=true;downloadBtn.textContent='Preparing…';
- setStatus('Downloading and preparing your file… this can take a while for large videos.','info');
- try{
-  const response=await fetch(API_BASE+'/download',{
-   method:'POST',
-   headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({
-    url:videoInfo.webpage_url||videoUrl.value.trim(),
-    format:mode,
-    quality:mode==='mp4'?videoQuality.value:'best',
-    audioBitrate:audioQuality.value
-   })
-  });
-  if(!response.ok){
-   let data={};try{data=await response.json();}catch{}
-   throw new Error(data.error||('Download failed (HTTP '+response.status+').'));
-  }
-  const blob=await response.blob();
-  const disposition=response.headers.get('Content-Disposition')||'';
-  let filename=mode==='mp3'?'download.mp3':'download.mp4';
-  const match=disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
-  if(match){
-   try{filename=decodeURIComponent(match[1]);}catch{filename=match[1];}
-  }
-  const objectUrl=URL.createObjectURL(blob);
-  const link=document.createElement('a');
-  link.href=objectUrl;link.download=filename;
-  document.body.appendChild(link);link.click();link.remove();
-  setTimeout(()=>URL.revokeObjectURL(objectUrl),1000);
-  setStatus('Download ready: '+filename,'success');
- }catch(error){
-  setStatus(error.message||'The downloader service could not be reached.','error');
- }finally{
-  downloadBtn.disabled=!$('rightsCheck').checked;
-  downloadBtn.textContent='Download file';
- }
-}
-analyzeBtn.addEventListener('click',analyze);
-videoUrl.addEventListener('keydown',e=>{if(e.key==='Enter')analyze();});
-mp4Mode.addEventListener('click',()=>{mode='mp4';updateMode();});
-mp3Mode.addEventListener('click',()=>{mode='mp3';updateMode();});
-videoQuality.addEventListener('change',estimateSize);
-$('rightsCheck').addEventListener('change',()=>{downloadBtn.disabled=!videoInfo||!$('rightsCheck').checked;});
-downloadBtn.addEventListener('click',downloadFile);
-</script>>
-</body>
-</html>
+const DEFAULT_API=window.DW_DOWNLOADER_API||"http://localhost:5000";
+function readApi(){return $("api").value.trim().replace(/\/+$/,"");}
+function saveApi(value){try{localStorage.setItem("dw-downloader-api",value);}catch(e){}}
+try{$("api").value=localStorage.getItem("dw-downloader-api")||DEFAULT_API;}catch(e){$("api").value=DEFAULT_API;}
+function status(message,kind=""){const el=$("status");el.textContent=message;el.className=kind;}
+function validYouTubeUrl(value){try{const u=new URL(value);const h=u.hostname.toLowerCase().replace(/^www\./,"");return ["youtube.com","m.youtube.com","youtu.be"].includes(h)||h.endsWith(".youtube.com");}catch(e){return false;}}
+$("format").addEventListener("change",()=>{const mp3=$("format").value==="mp3";$("videoQualityWrap").hidden=mp3;$("audioQualityWrap").hidden=!mp3;});
+$("test").addEventListener("click",async()=>{const base=readApi();if(!base)return status("Enter your backend address first.","err");status("Testing backend connection…");$("test").disabled=true;try{const r=await fetch(base+"/healthz",{method:"GET",cache:"no-store"});if(!r.ok)throw new Error("Server responded with HTTP "+r.status);const data=await r.json();if(!data.ok)throw new Error("Unexpected health response");saveApi(base);status("Connected. Downloader backend is running.","ok");}catch(e){status("Cannot connect: "+(e.message||"check that the backend is running and the address is correct."),"err");}finally{$("test").disabled=false;}});
+$("go").addEventListener("click",async()=>{const url=$("url").value.trim(),base=readApi();if(!url)return status("Paste a YouTube video link first.","err");if(!validYouTubeUrl(url))return status("Enter a valid YouTube video URL.","err");if(!$("rights").checked)return status("Please confirm that you have the right to download this content.","err");if(!base){$("settings").open=true;return status("Enter your backend address.","err");}
+saveApi(base);$("go").disabled=true;$("go").textContent="Preparing download…";status("Connecting to the downloader. Large videos may take a few minutes.");
+try{const payload={url,format:$("format").value,quality:$("quality").value,audioBitrate:$("bitrate").value};const response=await fetch(base+"/download",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(!response.ok){let message="Download failed (HTTP "+response.status+").";try{const data=await response.json();message=data.error||message;}catch(e){}throw new Error(message);}
+const blob=await response.blob();if(!blob.size)throw new Error("The server returned an empty file.");const cd=response.headers.get("Content-Disposition")||"";const utf=cd.match(/filename\*=UTF-8''([^;]+)/i);const normal=cd.match(/filename="?([^";]+)"?/i);let filename="download."+(payload.format==="mp3"?"mp3":"mp4");if(utf){try{filename=decodeURIComponent(utf[1]);}catch(e){filename=utf[1];}}else if(normal){filename=normal[1];}
+const objectUrl=URL.createObjectURL(blob),a=document.createElement("a");a.href=objectUrl;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);status("Download started: "+filename,"ok");
+}catch(e){status(e.message||"Unable to reach the downloader backend.","err");$("settings").open=true;}finally{$("go").disabled=false;$("go").textContent="Download";}});
+</script>
+</body></html>
