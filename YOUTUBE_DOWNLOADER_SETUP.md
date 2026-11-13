@@ -1,27 +1,24 @@
-# DocuWorks Studio — YouTube Downloader backend
+# DocuWorks Studio — Standalone YouTube Downloader
 
-The DocuWorks Studio website is static and its Cloudflare Worker cannot run yt-dlp or FFmpeg. This folder contains the separate, authenticated media-processing service required by the Downloader page.
+The Downloader page is now independent of the DocuWorks Cloudflare Worker. The page talks directly to a separate HTTPS downloader service.
 
-## Deploy the media service
+## Backend
 
-1. Deploy this repository's `downloader-service` folder as a Docker web service on a container host that supports persistent FFmpeg binaries.
-2. Set the service environment variable `DOWNLOADER_API_TOKEN` to a long, random secret. Do not put this token in website JavaScript or commit it to GitHub.
-3. Expose the service over HTTPS and note its base URL, for example `https://your-service.example.com`.
-4. The service health check is `/healthz`.
+The `downloader-service` folder is the complete backend. It uses FastAPI, yt-dlp and FFmpeg and exposes:
 
-The container installs FFmpeg and Python dependencies automatically. It accepts only YouTube video URLs, does not process playlists, limits output to 500 MB and three hours, and allows one active download at a time. It requires an authenticated bearer token.
+- `GET /healthz`
+- `POST /info`
+- `POST /download`
 
-## Connect it to the DocuWorks Cloudflare Worker
+The service accepts YouTube video URLs only, does not process playlists, limits videos to three hours / 500 MB, and requires a bearer token. It should be used only for content the user is legally entitled to download. It does not bypass DRM or private-video access controls.
 
-In Cloudflare, open the `docuworks-studio` Worker and add these as encrypted secrets/variables:
+## One-time connection
 
-- `DOWNLOAD_SERVICE_URL` — the HTTPS base URL of the deployed service, without a trailing slash.
-- `DOWNLOAD_SERVICE_TOKEN` — exactly the same secret value as `DOWNLOADER_API_TOKEN` on the service.
+1. Deploy `downloader-service` to any HTTPS container host that supports Docker.
+2. Set `DOWNLOADER_API_TOKEN` on that service.
+3. Copy the service's HTTPS URL into `downloader-config.js` as `window.DW_DOWNLOADER_API`.
+4. Make sure the service allows browser requests from the DocuWorks Studio website (CORS).
 
-Redeploy the Worker after adding the values. The website then uses same-origin routes `/api/youtube/info` and `/api/youtube/download`; the secret never reaches the browser.
+No Cloudflare Worker secret or downloader proxy is required for the Downloader page.
 
-## Important
-
-The repository changes add the user interface and the complete backend service, but the media service still needs to be deployed and connected in your hosting account before downloads can run. Do not choose a paid hosting plan without reviewing its price first.
-
-Use the Downloader only for videos you own, have permission to download, or are otherwise legally entitled to download. It does not bypass DRM, private-video restrictions, or other access controls.
+The existing Cloudflare Worker used by other DocuWorks Studio features can remain unchanged.
