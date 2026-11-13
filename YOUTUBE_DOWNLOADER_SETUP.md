@@ -1,76 +1,42 @@
-# DocuWorks Studio — Standalone YouTube Downloader
+# DocuWorks Studio — YouTube Downloader
 
-The Downloader page connects directly to a separate standalone HTTPS service. Media downloading does **not** pass through the DocuWorks Cloudflare Worker. The existing Cloudflare Worker can continue serving the other DocuWorks Studio features.
+## Step 1 — Install the required software (one time)
 
-## Backend
+- Install Python 3.11 or newer from https://www.python.org/downloads/
+- During Python setup, enable **Add Python to PATH**.
+- FFmpeg is required for MP3 conversion and MP4 video/audio merging. The startup script attempts to install it using Windows Package Manager if it is missing.
 
-The `downloader-service` folder contains the complete backend:
+## Step 2 — Start the downloader backend
 
-- **Flask** and **Flask-CORS** (not FastAPI)
-- **yt-dlp** for retrieving supported YouTube video and audio streams
-- **FFmpeg** for MP3 conversion and MP4 audio/video merging
-- `GET /` and `GET /healthz` health checks
-- `POST /info` for video information
-- `POST /download` for MP4 or MP3 downloads
+1. Download or update the DocuWorks Studio repository on your Windows PC.
+2. Open the repository folder.
+3. Double-click **start-downloader.bat**.
+4. Wait while it installs Flask, Flask-CORS, and yt-dlp.
+5. When the terminal says the service is listening at `http://localhost:5000`, leave that window open.
 
-The service accepts YouTube video URLs only, does not process playlists, and enforces a maximum duration of three hours and a maximum output size of 500 MB.
+If FFmpeg is installed during the first run, close the terminal and double-click `start-downloader.bat` again so Windows can refresh its PATH.
 
-**Authentication:** The current Flask implementation does not use a bearer token. Do not add a `DOWNLOADER_API_TOKEN` setting or an Authorization header unless the backend and frontend are deliberately updated together. The browser configuration contains no API secret.
+## Step 3 — Connect the DocuWorks webpage
 
-## Run locally
+1. Open the DocuWorks Studio website on the same PC.
+2. Open **YouTube Downloader**.
+3. Expand **Backend connection**.
+4. Keep the address as `http://localhost:5000`.
+5. Click **Test connection**. It should report that the backend is connected.
 
-Install Python 3.12 or later and FFmpeg, then open a terminal:
+## Step 4 — Download
 
-```bash
-cd downloader-service
-pip install -r requirements.txt
-python main.py
-```
+1. Paste a YouTube video URL.
+2. Choose MP4 or MP3 and the required quality.
+3. Tick the permission confirmation.
+4. Click **Download**.
 
-The service listens on:
+Keep the backend terminal open while downloading.
 
-`http://localhost:5000`
+## Important: local versus public access
 
-In `downloader-config.js`, set:
+This setup runs the downloader on your own PC. It is not a public server, and other users or devices cannot use your PC's localhost address. To make the hosted DocuWorks webpage work for everyone, the backend must separately be deployed to a public HTTPS host that supports a persistent Python process and FFmpeg. The repository includes a Dockerfile and `render.yaml` as deployment configuration, but those files do not deploy the service by themselves. Only put a real, deployed HTTPS backend URL into `downloader-config.js`.
 
-```js
-window.DW_DOWNLOADER_API = "http://localhost:5000";
-```
+Media downloading does not pass through the DocuWorks Cloudflare Worker. The service uses Flask, yt-dlp, and FFmpeg, accepts single YouTube video URLs, and enforces a maximum duration of three hours and a maximum output size of 500 MB. Hosting resources and provider limits still apply.
 
-Reload the DocuWorks Downloader page and test the connection. The local service must remain running while you use the downloader.
-
-## Deploy online
-
-Deploy the `downloader-service` folder to a Docker/container host that provides a public HTTPS service.
-
-The repository Dockerfile installs FFmpeg, installs the Python dependencies, and starts the Flask application with `python main.py`. The container listens on port `5000`; configure the hosting service to route public HTTPS traffic to that container port.
-
-Set this environment variable on the hosting service:
-
-```text
-ALLOWED_ORIGINS=https://YOUR-DOCUWORKS-SITE.example
-```
-
-Replace the example value with the exact origin of your DocuWorks Studio website. For temporary testing, `*` is accepted, but a production deployment should restrict CORS to your site.
-
-When the host gives you a public HTTPS URL, put that URL in `downloader-config.js`:
-
-```js
-window.DW_DOWNLOADER_API = "https://your-downloader.example.com";
-```
-
-Redeploy or publish the DocuWorks website after changing the configuration. No Cloudflare downloader proxy, Cloudflare Worker secret, or browser API token is required.
-
-## Verify the service
-
-Open the deployed service's health endpoint:
-
-`https://your-downloader.example.com/healthz`
-
-A running service should return a small JSON response with `ok: true`.
-
-## Important
-
-A standalone server avoids Cloudflare Workers' execution limits for media processing, but it is not literally unlimited. Its CPU, memory, temporary disk space, network bandwidth, and hosting provider limits still apply. The service also limits each download to three hours and 500 MB.
-
-Use the downloader only for content you own, have permission to download, or are otherwise legally entitled to download. It does not bypass DRM or private-video access controls.
+Use this tool only for content you own, have permission to download, or are otherwise legally entitled to download. It does not bypass DRM or private-video access controls.
