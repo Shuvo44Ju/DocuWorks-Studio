@@ -2,6 +2,7 @@ services:
   - type: web
     name: docuworks-youtube-downloader
     runtime: docker
+    plan: free
     dockerfilePath: ./downloader-service/Dockerfile
     dockerContext: ./downloader-service
     healthCheckPath: /healthz
