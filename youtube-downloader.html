@@ -177,8 +177,7 @@ function estimateSize(){
  if(!videoInfo)return;
  const estimates=videoInfo.estimated_sizes||{};
  const key=mode==='mp3'?'mp3':(videoQuality.value||'best');
- const bytes=estimates[key];
- $('sizeEstimate').textContent='Estimated size: '+humanSize(bytes)+' · actual size may vary';
+ $('sizeEstimate').textContent='Estimated size: '+humanSize(estimates[key])+' · actual size may vary';
 }
 function updateMode(){
  mp4Mode.setAttribute('aria-pressed',String(mode==='mp4'));
@@ -201,29 +200,82 @@ function showVideo(data){
  result.classList.add('show');panel.hidden=false;
  videoQuality.innerHTML='';
  const heights=Array.isArray(data.available_heights)?data.available_heights:[];
- const best=document.createElement('option');best.value='best';best.textContent='Highest available'+(data.max_height?' ('+data.max_height+'p)':'');videoQuality.appendChild(best);
+ const best=document.createElement('option');
+ best.value='best';
+ best.textContent='Highest available'+(data.max_height?' ('+data.max_height+'p)':'');
+ videoQuality.appendChild(best);
  [2160,1440,1080,720,480,360].forEach(h=>{
-  if(heights.includes(h)){const o=document.createElement('option');o.value=String(h);o.textContent=h+'p';videoQuality.appendChild(o);}
+  if(heights.includes(h)){
+   const o=document.createElement('option');
+   o.value=String(h);o.textContent=h+'p';videoQuality.appendChild(o);
+  }
  });
  videoQuality.value='best';
- mode='mp4';updateMode();downloadBtn.disabled=!$('rightsCheck').checked;
+ mode='mp4';updateMode();
+ downloadBtn.disabled=!$('rightsCheck').checked;
 }
 async function analyze(){
  if(!API_BASE){setStatus('Downloader backend is not connected yet.','error');return;}
  const url=videoUrl.value.trim();
  if(!url){setStatus('Paste a YouTube video link first.','error');return;}
  if(!isYouTubeUrl(url)){setStatus('Enter a valid YouTube video URL.','error');return;}
- resetAnalysis();clearStatus();analyzeBtn.disabled=true;analyzeBtn.innerHTML='<span class="yd-spinner"></span>Analyzing';
+ resetAnalysis();clearStatus();analyzeBtn.disabled=true;
+ analyzeBtn.innerHTML='<span class="yd-spinner"></span>Analyzing';
  setStatus('Checking the video and available formats…','info');
  try{
-  const response=await fetch(API_BASE+'/info',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+  const response=await fetch(API_BASE+'/info',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({url})
+  });
   let data={};try{data=await response.json();}catch{}
-  if(!response.ok)throw new Error(data.detail||data.error||'Unable to analyze this video. Please try again.');
-  showVideo(data);setStatus('Video analyzed. Select a format and confirm your download rights.','success');
+  if(!response.ok)throw new Error(data.error||'Unable to analyze this video. Please try again.');
+  showVideo(data);
+  setStatus('Video analyzed. Select a format and confirm your download rights.','success');
  }catch(error){
   setStatus(error.message||'The downloader service could not be reached.','error');
  }finally{
   analyzeBtn.disabled=false;analyzeBtn.textContent='Analyze video';
+ }
+}
+async function downloadFile(){
+ if(!videoInfo||!$('rightsCheck').checked)return;
+ if(!API_BASE){setStatus('Downloader backend is not connected yet.','error');return;}
+ downloadBtn.disabled=true;downloadBtn.textContent='Preparing…';
+ setStatus('Downloading and preparing your file… this can take a while for large videos.','info');
+ try{
+  const response=await fetch(API_BASE+'/download',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({
+    url:videoInfo.webpage_url||videoUrl.value.trim(),
+    format:mode,
+    quality:mode==='mp4'?videoQuality.value:'best',
+    audioBitrate:audioQuality.value
+   })
+  });
+  if(!response.ok){
+   let data={};try{data=await response.json();}catch{}
+   throw new Error(data.error||('Download failed (HTTP '+response.status+').'));
+  }
+  const blob=await response.blob();
+  const disposition=response.headers.get('Content-Disposition')||'';
+  let filename=mode==='mp3'?'download.mp3':'download.mp4';
+  const match=disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+  if(match){
+   try{filename=decodeURIComponent(match[1]);}catch{filename=match[1];}
+  }
+  const objectUrl=URL.createObjectURL(blob);
+  const link=document.createElement('a');
+  link.href=objectUrl;link.download=filename;
+  document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(objectUrl),1000);
+  setStatus('Download ready: '+filename,'success');
+ }catch(error){
+  setStatus(error.message||'The downloader service could not be reached.','error');
+ }finally{
+  downloadBtn.disabled=!$('rightsCheck').checked;
+  downloadBtn.textContent='Download file';
  }
 }
 analyzeBtn.addEventListener('click',analyze);
@@ -232,30 +284,7 @@ mp4Mode.addEventListener('click',()=>{mode='mp4';updateMode();});
 mp3Mode.addEventListener('click',()=>{mode='mp3';updateMode();});
 videoQuality.addEventListener('change',estimateSize);
 $('rightsCheck').addEventListener('change',()=>{downloadBtn.disabled=!videoInfo||!$('rightsCheck').checked;});
-$('downloadBtn').addEventListener('click',()=>{
- if(!videoInfo||!$('rightsCheck').checked)return;
- if(!API_BASE){setStatus('Downloader backend is not connected yet.','error');return;}
- $('formUrl').value=videoInfo.webpage_url||videoUrl.value.trim();
- $('formFormat').value=mode;
- $('formQuality').value=mode==='mp4'?videoQuality.value:'best';
- $('formAudioBitrate').value=audioQuality.value;
- setStatus('Preparing your file. Your browser should start the download when processing is complete.','info');
- downloadBtn.disabled=true;downloadBtn.textContent='Preparing…';
- $('downloadForm').action=API_BASE+'/download';
- $('downloadForm').submit();
- window.setTimeout(()=>{downloadBtn.disabled=!$('rightsCheck').checked;downloadBtn.textContent='Download file';},4000);
-});
-$('downloadFrame').addEventListener('load',()=>{
- try{
-  const body=$('downloadFrame').contentDocument&&$('downloadFrame').contentDocument.body;
-  const text=body&&body.innerText;
-  if(text&&text.trim()){
-   try{const data=JSON.parse(text);setStatus(data.detail||data.error||'Download failed.','error');}
-   catch{if(text.length<1000)setStatus(text,'error');}
-   downloadBtn.disabled=!$('rightsCheck').checked;downloadBtn.textContent='Download file';
-  }
- }catch{}
-});
-</script>
+downloadBtn.addEventListener('click',downloadFile);
+</script>>
 </body>
 </html>
