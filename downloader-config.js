@@ -1,4 +1,4 @@
-// Set this to the HTTPS URL of your standalone downloader backend.
+// Set this to the HTTPS URL of your standalone Flask downloader backend.
 // Example: https://your-downloader.example.com
-// Do not put API secrets here.
+// This file contains no API secret.
 window.DW_DOWNLOADER_API = "";
