@@ -14,7 +14,8 @@ function jsonResponse(data, status = 200) {
 function validYouTubeUrl(value) {
   try {
     const url = new URL(value);
-    const host = url.hostname.toLowerCase().replace(/^www\\./, "");
+    let host = url.hostname.toLowerCase();
+    if (host.startsWith("www.")) host = host.slice(4);
     return (url.protocol === "https:" || url.protocol === "http:") &&
       (host === "youtube.com" || host.endsWith(".youtube.com") || host === "youtu.be");
   } catch {
@@ -27,7 +28,8 @@ async function handleYouTubeApi(request, env, route) {
     return jsonResponse({ error: "Method not allowed." }, 405);
   }
 
-  const serviceUrl = String(env.DOWNLOAD_SERVICE_URL || "").replace(/\\/+$/, "");
+  let serviceUrl = String(env.DOWNLOAD_SERVICE_URL || "");
+  while (serviceUrl.endsWith("/")) serviceUrl = serviceUrl.slice(0, -1);
   const serviceToken = String(env.DOWNLOAD_SERVICE_TOKEN || "");
   if (!serviceUrl || !serviceToken) {
     return jsonResponse({
