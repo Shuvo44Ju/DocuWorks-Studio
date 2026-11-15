@@ -621,7 +621,7 @@ function cadBulgePoints(a,b,bulge){
  const dx=b.x-a.x,dy=b.y-a.y,chord=Math.hypot(dx,dy);
  if(chord<1e-9)return [a,b];
  const theta=4*Math.atan(bulge),radius=chord/(2*Math.sin(Math.abs(theta)/2)),midX=(a.x+b.x)/2,midY=(a.y+b.y)/2,offset=chord/(2*Math.tan(theta/2)),nx=-dy/chord,ny=dx/chord,cx=midX+nx*offset,cy=midY+ny*offset,start=Math.atan2(a.y-cy,a.x-cx);
- return cadArcPoints(cx,cy,radius,start,start+theta,true,Math.ceil(Math.abs(theta)*Math.max(radius,1)/.12));
+ return cadArcPoints(cx,cy,radius,start,start+theta,theta>=0,Math.ceil(Math.abs(theta)*Math.max(radius,1)/.12));
 }
 function cadHatchPoints(e){
  const paths=Array.isArray(e?.boundaryPaths)?e.boundaryPaths:(Array.isArray(e?.paths)?e.paths:[]);
