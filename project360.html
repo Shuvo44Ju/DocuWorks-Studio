@@ -319,6 +319,7 @@ async function resolveDesignChange(instruction){
 }
 document.getElementById('applyChangeBtn').onclick=async()=>{
  const btn=document.getElementById('applyChangeBtn'),feedback=document.getElementById('changeFeedback'),prompt=document.getElementById('changePrompt');
+ if(customModel&&!currentDesign){toast('Imported models are view-only. Create a Project 360 model to use AI editing.');return;}
  if(!currentDesign){toast('Create your first 3D drawing before editing it.');return;}
  const instruction=prompt.value.trim();if(!instruction){feedback.textContent='Describe the change you want first.';return;}
  btn.disabled=true;btn.textContent='Understanding…';feedback.textContent='AI is interpreting your instruction and checking the current drawing…';
@@ -339,6 +340,7 @@ document.getElementById('applyChangeBtn').onclick=async()=>{
 };
 window.DocuWorksProject360={async run(instruction){
  const message=String(instruction||'').trim();if(!message)throw new Error('Tell me what you want to create or change.');
+ if(customModel&&!currentDesign)throw new Error('Imported 3D files can currently be viewed and exported, but natural-language editing is available only for buildings created inside Project 360.');
  if(!currentDesign){
   detailsInput.value=message;
   let aiChanges=null,aiReply='';
@@ -381,12 +383,28 @@ nameInput.addEventListener('input',e=>document.getElementById('projectTitle').te
 
 function loadExisting(file){
  const ext=file.name.toLowerCase().split('.').pop();
+ if(!['obj','glb','gltf'].includes(ext)){toast('Choose a GLB, self-contained GLTF or OBJ file');return}
  if(model){scene.remove(model);model=null}
- clearGenerated();customModel=true;document.getElementById('emptyView').style.display='none';document.getElementById('modelStatus').textContent='Loading…';
+ clearGenerated();currentDesign=null;designHistory=[];customModel=true;
+ document.getElementById('emptyView').style.display='none';document.getElementById('modelStatus').textContent='Loading…';
+ document.getElementById('modelFileInfo').textContent='Loading '+file.name+'…';
  const url=URL.createObjectURL(file);
- const done=o=>{model=o;scene.add(model);fitObject(model);document.getElementById('modelStatus').textContent='Imported model';document.getElementById('modelFileInfo').textContent='Loaded: '+file.name;toast('Existing 3D model loaded');URL.revokeObjectURL(url)};
- const fail=()=>{customModel=false;document.getElementById('modelStatus').textContent='Ready to create';toast('Could not load this model')};
- if(ext==='obj')new OBJLoader().load(url,done,undefined,fail);else new GLTFLoader().load(url,g=>done(g.scene),undefined,fail);
+ const done=o=>{
+  if(!o){fail();return}
+  model=o;scene.add(model);fitObject(model);
+  document.getElementById('modelStatus').textContent='Imported model';
+  document.getElementById('modelFileInfo').textContent='Loaded: '+file.name+'. Imported files are view-only in this version.';
+  toast('Existing 3D model loaded');URL.revokeObjectURL(url);
+ };
+ const fail=()=>{
+  customModel=false;model=null;URL.revokeObjectURL(url);
+  document.getElementById('emptyView').style.display='grid';
+  document.getElementById('modelStatus').textContent='Import failed';
+  document.getElementById('modelFileInfo').textContent='Could not load '+file.name+'. Try a GLB or OBJ file. A GLTF file must have all external resources embedded.';
+  toast('Could not load this model');
+ };
+ if(ext==='obj')new OBJLoader().load(url,done,undefined,fail);
+ else new GLTFLoader().load(url,g=>done(g.scene),undefined,fail);
 }
 document.getElementById('modelFile').addEventListener('change',e=>e.target.files[0]&&loadExisting(e.target.files[0]));
 
