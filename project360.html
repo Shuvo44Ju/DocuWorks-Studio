@@ -601,7 +601,7 @@ nameInput.addEventListener('input',e=>document.getElementById('projectTitle').te
 let cadDocument=null,cadDxfText="",cadFileName="",cadLayers=[];
 let cadFloors=[],cadActiveFloorIndex=0,cadRenderedFloorGroups=[],cadFloorSequence=1,cadExploded=false;
 const CAD_ROLES=["Ignore","Walls","Columns","Doors","Windows","Stairs","Elevators","Beams","Rooms","Floors","Room labels","Dimensions"];
-let cadAnalysisScale=1,cadAutoWallEntities=new WeakSet(),cadAutoWallPairs=0,cadWallPairingSkipped=false;
+let cadAnalysisScale=1,cadAutoWallEntities=new WeakSet(),cadAutoWindowEntities=new WeakSet(),cadAutoWallPairs=0,cadWallPairingSkipped=false;
 function cadEntityText(e){
  const raw=e?.text??e?.textString??e?.string??e?.contents??e?.mText??e?.value??"";
  return String(raw||"").replace(/\\P/gi," ").replace(/\\[A-Za-z][^;]*;?/g," ").replace(/[{}]/g," ").replace(/\s+/g," ").trim();
@@ -694,6 +694,7 @@ function cadLayerRole(name){
 function cadGeometryRole(e){
  const type=String(e?.type||"").toUpperCase(),text=cadEntityText(e);
  if(["TEXT","MTEXT","ATTRIB","ATTDEF"].includes(type))return text?"Room labels":"Ignore";
+ if(cadAutoWindowEntities.has(e))return "Windows";
  if(cadAutoWallEntities.has(e))return "Walls";
  const pts=cadEntityPoints(e),xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
  const w=xs.length?Math.max(...xs)-Math.min(...xs):0,h=ys.length?Math.max(...ys)-Math.min(...ys):0,span=Math.max(w,h),scale=Math.max(.000000001,cadAnalysisScale||1),minSide=Math.min(w,h)*scale,maxSide=span*scale;
@@ -728,7 +729,7 @@ function cadBuildAutoWallCandidates(entities){
  const records=[],found=new WeakSet();let pairCount=0;
  for(const e of entities||[]){
   const layer=cadLayers.find(l=>l.name===(e.layer||"0"));
-  if(layer&&(layer.manual||layer.role!=="Ignore"))continue;
+  if((layer&&(layer.manual||layer.role!=="Ignore"))||cadAutoWindowEntities.has(e))continue;
   const type=String(e.type||"").toUpperCase();if(!["LINE","LWPOLYLINE","POLYLINE"].includes(type))continue;
   const pts=cadEntityPoints(e);for(let k=1;k<pts.length;k++){
    const a=pts[k-1],b=pts[k],dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy)*cadAnalysisScale;
@@ -755,6 +756,37 @@ function cadBuildAutoWallCandidates(entities){
  }
  cadAutoWallPairs=pairCount;return found;
 }
+function cadBuildAutoWindowCandidates(entities){
+ const records=[],found=new WeakSet();
+ for(const e of entities||[]){
+  const layer=cadLayers.find(l=>l.name===(e.layer||"0"));
+  if(layer&&(layer.manual||layer.role!=="Ignore"))continue;
+  const type=String(e.type||"").toUpperCase();if(!["LINE","LWPOLYLINE","POLYLINE"].includes(type))continue;
+  const pts=cadEntityPoints(e);
+  for(let k=1;k<pts.length;k++){
+   const a=pts[k-1],b=pts[k],dx=b.x-a.x,dy=b.y-a.y,rawLen=Math.hypot(dx,dy),len=rawLen*cadAnalysisScale;
+   if(len<.45||len>4.5)continue;
+   records.push({e,a,b,len,ux:dx/rawLen,uy:dy/rawLen});
+  }
+ }
+ if(records.length>2400)return found;
+ for(let i=0;i<records.length;i++){
+  const a=records[i],normal={x:-a.uy,y:a.ux},axisLen=Math.hypot(a.b.x-a.a.x,a.b.y-a.a.y);
+  for(let j=i+1;j<records.length;j++){
+   const b=records[j];if(a.e===b.e)continue;
+   if(Math.abs(a.ux*b.ux+a.uy*b.uy)<.985)continue;
+   const off0=(b.a.x-a.a.x)*normal.x+(b.a.y-a.a.y)*normal.y,off1=(b.b.x-a.a.x)*normal.x+(b.b.y-a.a.y)*normal.y;
+   if(off0*off1<=0)continue;
+   const gap=(Math.abs(off0)+Math.abs(off1))*.5*cadAnalysisScale;
+   if(gap<.015||gap>.12||Math.abs(Math.abs(off0)-Math.abs(off1))*cadAnalysisScale>.035)continue;
+   const project=p=>(p.x-a.a.x)*a.ux+(p.y-a.a.y)*a.uy;
+   const lo=Math.max(0,Math.min(project(b.a),project(b.b))),hi=Math.min(axisLen,Math.max(project(b.a),project(b.b))),overlap=Math.max(0,hi-lo)*cadAnalysisScale;
+   if(overlap<.45||overlap>4.5||overlap<Math.min(a.len,b.len)*.45)continue;
+   found.add(a.e);found.add(b.e);
+  }
+ }
+ return found;
+}
 function cadBounds(entities){
  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
  for(const e of entities||[])for(const p of cadEntityPoints(e)){minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);}
@@ -762,7 +794,9 @@ function cadBounds(entities){
 }
 function cadPrepareAnalysis(){
  cadAnalysisScale=cadUnitScale();
- cadAutoWallEntities=cadBuildAutoWallCandidates(cadDocument?.entities||[]);
+ const entities=cadDocument?.entities||[];
+ cadAutoWindowEntities=cadBuildAutoWindowCandidates(entities);
+ cadAutoWallEntities=cadBuildAutoWallCandidates(entities);
 }
 function cadUpdateIntelligence(){
  const panel=el("cadIntelligence"),copy=el("cadIntelligenceText"),tags=el("cadIntelligenceTags");if(!panel||!copy||!tags)return;
