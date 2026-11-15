@@ -6,14 +6,15 @@
 <meta name="theme-color" content="#f7f9fc">
 <title>Project 360 | DocuWorks Studio</title>
 <style>
-:root{--ink:#172b4d;--muted:#71819a;--line:#e2e8f1;--blue:#2458d3;--blue2:#1744ad;--bg:#f4f7fb;--white:#fff;--soft:#edf3ff}
+:root{--ink:#172b4d;--muted:#71819a;--line:#e2e8f1;--blue:#2458d3;--bg:#f4f7fb;--soft:#edf3ff}
 *{box-sizing:border-box}html,body{height:100%;margin:0}body{font:14px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg)}
-button,input,textarea{font:inherit}button{cursor:pointer}.app{height:100vh;display:grid;grid-template-columns:280px 1fr;grid-template-rows:68px 1fr;overflow:hidden}
+button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100vh;display:grid;grid-template-columns:280px 1fr;grid-template-rows:68px 1fr;overflow:hidden}
 .top{grid-column:1/-1;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;z-index:5}.brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--ink)}.mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#3975f1,#1744ad);color:#fff}.mark svg{width:22px}.brand b{font-size:16px}.brand small{display:block;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#8a98aa;font-weight:800}.back{margin-left:auto;text-decoration:none;color:#65758e;font-weight:700;font-size:12px;border:1px solid var(--line);padding:8px 12px;border-radius:8px;background:#fff}
 .side{background:#fff;border-right:1px solid var(--line);padding:20px 16px;overflow:auto}.side h2{font-size:15px;margin:0 0 4px}.side p{font-size:11px;color:var(--muted);margin:0 0 18px}.step{display:flex;gap:11px;padding:12px 10px;border-radius:9px;margin-bottom:5px}.step.active{background:var(--soft);color:var(--blue)}.num{width:25px;height:25px;border-radius:50%;background:#e8edf5;color:#667790;display:grid;place-items:center;font-size:11px;font-weight:800;flex:none}.active .num{background:var(--blue);color:#fff}.step strong{font-size:12px}.step span{display:block;font-size:10px;color:#8a98aa;margin-top:2px}.tip{margin-top:20px;border:1px solid #dfe7f4;background:#f8faff;padding:13px;border-radius:9px;font-size:10px;color:#71819a;line-height:1.65}.tip b{color:#435875}
-.main{min-width:0;overflow:auto;padding:24px}.grid{max-width:1400px;margin:auto;display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:18px}.panel{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 7px rgba(24,49,91,.035);overflow:hidden}.viewer{height:calc(100vh - 116px);min-height:560px;display:flex;flex-direction:column}.viewer-head{padding:15px 17px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}.viewer-head h1{font-size:15px;margin:0}.status{margin-left:auto;font-size:10px;color:#71819a}.canvas-wrap{position:relative;flex:1;min-height:0;background:radial-gradient(circle at 50% 45%,#ffffff 0,#eef2f7 70%,#e6ebf2 100%)}#three{width:100%;height:100%;display:block}.empty-view{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;color:#77869d;pointer-events:none}.empty-view>div{max-width:380px}.empty-view .big{font-size:38px;margin-bottom:7px}.empty-view b{color:#425774}.viewer-foot{display:flex;align-items:center;gap:8px;padding:11px 14px;border-top:1px solid var(--line);font-size:10px;color:#7c8ba0}.viewer-foot span:last-child{margin-left:auto}.controls{display:flex;gap:7px}.iconbtn{border:1px solid #dce4ef;background:#fff;border-radius:7px;padding:7px 9px;color:#506581;font-size:11px;font-weight:700}.iconbtn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
-.right{display:flex;flex-direction:column;gap:14px}.box{padding:16px}.box h3{margin:0 0 11px;font-size:12px}.row{display:flex;gap:8px;margin-bottom:9px}.row>*{min-width:0}.field{width:100%;border:1px solid #dce4ef;border-radius:7px;padding:9px 10px;outline:none;background:#fff;color:var(--ink);font-size:11px}.field:focus{border-color:#9ab3ed;box-shadow:0 0 0 3px #2458d313}.label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#8a98aa;font-weight:800;margin:0 0 4px}.drop{border:1.5px dashed #c7d4e7;border-radius:9px;padding:16px;text-align:center;background:#fafcff;color:#71819a;font-size:11px}.drop.drag{border-color:var(--blue);background:var(--soft)}.drop input{display:none}.drop strong{display:block;color:#4e6380;margin-bottom:4px}.file{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:9px;padding:8px 9px;background:#f6f8fb;border:1px solid #e6ebf2;border-radius:7px;font-size:10px}.file button{border:0;background:none;color:#c04450;font-weight:800}.details{height:125px;resize:vertical}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.action{border:1px solid #dce4ef;background:#fff;border-radius:8px;padding:10px;color:#4e6380;font-weight:800;font-size:10px}.action.main{background:var(--blue);color:#fff;border-color:var(--blue)}.progress{height:6px;background:#e9eef5;border-radius:99px;overflow:hidden;margin-top:9px}.progress i{display:block;width:0;height:100%;background:var(--blue);transition:width .1s}.note{font-size:9px;color:#8a98aa;margin-top:8px;line-height:1.6}
+.main{min-width:0;overflow:auto;padding:24px}.grid{max-width:1400px;margin:auto;display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:18px}.panel{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 7px rgba(24,49,91,.035);overflow:hidden}.viewer{height:calc(100vh - 116px);min-height:560px;display:flex;flex-direction:column}.viewer-head{padding:15px 17px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}.viewer-head h1{font-size:15px;margin:0}.status{margin-left:auto;font-size:10px;color:#71819a}.canvas-wrap{position:relative;flex:1;min-height:0;background:radial-gradient(circle at 50% 45%,#fff 0,#eef2f7 70%,#e6ebf2 100%)}#three{width:100%;height:100%;display:block}.empty-view{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;color:#77869d;pointer-events:none}.empty-view>div{max-width:420px}.empty-view .big{font-size:42px;margin-bottom:7px}.empty-view b{color:#425774}.viewer-foot{display:flex;align-items:center;gap:8px;padding:11px 14px;border-top:1px solid var(--line);font-size:10px;color:#7c8ba0}.viewer-foot span:last-child{margin-left:auto}.controls{display:flex;gap:7px;flex-wrap:wrap}.iconbtn{border:1px solid #dce4ef;background:#fff;border-radius:7px;padding:7px 9px;color:#506581;font-size:11px;font-weight:700}.iconbtn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.right{display:flex;flex-direction:column;gap:14px}.box{padding:16px}.box h3{margin:0 0 11px;font-size:12px}.row{display:flex;gap:8px;margin-bottom:9px}.row>*{min-width:0}.field{width:100%;border:1px solid #dce4ef;border-radius:7px;padding:9px 10px;outline:none;background:#fff;color:var(--ink);font-size:11px}.field:focus{border-color:#9ab3ed;box-shadow:0 0 0 3px #2458d313}.label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#8a98aa;font-weight:800;margin:0 0 4px}.details{height:125px;resize:vertical}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.action{border:1px solid #dce4ef;background:#fff;border-radius:8px;padding:10px;color:#4e6380;font-weight:800;font-size:10px}.action.main{background:var(--blue);color:#fff;border-color:var(--blue)}.note{font-size:9px;color:#8a98aa;margin-top:8px;line-height:1.6}.section-title{font-size:10px;color:#516783;font-weight:800;margin:14px 0 8px;padding-top:12px;border-top:1px solid #edf1f6}.pill{display:inline-block;background:#edf3ff;color:#2458d3;border-radius:99px;padding:4px 7px;font-size:9px;font-weight:800;margin-bottom:8px}
 .toast{position:fixed;right:20px;bottom:20px;background:#17335e;color:#fff;padding:10px 13px;border-radius:8px;font-size:11px;box-shadow:0 10px 30px #17335e33;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;z-index:20}.toast.show{opacity:1;transform:none}
+.progress{height:6px;background:#e9eef5;border-radius:99px;overflow:hidden;margin-top:9px}.progress i{display:block;width:0;height:100%;background:var(--blue);transition:width .1s}
 @media(max-width:1050px){.app{grid-template-columns:230px 1fr}.grid{grid-template-columns:1fr}.right{display:grid;grid-template-columns:1fr 1fr}.viewer{height:650px}.viewer-foot{flex-wrap:wrap}}
 @media(max-width:700px){.app{display:block;height:auto;min-height:100vh;overflow:visible}.top{height:62px}.side{border-right:0;border-bottom:1px solid var(--line);padding:12px 15px}.side .steps{display:flex;overflow:auto;gap:5px}.step{min-width:145px;margin:0}.tip{display:none}.main{padding:14px}.right{display:flex}.viewer{height:560px;min-height:0}.grid{display:flex;flex-direction:column}}
 </style>
@@ -25,50 +26,66 @@ button,input,textarea{font:inherit}button{cursor:pointer}.app{height:100vh;displ
 <a class="back" href="./index.html">← Back to Studio</a>
 </header>
 <aside class="side">
-<h2>Project 360</h2><p>Build a shareable 3D project presentation.</p>
+<h2>Project 360</h2><p>Create a concept 3D project from your own description.</p>
 <div class="steps">
-<div class="step active"><div class="num">1</div><div><strong>Project details</strong><span>Write, paste or upload Word</span></div></div>
-<div class="step"><div class="num">2</div><div><strong>3D model</strong><span>GLB / GLTF / OBJ</span></div></div>
-<div class="step"><div class="num">3</div><div><strong>Presentation</strong><span>Rotate, inspect, annotate</span></div></div>
-<div class="step"><div class="num">4</div><div><strong>360° video</strong><span>Record locally in browser</span></div></div>
+<div class="step active"><div class="num">1</div><div><strong>Describe project</strong><span>Write your thoughts</span></div></div>
+<div class="step"><div class="num">2</div><div><strong>Set building</strong><span>Dimensions & floors</span></div></div>
+<div class="step"><div class="num">3</div><div><strong>Create 3D</strong><span>Generate locally</span></div></div>
+<div class="step"><div class="num">4</div><div><strong>360° video</strong><span>Record the view</span></div></div>
 </div>
-<div class="tip"><b>Free & local-first</b><br>There are no project quotas, API keys or AI services in this tool. Models and project data stay in your browser unless you choose to share/export them.</div>
+<div class="tip"><b>Free & local-first</b><br>The 3D concept is generated in your browser. No AI API, account, upload quota or paid service is required.</div>
 </aside>
 <main class="main">
 <div class="grid">
 <section class="panel viewer">
-<div class="viewer-head"><h1 id="projectTitle">Project 360° Viewer</h1><span class="status" id="modelStatus">No model loaded</span></div>
-<div class="canvas-wrap" id="canvasWrap"><canvas id="three"></canvas><div class="empty-view" id="emptyView"><div><div class="big">◈</div><b>Drop a 3D model here</b><br>Upload a GLB/GLTF or OBJ model from the panel on the right.<br><br>Drag to rotate · Wheel to zoom · Right-drag to pan</div></div></div>
-<div class="viewer-foot"><div class="controls"><button class="iconbtn" id="resetBtn">Reset view</button><button class="iconbtn" id="rotateBtn">Auto rotate</button><button class="iconbtn" id="wireBtn">Wireframe</button></div><span>Runs in your browser</span></div>
+<div class="viewer-head"><h1 id="projectTitle">Project 360° Viewer</h1><span class="status" id="modelStatus">Ready to create</span></div>
+<div class="canvas-wrap" id="canvasWrap"><canvas id="three"></canvas><div class="empty-view" id="emptyView"><div><div class="big">◇</div><b>Your 3D project will appear here</b><br>Describe your project, set the building parameters, then click <b>Create 3D Project</b>.<br><br>After creation: drag to rotate · wheel to zoom · right-drag to pan</div></div></div>
+<div class="viewer-foot"><div class="controls"><button class="iconbtn" id="resetBtn">Reset view</button><button class="iconbtn" id="rotateBtn">Auto rotate</button><button class="iconbtn" id="wireBtn">Wireframe</button></div><span>3D generation runs locally</span></div>
 </section>
 <aside class="right">
 <section class="panel box">
+<span class="pill">STEP 1 · YOUR IDEA</span>
 <h3>PROJECT INFORMATION</h3>
 <div class="label">Project name</div><input class="field" id="name" placeholder="e.g. Pharmaceutical Laboratory">
 <div class="row" style="margin-top:9px"><div style="flex:1"><div class="label">Location</div><input class="field" id="location" placeholder="Dhaka"></div><div style="flex:1"><div class="label">Revision</div><input class="field" id="revision" placeholder="Rev. 01"></div></div>
-<div class="label">Your project thoughts / design brief</div><textarea class="field details" id="details" placeholder="Write or paste your project thoughts here. You can describe the building, design concept, rooms, dimensions, materials, equipment, layout, technical requirements, special features, or anything you want people to understand about the project..."></textarea><div class="note">You can type freely or paste text from an email, note, PDF, or any other source. A Word file is not required.</div>
+<div class="label">Your project thoughts / design brief</div>
+<textarea class="field details" id="details" placeholder="Tell me what you want to build. Example: 3-storey pharmaceutical laboratory, reception on ground floor, QC labs on first floor, office on second floor, large front entrance, flat roof, modern exterior, windows on all sides..."></textarea>
+<div class="note">Write freely. This text becomes part of your project presentation. The geometry is created from the building settings below.</div>
 </section>
+
 <section class="panel box">
-<h3>OR UPLOAD A WORD DOCUMENT (OPTIONAL)</h3>
-<div class="drop" id="docDrop"><strong>Already have your project description in Word?</strong>Drop it here, or select a .docx file. Its text will be imported into the project thoughts box above.<br><label class="action" style="display:inline-block;margin-top:8px;padding:7px 10px">Choose Word file<input type="file" id="docFile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label></div>
-<div class="file" id="docFileInfo" style="display:none"><span id="docName"></span><button id="clearDoc">Remove</button></div>
+<span class="pill">STEP 2 · BUILDING SETTINGS</span>
+<h3>CREATE THE 3D STRUCTURE</h3>
+<div class="row"><div style="flex:1"><div class="label">Width (m)</div><input class="field" id="bWidth" type="number" min="3" max="200" value="20"></div><div style="flex:1"><div class="label">Depth (m)</div><input class="field" id="bDepth" type="number" min="3" max="200" value="15"></div></div>
+<div class="row"><div style="flex:1"><div class="label">Floors</div><input class="field" id="floors" type="number" min="1" max="30" value="3"></div><div style="flex:1"><div class="label">Floor height (m)</div><input class="field" id="floorH" type="number" min="2" max="8" step=".1" value="3.2"></div></div>
+<div class="row"><div style="flex:1"><div class="label">Windows / side</div><input class="field" id="windows" type="number" min="0" max="20" value="5"></div><div style="flex:1"><div class="label">Entrance width (m)</div><input class="field" id="doorW" type="number" min="1" max="10" step=".1" value="2.4"></div></div>
+<div class="label">Building style</div>
+<select class="field" id="style"><option value="modern">Modern</option><option value="industrial">Industrial</option><option value="clean">Clean / Laboratory</option><option value="simple">Simple</option></select>
+<button class="action main" id="createBtn" style="width:100%;margin-top:8px">Create 3D Project</button>
+<div class="note">This creates a free parametric concept model. It is not a full BIM/CAD replacement.</div>
 </section>
+
 <section class="panel box">
-<h3>3D MODEL</h3>
-<div class="drop" id="modelDrop"><strong>Drop your 3D model here</strong>.glb, .gltf or .obj<br><label class="action" style="display:inline-block;margin-top:8px;padding:7px 10px">Choose 3D model<input type="file" id="modelFile" accept=".glb,.gltf,.obj,.bin,.png,.jpg,.jpeg"></label></div>
-<div class="file" id="modelFileInfo" style="display:none"><span id="modelName"></span><button id="clearModel">Remove</button></div>
+<span class="pill">OPTIONAL</span>
+<h3>IMPORT EXISTING 3D MODEL</h3>
+<div class="note" style="margin-top:0">Only use this if you already have a model. It is no longer required to create a project.</div>
+<label class="action" style="display:block;text-align:center;margin-top:9px">Choose GLB / GLTF / OBJ<input type="file" id="modelFile" accept=".glb,.gltf,.obj" style="display:none"></label>
+<div id="modelFileInfo" class="note"></div>
 </section>
+
 <section class="panel box">
-<h3>EXPORT</h3>
+<span class="pill">STEP 4 · EXPORT</span>
+<h3>SHARE YOUR PROJECT</h3>
 <div class="actions"><button class="action main" id="videoBtn">Create 360° Video</button><button class="action" id="htmlBtn">Save Presentation</button></div>
 <div class="progress"><i id="progress"></i></div>
-<div class="note" id="exportNote">Video is recorded locally from the 3D canvas. No server upload is required.</div>
+<div class="note">Video is recorded locally from the 3D canvas. No server upload is required.</div>
 </section>
 </aside>
 </div>
 </main>
 </div>
 <div class="toast" id="toast"></div>
+
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
@@ -77,63 +94,90 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
-import {DRACOLoader} from 'three/addons/loaders/DRACOLoader.js';
 
-const canvas=document.getElementById('three'), wrap=document.getElementById('canvasWrap');
+const canvas=document.getElementById('three'),wrap=document.getElementById('canvasWrap');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(wrap.clientWidth,wrap.clientHeight,false); renderer.outputColorSpace=THREE.SRGBColorSpace;
-const scene=new THREE.Scene(); scene.background=new THREE.Color(0xf0f3f7);
-const camera=new THREE.PerspectiveCamera(45,wrap.clientWidth/wrap.clientHeight,.01,100000); camera.position.set(4,3,6);
-const controls=new OrbitControls(camera,canvas); controls.enableDamping=true; controls.dampingFactor=.06; controls.target.set(0,0,0);
-scene.add(new THREE.HemisphereLight(0xffffff,0x8793a5,2.3));
-const key=new THREE.DirectionalLight(0xffffff,3); key.position.set(5,8,5); scene.add(key);
-const fill=new THREE.DirectionalLight(0xdce8ff,1.5); fill.position.set(-5,3,-4); scene.add(fill);
-const grid=new THREE.GridHelper(20,20,0xcbd4df,0xe1e6ed); scene.add(grid);
-let model=null, originalMaterials=[], autoRotate=false, wire=false, objectUrl=null;
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(wrap.clientWidth,wrap.clientHeight,false);renderer.outputColorSpace=THREE.SRGBColorSpace;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0xf0f3f7);
+const camera=new THREE.PerspectiveCamera(45,wrap.clientWidth/wrap.clientHeight,.01,10000);camera.position.set(28,20,32);
+const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.06;controls.target.set(0,5,0);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8793a5,2.2));
+const key=new THREE.DirectionalLight(0xffffff,3);key.position.set(20,30,20);scene.add(key);
+const fill=new THREE.DirectionalLight(0xdce8ff,1.3);fill.position.set(-20,15,-15);scene.add(fill);
+let model=null,wire=false,autoRotate=false,customModel=false,parts=[];
+const grid=new THREE.GridHelper(100,50,0xcbd4df,0xe1e6ed);scene.add(grid);
 
 function toast(s){const t=document.getElementById('toast');t.textContent=s;t.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),2600)}
-function fit(obj){const box=new THREE.Box3().setFromObject(obj), size=box.getSize(new THREE.Vector3()), center=box.getCenter(new THREE.Vector3()); const max=Math.max(size.x,size.y,size.z)||1; const dist=max/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))*1.35; camera.position.copy(center).add(new THREE.Vector3(dist*.75,dist*.55,dist)); camera.near=Math.max(max/10000,.001); camera.far=max*100; camera.updateProjectionMatrix(); controls.target.copy(center); controls.update(); grid.position.y=box.min.y}
-function clearModel(){if(model){scene.remove(model);model.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.dispose())}})} model=null;originalMaterials=[];document.getElementById('emptyView').style.display='grid';document.getElementById('modelStatus').textContent='No model loaded';document.getElementById('modelFileInfo').style.display='none';if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=null}
-async function loadModel(file){
- clearModel(); objectUrl=URL.createObjectURL(file);
- const ext=file.name.toLowerCase().split('.').pop(); document.getElementById('modelName').textContent=file.name;document.getElementById('modelFileInfo').style.display='flex';document.getElementById('emptyView').style.display='none';document.getElementById('modelStatus').textContent='Loading…';
- try{
-  let obj;
-  if(ext==='obj') obj=await new Promise((res,rej)=>new OBJLoader().load(objectUrl,res,undefined,rej));
-  else obj=await new Promise((res,rej)=>{const loader=new GLTFLoader(); const draco=new DRACOLoader();draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/draco/');loader.setDRACOLoader(draco);loader.load(objectUrl,g=>res(g.scene),undefined,rej)});
-  model=obj; scene.add(model); originalMaterials=[];model.traverse(o=>{if(o.isMesh){originalMaterials.push({o,m:o.material});o.castShadow=true;o.receiveShadow=true}});fit(model);document.getElementById('modelStatus').textContent='Ready';toast('3D model loaded');
- }catch(e){console.error(e);clearModel();toast('Could not load this model format. Try GLB or OBJ.')}
+function material(color,rough=.65){return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:.05})}
+function cube(w,h,d,x,y,z,m){const g=new THREE.BoxGeometry(w,h,d);const o=new THREE.Mesh(g,m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);parts.push(o);return o}
+function clearGenerated(){parts.forEach(o=>{scene.remove(o);o.geometry?.dispose();o.material?.dispose()});parts=[]}
+function fitObject(obj){const box=new THREE.Box3().setFromObject(obj),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),max=Math.max(size.x,size.y,size.z)||1;const dist=max/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))*1.25;camera.position.copy(center).add(new THREE.Vector3(dist*.75,dist*.55,dist));camera.near=max/10000;camera.far=max*100;camera.updateProjectionMatrix();controls.target.copy(center);controls.update();grid.position.y=box.min.y}
+function makeBuilding(){
+ if(customModel){scene.remove(model);model=null;customModel=false}
+ clearGenerated();
+ const W=Math.max(3,+bWidth.value||20),D=Math.max(3,+bDepth.value||15),F=Math.max(1,Math.min(30,+floors.value||3)),H=Math.max(2,+floorH.value||3.2),N=Math.max(0,Math.min(20,+windows.value||5)),DW=Math.min(W*.5,Math.max(1,+doorW.value||2.4)),total=F*H;
+ const s=style.value, wall=s==='industrial'?0x7d8793:s==='clean'?0xe8edf2:s==='simple'?0xd7dbe0:0xdfe6ee;
+ const trim=s==='industrial'?0x3f4650:s==='clean'?0x2458d3:s==='simple'?0x596879:0x263b58;
+ const glass=s==='industrial'?0x8fa7b9:0x78b8d8;
+ const floorMat=material(wall),trimMat=material(trim),glassMat=material(glass,.2),roofMat=material(trim);
+ // Main floor volumes
+ for(let f=0;f<F;f++){const y=f*H+H/2;cube(W,H,D,0,y,0,floorMat);cube(W+.05,.08,D+.05,0,f*H,0,trimMat)}
+ // vertical facade bands and roof
+ cube(.16,total+.1,D+.1,-W/2-.08,total/2,0,trimMat);cube(.16,total+.1,D+.1,W/2+.08,total/2,0,trimMat);
+ cube(W+.2,.25,D+.2,0,total+.13,0,roofMat);
+ // front/back windows
+ for(let f=0;f<F;f++){const y=f*H+H*.57;for(let i=0;i<N;i++){const x=-W/2+(i+1)*W/(N+1);cube(Math.max(.55,W/(N+1)*.58),H*.42,.08,x,y,-D/2-.045,glassMat);cube(Math.max(.55,W/(N+1)*.58),H*.42,.08,x,y,D/2+.045,glassMat)}}
+ // side windows
+ const sideN=Math.max(1,Math.round(N*.7));for(let f=0;f<F;f++){const y=f*H+H*.57;for(let i=0;i<sideN;i++){const z=-D/2+(i+1)*D/(sideN+1);cube(.08,H*.42,Math.max(.55,D/(sideN+1)*.58),-W/2-.045,y,z,glassMat);cube(.08,H*.42,Math.max(.55,D/(sideN+1)*.58),W/2+.045,y,z,glassMat)}}
+ // entrance overlay on front
+ const doorMat=material(0x344b66);cube(DW,H*.72,.1,0,H*.36,-D/2-.09,doorMat);
+ // entrance canopy
+ cube(Math.min(W*.55,DW+2.2),.18,2.2,0,H*.76,-D/2-1.0,trimMat);
+ // central vertical entrance frame
+ cube(.12,H*.76,.14,-DW/2,H*.38,-D/2-.14,trimMat);cube(.12,H*.76,.14,DW/2,H*.38,-D/2-.14,trimMat);
+ // floor labels as subtle slabs
+ for(let f=0;f<F;f++)cube(W*.92,.04,D*.92,0,f*H+.06,0,material(0xc9d0d9));
+ grid.scale.set(Math.max(1,W/10),1,Math.max(1,D/10));grid.position.y=0;
+ fitObject({children:parts});
+ document.getElementById('emptyView').style.display='none';document.getElementById('modelStatus').textContent='3D project created';document.getElementById('projectTitle').textContent=name.value||'Project 360° Viewer';toast('3D project created');
 }
-document.getElementById('modelFile').addEventListener('change',e=>e.target.files[0]&&loadModel(e.target.files[0]));
-document.getElementById('clearModel').onclick=clearModel;
-document.getElementById('resetBtn').onclick=()=>{if(model)fit(model)};
+document.getElementById('createBtn').onclick=makeBuilding;
+name.addEventListener('input',e=>document.getElementById('projectTitle').textContent=e.target.value||'Project 360° Viewer');
+
+function loadExisting(file){
+ const ext=file.name.toLowerCase().split('.').pop();
+ if(model){scene.remove(model);model=null}
+ clearGenerated();customModel=true;document.getElementById('emptyView').style.display='none';document.getElementById('modelStatus').textContent='Loading…';
+ const url=URL.createObjectURL(file);
+ const done=o=>{model=o;scene.add(model);fitObject(model);document.getElementById('modelStatus').textContent='Imported model';document.getElementById('modelFileInfo').textContent='Loaded: '+file.name;toast('Existing 3D model loaded');URL.revokeObjectURL(url)};
+ const fail=()=>{customModel=false;document.getElementById('modelStatus').textContent='Ready to create';toast('Could not load this model')};
+ if(ext==='obj')new OBJLoader().load(url,done,undefined,fail);else new GLTFLoader().load(url,g=>done(g.scene),undefined,fail);
+}
+document.getElementById('modelFile').addEventListener('change',e=>e.target.files[0]&&loadExisting(e.target.files[0]));
+
+document.getElementById('resetBtn').onclick=()=>{if(model)fitObject(model);else if(parts.length)fitObject({children:parts})};
 document.getElementById('rotateBtn').onclick=()=>{autoRotate=!autoRotate;controls.autoRotate=autoRotate;controls.autoRotateSpeed=1.4;document.getElementById('rotateBtn').textContent=autoRotate?'Stop rotation':'Auto rotate'};
-document.getElementById('wireBtn').onclick=()=>{wire=!wire;originalMaterials.forEach(x=>{const mats=Array.isArray(x.m)?x.m:[x.m];const ms=Array.isArray(x.o.material)?x.o.material:[x.o.material];ms.forEach(m=>m.wireframe=wire)});toast(wire?'Wireframe on':'Wireframe off')};
+document.getElementById('wireBtn').onclick=()=>{wire=!wire;parts.forEach(o=>{if(o.material)o.material.wireframe=wire});if(model)model.traverse(o=>{if(o.isMesh){const m=Array.isArray(o.material)?o.material:[o.material];m.forEach(x=>x.wireframe=wire)}});toast(wire?'Wireframe on':'Wireframe off')};
 
-function dropZone(el,handler){el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('drag')});el.addEventListener('dragleave',()=>el.classList.remove('drag'));el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)handler(f)})}
-dropZone(document.getElementById('modelDrop'),loadModel);
+function projectData(){return{name:name.value||'Untitled Project',location:location.value||'',revision:revision.value||'',details:details.value||'',width:bWidth.value,depth:bDepth.value,floors:floors.value,floorH:floorH.value,windows:windows.value,doorW:doorW.value,style:style.value}}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function safe(s){return String(s).replace(/[^a-z0-9_-]+/gi,'-').replace(/^-|-$/g,'')||'project-360'}
+function download(blob,n){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 
-async function readDocx(file){try{const mammoth=await import('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/+esm');const buf=await file.arrayBuffer();const r=await mammoth.extractRawText({arrayBuffer:buf});document.getElementById('details').value=r.value.trim();document.getElementById('docName').textContent=file.name;document.getElementById('docFileInfo').style.display='flex';toast('Word document imported');}catch(e){console.error(e);toast('Could not read this Word document')}}
-document.getElementById('docFile').addEventListener('change',e=>e.target.files[0]&&readDocx(e.target.files[0]));
-dropZone(document.getElementById('docDrop'),readDocx);document.getElementById('clearDoc').onclick=()=>{document.getElementById('docFileInfo').style.display='none';document.getElementById('details').value='';document.getElementById('docFile').value=''};
+document.getElementById('htmlBtn').onclick=()=>{const p=projectData();const h='<!doctype html><html><head><meta charset="utf-8"><title>'+esc(p.name)+' | Project 360</title><style>body{font:15px Arial;margin:0;background:#f3f6fa;color:#17335e}.wrap{max-width:900px;margin:40px auto;background:#fff;padding:35px;border-radius:12px}h1{margin-top:0}.meta{color:#71819a}.spec{display:grid;grid-template-columns:1fr 1fr;gap:10px}.card{border:1px solid #e2e8f1;padding:12px;border-radius:8px}.details{white-space:pre-wrap;line-height:1.6}</style></head><body><div class="wrap"><h1>'+esc(p.name)+'</h1><div class="meta">'+esc(p.location)+' · '+esc(p.revision)+'</div><div class="spec"><div class="card">Size: '+esc(p.width)+' m × '+esc(p.depth)+' m</div><div class="card">Floors: '+esc(p.floors)+'</div><div class="card">Floor height: '+esc(p.floorH)+' m</div><div class="card">Style: '+esc(p.style)+'</div></div><h2>Project thoughts</h2><div class="details">'+esc(p.details)+'</div><p>Created with DocuWorks Studio — Project 360.</p></div></body></html>';download(new Blob([h],{type:'text/html'}),safe(p.name)+'-presentation.html')};
 
-function projectData(){return{name:document.getElementById('name').value||'Untitled Project',location:document.getElementById('location').value||'',revision:document.getElementById('revision').value||'',details:document.getElementById('details').value||''}}
-document.getElementById('name').addEventListener('input',e=>document.getElementById('projectTitle').textContent=e.target.value||'Project 360° Viewer');
-
-document.getElementById('htmlBtn').onclick=()=>{const p=projectData();const html='<!doctype html><html><head><meta charset="utf-8"><title>'+escapeHtml(p.name)+' | Project 360</title><style>body{font:15px Arial;margin:0;background:#f3f6fa;color:#17335e}.wrap{max-width:900px;margin:40px auto;background:#fff;padding:35px;border-radius:12px}h1{margin-top:0}pre{white-space:pre-wrap;line-height:1.6}small{color:#71819a}</style></head><body><div class="wrap"><h1>'+escapeHtml(p.name)+'</h1><small>'+escapeHtml(p.location)+' · '+escapeHtml(p.revision)+'</small><hr><pre>'+escapeHtml(p.details)+'</pre><p>Created with DocuWorks Studio — Project 360.</p></div></body></html>';download(new Blob([html],{type:'text/html'}),safeName(p.name)+'-presentation.html')};
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function safeName(s){return String(s).replace(/[^a-z0-9_-]+/gi,'-').replace(/^-|-$/g,'')||'project-360'}
-function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-
-async function makeVideo(){if(!model){toast('Load a 3D model first');return}const btn=document.getElementById('videoBtn');btn.disabled=true;btn.textContent='Recording…';const progress=document.getElementById('progress');progress.style.width='0%';
+async function makeVideo(){
+ if(!model&&!parts.length){toast('Create the 3D project first');return}
+ const btn=document.getElementById('videoBtn');btn.disabled=true;btn.textContent='Recording…';const progress=document.getElementById('progress');progress.style.width='0%';
  const stream=canvas.captureStream(30);let mime='video/webm;codecs=vp9';if(!MediaRecorder.isTypeSupported(mime))mime='video/webm;codecs=vp8';if(!MediaRecorder.isTypeSupported(mime))mime='video/webm';
- const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8000000});const chunks=[];rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
- const done=new Promise(resolve=>rec.onstop=resolve);rec.start();const start=performance.now(),duration=30000;const startAz=controls.getAzimuthalAngle();const original=autoRotate;controls.autoRotate=false;
- function tick(now){const elapsed=now-start;const pct=Math.min(elapsed/duration,1);progress.style.width=(pct*100)+'%';controls.setAzimuthalAngle(startAz+pct*Math.PI*2);controls.update();if(pct<1)requestAnimationFrame(tick);else{rec.stop();}}
- requestAnimationFrame(tick);await done;const blob=new Blob(chunks,{type:mime});download(blob,safeName(projectData().name)+'-360-video.webm');btn.disabled=false;btn.textContent='Create 360° Video';progress.style.width='100%';toast('360° video created');autoRotate=original;controls.autoRotate=original}
+ const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8000000}),chunks=[];rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+ const done=new Promise(resolve=>rec.onstop=resolve);rec.start();const start=performance.now(),duration=30000,az=controls.getAzimuthalAngle(),old=autoRotate;controls.autoRotate=false;
+ function tick(now){const pct=Math.min((now-start)/duration,1);progress.style.width=(pct*100)+'%';controls.setAzimuthalAngle(az+pct*Math.PI*2);controls.update();if(pct<1)requestAnimationFrame(tick);else rec.stop()}
+ requestAnimationFrame(tick);await done;download(new Blob(chunks,{type:mime}),safe(projectData().name)+'-360-video.webm');btn.disabled=false;btn.textContent='Create 360° Video';toast('360° video created');autoRotate=old;controls.autoRotate=old
+}
 document.getElementById('videoBtn').onclick=makeVideo;
-
 function resize(){const w=wrap.clientWidth,h=wrap.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();
 function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();
 </script>
-</body></html>
+</body>
+</html>
