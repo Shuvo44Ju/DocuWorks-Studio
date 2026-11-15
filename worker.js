@@ -18,6 +18,7 @@ export default {
 
     if (url.pathname === "/api/assistant" || url.pathname === "/api/assistant/") {
       if (request.method === "OPTIONS") return onAssistantOptions({ request, env, ctx, params: {} });
+      if (request.method === "GET") return jsonResponse({service:"DocuWorks AI Assistant",route:"/api/assistant",model:"@cf/google/gemma-4-26b-a4b-it",aiBinding:!!env?.AI,ready:!!env?.AI});
       if (request.method === "POST") return onAssistantPost({ request, env, ctx, params: {} });
       return jsonResponse({ error: "Method not allowed." }, 405);
     }
