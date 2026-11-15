@@ -39,7 +39,7 @@ async function callAI(payload) {
 }
 window.DocuWorksAI = {
   ask: (message, history=[], context="") => callAI({tool:AI_TOOL,message,history,context}),
-  askDesign: (message, design) => callAI({tool:"project360",mode:"design",message,design})
+  askDesign: (message, design, intent="update") => callAI({tool:"project360",mode:"design",intent,message,design})
 };
 
 function mountAssistant() {
