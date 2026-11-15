@@ -81,7 +81,8 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <h3>SHARE YOUR PROJECT</h3>
 <div class="actions"><button class="action main" id="videoBtn">Create 360° Video</button><button class="action" id="htmlBtn">Save Presentation</button></div>
 <div class="progress"><i id="progress"></i></div>
-<div class="note">Video is recorded locally from the 3D canvas. No server upload is required.</div>
+<div id="videoResult" style="display:none;margin-top:10px"></div>
+<div class="note">Video is recorded locally from the 3D canvas. No server upload is required. On mobile, a download button will appear after recording.</div>
 </section>
 </aside>
 </div>
@@ -176,38 +177,50 @@ document.getElementById('htmlBtn').onclick=()=>{const p=projectData();const h='<
 
 async function makeVideo(){
  if(!model&&!parts.length){toast('Create the 3D project first');return}
- if(!canvas.captureStream||typeof MediaRecorder==='undefined'){toast('Video recording is not supported in this browser. Please use Chrome or Edge.');return}
- const btn=document.getElementById('videoBtn'),progress=document.getElementById('progress');
- btn.disabled=true;btn.textContent='Recording…';progress.style.width='0%';
- const stream=canvas.captureStream(30);
- let mime='video/webm;codecs=vp9';
- if(!MediaRecorder.isTypeSupported(mime))mime='video/webm;codecs=vp8';
- if(!MediaRecorder.isTypeSupported(mime))mime='video/webm';
- const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8000000});
- const chunks=[];
- rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
- const done=new Promise(resolve=>rec.onstop=resolve);
- const oldAuto=controls.autoRotate;
- const startAngle=controls.getAzimuthalAngle();
- controls.autoRotate=false;
- rec.start(250);
- const start=performance.now(),duration=30000;
- function tick(now){
-   const pct=Math.min((now-start)/duration,1);
-   progress.style.width=(pct*100)+'%';
-   controls.setAzimuthalAngle(startAngle+pct*Math.PI*2);
-   controls.update();
-   renderer.render(scene,camera);
-   if(pct<1)requestAnimationFrame(tick);else rec.stop();
+ const btn=document.getElementById('videoBtn'),progress=document.getElementById('progress'),result=document.getElementById('videoResult');
+ if(!canvas.captureStream){toast('This browser cannot record the 3D canvas. Please use Chrome.');return}
+ if(typeof MediaRecorder==='undefined'){toast('This browser does not support video recording. Please use Chrome.');return}
+ btn.disabled=true;btn.textContent='Starting recording…';progress.style.width='0%';result.style.display='none';result.innerHTML='';
+ try{
+   const stream=canvas.captureStream(30);
+   let mime='';
+   for(const m of ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm']){if(MediaRecorder.isTypeSupported(m)){mime=m;break}}
+   if(!mime)throw new Error('No supported video format');
+   const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6000000});
+   const chunks=[];
+   rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+   const done=new Promise((resolve,reject)=>{rec.onstop=resolve;rec.onerror=e=>reject(e.error||new Error('Recorder error'))});
+   const oldAuto=controls.autoRotate;
+   const startAngle=controls.getAzimuthalAngle();
+   controls.autoRotate=false;
+   btn.textContent='Recording 360°…';
+   rec.start(200);
+   const start=performance.now(),duration=15000;
+   function tick(now){
+     const pct=Math.min((now-start)/duration,1);
+     progress.style.width=(pct*100)+'%';
+     controls.setAzimuthalAngle(startAngle+pct*Math.PI*2);
+     controls.update();
+     renderer.render(scene,camera);
+     if(pct<1)requestAnimationFrame(tick);else rec.stop();
+   }
+   requestAnimationFrame(tick);
+   await done;
+   stream.getTracks().forEach(t=>t.stop());
+   const blob=new Blob(chunks,{type:mime});
+   if(!blob.size)throw new Error('Empty video');
+   const url=URL.createObjectURL(blob);
+   result.style.display='block';
+   result.innerHTML='<div style="border:1px solid #dce4ef;border-radius:8px;padding:9px;background:#f8faff"><div style="font-size:10px;font-weight:800;color:#516783;margin-bottom:7px">360° VIDEO READY</div><video controls playsinline style="width:100%;max-height:220px;border-radius:6px;background:#111"></video><a id="downloadVideo" href="'+url+'" download="'+safe(projectData().name)+'-360-video.webm" style="display:block;text-align:center;margin-top:8px;background:#2458d3;color:#fff;text-decoration:none;border-radius:7px;padding:9px;font-size:10px;font-weight:800">Download 360° Video</a></div>';
+   result.querySelector('video').src=url;
+   toast('360° video created');
+   controls.autoRotate=oldAuto;
+ }catch(err){
+   console.error(err);
+   toast('Video creation failed: '+(err.message||'unknown error'));
+ }finally{
+   btn.disabled=false;btn.textContent='Create 360° Video';
  }
- requestAnimationFrame(tick);
- await done;
- stream.getTracks().forEach(t=>t.stop());
- const blob=new Blob(chunks,{type:mime});
- if(!blob.size){btn.disabled=false;btn.textContent='Create 360° Video';toast('No video data was produced. Try Chrome or Edge.');return}
- download(blob,safe(projectData().name)+'-360-video.webm');
- btn.disabled=false;btn.textContent='Create 360° Video';toast('360° video created');
- controls.autoRotate=oldAuto;
 }
 document.getElementById('useSettings').onchange=e=>document.getElementById('settingsFields').style.display=e.target.checked?'block':'none';
 document.getElementById('videoBtn').onclick=makeVideo;
