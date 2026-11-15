@@ -251,6 +251,10 @@ function understandChange(raw){
  if(/more windows|add windows/i.test(t)&&!changed.includes('windows')){d.windows=Math.min(20,(d.windows??5)+2);changed.push('windows');}
  if(/fewer windows|less windows|reduce windows/i.test(t)){d.windows=Math.max(0,(d.windows??5)-2);changed.push('windows');}
  if(/remove all windows|no windows/i.test(t)){d.windows=0;changed.push('windows');}
+  if(/add|install|include|create|put/.test(t)&&/stairs?|staircase/.test(t)){d.staircases=Math.max(1,Number((t.match(/(\d+)\s+staircases?/)||[])[1]||1));changed.push('staircases');}
+  if(/remove|delete/.test(t)&&/stairs?|staircase/.test(t)){d.staircases=0;changed.push('staircases');}
+  if(/add|install|include|create|put/.test(t)&&/elevators?|lifts?/.test(t)){d.elevators=Math.max(1,Number((t.match(/(\d+)\s+(?:elevators?|lifts?)/)||[])[1]||1));changed.push('elevators');}
+  if(/remove|delete/.test(t)&&/elevators?|lifts?/.test(t)){d.elevators=0;changed.push('elevators');}
  if(/industrial|factory|warehouse/i.test(t)){d.style='industrial';changed.push('style');}
  else if(/laboratory|lab|cleanroom/i.test(t)){d.style='clean';changed.push('style');}
  else if(/simple|basic/i.test(t)){d.style='simple';changed.push('style');}
@@ -315,7 +319,7 @@ window.DocuWorksProject360={async run(instruction){
  }
  const answer=await window.DocuWorksAI.askDesign(message,currentDesign);
  const next={...currentDesign},changed=[];
- for(const key of ['width','depth','floors','floorHeight','windows','doorWidth','style']){
+ for(const key of ['width','depth','floors','floorHeight','windows','doorWidth','style','staircases','elevators']){
   const value=answer?.changes?.[key];
   if(value!==null&&value!==undefined){next[key]=value;changed.push(key);}
  }
