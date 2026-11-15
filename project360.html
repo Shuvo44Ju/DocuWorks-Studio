@@ -904,7 +904,7 @@ function cadBuildAutoWindowCandidates(entities){
    const atA=v=>({x:a.a.x+a.ux*v,y:a.a.y+a.uy*v});
    const atB=v=>{const t=Math.abs(bEnd-bStart)<1e-9?0:(v-bStart)/(bEnd-bStart);return{x:b.a.x+(b.b.x-b.a.x)*t,y:b.a.y+(b.b.y-b.a.y)*t};};
    const pa0=atA(lo),pa1=atA(hi),pb0=atB(lo),pb1=atB(hi);
-   segments.push({a:{x:(pa0.x+pb0.x)/2,y:(pa0.y+pb0.y)/2},b:{x:(pa1.x+pb1.x)/2,y:(pa1.y+pb1.y)/2}});
+   segments.push({a:{x:(pa0.x+pb0.x)/2,y:(pa0.y+pb0.y)/2},b:{x:(pa1.x+pb1.x)/2,y:(pa1.y+pb1.y)/2},sourceEntities:[a.e,b.e]});
    found.add(a.e);found.add(b.e);
   }
  }
@@ -1333,15 +1333,15 @@ function cadBuild3D(options={}){
  const project=(p,a,ux,uy)=>({t:(p.x-a.x)*ux+(p.y-a.y)*uy,off:Math.abs((p.x-a.x)*uy-(p.y-a.y)*ux)});
  const wallResult=cadNormalizeWallSegments(pointSegments("Walls"),scale,thick),walls=wallResult.segments;
  let detectedDoorCount=0,detectedWindowCount=0,uncertainOpeningCount=0;
- all.filter(e=>cadEntityRole(e)==="Windows"&&!cadAutoWindowEntities.has(e)).forEach(e=>{const pts=cadEntityPoints(e);for(let k=1;k<pts.length;k++){openingSegments.push({role:"Windows",a:pts[k-1],b:pts[k],confidence:"layer",sourceEntities:[e]});detectedWindowCount++;}});
+ all.filter(e=>cadEntityRole(e)==="Windows"&&!cadAutoWindowEntities.has(e)).forEach(e=>{const pts=cadEntityPoints(e);for(let k=1;k<pts.length;k++){openingSegments.push({role:"Windows",a:pts[k-1],b:pts[k],confidence:"layer",sourceEntities:[e]});detectedWindowCount++;}});cadAutoWindowSegments.forEach(seg=>{openingSegments.push({role:"Windows",a:seg.a,b:seg.b,confidence:"geometry",sourceEntities:seg.sourceEntities||[]});detectedWindowCount++;});
  // Infer glazing from two short, close, parallel linework segments lying along the same wall.
- const looseSegments=all.filter(e=>["Ignore","Walls"].includes(cadEntityRole(e))).flatMap(e=>{const pts=cadEntityPoints(e),out=[];for(let k=1;k<pts.length;k++)out.push([pts[k-1],pts[k]]);return out;});
+ const looseSegments=all.filter(e=>["Ignore","Walls"].includes(cadEntityRole(e))).flatMap(e=>{const pts=cadEntityPoints(e),out=[];for(let k=1;k<pts.length;k++)out.push({a:pts[k-1],b:pts[k],entity:e});return out;});
  const autoWindowKeys=new Set();
  for(let i=0;i<looseSegments.length&&autoWindowKeys.size<120;i++){
-  const [a,b]=looseSegments[i],dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);if(len*scale<.45||len*scale>4.5)continue;
+  const {a,b}=looseSegments[i],dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);if(len*scale<.45||len*scale>4.5)continue;
   const ux=dx/len,uy=dy/len;
   for(let j=i+1;j<looseSegments.length;j++){
-   const [c,d]=looseSegments[j],ex=d.x-c.x,ey=d.y-c.y,elen=Math.hypot(ex,ey);if(elen*scale<.45||elen*scale>4.5||Math.abs((dx*ex+dy*ey)/(len*elen))<.985)continue;
+   const {a:c,b:d}=looseSegments[j],ex=d.x-c.x,ey=d.y-c.y,elen=Math.hypot(ex,ey);if(elen*scale<.45||elen*scale>4.5||Math.abs((dx*ex+dy*ey)/(len*elen))<.985)continue;
    const nx=-uy,ny=ux,off0=(c.x-a.x)*nx+(c.y-a.y)*ny,off1=(d.x-a.x)*nx+(d.y-a.y)*ny,gap=Math.abs((off0+off1)*.5)*scale;
    if(gap<.015||gap>.12)continue;
    const projectS=p=>(p.x-a.x)*ux+(p.y-a.y)*uy,lo=Math.max(0,Math.min(projectS(c),projectS(d))),hi=Math.min(len,Math.max(projectS(c),projectS(d))),overlap=hi-lo;
@@ -1350,7 +1350,7 @@ function cadBuild3D(options={}){
    let nearWall=false;for(const wall of walls){const wx=wall.b.x-wall.a.x,wy=wall.b.y-wall.a.y,wl=Math.hypot(wx,wy);if(wl<.05)continue;const dot=Math.abs((wx*ux+wy*uy)/wl),q0=project(p0,wall.a,wx/wl,wy/wl),q1=project(p1,wall.a,wx/wl,wy/wl);if(dot>.985&&Math.max(q0.off,q1.off)*scale<=Math.max(.25,thick*1.5)){nearWall=true;break;}}
    if(!nearWall)continue;
    const key=[Math.round(p0.x*1000),Math.round(p0.y*1000),Math.round(p1.x*1000),Math.round(p1.y*1000)].join(":");if(autoWindowKeys.has(key))continue;
-   autoWindowKeys.add(key);openingSegments.push({role:"Windows",a:p0,b:p1,confidence:"geometry"});detectedWindowCount++;
+   autoWindowKeys.add(key);openingSegments.push({role:"Windows",a:p0,b:p1,confidence:"geometry",sourceEntities:[looseSegments[i].entity,looseSegments[j].entity]});detectedWindowCount++;
    break;
   }
  }
