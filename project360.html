@@ -158,7 +158,7 @@ function elementPlacementUpdates(text,kind,currentCount=0){
  if(!side)return [];
  const ordinal=t.match(/\b(first|1st|second|2nd|third|3rd|fourth|4th)\s+(?:external\s+)?(?:staircases?|stairs?|stairwells?|elevators?|lifts?)\b/);
  const ordinalMap={first:1,'1st':1,second:2,'2nd':2,third:3,'3rd':3,fourth:4,'4th':4};
- const numbered=t.match(/\b(?:staircase|stairwell|elevator|lift)\s*(?:number|no\.?|#)\s*(\d+)\b/);
+ const numbered=t.match(/\b(?:staircase|stairwell|elevator|lift)\s*(?:(?:number|no\.?|#)\s*)?(\d+)\b/);
  let inferred=Number(currentCount)||0;
  if(!inferred){const count=t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:staircases?|stairs?|stairwells?|elevators?|lifts?)\b/);if(count)inferred=numberInWords(count[1]);}
  const max=kind==='staircase'?3:4;
