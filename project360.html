@@ -88,7 +88,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div style="flex:1"><div class="label">Wall height (m)</div><input class="field" id="cadWallHeight" type="number" min="2" max="8" step=".1" value="3"></div>
 <div style="flex:1"><div class="label">Wall thickness (m)</div><input class="field" id="cadWallThickness" type="number" min=".08" max="1" step=".02" value=".2"></div></div>
 <div class="cad-actions"><button class="action main" id="cadBuildBtn" type="button">Generate 3D from plan</button><button class="action" id="cadDownloadBtn" type="button">Download converted DXF</button></div>
-<div class="note">Geometry-aware reconstruction: curved ARC/CIRCLE entities and polyline bulges are tessellated; neutral-layer entities receive geometry-based role suggestions; closed outlines can become room plates; door swing arcs can indicate openings. Layer mapping remains editable. Block references, spline control geometry and ambiguous symbols may still need manual review. Not a construction-ready BIM model.</div>
+<div class="note">Geometry-aware reconstruction: curved ARC/CIRCLE entities and polyline bulges are tessellated; INSERT block references (including nested and repeated blocks) are expanded when definitions are available; neutral-layer entities receive geometry-based role suggestions; closed outlines can become room plates; door swing arcs can indicate openings. Layer mapping remains editable. Unresolved blocks, spline control geometry and ambiguous symbols may still need manual review. Not a construction-ready BIM model.</div>
 </div></section>
 <section class="panel box">
 <span class="pill">OPTIONAL</span>
@@ -579,7 +579,7 @@ function cadExpandBlocks(doc){
     const name=e.name||e.block||e.blockName||e.blockNameRef,block=getBlock(name);
     if(!block||!Array.isArray(block.entities)){stats.unresolved++;continue;}
     if(path.includes(String(name))){stats.cycles++;continue;}
-    const pos=e.position||e.insertPoint||e.insertionPoint||{x:0,y:0},sx=Number(e.xScale??e.scaleX??1)||1,sy=Number(e.yScale??e.scaleY??1)||1,ang=(Number(e.rotation)||0)*Math.PI/180,co=Math.cos(ang),si=Math.sin(ang);
+    const pos=e.position||e.insertPoint||e.insertionPoint||{x:0,y:0},sx=Number(e.xScale??e.scaleX??e.scale?.x??1)||1,sy=Number(e.yScale??e.scaleY??e.scale?.y??1)||1,ang=(Number(e.rotation)||0)*Math.PI/180,co=Math.cos(ang),si=Math.sin(ang);
     const la=co*sx,lb=si*sx,lc=-si*sy,ld=co*sy,base=block.position||block.basePoint||block.base||{x:0,y:0};
     const local={a:la,b:lb,c:lc,d:ld,tx:(pos.x||0)-la*(base.x||0)-lc*(base.y||0),ty:(pos.y||0)-lb*(base.x||0)-ld*(base.y||0)};
     const combined=compose(m,local),rows=Math.max(1,Math.min(50,Number(e.rowCount)||1)),cols=Math.max(1,Math.min(50,Number(e.columnCount)||1)),rowGap=Number(e.rowSpacing)||0,colGap=Number(e.columnSpacing)||0;
