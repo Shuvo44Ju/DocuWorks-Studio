@@ -22,7 +22,7 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
   await expect.poll(async () => page.locator("#modelStatus").textContent(), { timeout: 45000 })
     .toMatch(/3D viewer ready|Viewer error/);
   await expect(page.locator("#viewerError")).not.toHaveClass(/show/);
-  await page.screenshot({ path: "artifacts/01-initial-viewer.png", fullPage: true });
+  await page.locator("#canvasWrap").screenshot({ path: "artifacts/01-initial-viewer.png" });
 
   // Build an actual ASCII DXF fixture so the test exercises the browser DXF parser,
   // rather than only testing the in-app sample-plan shortcut.
@@ -97,7 +97,7 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
     return count;
   });
   expect(autoGlazingPixels, "the 2D CAD preview should show inferred glazing centre-lines").toBeGreaterThan(5);
-  await page.screenshot({ path: "artifacts/02-imported-cad-preview.png", fullPage: true });
+  await page.locator("#cadPreview").screenshot({ path: "artifacts/02-imported-cad-preview.png" });
 
   // Create actual CAD-derived geometry in the Three.js viewer.
   await page.locator("#cadBuildBtn").click();
@@ -108,14 +108,17 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
     if (!gl) return 0;
     const pixels = new Uint8Array(canvas.width * canvas.height * 4);
     gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-    let changed = 0;
+    // Count substantially darker pixels that indicate model surfaces/frames,
+    // not the pale background or the floor grid alone.
+    let modelPixels = 0;
     for (let i = 0; i < pixels.length; i += 4) {
-      if (pixels[i] < 225 || pixels[i + 1] < 230 || pixels[i + 2] < 235) changed++;
+      if (pixels[i] < 180 && pixels[i + 1] < 200 && pixels[i + 2] < 220) modelPixels++;
     }
-    return changed;
+    return modelPixels;
   });
-  expect(cad3dPixels, "the 3D canvas should contain rendered geometry").toBeGreaterThan(100);
-  await page.screenshot({ path: "artifacts/03-cad-3d-view.png", fullPage: true });
+  console.log("CAD 3D model pixel count:", cad3dPixels);
+  expect(cad3dPixels, "the 3D canvas should contain visible model surfaces").toBeGreaterThan(50);
+  await page.locator("#canvasWrap").screenshot({ path: "artifacts/03-cad-3d-view.png" });
 
   // Exercise multi-floor generation, explode/stack, and then switch model types.
   await page.locator("#cadSampleUpperBtn").click();
@@ -139,7 +142,7 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
   await page.locator("#createBtn").click();
   await expect(page.locator("#modelStatus")).toContainText("3 levels", { timeout: 30000 });
   await expect(page.locator("#viewerError")).not.toHaveClass(/show/);
-  await page.screenshot({ path: "artifacts/04-parametric-3d-view.png", fullPage: true });
+  await page.locator("#canvasWrap").screenshot({ path: "artifacts/04-parametric-3d-view.png" });
 
   // A fresh CAD rebuild must replace that concept model; Clear must remove its floor groups.
   await page.locator("#cadSampleBtn").click();
@@ -150,7 +153,7 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
   await expect(page.locator("#cadFloorList .cad-floor-row")).toHaveCount(0);
   await expect(page.locator("#modelStatus")).toHaveText("Ready to create");
   await expect(page.locator("#emptyView")).toBeVisible();
-  await page.screenshot({ path: "artifacts/05-cleared-viewer.png", fullPage: true });
+  await page.locator("#canvasWrap").screenshot({ path: "artifacts/05-cleared-viewer.png" });
 
   expect(pageErrors, "unexpected browser JavaScript exceptions").toEqual([]);
 });
