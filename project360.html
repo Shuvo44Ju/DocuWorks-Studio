@@ -134,6 +134,10 @@ function clearGenerated(){parts.forEach(o=>{scene.remove(o);o.geometry?.dispose(
 function fitBounds(box){const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),max=Math.max(size.x,size.y,size.z)||1;const dist=max/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))*1.55;camera.position.copy(center).add(new THREE.Vector3(dist*.85,dist*.62,dist));camera.near=Math.max(.01,max/10000);camera.far=Math.max(100,max*100);camera.updateProjectionMatrix();controls.target.copy(center);controls.update();grid.position.y=box.min.y}
 function fitObject(obj){fitBounds(new THREE.Box3().setFromObject(obj))}
 function fitParts(){const box=new THREE.Box3();parts.forEach(o=>{o.updateWorldMatrix(true,false);box.union(new THREE.Box3().setFromObject(o))});if(!box.isEmpty())fitBounds(box)}
+function numberInWords(value){
+ const words={zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
+ return Object.prototype.hasOwnProperty.call(words,String(value).toLowerCase())?words[String(value).toLowerCase()]:Number(value);
+}
 function interpretPrompt(text){
  const t=String(text||'').toLowerCase();
  let floors=null,levelMatch=null;
@@ -167,8 +171,8 @@ function interpretPrompt(text){
   levelMatch, width:dim?Number(dim[1]):null, depth:dim?Number(dim[2]):null,
   floorHeight:floorHeight?Number(floorHeight[1]):(height&&floors?Number(height[1])/floors:null), doorWidth:doorWidth?Number(doorWidth[1]):null,
   windows:windows?Number(windows[1]):null, style,
-  staircases: /\b(?:stairs?|staircases?)\b/i.test(t) ? (Number((t.match(/\b(\d+)\s*(?:stairs?|staircases?)\b/i)||[])[1])||1) : 0,
-  elevators: /\b(?:elevators?|lifts?)\b/i.test(t) ? (Number((t.match(/\b(\d+)\s*(?:elevators?|lifts?)\b/i)||[])[1])||1) : 0
+  staircases: /\b(?:stairs?|staircases?)\b/i.test(t) ? (/\b(?:no|without|zero|remove|delete|exclude|omit)\s+(?:any\s+)?(?:external\s+)?(?:stairs?|staircases?)\b/i.test(t) ? 0 : ((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:stairs?|staircases?)\b/i)||[])[1]!==undefined ? numberInWords((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:stairs?|staircases?)\b/i)||[])[1]) : 1)) : 0,
+  elevators: /\b(?:elevators?|lifts?)\b/i.test(t) ? (/\b(?:no|without|zero|remove|delete|exclude|omit)\s+(?:any\s+)?(?:external\s+)?(?:elevators?|lifts?)\b/i.test(t) ? 0 : ((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:elevators?|lifts?)\b/i)||[])[1]!==undefined ? numberInWords((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:elevators?|lifts?)\b/i)||[])[1]) : 1)) : 0
  };
 }
 function makeBuilding(){
@@ -286,10 +290,10 @@ function understandChange(raw){
  if(/more windows|add windows/i.test(t)&&!changed.includes('windows')){d.windows=Math.min(20,(d.windows??5)+2);changed.push('windows');}
  if(/fewer windows|less windows|reduce windows/i.test(t)){d.windows=Math.max(0,(d.windows??5)-2);changed.push('windows');}
  if(/remove all windows|no windows/i.test(t)){d.windows=0;changed.push('windows');}
-  if(/add|install|include|create|put/.test(t)&&/stairs?|staircase/.test(t)){d.staircases=Math.max(1,Number((t.match(/(\d+)\s*(?:stairs?|staircases?)/)||[])[1]||1));changed.push('staircases');}
-  if(/remove|delete/.test(t)&&/stairs?|staircase/.test(t)){d.staircases=0;changed.push('staircases');}
-  if(/add|install|include|create|put/.test(t)&&/elevators?|lifts?/.test(t)){d.elevators=Math.max(1,Number((t.match(/(\d+)\s+(?:elevators?|lifts?)/)||[])[1]||1));changed.push('elevators');}
-  if(/remove|delete/.test(t)&&/elevators?|lifts?/.test(t)){d.elevators=0;changed.push('elevators');}
+  if(/stairs?|staircase/.test(t)&&/\b(?:remove|delete|without|no|zero|exclude|omit)\b/.test(t)){d.staircases=0;changed.push('staircases');}
+  else if(/stairs?|staircase/.test(t)&&/\b(?:add|install|include|create|put|increase)\b/.test(t)){const count=(t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:stairs?|staircases?)/)||[])[1];d.staircases=Math.max(0,Math.min(3,count===undefined?1:numberInWords(count)));changed.push('staircases');}
+  if(/elevators?|lifts?/.test(t)&&/\b(?:remove|delete|without|no|zero|exclude|omit)\b/.test(t)){d.elevators=0;changed.push('elevators');}
+  else if(/elevators?|lifts?/.test(t)&&/\b(?:add|install|include|create|put|increase)\b/.test(t)){const count=(t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:elevators?|lifts?)/)||[])[1];d.elevators=Math.max(0,Math.min(4,count===undefined?1:numberInWords(count)));changed.push('elevators');}
  if(/industrial|factory|warehouse/i.test(t)){d.style='industrial';changed.push('style');}
  else if(/laboratory|lab|cleanroom/i.test(t)){d.style='clean';changed.push('style');}
  else if(/simple|basic/i.test(t)){d.style='simple';changed.push('style');}
@@ -340,8 +344,8 @@ document.getElementById('applyChangeBtn').onclick=async()=>{
 };
 window.DocuWorksProject360={async run(instruction){
  const message=String(instruction||'').trim();if(!message)throw new Error('Tell me what you want to create or change.');
- const asksForExplanation=/^(?:what|how|why|when|where|who|can i|can you|could you|would you|tell me|explain|help me understand)\b/i.test(message)||/\?$/.test(message);
- const requestsEdit=/\b(?:add|remove|delete|change|make|set|increase|decrease|reduce|widen|wider|narrow|taller|shorter|include|install|create|build|design|generate|replace|turn it into|convert it into)\b/i.test(message);
+ const asksForExplanation=/^(?:hi|hello|hey|good morning|good afternoon|good evening|what|how|why|when|where|who|can i|can you|could you|would you|tell me|explain|help me understand|i want to know)\b/i.test(message)||/\?$/.test(message);
+ const requestsEdit=/\b(?:add(?:ing)?|remove|delete|change|changing|make|making|set|increase|decrease|reduce|widen|wider|narrow|taller|shorter|include|install|create|build|design|generate|replace|turn it into|convert it into)\b/i.test(message);
  if(asksForExplanation&&!requestsEdit&&window.DocuWorksAI?.ask){
   const context=JSON.stringify({currentDesign,importedModel:!!customModel});
   const answer=await window.DocuWorksAI.ask(message,[],context);
