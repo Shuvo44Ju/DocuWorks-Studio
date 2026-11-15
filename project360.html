@@ -800,6 +800,7 @@ function cadRenderPreview(){
  ctx.restore();ctx.fillStyle="#71819a";ctx.font="12px Arial";ctx.fillText("Plan preview · top view · labels shown where available",14,20);
 }
 function cadShowLayers(){
+ cadPrepareAnalysis();
  const list=el("cadLayerList");list.innerHTML="";
  cadLayers.forEach(layer=>{
   const row=document.createElement("div");row.className="cad-layer-row";
@@ -813,7 +814,7 @@ function cadShowLayers(){
   select.value=layer.role;select.addEventListener("change",()=>{layer.role=select.value;layer.manual=true;sub.textContent=layer.count+" entities · manually set: "+layer.role;cadRefreshIntelligence();});
   row.append(info,select);list.appendChild(row);
  });
- cadRefreshIntelligence();
+ cadRenderPreview();cadUpdateIntelligence();
 }
 function cadExpandBlocks(doc){
  const source=Array.isArray(doc?.entities)?doc.entities:[],blocks=doc?.blocks||{},expanded=[],stats={insertRefs:0,expandedEntities:0,unresolved:0,cycles:0};
@@ -1185,7 +1186,7 @@ el("cadSampleBtn").addEventListener("click",cadMakeSample);
 el("cadSampleUpperBtn").addEventListener("click",cadAddSampleUpperFloor);
 el("cadClearBtn").addEventListener("click",()=>{cadDocument=null;cadDxfText="";cadFileName="";cadLayers=[];cadFloors=[];cadActiveFloorIndex=0;clearGenerated();el("cadMappingWrap").classList.add("cad-hidden");el("cadStatus").textContent="All floor plans and generated CAD geometry cleared.";el("modelStatus").textContent="Ready to create";});
 el("cadBuildBtn").addEventListener("click",cadBuild3D);
-el("cadUnits").addEventListener("change",cadRefreshIntelligence);
+el("cadUnits").addEventListener("change",()=>cadShowLayers());
 el("cadBuildMultiBtn").addEventListener("click",cadBuildMultiFloor);
 el("cadExplodeBtn").addEventListener("click",cadToggleExplodedView);
 el("cadDownloadBtn").addEventListener("click",()=>{if(!cadDxfText){toast("The active floor has no source DXF to download.");return;}download(new Blob([cadDxfText],{type:"application/dxf"}),(cadFileName.replace(/\.[^.]+$/,"")||"floor-plan")+".dxf");});
