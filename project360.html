@@ -948,6 +948,16 @@ function cadRenderPreview(){
  if(!b||!b.width||!b.height){ctx.fillStyle="#71819a";ctx.fillText("No drawable linework detected",24,32);return;}
  const pad=35,scale=Math.min((c.width-pad*2)/b.width,(c.height-pad*2)/b.height),px=x=>pad+(x-b.minX)*scale,py=y=>c.height-pad-(y-b.minY)*scale;
  const colors={Walls:"#344d72",Columns:"#d97706",Doors:"#15966a",Windows:"#2493bd",Stairs:"#8757c5",Elevators:"#c34e74",Rooms:"#a27a4b",Floors:"#8795a8","Room labels":"#2458d3",Dimensions:"#9aa4b2",Ignore:"#aab4c2"};
+ // Room regions are drawn first so CAD wall linework remains clear above them.
+ (Array.isArray(cadDetectedRooms)?cadDetectedRooms:[]).forEach((room,index)=>{
+  if(!Array.isArray(room.points)||room.points.length<3)return;
+  ctx.beginPath();ctx.moveTo(px(room.points[0].x),py(room.points[0].y));
+  room.points.slice(1).forEach(p=>ctx.lineTo(px(p.x),py(p.y)));ctx.closePath();
+  ctx.fillStyle=index%2?"rgba(73,125,195,.13)":"rgba(47,145,137,.13)";ctx.fill();
+  ctx.strokeStyle="#5c8dc1";ctx.lineWidth=1.4;ctx.setLineDash([]);ctx.stroke();
+  ctx.fillStyle="#2458d3";ctx.font="bold 12px Arial";ctx.textAlign="center";
+  ctx.fillText(String(room.label||"Room").slice(0,20),px(room.centroid.x),py(room.centroid.y));
+ });
  for(const e of entities){
   const role=cadEntityRole(e),pts=cadEntityPoints(e);if(pts.length<2)continue;
   const inferredWall=cadAutoWallEntities.has(e);
@@ -1187,6 +1197,7 @@ function cadRenderDetectedRooms(){
   strong.textContent=room.label;small.textContent=(room.type==="Unclassified"?"Type needs review":room.type)+" · "+room.area.toFixed(1)+" m² · "+Math.round(room.confidence*100)+"% label confidence";
   text.append(strong,small);button.append(dot,text);button.addEventListener("click",()=>selectEditableByLabel("Room · "+room.label+" · "+(index+1)));list.appendChild(button);
  });
+ cadRenderPreview();
 }
 function cadEntityClusters(role,scale){
  const entries=(cadDocument?.entities||[]).filter(e=>cadEntityRole(e)===role).map(entity=>{
