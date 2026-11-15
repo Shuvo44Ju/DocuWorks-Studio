@@ -232,6 +232,7 @@ function makeBuilding(){
  grid.scale.set(Math.max(1,W/10),1,Math.max(1,D/10));grid.position.y=0;
  fitParts();
  document.getElementById('emptyView').style.display='none';
+ setWizardStep(4);
  document.getElementById('viewerError').classList.remove('show');
  document.getElementById('modelStatus').textContent=F+' levels · '+total.toFixed(1)+' m high';
  document.getElementById('projectTitle').textContent=nameInput.value||'Project 360° Viewer';
