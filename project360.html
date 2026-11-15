@@ -725,6 +725,7 @@ function cadMakeSample(){
  line("A-WALL-INT",6.1,8,15.9,8);line("A-WALL-INT",6.1,8.2,15.9,8.2);
  // Opening markers are separate from wall faces; the wall geometry itself stays continuous.
  line("A-DOOR",5,0.1,7,0.1);line("A-DOOR",6.1,3,6.1,4);
+ ents.push({type:"ARC",layer:"A-DOOR",center:{x:6.1,y:3.5},radius:.9,startAngle:0,endAngle:90});
  line("A-WINDOW",4,11.9,8,11.9);
  rect("S-COLUMN",.35,.35,.35,.35);rect("S-COLUMN",15.3,.35,.35,.35);rect("S-COLUMN",.35,11.3,.35,.35);rect("S-COLUMN",15.3,11.3,.35,.35);
  line("A-STAIR",12,8.5,15,8.5);line("A-STAIR",12,9.2,15,9.2);
@@ -761,7 +762,7 @@ function cadBuild3D(){
     const left=Math.max(0,p.t),right=Math.max(0,len-p.t),direction=right>=left?1:-1,available=Math.max(left,right),width=Math.min(radius,available);
     if(width*scale<.55)continue;
     const score=p.off*scale+Math.max(0,radius-width)*.5;
-    if(!best||score<best.score)best={a:{x:center.x+ux*(direction>0?-p.t:len-p.t),y:center.y+uy*(direction>0?-p.t:len-p.t)},b:{x:center.x+ux*(direction>0?width-p.t:len-p.t-width),y:center.y+uy*(direction>0?width-p.t:len-p.t-width)},score,width};
+    if(!best||score<best.score){const start=direction>0?p.t:p.t-width,end=direction>0?p.t+width:p.t;best={a:{x:wall.a.x+ux*start,y:wall.a.y+uy*start},b:{x:wall.a.x+ux*end,y:wall.a.y+uy*end},score,width};}
    }
    if(best){openingSegments.push({role:"Doors",a:best.a,b:best.b,confidence:"swing-arc"});detectedDoorCount++;}else uncertainOpeningCount++;
   }else{
