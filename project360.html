@@ -601,7 +601,7 @@ nameInput.addEventListener('input',e=>document.getElementById('projectTitle').te
 let cadDocument=null,cadDxfText="",cadFileName="",cadLayers=[];
 let cadFloors=[],cadActiveFloorIndex=0,cadRenderedFloorGroups=[],cadFloorSequence=1,cadExploded=false;
 const CAD_ROLES=["Ignore","Walls","Columns","Doors","Windows","Stairs","Elevators","Beams","Rooms","Floors","Room labels","Dimensions"];
-let cadAnalysisScale=1,cadAutoWallEntities=new WeakSet(),cadAutoWindowEntities=new WeakSet(),cadAutoWallPairs=0,cadWallPairingSkipped=false;
+let cadAnalysisScale=1,cadAutoWallEntities=new WeakSet(),cadAutoWindowEntities=new WeakSet(),cadAutoWindowSegments=[],cadAutoWallPairs=0,cadWallPairingSkipped=false;
 function cadEntityText(e){
  const raw=e?.text??e?.textString??e?.string??e?.contents??e?.mText??e?.value??"";
  return String(raw||"").replace(/\\P/gi," ").replace(/\\[A-Za-z][^;]*;?/g," ").replace(/[{}]/g," ").replace(/\s+/g," ").trim();
@@ -757,7 +757,7 @@ function cadBuildAutoWallCandidates(entities){
  cadAutoWallPairs=pairCount;return found;
 }
 function cadBuildAutoWindowCandidates(entities){
- const records=[],found=new WeakSet();
+ const records=[],found=new WeakSet(),segments=[],seenPairs=new Set();
  for(const e of entities||[]){
   const layer=cadLayers.find(l=>l.name===(e.layer||"0"));
   if(layer&&(layer.manual||layer.role!=="Ignore"))continue;
@@ -769,7 +769,7 @@ function cadBuildAutoWindowCandidates(entities){
    records.push({e,a,b,len,ux:dx/rawLen,uy:dy/rawLen});
   }
  }
- if(records.length>2400)return found;
+ if(records.length>2400){cadAutoWindowSegments=[];return found;}
  for(let i=0;i<records.length;i++){
   const a=records[i],normal={x:-a.uy,y:a.ux},axisLen=Math.hypot(a.b.x-a.a.x,a.b.y-a.a.y);
   for(let j=i+1;j<records.length;j++){
@@ -780,12 +780,17 @@ function cadBuildAutoWindowCandidates(entities){
    const gap=(Math.abs(off0)+Math.abs(off1))*.5*cadAnalysisScale;
    if(gap<.015||gap>.12||Math.abs(Math.abs(off0)-Math.abs(off1))*cadAnalysisScale>.035)continue;
    const project=p=>(p.x-a.a.x)*a.ux+(p.y-a.a.y)*a.uy;
-   const lo=Math.max(0,Math.min(project(b.a),project(b.b))),hi=Math.min(axisLen,Math.max(project(b.a),project(b.b))),overlap=Math.max(0,hi-lo)*cadAnalysisScale;
+   const bStart=project(b.a),bEnd=project(b.b),lo=Math.max(0,Math.min(bStart,bEnd)),hi=Math.min(axisLen,Math.max(bStart,bEnd)),overlap=Math.max(0,hi-lo)*cadAnalysisScale;
    if(overlap<.45||overlap>4.5||overlap<Math.min(a.len,b.len)*.45)continue;
+   const pairKey=[i,j].join(":");if(seenPairs.has(pairKey))continue;seenPairs.add(pairKey);
+   const atA=v=>({x:a.a.x+a.ux*v,y:a.a.y+a.uy*v});
+   const atB=v=>{const t=Math.abs(bEnd-bStart)<1e-9?0:(v-bStart)/(bEnd-bStart);return{x:b.a.x+(b.b.x-b.a.x)*t,y:b.a.y+(b.b.y-b.a.y)*t};};
+   const pa0=atA(lo),pa1=atA(hi),pb0=atB(lo),pb1=atB(hi);
+   segments.push({a:{x:(pa0.x+pb0.x)/2,y:(pa0.y+pb0.y)/2},b:{x:(pa1.x+pb1.x)/2,y:(pa1.y+pb1.y)/2}});
    found.add(a.e);found.add(b.e);
   }
  }
- return found;
+ cadAutoWindowSegments=segments;return found;
 }
 function cadBounds(entities){
  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
@@ -1089,7 +1094,7 @@ function cadBuild3D(options={}){
  const wallMat=material(0xd6dee8),columnMat=material(0x64748b),slabMat=material(0xb9c5d5),glassMat=new THREE.MeshStandardMaterial({color:0x69b9df,roughness:.18,metalness:.05,transparent:true,opacity:.48}),frameMat=material(0x526b86),stairMat=material(0x9aa9bc),beamMat=material(0x71849b);
  const created=[],wallSegments=[],openingSegments=[];
  const all=cadDocument.entities||[];
- const pointSegments=(role)=>all.filter(e=>cadEntityRole(e)===role).flatMap(e=>{const pts=cadEntityPoints(e);const out=[];for(let k=1;k<pts.length;k++)out.push([pts[k-1],pts[k]]);if((e.closed||e.shape)&&pts.length>2)out.push([pts[pts.length-1],pts[0]]);return out;});
+ const pointSegments=(role)=>{const selected=all.filter(e=>cadEntityRole(e)===role&&!(role==="Windows"&&cadAutoWindowEntities.has(e))).flatMap(e=>{const pts=cadEntityPoints(e),out=[];for(let k=1;k<pts.length;k++)out.push([pts[k-1],pts[k]]);if(cadEntityIsClosed(e)&&pts.length>2)out.push([pts[pts.length-1],pts[0]]);return out;});if(role==="Windows")cadAutoWindowSegments.forEach(seg=>selected.push([seg.a,seg.b]));return selected;};
  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const project=(p,a,ux,uy)=>({t:(p.x-a.x)*ux+(p.y-a.y)*uy,off:Math.abs((p.x-a.x)*uy-(p.y-a.y)*ux)});
  const wallResult=cadNormalizeWallSegments(pointSegments("Walls"),scale,thick),walls=wallResult.segments;
