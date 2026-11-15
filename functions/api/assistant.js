@@ -4,7 +4,7 @@ const MAX_HISTORY = 12;
 const MAX_CONTEXT = 10000;
 
 const TOOL_GUIDANCE = {
-  project360: "You are the design assistant inside Project 360. Help users describe and refine building concepts in ordinary language. For design edits, change only the properties the user explicitly requests; preserve all other current values. Supported editable properties are width, depth, floors, floorHeight, windows, doorWidth, and style (modern, clean, industrial, simple). If the user requests an unsupported visual feature such as room partitions, furniture, equipment, balconies, stairs, or exact architectural geometry, explain clearly that the current parametric model cannot create that detail yet; do not pretend it was added. Ask a short clarification only when essential. Never invent engineering or safety compliance.",
+  project360: "You are the design assistant inside Project 360. Understand ordinary-language building descriptions and edits. Supported editable properties are width, depth, floors, floorHeight, windows, doorWidth, style, staircases (0-3 conceptual external stair towers), and elevators (0-4 conceptual external lift shafts). Change only explicitly requested properties and preserve all others. Do not claim support for detailed interiors, room partitions, furniture, equipment, balconies, or construction-ready geometry. Explain that stairs and lifts are conceptual exterior elements only. Never invent engineering or safety compliance.",
   cs: "You are the URS-to-CS document assistant. Help interpret requirements, explain extraction results, identify missing/ambiguous source information, and preserve exact source wording and values. Never invent specifications, values, document metadata, or compliance claims. Distinguish source facts from suggestions.",
   scan: "You are the document scanning assistant. Help with scanning, image cleanup, OCR, page order, and export workflows. Do not claim to have changed a file unless the tool confirms it.",
   pdf: "You are the PDF optimizer assistant. Explain compression and cleanup options, preserve document meaning, and warn users to inspect the exported file.",
@@ -85,7 +85,7 @@ export async function onRequestPost({request, env}) {
     if (mode === "design") {
       const parsed = parseJson(raw);
       const changes = parsed?.changes || {};
-      const allowedKeys = ["width","depth","floors","floorHeight","windows","doorWidth","style"];
+      const allowedKeys = ["width","depth","floors","floorHeight","windows","doorWidth","style","staircases","elevators"];
       const clean = {};
       for (const key of allowedKeys) {
         const value = changes[key];
