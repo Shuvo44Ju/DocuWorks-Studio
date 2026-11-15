@@ -1165,7 +1165,7 @@ function cadBuildRoomRecords(entities,scale){
  const used=new Set();
  return loops.map((item,index)=>{
   const matches=labels.filter(label=>cadPointInPolygon(label.point,item.points)&&!used.has(label.entity));
-  const chosen=matches.sort((a,b)=>a.text.length-b.text.length)[0]||null;if(chosen)used.add(chosen.entity);
+  const chosen=matches.sort((a,b)=>(cadRoomType(a.text)==="Unclassified"?1:0)-(cadRoomType(b.text)==="Unclassified"?1:0)||a.text.length-b.text.length)[0]||null;if(chosen)used.add(chosen.entity);
   const label=chosen?.text||("Unlabelled room "+(index+1)),type=cadRoomType(label);
   const width=(Math.max(...item.points.map(p=>p.x))-Math.min(...item.points.map(p=>p.x)))*scale;
   const depth=(Math.max(...item.points.map(p=>p.y))-Math.min(...item.points.map(p=>p.y)))*scale;
