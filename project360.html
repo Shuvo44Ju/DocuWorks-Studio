@@ -33,7 +33,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="step"><div class="num">3</div><div><strong>Create model</strong><span>Build the 3D concept</span></div></div>
 <div class="step"><div class="num">4</div><div><strong>Export & share</strong><span>Video or presentation</span></div></div>
 </div>
-<div class="tip"><b>Free & local-first</b><br>The 3D concept is generated in your browser. No AI API, account, upload quota or paid service is required.</div>
+<div class="tip"><b>Local 3D generation</b><br>The 3D geometry runs in your browser. Natural-language AI assistance uses your Cloudflare Worker and may have provider limits; basic creation and supported edits have a local fallback.</div>
 </aside>
 <main class="main">
 <div class="grid">
@@ -50,7 +50,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="row" style="margin-top:9px"><div style="flex:1"><div class="label">Location</div><input class="field" id="location" placeholder="Dhaka"></div><div style="flex:1"><div class="label">Revision</div><input class="field" id="revision" placeholder="Rev. 01"></div></div>
 <div class="label">Building prompt · describe what you want to draw</div>
 <textarea class="field details" id="details" placeholder="Describe your building in normal language. Example: Create a 24-level modern office building, 30m wide and 20m deep, 3.5m floor height, glass windows on all sides, large entrance, rooftop service floor. Ground floor reception, levels 1–5 laboratories, levels 6–23 offices."></textarea>
-<div class="note">This prompt is read to detect building levels, dimensions, floor height, windows and style. You can write “24-level”, “lvl 24”, “24 floors” or “G+23”. The generated model is a visual concept, not a detailed CAD/BIM drawing.</div><div id="promptReadout" class="note" style="margin-top:7px;color:#2458d3;font-weight:700">Prompt analysis will appear here after you create the model.</div>
+<div class="note">This description is used to detect levels, dimensions, floor height, entrance width, windows, building style, staircases and elevators. You can write “24-level”, “lvl 24”, “24 floors” or “G+23”. The generated model is a visual concept, not a detailed CAD/BIM drawing.</div><div id="promptReadout" class="note" style="margin-top:7px;color:#2458d3;font-weight:700">Prompt analysis will appear here after you create the model.</div>
 <button class="action main" id="createBtn" style="width:100%;margin-top:12px;padding:13px;font-size:12px">Create 3D Project</button>
 <div class="note">You can edit the original description and recreate the drawing whenever you want.</div>
 <div class="editbox"><h4>✦ CHANGE THE DRAWING — ANYTIME</h4><div class="note" style="margin:0">Already created? Tell me what to change in normal words. I will update the same drawing.</div><textarea class="field details" id="changePrompt" placeholder="Examples: Make it 5 floors taller. Change it to 40m wide. Add more windows. Make it a laboratory building."></textarea><div class="edit-actions"><button class="action main" id="applyChangeBtn">Apply change</button><button class="action" id="undoChangeBtn" disabled>Undo</button></div><div class="note" id="changeFeedback">You can keep making changes as many times as you like.</div></div>
