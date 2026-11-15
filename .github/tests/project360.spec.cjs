@@ -47,15 +47,6 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
     "40", 0.25, "1", value, "50", 0
   );
 
-  const dxf = [
-    "0", "SECTION", "2", "HEADER",
-    "9", "$INSUNITS", "70", "6",
-    "0", "ENDSEC",
-    "0", "SECTION", "2", "ENTITIES",
-    ...pairs,
-    "0", "ENDSEC", "0", "EOF"
-  ].join("\r\n") + "\r\n";
-
   // Paired exterior and interior wall faces, in metres.
   line("A-WALL-EXT", 0, 0, 10, 0);
   line("A-WALL-EXT", 0, 0.2, 10, 0.2);
@@ -76,6 +67,15 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
   line("A-GLASS-DETAIL", 7, 7.92, 9, 7.92);
   poly("S-COLUMN", [[0.5, 0.5], [0.9, 0.5], [0.9, 0.9], [0.5, 0.9]]);
   text("A-ROOM-TEXT", "OFFICE", 2.5, 4);
+
+  const dxf = [
+    "0", "SECTION", "2", "HEADER",
+    "9", "$INSUNITS", "70", "6",
+    "0", "ENDSEC",
+    "0", "SECTION", "2", "ENTITIES",
+    ...pairs,
+    "0", "ENDSEC", "0", "EOF"
+  ].join("\r\n") + "\r\n";
 
   await page.locator("#cadFile").setInputFiles({
     name: "project360-e2e-floor.dxf",
