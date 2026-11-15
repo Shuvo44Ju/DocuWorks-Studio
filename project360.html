@@ -40,7 +40,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <section class="panel viewer">
 <div class="viewer-head"><h1 id="projectTitle">Project 360° Viewer</h1><span class="status" id="modelStatus">Ready to create</span></div>
 <div class="canvas-wrap" id="canvasWrap"><canvas id="three"></canvas><div class="render-overlay" id="renderOverlay" role="status" aria-live="polite"><div class="render-top"><span class="render-spinner"></span><div><div class="render-title" id="renderTitle">Creating your 360° video</div><div class="render-sub" id="renderSub">Recording the 3D view from every angle</div></div><span class="render-percent" id="renderPercent">0%</span></div><div class="render-track"><i id="viewerProgress"></i></div><div class="render-foot" id="renderFoot">Please keep this page open while recording.</div></div><div class="viewer-error" id="viewerError"><div><b>3D viewer could not start</b><span id="viewerErrorText">Please refresh the page and try again.</span><small>Check the error above. WebGL, browser support, or a failed 3D module may be responsible.</small></div></div><div class="empty-view" id="emptyView"><div><div class="big">◇</div><b>Your 3D project will appear here</b><br>Describe your project, set the building parameters, then click <b>Create 3D Project</b>.<br><br>After creation: drag to rotate · wheel to zoom · right-drag to pan</div></div></div>
-<div class="viewer-foot"><div class="controls"><button class="iconbtn" id="resetBtn">Reset view</button><button class="iconbtn" id="rotateBtn">Auto rotate</button><button class="iconbtn" id="wireBtn">Wireframe</button></div><span>3D generation runs locally</span></div>
+<div class="viewer-foot"><div class="controls"><button class="iconbtn" id="resetBtn">Reset view</button><button class="iconbtn" id="rotateBtn">Auto rotate</button><button class="iconbtn" id="wireBtn">Wireframe</button><button class="iconbtn" id="cutawayBtn">Interior view</button></div><span>3D generation runs locally</span></div>
 </section>
 <aside class="right">
 <section class="panel box">
@@ -179,6 +179,7 @@ function interpretPrompt(text){
  };
 }
 function makeBuilding(){
+ cutawayMode=false;const cutBtn=document.getElementById('cutawayBtn');if(cutBtn)cutBtn.textContent='Interior view';
  if(customModel){disposeImportedModel(model);model=null;customModel=false}
  clearGenerated();
  const brief=detailsInput.value||'';
@@ -199,7 +200,7 @@ function makeBuilding(){
  // Build the envelope as separate wall sections, so openings are real gaps rather than painted-on panels.
  const wallMat=material(wall),floorSlabMat=material(0xc9d0d9),partitionMat=material(s==='industrial'?0x9aa3ad:0xd1d9e3);
  const wallT=.18,glassPaneMat=new THREE.MeshPhysicalMaterial({color:glass,roughness:.16,metalness:.05,transparent:true,opacity:.48});
- function buildWall(axis,fixed,len,yBase,height,openings,thickness,mat,addGlass=false){
+ function buildWall(axis,fixed,len,yBase,height,openings,thickness,mat,addGlass=false,cutaway=false){
   const xs=[-len/2,len/2];
   openings.forEach(o=>{xs.push(Math.max(-len/2,o.center-o.width/2),Math.min(len/2,o.center+o.width/2))});
   const ys=[0,height];
@@ -211,13 +212,17 @@ function makeBuilding(){
    const isOpening=openings.some(o=>Math.abs(mx-o.center)<o.width/2-.0001&&my>o.bottom+.0001&&my<o.bottom+o.height-.0001);
    if(isOpening||x1-x0<.025||y1-y0<.025)continue;
    const along=x1-x0,up=y1-y0;
-   if(axis==='x')cube(along,up,thickness,(x0+x1)/2,yBase+(y0+y1)/2,fixed,mat);
-   else cube(thickness,up,along,fixed,yBase+(y0+y1)/2,(x0+x1)/2,mat);
+   let piece;
+   if(axis==='x')piece=cube(along,up,thickness,(x0+x1)/2,yBase+(y0+y1)/2,fixed,mat);
+   else piece=cube(thickness,up,along,fixed,yBase+(y0+y1)/2,(x0+x1)/2,mat);
+   if(cutaway)piece.userData.cutawayFacade=true;
   }
   if(addGlass)openings.filter(o=>o.kind==='window').forEach(o=>{
    const paneW=Math.max(.1,o.width-.10),paneH=Math.max(.1,o.height-.10);
-   if(axis==='x')cube(paneW,paneH,.045,o.center,yBase+o.bottom+o.height/2,fixed,glassPaneMat);
-   else cube(.045,paneH,paneW,fixed,yBase+o.bottom+o.height/2,o.center,glassPaneMat);
+   let pane;
+   if(axis==='x')pane=cube(paneW,paneH,.045,o.center,yBase+o.bottom+o.height/2,fixed,glassPaneMat);
+   else pane=cube(.045,paneH,paneW,fixed,yBase+o.bottom+o.height/2,o.center,glassPaneMat);
+   if(cutaway)pane.userData.cutawayFacade=true;
   });
  }
  const windowW=Math.min(1.8,Math.max(.75,W/(N+1)*.62));
@@ -241,10 +246,10 @@ function makeBuilding(){
   }
   if(level===0)front.push({kind:'door',center:0,width:DW,bottom:0,height:Math.min(H*.82,2.35)});
   const wallHeight=H-.18;
-  buildWall('x',-D/2, W,baseY+.18,wallHeight,front,wallT,wallMat,true);
-  buildWall('x', D/2, W,baseY+.18,wallHeight,back,wallT,wallMat,true);
-  buildWall('z',-W/2,D,baseY+.18,wallHeight,left,wallT,wallMat,true);
-  buildWall('z', W/2,D,baseY+.18,wallHeight,right,wallT,wallMat,true);
+  buildWall('x',-D/2, W,baseY+.18,wallHeight,front,wallT,wallMat,true,true);
+  buildWall('x', D/2, W,baseY+.18,wallHeight,back,wallT,wallMat,true,false);
+  buildWall('z',-W/2,D,baseY+.18,wallHeight,left,wallT,wallMat,true,false);
+  buildWall('z', W/2,D,baseY+.18,wallHeight,right,wallT,wallMat,true,true);
   // Simple conceptual internal room divisions with door-sized openings.
   if(W>8&&D>8){
    const partH=wallHeight*.88,doorOpening={kind:'door',center:0,width:1.05,bottom:0,height:Math.min(2.1,partH*.82)};
@@ -254,7 +259,7 @@ function makeBuilding(){
  }
  cube(W+.12,.22,D+.12,0,total+.11,0,roofMat);
  const doorMat=material(0x344b66);
- cube(Math.max(.4,DW-.12),Math.min(2.15,H*.78),.07,0,Math.min(1.08,H*.39),-D/2-.105,doorMat);
+ const entranceDoor=cube(Math.max(.4,DW-.12),Math.min(2.15,H*.78),.07,0,Math.min(1.08,H*.39),-D/2-.105,doorMat);entranceDoor.userData.cutawayFacade=true;
  cube(Math.min(W*.55,DW+2.2),.16,2.0,0,.18,-D/2-.85,trimMat);
  // Visible conceptual external circulation elements (separate from opaque massing blocks).
  const stairCount=Math.max(0,Math.min(3,Math.round(Number(currentDesign.staircases)||0)));
@@ -284,10 +289,6 @@ function makeBuilding(){
    cube(shaftW*.78,H*.58,.10,cx,y,cz-shaftD/2-.12,liftDoorMat);
   }
  }
- const doorMat=material(0x344b66);cube(DW,H*.72,.1,0,H*.36,-D/2-.09,doorMat);
- cube(Math.min(W*.55,DW+2.2),.18,2.2,0,H*.76,-D/2-1.0,trimMat);
- cube(.12,H*.76,.14,-DW/2,H*.38,-D/2-.14,trimMat);cube(.12,H*.76,.14,DW/2,H*.38,-D/2-.14,trimMat);
- for(let f=0;f<F;f++)cube(W*.92,.04,D*.92,0,f*H+.06,0,material(0xc9d0d9));
  grid.scale.set(Math.max(1,W/10),1,Math.max(1,D/10));grid.position.y=0;
  fitParts();
  document.getElementById('emptyView').style.display='none';
@@ -477,6 +478,8 @@ document.getElementById('modelFile').addEventListener('change',e=>e.target.files
 document.getElementById('resetBtn').onclick=()=>{if(model)fitObject(model);else if(parts.length)fitParts()};
 document.getElementById('rotateBtn').onclick=()=>{autoRotate=!autoRotate;controls.autoRotate=autoRotate;controls.autoRotateSpeed=1.4;document.getElementById('rotateBtn').textContent=autoRotate?'Stop rotation':'Auto rotate'};
 document.getElementById('wireBtn').onclick=()=>{wire=!wire;parts.forEach(o=>{if(o.material)o.material.wireframe=wire});if(model)model.traverse(o=>{if(o.isMesh){const m=Array.isArray(o.material)?o.material:[o.material];m.forEach(x=>x.wireframe=wire)}});toast(wire?'Wireframe on':'Wireframe off')};
+let cutawayMode=false;
+document.getElementById('cutawayBtn').onclick=()=>{cutawayMode=!cutawayMode;parts.forEach(o=>{if(o.userData?.cutawayFacade)o.visible=!cutawayMode});document.getElementById('cutawayBtn').textContent=cutawayMode?'Exterior view':'Interior view';toast(cutawayMode?'Front and right facades hidden to reveal interior rooms':'Exterior facades restored')};
 
 function projectData(){const d=currentDesign||{};return{name:nameInput.value||'Untitled Project',location:locationInput.value||'',revision:revisionInput.value||'',details:detailsInput.value||'',width:d.width??bWidthInput.value,depth:d.depth??bDepthInput.value,floors:d.floors??floorsInput.value,floorH:d.floorHeight??floorHInput.value,windows:d.windows??windowsInput.value,doorW:d.doorWidth??doorWInput.value,style:d.style??styleInput.value,staircases:d.staircases??0,elevators:d.elevators??0}}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
