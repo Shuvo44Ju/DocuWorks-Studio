@@ -817,7 +817,33 @@ function cadBuild3D(){
  pointSegments("Beams").forEach(([a,b])=>{const dx=(b.x-a.x)*scale,dy=(b.y-a.y)*scale,len=Math.hypot(dx,dy);if(len>.1&&len<500)addBox(len,.3,.3,(a.x+b.x)*.5*scale,height-.15,-(a.y+b.y)*.5*scale,beamMat,Math.atan2(dy,dx));});
  // Stairs and lift layers are reconstructed from their plan extents, with stair treads and a lift core.
  ["Stairs","Elevators"].forEach(role=>{const segs=pointSegments(role);if(!segs.length)return;const pts=segs.flat();const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),minX=Math.min(...xs)*scale,maxX=Math.max(...xs)*scale,minY=Math.min(...ys)*scale,maxY=Math.max(...ys)*scale,w=maxX-minX,d=maxY-minY;if(w<.5||d<.5)return;const cx=(minX+maxX)/2,cz=-(minY+maxY)/2;if(role==="Elevators"){addBox(w,height,d,cx,height/2,cz,frameMat);addBox(Math.max(.1,w-.12),height-.15,Math.max(.1,d-.12),cx,height/2,cz,slabMat);}else{const n=12;for(let k=0;k<n;k++){const x=minX+(k+.5)*w/n;addBox(w/n*.92,(k+1)*height/n,d*.55,x,(k+.5)*height/n,cz,stairMat);}}});
- if(!created.length){toast("No 3D geometry generated. Map wall, column, room or floor layers first.");return;}
+ // If the drawing contains only non-wall layers, still build a visible concept preview.
+ // Doors/windows normally cut wall openings; without walls, show them as standalone panels instead.
+ if(!created.length){
+  const mappedRoles=new Set(cadLayers.map(l=>l.role));
+  const boundsOf=pts=>{const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);return {minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)};};
+  for(const role of ["Doors","Windows","Columns","Stairs","Elevators","Beams","Rooms","Floors"]){
+   if(!mappedRoles.has(role))continue;
+   const entities=all.filter(e=>cadEntityRole(e)===role);
+   const valid=entities.map(e=>({e,pts:cadEntityPoints(e)})).filter(x=>x.pts.length>=2);
+   if(!valid.length)continue;
+   if(role==="Doors"||role==="Windows"){
+    valid.forEach(({pts})=>{const b=boundsOf(pts),cx=(b.minX+b.maxX)/2*scale,cz=-(b.minY+b.maxY)/2*scale,w=Math.max(.75,Math.min(3.5,Math.hypot((b.maxX-b.minX)*scale,(b.maxY-b.minY)*scale))),h=role==="Doors"?doorH:windowH,y=role==="Doors"?doorH/2:windowSill+windowH/2;addBox(w,h,.07,cx,y,cz,role==="Doors"?frameMat:glassMat);});
+   }else if(role==="Columns"){
+    valid.forEach(({pts})=>{const b=boundsOf(pts),w=Math.max(.25,Math.min(1.2,(b.maxX-b.minX)*scale)),d=Math.max(.25,Math.min(1.2,(b.maxY-b.minY)*scale));addBox(w,height,d,(b.minX+b.maxX)/2*scale,height/2,-(b.minY+b.maxY)/2*scale,columnMat);});
+   }else if(role==="Stairs"){
+    const pts=valid.flatMap(x=>x.pts),b=boundsOf(pts),w=Math.max(.8,(b.maxX-b.minX)*scale),d=Math.max(.8,(b.maxY-b.minY)*scale),n=10;
+    for(let k=0;k<n;k++)addBox(w/n*.94,(k+1)*height/n,d*.7,(b.minX*scale)+(k+.5)*w/n,(k+.5)*height/n,-(b.minY+b.maxY)*.5*scale,stairMat);
+   }else if(role==="Elevators"){
+    const pts=valid.flatMap(x=>x.pts),b=boundsOf(pts),w=Math.max(1,(b.maxX-b.minX)*scale),d=Math.max(1,(b.maxY-b.minY)*scale),cx=(b.minX+b.maxX)*.5*scale,cz=-(b.minY+b.maxY)*.5*scale;addBox(w,height,d,cx,height/2,cz,frameMat);addBox(Math.max(.2,w-.12),height-.15,Math.max(.2,d-.12),cx,height/2,cz,slabMat);
+   }else if(role==="Beams"){
+    valid.forEach(({pts})=>{for(let k=1;k<pts.length;k++){const a=pts[k-1],b=pts[k],dx=(b.x-a.x)*scale,dy=(b.y-a.y)*scale,len=Math.hypot(dx,dy);if(len>.1&&len<500)addBox(len,.3,.3,(a.x+b.x)*.5*scale,height-.15,-(a.y+b.y)*.5*scale,beamMat,Math.atan2(dy,dx));}});
+   }else if(role==="Rooms"||role==="Floors"){
+    const pts=valid.flatMap(x=>x.pts),b=boundsOf(pts),w=(b.maxX-b.minX)*scale,d=(b.maxY-b.minY)*scale;if(w>.1&&d>.1)addBox(w,slab,d,(b.minX+b.maxX)*.5*scale,-slab/2,-(b.minY+b.maxY)*.5*scale,slabMat);
+   }
+  }
+ }
+ if(!created.length){toast("No 3D geometry found. Map a layer containing visible linework to Walls, Columns, Doors, Windows, Stairs, Elevators, Beams, Rooms or Floors. Text and dimensions are reference-only.");return;}
  currentDesign=null;customModel=false;model=null;el("emptyView").style.display="none";fitParts();const wallNote=wallResult.pairingSkipped?"Wall-face pairing skipped because this drawing has a very large wall-segment count.":wallResult.pairedSections?wallResult.pairedSections+" paired wall sections merged · average measured thickness "+wallResult.averageThickness.toFixed(2)+" m":"No paired wall faces detected; the selected default thickness was used.";const openingNote=detectedDoorCount+" door markers and "+detectedWindowCount+" window-layer markers matched · "+uncertainOpeningCount+" uncertain opening symbols · door height "+doorH.toFixed(2)+" m · window sill "+windowSill.toFixed(2)+" m · window height "+windowH.toFixed(2)+" m.";el("modelStatus").textContent="Architectural 3D generated · "+explicitRoomEntities.length+" explicit room outlines · "+inferredRoomLoops.length+" inferred enclosed spaces · "+wallResult.pairedSections+" paired wall sections · "+detectedDoorCount+" doors · "+detectedWindowCount+" windows";el("changeFeedback").textContent="CAD reconstruction generated. "+wallNote+" "+openingNote+" "+(inferredRoomLoops.length?inferredRoomLoops.length+" enclosed spaces inferred from normalized wall centerlines. ":"")+"Only openings matched to mapped CAD markers or door swing arcs are cut; uncertain symbols need review. This is a visual concept, not a verified BIM model.";toast("Architectural 3D reconstruction generated");
 }
 el("cadFile").addEventListener("change",e=>{const file=e.target.files?.[0];if(file)cadLoadFile(file)});el("cadSampleBtn").addEventListener("click",cadMakeSample);el("cadClearBtn").addEventListener("click",()=>{cadDocument=null;cadDxfText="";cadLayers=[];el("cadMappingWrap").classList.add("cad-hidden");el("cadStatus").textContent="Floor plan cleared.";});el("cadBuildBtn").addEventListener("click",cadBuild3D);el("cadDownloadBtn").addEventListener("click",()=>{if(!cadDxfText){toast("The sample plan has no source DXF to download.");return;}download(new Blob([cadDxfText],{type:"application/dxf"}),(cadFileName.replace(/\.[^.]+$/,"")||"floor-plan")+".dxf");});
