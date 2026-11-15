@@ -19,7 +19,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 @media(max-width:1050px){.app{grid-template-columns:230px 1fr}.grid{grid-template-columns:1fr}.right{display:grid;grid-template-columns:1fr 1fr}.viewer{height:650px}.viewer-foot{flex-wrap:wrap}}
 @media(max-width:700px){.app{display:block;height:auto;min-height:100vh;overflow:visible}.top{height:62px}.side{border-right:0;border-bottom:1px solid var(--line);padding:12px 15px}.side .steps{display:flex;overflow:auto;gap:5px}.step{min-width:145px;margin:0}.tip{display:none}.main{padding:14px}.right{display:flex}.viewer{height:560px;min-height:0}.grid{display:flex;flex-direction:column}}
 @media(max-width:600px){.ai-launch{right:15px;bottom:15px;width:44px;height:44px}.ai-popover{right:15px;bottom:70px;width:calc(100vw - 30px)}}
-.edit-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 11px;border-top:1px solid #e8edf4;background:#fbfcfe}.edit-toolbar .iconbtn{padding:6px 8px;font-size:10px}.edit-toolbar .iconbtn.active{background:#eaf1ff;border-color:#8ca9e9;color:#2458d3}.edit-toolbar .edit-status{font-size:9px;color:#71819a;min-width:130px;flex:1}.edit-toolbar .edit-status strong{color:#2458d3}.cad-room-list{display:grid;gap:6px;margin-top:8px}.cad-room-row{display:flex;align-items:center;gap:8px;width:100%;padding:8px;border:1px solid #e4eaf2;border-radius:8px;background:#fff;text-align:left;color:#405672}.cad-room-row:hover{border-color:#9ab3ed;background:#f8faff}.cad-room-row strong{display:block;font-size:10px}.cad-room-row small{display:block;font-size:9px;color:#8492a6}.cad-room-dot{width:9px;height:9px;border-radius:50%;background:#6b91d7;flex:none}.cad-room-empty{font-size:10px;color:#8492a6;padding:9px;border:1px dashed #dce4ef;border-radius:8px}</style>
+.edit-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 11px;border-top:1px solid #e8edf4;background:#fbfcfe}.edit-toolbar .iconbtn{padding:6px 8px;font-size:10px}.edit-toolbar .iconbtn.active{background:#eaf1ff;border-color:#8ca9e9;color:#2458d3}.edit-toolbar .edit-status{font-size:9px;color:#71819a;min-width:130px;flex:1}.edit-toolbar .edit-status strong{color:#2458d3}.cad-room-list{display:grid;gap:6px;margin-top:8px}.cad-room-row{display:flex;align-items:center;gap:8px;width:100%;padding:8px;border:1px solid #e4eaf2;border-radius:8px;background:#fff;text-align:left;color:#405672}.cad-room-row:hover{border-color:#9ab3ed;background:#f8faff}.cad-room-row strong{display:block;font-size:10px}.cad-room-row small{display:block;font-size:9px;color:#8492a6}.cad-room-dot{width:9px;height:9px;border-radius:50%;background:#6b91d7;flex:none}.cad-room-empty{font-size:10px;color:#8492a6;padding:9px;border:1px dashed #dce4ef;border-radius:8px}.edit-numeric{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;padding:8px 11px;border-top:1px solid #edf1f6;background:#fff}.edit-numeric label{font-size:9px;color:#667995;font-weight:700}.edit-numeric input{width:100%;min-width:0;box-sizing:border-box;margin-top:3px;padding:6px 5px;border:1px solid #dbe3ee;border-radius:6px;font-size:11px;color:#263f5d}.edit-numeric input:focus{outline:2px solid #9bb7f0;border-color:#6e94e4}@media(max-width:560px){.edit-numeric{grid-template-columns:repeat(3,minmax(0,1fr))}}</style>
 </head>
 <body>
 <div class="app">
@@ -42,7 +42,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <section class="panel viewer">
 <div class="viewer-head"><h1 id="projectTitle">Project 360° Viewer</h1><span class="status" id="modelStatus">Ready to create</span></div>
 <div class="canvas-wrap" id="canvasWrap"><canvas id="three"></canvas><div class="render-overlay" id="renderOverlay" role="status" aria-live="polite"><div class="render-top"><span class="render-spinner"></span><div><div class="render-title" id="renderTitle">Creating your 360° video</div><div class="render-sub" id="renderSub">Recording the 3D view from every angle</div></div><span class="render-percent" id="renderPercent">0%</span></div><div class="render-track"><i id="viewerProgress"></i></div><div class="render-foot" id="renderFoot">Please keep this page open while recording.</div></div><div class="viewer-error" id="viewerError"><div><b>3D viewer could not start</b><span id="viewerErrorText">Please refresh the page and try again.</span><small>Check the error above. WebGL, browser support, or a failed 3D module may be responsible.</small></div></div><div class="empty-view" id="emptyView"><div><div class="big">◇</div><b>Your 3D project will appear here</b><br>Describe your project, set the building parameters, then click <b>Create 3D Project</b>.<br><br>After creation: drag to rotate · wheel to zoom · right-drag to pan</div></div></div>
-<div class="viewer-foot"><button class="ai-launch" id="askAiToggle" type="button" aria-label="AI assistant"><span>✦</span></button><div class="ai-popover" id="askAiPopover" role="dialog" aria-label="AI assistant"><div class="ai-popover-head"><span aria-hidden="true">✦</span><button class="ai-popover-close" id="askAiClose" type="button" aria-label="Close">✕</button></div><div class="note" style="margin:0">Describe a change and I’ll update the current 3D concept.</div><textarea class="field details" id="changePrompt" placeholder="e.g. Add 3 floors, move the stairs to the left, or change the facade."></textarea><div class="edit-actions"><button class="action main" id="applyChangeBtn">Preview change</button><button class="action" id="undoChangeBtn" disabled>Undo</button><button class="action" id="redoChangeBtn" disabled>Redo</button></div><div class="note" id="changeFeedback">You can keep refining your design.</div><div class="design-preview" id="designPreview"><strong>REVIEW YOUR DESIGN CHANGE</strong><p id="designPreviewText"></p><div class="design-preview-actions"><button class="action main" id="confirmDesignBtn" type="button">Apply to 3D model</button><button class="action" id="cancelDesignBtn" type="button">Cancel</button></div></div></div><div class="edit-toolbar" id="modelEditToolbar" aria-label="3D object editing tools"><span class="edit-status" id="editModeStatus">Double-click an object to select it</span><button class="iconbtn active" id="editSelectBtn" type="button">Select</button><button class="iconbtn" id="editMoveBtn" type="button">Move</button><button class="iconbtn" id="editRotateBtn" type="button">Rotate</button><button class="iconbtn" id="editScaleBtn" type="button">Resize</button><button class="iconbtn" id="editUndoBtn" type="button" disabled>Undo edit</button><button class="iconbtn" id="editRedoBtn" type="button" disabled>Redo edit</button><button class="iconbtn" id="editDeselectBtn" type="button">Deselect</button></div><div class="controls"><button class="iconbtn" id="resetBtn">Reset view</button><button class="iconbtn" id="rotateBtn">Auto rotate</button><button class="iconbtn" id="wireBtn">Wireframe</button><button class="iconbtn" id="cutawayBtn" title="Hide the front and right exterior walls to inspect the conceptual room partitions">Interior view</button></div><span>Use Interior view to inspect conceptual rooms · not construction drawings</span></div>
+<div class="viewer-foot"><button class="ai-launch" id="askAiToggle" type="button" aria-label="AI assistant"><span>✦</span></button><div class="ai-popover" id="askAiPopover" role="dialog" aria-label="AI assistant"><div class="ai-popover-head"><span aria-hidden="true">✦</span><button class="ai-popover-close" id="askAiClose" type="button" aria-label="Close">✕</button></div><div class="note" style="margin:0">Describe a change and I’ll update the current 3D concept.</div><textarea class="field details" id="changePrompt" placeholder="e.g. Add 3 floors, move the stairs to the left, or change the facade."></textarea><div class="edit-actions"><button class="action main" id="applyChangeBtn">Preview change</button><button class="action" id="undoChangeBtn" disabled>Undo</button><button class="action" id="redoChangeBtn" disabled>Redo</button></div><div class="note" id="changeFeedback">You can keep refining your design.</div><div class="design-preview" id="designPreview"><strong>REVIEW YOUR DESIGN CHANGE</strong><p id="designPreviewText"></p><div class="design-preview-actions"><button class="action main" id="confirmDesignBtn" type="button">Apply to 3D model</button><button class="action" id="cancelDesignBtn" type="button">Cancel</button></div></div></div><div class="edit-toolbar" id="modelEditToolbar" aria-label="3D object editing tools"><span class="edit-status" id="editModeStatus">Double-click an object to select it</span><button class="iconbtn active" id="editSelectBtn" type="button">Select</button><button class="iconbtn" id="editMoveBtn" type="button">Move</button><button class="iconbtn" id="editRotateBtn" type="button">Rotate</button><button class="iconbtn" id="editScaleBtn" type="button">Resize</button><button class="iconbtn" id="editUndoBtn" type="button" disabled>Undo edit</button><button class="iconbtn" id="editRedoBtn" type="button" disabled>Redo edit</button><button class="iconbtn" id="editDeselectBtn" type="button">Deselect</button></div><div class="edit-numeric" id="editNumericPanel" style="display:none" aria-label="Selected object dimensions and position"><label>X position (m)<input id="editPosX" type="number" step="0.05"></label><label>Elevation Y (m)<input id="editPosY" type="number" step="0.05"></label><label>Z position (m)<input id="editPosZ" type="number" step="0.05"></label><label>Width (m)<input id="editSizeX" type="number" min="0.05" step="0.05"></label><label>Height (m)<input id="editSizeY" type="number" min="0.05" step="0.05"></label><label>Depth (m)<input id="editSizeZ" type="number" min="0.05" step="0.05"></label></div><div class="controls"><button class="iconbtn" id="resetBtn">Reset view</button><button class="iconbtn" id="rotateBtn">Auto rotate</button><button class="iconbtn" id="wireBtn">Wireframe</button><button class="iconbtn" id="cutawayBtn" title="Hide the front and right exterior walls to inspect the conceptual room partitions">Interior view</button></div><span>Use Interior view to inspect conceptual rooms · not construction drawings</span></div>
 </section>
 <aside class="right">
 <section class="panel box">
@@ -209,6 +209,34 @@ function editorState(root){return {position:root.position.toArray(),rotation:roo
 function updateObjectEditButtons(){
  const undo=el("editUndoBtn"),redo=el("editRedoBtn");if(undo)undo.disabled=!objectUndoStack.length;if(redo)redo.disabled=!objectRedoStack.length;
 }
+function editableWorldSize(root){
+ root.updateWorldMatrix(true,true);
+ return new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3());
+}
+function refreshNumericEditor(){
+ const panel=el("editNumericPanel");
+ if(!panel)return;
+ if(!selectedEditable){panel.style.display="none";return;}
+ panel.style.display="grid";
+ const p=selectedEditable.position,size=editableWorldSize(selectedEditable);
+ const values={editPosX:p.x,editPosY:p.y,editPosZ:p.z,editSizeX:size.x,editSizeY:size.y,editSizeZ:size.z};
+ Object.entries(values).forEach(([id,value])=>{const input=el(id);if(input)input.value=Number(value||0).toFixed(2);});
+}
+function applyNumericTransform(){
+ const root=selectedEditable;if(!root)return;
+ const before=editorState(root),oldSize=editableWorldSize(root);
+ const read=(id,fallback)=>{const value=Number(el(id)?.value);return Number.isFinite(value)?value:fallback;};
+ root.position.set(read("editPosX",root.position.x),read("editPosY",root.position.y),read("editPosZ",root.position.z));
+ const targets=[read("editSizeX",oldSize.x),read("editSizeY",oldSize.y),read("editSizeZ",oldSize.z)];
+ ["x","y","z"].forEach((axis,index)=>{const current=oldSize[axis],target=targets[index];if(current>.0001&&target>.05)root.scale[axis]*=Math.max(.05,target)/current;});
+ root.updateMatrix();root.updateMatrixWorld(true);
+ const after=editorState(root);
+ if(JSON.stringify(before)!==JSON.stringify(after)){
+  objectUndoStack.push({root,before,after});if(objectUndoStack.length>80)objectUndoStack.shift();
+  objectRedoStack=[];syncEditableRootToCad(root);updateObjectEditButtons();
+ }
+ if(selectionBox)selectionBox.update();refreshNumericEditor();renderer.render(scene,camera);
+}
 function cadTransformEntitySnapshot(target,snapshot,matrix,scale){
  const transformed=JSON.parse(JSON.stringify(snapshot)),vectorKeys=new Set(["majorAxis","majorAxisEndPoint","normal","extrusionDirection","direction","axis"]);
  const visit=(obj,key)=>{
@@ -232,19 +260,19 @@ function syncEditableRootToCad(root){
 function setEditorState(root,state){
  if(!root||!state)return;root.position.fromArray(state.position);root.rotation.fromArray(state.rotation);root.scale.fromArray(state.scale);
  root.updateMatrix();root.updateMatrixWorld(true);syncEditableRootToCad(root);
- if(selectionBox)selectionBox.update();renderer.render(scene,camera);
+ if(selectionBox)selectionBox.update();refreshNumericEditor();renderer.render(scene,camera);
 }
 function selectEditable(root){
  if(!root||root.userData?.editable!==true)return;selectedEditable=root;transformControls.attach(root);
  if(selectionBox){scene.remove(selectionBox);selectionBox.geometry?.dispose();selectionBox.material?.dispose();}
- selectionBox=new THREE.BoxHelper(root,0x2458d3);scene.add(selectionBox);
+ selectionBox=new THREE.BoxHelper(root,0x2458d3);scene.add(selectionBox);refreshNumericEditor();
  const label=String(root.userData.label||root.name||"Selected object");
  el("editModeStatus").textContent=label+" · "+(root.userData.category||"object");renderer.render(scene,camera);
 }
 function clearEditableSelection(){
  selectedEditable=null;if(transformControls)transformControls.detach();
  if(selectionBox){scene.remove(selectionBox);selectionBox.geometry?.dispose();selectionBox.material?.dispose();selectionBox=null;}
- if(el("editModeStatus"))el("editModeStatus").textContent="Double-click an object to select it";renderer.render(scene,camera);
+ if(el("editModeStatus"))el("editModeStatus").textContent="Double-click an object to select it";refreshNumericEditor();renderer.render(scene,camera);
 }
 function setEditorMode(mode){
  if(!transformControls)return;transformControls.setMode(mode);
@@ -262,7 +290,7 @@ function initObjectEditor(){
  transformControls.addEventListener("mouseDown",()=>{objectEditStart=selectedEditable?editorState(selectedEditable):null;});
  transformControls.addEventListener("objectChange",()=>{if(selectionBox)selectionBox.update();});
  transformControls.addEventListener("mouseUp",()=>{
-  if(selectedEditable&&objectEditStart){objectUndoStack.push({root:selectedEditable,before:objectEditStart,after:editorState(selectedEditable)});if(objectUndoStack.length>80)objectUndoStack.shift();objectRedoStack=[];syncEditableRootToCad(selectedEditable);updateObjectEditButtons();}
+  if(selectedEditable&&objectEditStart){objectUndoStack.push({root:selectedEditable,before:objectEditStart,after:editorState(selectedEditable)});if(objectUndoStack.length>80)objectUndoStack.shift();objectRedoStack=[];syncEditableRootToCad(selectedEditable);updateObjectEditButtons();refreshNumericEditor();}
   objectEditStart=null;
  });
  renderer.domElement.addEventListener("dblclick",event=>{
@@ -277,6 +305,7 @@ function initObjectEditor(){
  el("editRotateBtn").onclick=()=>{if(!selectedEditable){el("editModeStatus").textContent="Double-click an editable object first";return;}setEditorMode("rotate");};
  el("editScaleBtn").onclick=()=>{if(!selectedEditable){el("editModeStatus").textContent="Double-click an editable object first";return;}setEditorMode("scale");};
  el("editDeselectBtn").onclick=()=>{clearEditableSelection();setEditorMode("select");};
+ ["editPosX","editPosY","editPosZ","editSizeX","editSizeY","editSizeZ"].forEach(id=>el(id).addEventListener("change",applyNumericTransform));
  el("editUndoBtn").onclick=()=>{const item=objectUndoStack.pop();if(!item)return;objectRedoStack.push(item);if(selectedEditable!==item.root)selectEditable(item.root);setEditorState(item.root,item.before);updateObjectEditButtons();};
  el("editRedoBtn").onclick=()=>{const item=objectRedoStack.pop();if(!item)return;objectUndoStack.push(item);if(selectedEditable!==item.root)selectEditable(item.root);setEditorState(item.root,item.after);updateObjectEditButtons();};
 }
