@@ -1,0 +1,61 @@
+name: Project 360 browser regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - project360.html
+      - .github/tests/project360.spec.cjs
+      - .github/workflows/project360-browser-tests.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: project360-browser-tests
+  cancel-in-progress: true
+
+jobs:
+  project360-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Playwright
+        run: npm install --no-save --no-package-lock @playwright/test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start local static server
+        run: |
+          mkdir -p artifacts
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory . > /tmp/project360-http.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/project360.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/project360-http.log
+          exit 1
+
+      - name: Run Project 360 browser tests
+        run: npx playwright test .github/tests/project360.spec.cjs --reporter=line --workers=1
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: project360-browser-screenshots
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
