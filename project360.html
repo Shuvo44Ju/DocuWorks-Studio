@@ -53,7 +53,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="note">This description is used to detect levels, dimensions, floor height, entrance width, windows, building style, staircases and elevators. You can write “24-level”, “lvl 24”, “24 floors” or “G+23”. The generated model is a visual concept, not a detailed CAD/BIM drawing.</div><div id="promptReadout" class="note" style="margin-top:7px;color:#2458d3;font-weight:700">Prompt analysis will appear here after you create the model.</div>
 <button class="action main" id="createBtn" style="width:100%;margin-top:12px;padding:13px;font-size:12px">Create 3D Project</button>
 <div class="note">You can edit the original description and recreate the drawing whenever you want.</div>
-<div class="editbox"><h4>✦ CHANGE THE DRAWING — ANYTIME</h4><div class="note" style="margin:0">Already created? Tell me what to change in normal words. I will update the same drawing.</div><textarea class="field details" id="changePrompt" placeholder="Examples: Make it 5 floors taller. Change it to 40m wide. Add more windows. Make it a laboratory building."></textarea><div class="edit-actions"><button class="action main" id="applyChangeBtn">Apply change</button><button class="action" id="undoChangeBtn" disabled>Undo</button></div><div class="note" id="changeFeedback">You can keep making changes as many times as you like.</div></div>
+<div class="editbox"><h4>✦ CHANGE THE DRAWING — ANYTIME</h4><div class="note" style="margin:0">Already created? Tell me what to change in normal words. I will update the same drawing.</div><textarea class="field details" id="changePrompt" placeholder="Examples: Make it 5 floors taller. Move the staircase to the left side. Move the second elevator to the back-right corner."></textarea><div class="edit-actions"><button class="action main" id="applyChangeBtn">Apply change</button><button class="action" id="undoChangeBtn" disabled>Undo</button></div><div class="note" id="changeFeedback">You can keep making changes as many times as you like.</div></div>
 </section>
 
 <section class="panel box">
@@ -66,7 +66,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="row"><div style="flex:1"><div class="label">Floors</div><input class="field" id="floors" type="number" min="1" max="60" value="3"></div><div style="flex:1"><div class="label">Floor height (m)</div><input class="field" id="floorH" type="number" min="2" max="8" step=".1" value="3.2"></div></div>
 <div class="row"><div style="flex:1"><div class="label">Windows / side</div><input class="field" id="windows" type="number" min="0" max="20" value="5"></div><div style="flex:1"><div class="label">Entrance width (m)</div><input class="field" id="doorW" type="number" min="1" max="10" step=".1" value="2.4"></div></div>
 <div class="row"><div style="flex:1"><div class="label">External staircases</div><input class="field" id="staircases" type="number" min="0" max="3" step="1" value="0"></div><div style="flex:1"><div class="label">Elevator shafts</div><input class="field" id="elevators" type="number" min="0" max="4" step="1" value="0"></div></div>
-<div class="note">These are simplified exterior concept elements, not detailed internal stair or lift designs.</div>
+<div class="note">These are simplified exterior concept elements, not detailed internal stair or lift designs. You can relocate each one by describing its side or corner in “Change the drawing”.</div>
 <div class="label">Building style</div>
 <select class="field" id="style"><option value="modern">Modern</option><option value="industrial">Industrial</option><option value="clean">Clean / Laboratory</option><option value="simple">Simple</option></select>
 <div class="note">This creates a free parametric concept model. It is not a full BIM/CAD replacement.</div>
@@ -129,7 +129,7 @@ function setWizardStep(n){document.querySelectorAll('.steps .step').forEach((ste
 
 function toast(s){const t=document.getElementById('toast');t.textContent=s;t.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),2600)}
 function material(color,rough=.65){return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:.05})}
-function cube(w,h,d,x,y,z,m){const g=new THREE.BoxGeometry(w,h,d);const o=new THREE.Mesh(g,m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);parts.push(o);return o}
+function cube(w,h,d,x,y,z,m,rotationY=0){const g=new THREE.BoxGeometry(w,h,d);const o=new THREE.Mesh(g,m);o.position.set(x,y,z);o.rotation.y=rotationY;o.castShadow=true;o.receiveShadow=true;scene.add(o);parts.push(o);return o}
 function clearGenerated(){parts.forEach(o=>{scene.remove(o);o.geometry?.dispose();o.material?.dispose()});parts=[]}
 function disposeImportedModel(root){if(!root)return;scene.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m){for(const value of Object.values(m)){if(value&&value.isTexture)value.dispose()}m.dispose()}})}})}
 function fitBounds(box){const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),max=Math.max(size.x,size.y,size.z)||1;const dist=max/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))*1.55;camera.position.copy(center).add(new THREE.Vector3(dist*.85,dist*.62,dist));camera.near=Math.max(.01,max/10000);camera.far=Math.max(100,max*100);camera.updateProjectionMatrix();controls.target.copy(center);controls.update();grid.position.y=box.min.y}
@@ -138,6 +138,44 @@ function fitParts(){const box=new THREE.Box3();parts.forEach(o=>{o.updateWorldMa
 function numberInWords(value){
  const words={zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
  return Object.prototype.hasOwnProperty.call(words,String(value).toLowerCase())?words[String(value).toLowerCase()]:Number(value);
+}
+function elementPlacementUpdates(text,kind,currentCount=0){
+ const t=String(text||'').toLowerCase();
+ const keyword=kind==='staircase'?/\b(?:staircases?|stairs?|stairwells?)\b/:/\b(?:elevators?|lifts?)\b/;
+ const hit=keyword.exec(t);if(!hit)return [];
+ const tail=t.slice(hit.index,hit.index+180);
+ const directions=tail.match(/\b(front|back|left|right|rear)\s*[- ]+\s*(front|back|left|right|rear)(?:\s+(?:side|corner|end))?\b/i);
+ let side=null,offset=0;
+ if(directions){
+  const a=directions[1]==='rear'?'back':directions[1],b=directions[2]==='rear'?'back':directions[2];
+  if(a==='front'||a==='back'){side=a;offset=b==='left'?-.34:.34;}
+  else if(a==='left'||a==='right'){side=a;offset=b==='front'?-.34:.34;}
+ }else{
+  const dir=tail.match(/\b(?:to|onto|on|at|toward|towards|along)\s+(?:the\s+)?(front|back|left|right|rear)\b/i)
+    ||tail.match(/\b(front|back|left|right|rear)\s+(?:side|face|wall)\b/i);
+  if(dir){side=(dir[1]||dir[2]).replace('rear','back');}
+ }
+ if(!side)return [];
+ const ordinal=t.match(/\b(first|1st|second|2nd|third|3rd|fourth|4th)\s+(?:external\s+)?(?:staircases?|stairs?|stairwells?|elevators?|lifts?)\b/);
+ const ordinalMap={first:1,'1st':1,second:2,'2nd':2,third:3,'3rd':3,fourth:4,'4th':4};
+ const numbered=t.match(/\b(?:staircase|stairwell|elevator|lift)\s*(?:number|no\.?|#)\s*(\d+)\b/);
+ let inferred=Number(currentCount)||0;
+ if(!inferred){const count=t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:staircases?|stairs?|stairwells?|elevators?|lifts?)\b/);if(count)inferred=numberInWords(count[1]);}
+ const max=kind==='staircase'?3:4;
+ inferred=Math.max(1,Math.min(max,inferred||1));
+ const index=ordinal?ordinalMap[ordinal[1]]:numbered?Number(numbered[1]):1;
+ const all=/\b(?:all|every)\s+(?:the\s+)?(?:staircases?|stairs?|stairwells?|elevators?|lifts?)\b/.test(t);
+ const indices=all?Array.from({length:Math.min(max,Number(currentCount)||inferred)},(_,i)=>i+1):[index];
+ return indices.filter(i=>i>=1&&i<=max).map(index=>({index,side,offset}));
+}
+function mergePositionUpdates(existing,updates){
+ const map=new Map((Array.isArray(existing)?existing:[]).filter(x=>x&&Number.isInteger(Number(x.index))).map(x=>[Number(x.index),{index:Number(x.index),side:x.side,offset:Number(x.offset)||0}]));
+ for(const item of Array.isArray(updates)?updates:[]){
+  const index=Math.round(Number(item?.index));if(index<1||index>4||!['front','back','left','right'].includes(item?.side))continue;
+  const offset=Math.max(-.4,Math.min(.4,Number(item.offset)||0));
+  map.set(index,{index,side:item.side,offset});
+ }
+ return [...map.values()].sort((a,b)=>a.index-b.index);
 }
 function interpretPrompt(text){
  const t=String(text||'').toLowerCase();
@@ -176,6 +214,8 @@ function interpretPrompt(text){
   windows:windowsNone?0:(windows?numberInWords(windows[1]):null), style,
   staircases: /\b(?:stairs?|staircases?)\b/i.test(t) ? (/\b(?:no|without|zero|remove|delete|exclude|omit)\s+(?:any\s+)?(?:external\s+)?(?:stairs?|staircases?)\b/i.test(t) ? 0 : ((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:stairs?|staircases?)\b/i)||[])[1]!==undefined ? numberInWords((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:stairs?|staircases?)\b/i)||[])[1]) : 1)) : 0,
   elevators: /\b(?:elevators?|lifts?)\b/i.test(t) ? (/\b(?:no|without|zero|remove|delete|exclude|omit)\s+(?:any\s+)?(?:external\s+)?(?:elevators?|lifts?)\b/i.test(t) ? 0 : ((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:elevators?|lifts?)\b/i)||[])[1]!==undefined ? numberInWords((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:elevators?|lifts?)\b/i)||[])[1]) : 1)) : 0
+  staircasePositions:elementPlacementUpdates(t,'staircase'),
+  elevatorPositions:elementPlacementUpdates(t,'elevator')
  };
 }
 function makeBuilding(){
@@ -185,7 +225,7 @@ function makeBuilding(){
  const brief=detailsInput.value||'';
  const parsed=interpretPrompt(brief);
  const use=useSettingsInput.checked;
- const base=currentDesign||{width:use?+bWidthInput.value||20:parsed.width||20,depth:use?+bDepthInput.value||15:parsed.depth||15,floors:use?+floorsInput.value||3:parsed.floors||3,floorHeight:use?+floorHInput.value||3.2:parsed.floorHeight||3.2,windows:use?+windowsInput.value||5:parsed.windows??5,doorWidth:use?+doorWInput.value||2.4:parsed.doorWidth||2.4,style:use?styleInput.value:parsed.style,staircases:use?Math.max(0,Math.min(3,+staircasesInput.value||0)):(parsed.staircases??0),elevators:use?Math.max(0,Math.min(4,+elevatorsInput.value||0)):(parsed.elevators??0)};
+ const base=currentDesign||{width:use?+bWidthInput.value||20:parsed.width||20,depth:use?+bDepthInput.value||15:parsed.depth||15,floors:use?+floorsInput.value||3:parsed.floors||3,floorHeight:use?+floorHInput.value||3.2:parsed.floorHeight||3.2,windows:use?+windowsInput.value||5:parsed.windows??5,doorWidth:use?+doorWInput.value||2.4:parsed.doorWidth||2.4,style:use?styleInput.value:parsed.style,staircases:use?Math.max(0,Math.min(3,+staircasesInput.value||0)):(parsed.staircases??0),elevators:use?Math.max(0,Math.min(4,+elevatorsInput.value||0)):(parsed.elevators??0),staircasePositions:parsed.staircasePositions,elevatorPositions:parsed.elevatorPositions};
  currentDesign={...base,
   width:Math.max(3,Math.min(200,Number(base.width)||20)),depth:Math.max(3,Math.min(200,Number(base.depth)||15)),
   floors:Math.max(1,Math.min(60,Math.round(Number(base.floors)||3))),floorHeight:Math.max(2,Math.min(8,Number(base.floorHeight)||3.2)),
@@ -266,27 +306,42 @@ function makeBuilding(){
  const liftCount=Math.max(0,Math.min(4,Math.round(Number(currentDesign.elevators)||0)));
  const coreMat=material(0x9aa8b8),stepMat=material(0x68798c),liftDoorMat=material(0x315b83);
  const towerW=Math.min(3.4,Math.max(2.4,W*.18)),towerD=Math.min(5.4,Math.max(3.8,D*.32));
+ function exteriorPlacement(layout,elementWidth,alongLength){
+  const side=layout?.side||'right',offset=Math.max(-.4,Math.min(.4,Number(layout?.offset)||0));
+  const clearance=.35,half=elementWidth/2,along=offset*alongLength;
+  if(side==='left')return{x:-W/2-clearance-half,z:along,rotation:0};
+  if(side==='front')return{x:along,z:-D/2-clearance-half,rotation:Math.PI/2};
+  if(side==='back')return{x:along,z:D/2+clearance+half,rotation:Math.PI/2};
+  return{x:W/2+clearance+half,z:along,rotation:0};
+ }
+ function elementLayout(list,index,count,kind){
+  const configured=(Array.isArray(list)?list:[]).find(p=>Number(p?.index)===index);
+  const defaultOffset=kind==='elevator'?((index-(count+1)/2)*.22):((index-(count+1)/2)*.34);
+  return configured||{side:'right',offset:defaultOffset};
+ }
  for(let c=0;c<stairCount;c++){
-  const cx=W/2+1.9+c*(towerW+1.0),cz=0;
-  cube(.16,total,towerD,cx-towerW/2,total/2,cz,coreMat);
-  cube(.16,total,towerD,cx+towerW/2,total/2,cz,coreMat);
+  const layout=elementLayout(currentDesign.staircasePositions,c+1,stairCount,'staircase');
+  const pos=exteriorPlacement(layout,towerW,D),cx=pos.x,cz=pos.z,rot=pos.rotation;
+  cube(.16,total,towerD,cx-towerW/2,total/2,cz,coreMat,rot);
+  cube(.16,total,towerD,cx+towerW/2,total/2,cz,coreMat,rot);
   for(let f=0;f<F;f++){
    const y0=f*H,steps=8,run=towerD*.82,stepDepth=run/steps,stepRise=H/(steps*2);
    for(let k=0;k<steps;k++){
     const z=cz-towerD/2+stepDepth*(k+.5);
-    cube(towerW*.42,Math.max(.12,stepRise),stepDepth*.94,cx,y0+stepRise*(k+.5),z,stepMat);
-    cube(towerW*.42,Math.max(.12,stepRise),stepDepth*.94,cx,y0+H/2+stepRise*(k+.5),cz+towerD/2-stepDepth*(k+.5),stepMat);
+    cube(towerW*.42,Math.max(.12,stepRise),stepDepth*.94,cx,y0+stepRise*(k+.5),z,stepMat,rot);
+    cube(towerW*.42,Math.max(.12,stepRise),stepDepth*.94,cx,y0+H/2+stepRise*(k+.5),cz+towerD/2-stepDepth*(k+.5),stepMat,rot);
    }
-   cube(towerW*.9,.16,towerD*.9,cx,y0+H,cz,coreMat);
+   cube(towerW*.9,.16,towerD*.9,cx,y0+H,cz,coreMat,rot);
   }
  }
  const shaftW=Math.min(2.0,Math.max(1.5,W*.1)),shaftD=Math.min(2.2,Math.max(1.8,D*.14));
  for(let e=0;e<liftCount;e++){
-  const cx=W/2+1.9+stairCount*(towerW+1)+e*(shaftW+.35),cz=-D*.22;
-  cube(shaftW,total,shaftD,cx,total/2,cz,coreMat);
+  const layout=elementLayout(currentDesign.elevatorPositions,e+1,liftCount,'elevator');
+  const pos=exteriorPlacement(layout,shaftW,D),cx=pos.x,cz=pos.z,rot=pos.rotation;
+  cube(shaftW,total,shaftD,cx,total/2,cz,coreMat,rot);
   for(let f=0;f<F;f++){
    const y=f*H+H*.5;
-   cube(shaftW*.78,H*.58,.10,cx,y,cz-shaftD/2-.12,liftDoorMat);
+   cube(shaftW*.78,H*.58,.10,cx,y,cz-shaftD/2-.12,liftDoorMat,rot);
   }
  }
  grid.scale.set(Math.max(1,W/10),1,Math.max(1,D/10));grid.position.y=0;
@@ -323,7 +378,9 @@ document.getElementById('createBtn').onclick=async()=>{
    doorWidth:use?(+doorWInput.value||2.4):(aiChanges.doorWidth??parsed.doorWidth??2.4),
    style:use?styleInput.value:(aiChanges.style??parsed.style??'modern'),
    staircases:use?Math.max(0,Math.min(3,+staircasesInput.value||0)):(aiChanges.staircases??parsed.staircases??0),
-   elevators:use?Math.max(0,Math.min(4,+elevatorsInput.value||0)):(aiChanges.elevators??parsed.elevators??0)
+   elevators:use?Math.max(0,Math.min(4,+elevatorsInput.value||0)):(aiChanges.elevators??parsed.elevators??0),
+   staircasePositions:use?[]:mergePositionUpdates(parsed.staircasePositions,aiChanges.staircasePositions),
+   elevatorPositions:use?[]:mergePositionUpdates(parsed.elevatorPositions,aiChanges.elevatorPositions)
   };
   makeBuilding();setWizardStep(4);
   if(aiReply)document.getElementById('changeFeedback').textContent=aiReply+' The 3D concept is visible. You can now request changes in the assistant or change box.';
@@ -350,11 +407,15 @@ function understandChange(raw){
   else if(/stairs?|staircase/.test(t)&&/\b(?:add|install|include|create|put|increase)\b/.test(t)){const count=(t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:stairs?|staircases?)/)||[])[1];d.staircases=Math.max(0,Math.min(3,count===undefined?1:numberInWords(count)));changed.push('staircases');}
   if(/elevators?|lifts?/.test(t)&&/\b(?:remove|delete|without|no|zero|exclude|omit)\b/.test(t)){d.elevators=0;changed.push('elevators');}
   else if(/elevators?|lifts?/.test(t)&&/\b(?:add|install|include|create|put|increase)\b/.test(t)){const count=(t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:elevators?|lifts?)/)||[])[1];d.elevators=Math.max(0,Math.min(4,count===undefined?1:numberInWords(count)));changed.push('elevators');}
+  const stairPositions=elementPlacementUpdates(t,'staircase',Number(d.staircases)||0);
+  if(stairPositions.length){d.staircasePositions=mergePositionUpdates(d.staircasePositions,stairPositions);changed.push('staircase position');}
+  const liftPositions=elementPlacementUpdates(t,'elevator',Number(d.elevators)||0);
+  if(liftPositions.length){d.elevatorPositions=mergePositionUpdates(d.elevatorPositions,liftPositions);changed.push('elevator position');}
  if(/industrial|factory|warehouse/i.test(t)){d.style='industrial';changed.push('style');}
  else if(/laboratory|lab|cleanroom/i.test(t)){d.style='clean';changed.push('style');}
  else if(/simple|basic/i.test(t)){d.style='simple';changed.push('style');}
  else if(/modern|glass facade|curtain wall/i.test(t)){d.style='modern';changed.push('style');}
- if(!changed.length)return {error:'I could not identify that change yet. Try “make it 8 floors”, “40m wide”, “add more windows”, or “change to laboratory style”.'};
+ if(!changed.length)return {error:'I could not identify that change yet. Try “make it 8 floors”, “40m wide”, “move the staircase to the left side”, “move the second elevator to the back-right corner”, or “change to laboratory style”.'};
  d.floors=Math.max(1,Math.min(60,Math.round(d.floors||3)));d.width=Math.max(3,Math.min(200,d.width||20));d.depth=Math.max(3,Math.min(200,d.depth||15));d.floorHeight=Math.max(2,Math.min(8,d.floorHeight||3.2));d.windows=Math.max(0,Math.min(20,d.windows??5));d.doorWidth=Math.max(1,Math.min(10,Number(d.doorWidth)||2.4));d.staircases=Math.max(0,Math.min(3,Math.round(Number(d.staircases)||0)));d.elevators=Math.max(0,Math.min(4,Math.round(Number(d.elevators)||0)));return {design:d,changed:[...new Set(changed)]};
 }
 async function resolveDesignChange(instruction){
@@ -367,6 +428,10 @@ async function resolveDesignChange(instruction){
    for(const key of ['width','depth','floors','floorHeight','windows','doorWidth','style','staircases','elevators']){
     const value=answer?.changes?.[key];
     if(value!==null&&value!==undefined){next[key]=value;changed.push(key);}
+   }
+   for(const key of ['staircasePositions','elevatorPositions']){
+    const value=answer?.changes?.[key];
+    if(Array.isArray(value)){next[key]=mergePositionUpdates(next[key],value);if(value.length)changed.push(key==='staircasePositions'?'staircase position':'elevator position');}
    }
    if(changed.length)return {design:next,changed,reply:aiReply,source:'AI'};
   }catch(err){aiError=err;}
@@ -401,7 +466,7 @@ document.getElementById('applyChangeBtn').onclick=async()=>{
 window.DocuWorksProject360={async run(instruction){
  const message=String(instruction||'').trim();if(!message)throw new Error('Tell me what you want to create or change.');
  const asksForExplanation=/^(?:hi|hello|hey|good morning|good afternoon|good evening|what|how|why|when|where|who|can i|can you|could you|would you|tell me|explain|help me understand|i want to know)\b/i.test(message)||/\?$/.test(message);
- const requestsEdit=/\b(?:add(?:ing)?|remove|delete|change|changing|make|making|set|increase|decrease|reduce|widen|wider|narrow|taller|shorter|include|install|create|build|design|generate|replace|turn it into|convert it into)\b/i.test(message);
+ const requestsEdit=/\b(?:add(?:ing)?|remove|delete|change|changing|make|making|set|increase|decrease|reduce|widen|wider|narrow|taller|shorter|include|install|create|build|design|generate|replace|move|relocate|shift|position|place|turn it into|convert it into)\b/i.test(message);
  if(asksForExplanation&&!requestsEdit&&window.DocuWorksAI?.ask){
   const context=JSON.stringify({currentDesign,importedModel:!!customModel});
   const answer=await window.DocuWorksAI.ask(message,[],context);
@@ -416,7 +481,7 @@ window.DocuWorksProject360={async run(instruction){
    aiChanges=answer?.changes||{};aiReply=answer?.reply||'';
   }catch(err){
    const parsed=interpretPrompt(message);
-   currentDesign={width:parsed.width||20,depth:parsed.depth||15,floors:parsed.floors||3,floorHeight:parsed.floorHeight||3.2,windows:parsed.windows??5,doorWidth:parsed.doorWidth??2.4,style:parsed.style||'modern',staircases:parsed.staircases??0,elevators:parsed.elevators??0};
+   currentDesign={width:parsed.width||20,depth:parsed.depth||15,floors:parsed.floors||3,floorHeight:parsed.floorHeight||3.2,windows:parsed.windows??5,doorWidth:parsed.doorWidth??2.4,style:parsed.style||'modern',staircases:parsed.staircases??0,elevators:parsed.elevators??0,staircasePositions:parsed.staircasePositions||[],elevatorPositions:parsed.elevatorPositions||[]};
    makeBuilding();
    return 'Created a basic concept using details recognized locally. AI interpretation is unavailable: '+(err.message||String(err));
   }
@@ -425,7 +490,9 @@ window.DocuWorksProject360={async run(instruction){
    width:aiChanges.width??parsed.width??20,depth:aiChanges.depth??parsed.depth??15,
    floors:aiChanges.floors??parsed.floors??3,floorHeight:aiChanges.floorHeight??parsed.floorHeight??3.2,
    windows:aiChanges.windows??parsed.windows??5,doorWidth:aiChanges.doorWidth??parsed.doorWidth??2.4,
-   style:aiChanges.style??parsed.style??'modern',staircases:aiChanges.staircases??parsed.staircases??0,elevators:aiChanges.elevators??parsed.elevators??0
+   style:aiChanges.style??parsed.style??'modern',staircases:aiChanges.staircases??parsed.staircases??0,elevators:aiChanges.elevators??parsed.elevators??0,
+   staircasePositions:mergePositionUpdates(parsed.staircasePositions,aiChanges.staircasePositions),
+   elevatorPositions:mergePositionUpdates(parsed.elevatorPositions,aiChanges.elevatorPositions)
   };
   makeBuilding();
   document.getElementById('changeFeedback').textContent=(aiReply||'AI interpreted your building description.')+' The generated concept is visible in the viewer.';
@@ -481,7 +548,7 @@ document.getElementById('wireBtn').onclick=()=>{wire=!wire;parts.forEach(o=>{if(
 let cutawayMode=false;
 document.getElementById('cutawayBtn').onclick=()=>{cutawayMode=!cutawayMode;parts.forEach(o=>{if(o.userData?.cutawayFacade)o.visible=!cutawayMode});document.getElementById('cutawayBtn').textContent=cutawayMode?'Exterior view':'Interior view';toast(cutawayMode?'Front and right facades hidden to reveal interior rooms':'Exterior facades restored')};
 
-function projectData(){const d=currentDesign||{};return{name:nameInput.value||'Untitled Project',location:locationInput.value||'',revision:revisionInput.value||'',details:detailsInput.value||'',width:d.width??bWidthInput.value,depth:d.depth??bDepthInput.value,floors:d.floors??floorsInput.value,floorH:d.floorHeight??floorHInput.value,windows:d.windows??windowsInput.value,doorW:d.doorWidth??doorWInput.value,style:d.style??styleInput.value,staircases:d.staircases??0,elevators:d.elevators??0}}
+function projectData(){const d=currentDesign||{};return{name:nameInput.value||'Untitled Project',location:locationInput.value||'',revision:revisionInput.value||'',details:detailsInput.value||'',width:d.width??bWidthInput.value,depth:d.depth??bDepthInput.value,floors:d.floors??floorsInput.value,floorH:d.floorHeight??floorHInput.value,windows:d.windows??windowsInput.value,doorW:d.doorWidth??doorWInput.value,style:d.style??styleInput.value,staircases:d.staircases??0,elevators:d.elevators??0,staircasePositions:d.staircasePositions||[],elevatorPositions:d.elevatorPositions||[]}}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function safe(s){return String(s).replace(/[^a-z0-9_-]+/gi,'-').replace(/^-|-$/g,'')||'project-360'}
 function download(blob,n){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
