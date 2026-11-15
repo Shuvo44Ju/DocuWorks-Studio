@@ -15,7 +15,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 .right{display:flex;flex-direction:column;gap:14px}.box{padding:16px}.box h3{margin:0 0 11px;font-size:12px}.row{display:flex;gap:8px;margin-bottom:9px}.row>*{min-width:0}.field{width:100%;border:1px solid #dce4ef;border-radius:7px;padding:9px 10px;outline:none;background:#fff;color:var(--ink);font-size:11px}.field:focus{border-color:#9ab3ed;box-shadow:0 0 0 3px #2458d313}.label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#8a98aa;font-weight:800;margin:0 0 4px}.ai-launch{position:fixed;right:22px;bottom:22px;z-index:30;width:46px;height:46px;padding:0;border:1px solid #cbd9f1;background:#2458d3;color:#fff;border-radius:50%;display:grid;place-items:center;font-size:21px;font-weight:800;box-shadow:0 5px 18px #19345b35;cursor:pointer}.ai-launch:hover{background:#1747bd;transform:translateY(-2px)}.ai-popover{display:none;position:fixed;z-index:31;right:22px;bottom:80px;width:min(360px,calc(100vw - 32px));padding:13px;background:#fff;border:1px solid #d7e1f1;border-radius:14px;box-shadow:0 12px 36px #19345b26}.ai-popover.open{display:block}.ai-popover-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.ai-popover-head h4{margin:0;font-size:12px;color:#2458d3}.ai-popover .details{height:76px}.ai-popover .field{margin-top:6px}.ai-popover-close{border:0;background:#f1f4f9;border-radius:7px;padding:5px 9px;color:#5b6d83}.ai-popover .edit-actions{display:flex;gap:7px;margin-top:8px}.ai-popover .edit-actions button{flex:1}.design-preview{display:none;margin-top:9px;padding:10px;border:1px solid #cbd9f1;border-radius:9px;background:#f7f9ff}.design-preview.show{display:block}.design-preview strong{display:block;font-size:10px;color:#2458d3;margin-bottom:4px}.design-preview p{font-size:10px;color:#526782;line-height:1.5;margin:0 0 8px}.design-preview-actions{display:flex;gap:7px}.design-preview-actions button{flex:1}.viewer-foot{position:relative}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.action{border:1px solid #dce4ef;background:#fff;border-radius:8px;padding:10px;color:#4e6380;font-weight:800;font-size:10px}.action.main{background:var(--blue);color:#fff;border-color:var(--blue)}.note{font-size:9px;color:#8a98aa;margin-top:8px;line-height:1.6}.section-title{font-size:10px;color:#516783;font-weight:800;margin:14px 0 8px;padding-top:12px;border-top:1px solid #edf1f6}.pill{display:inline-block;background:#edf3ff;color:#2458d3;border-radius:99px;padding:4px 7px;font-size:9px;font-weight:800;margin-bottom:8px}
 .toast{position:fixed;right:20px;bottom:20px;background:#17335e;color:#fff;padding:10px 13px;border-radius:8px;font-size:11px;box-shadow:0 10px 30px #17335e33;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;z-index:20}.toast.show{opacity:1;transform:none}
 .progress{height:6px;background:#e9eef5;border-radius:99px;overflow:hidden;margin-top:9px}.progress i{display:block;width:0;height:100%;background:var(--blue);transition:width .1s}.render-overlay{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);width:min(390px,calc(100% - 28px));background:rgba(255,255,255,.96);border:1px solid #d8e2f0;border-radius:12px;padding:12px 14px;box-shadow:0 8px 28px rgba(23,43,77,.16);z-index:4;display:none}.render-overlay.show{display:block}.render-top{display:flex;align-items:center;gap:9px}.render-spinner{width:17px;height:17px;border:2px solid #dce6f7;border-top-color:#2458d3;border-radius:50%;animation:renderSpin .8s linear infinite;flex:none}@keyframes renderSpin{to{transform:rotate(360deg)}}.render-title{font-size:11px;font-weight:800;color:#263e60}.render-sub{font-size:10px;color:#71819a;margin-top:2px}.render-percent{margin-left:auto;font-size:15px;font-weight:900;color:#2458d3;font-variant-numeric:tabular-nums}.render-track{height:7px;background:#e9eef5;border-radius:99px;overflow:hidden;margin-top:10px}.render-track i{display:block;width:0;height:100%;background:linear-gradient(90deg,#2458d3,#5b91f5);border-radius:99px;transition:width .12s linear}.render-foot{font-size:9px;color:#8492a6;margin-top:6px}.viewer-error{position:absolute;inset:14px;display:none;place-items:center;text-align:center;padding:20px;background:rgba(255,255,255,.96);border:1px solid #efc9c9;border-radius:12px;color:#8b3030;z-index:6}.viewer-error.show{display:grid}.viewer-error b{display:block;color:#7e2424;margin-bottom:6px}.viewer-error small{display:block;color:#845f5f;line-height:1.6}
-.cad-panel{margin-top:14px}.cad-preview{width:100%;height:280px;display:block;background:#fbfcfe;border:1px solid #e2e8f1;border-radius:8px}.cad-layer-list{display:grid;gap:7px;margin-top:10px}.cad-layer-row{display:grid;grid-template-columns:minmax(0,1fr) 145px;gap:8px;align-items:center;border:1px solid #edf1f6;border-radius:7px;padding:7px}.cad-layer-row strong{font-size:10px;overflow-wrap:anywhere}.cad-layer-row small{display:block;color:#8a98aa;font-size:9px}.cad-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.cad-actions .action{flex:1}.cad-status{font-size:10px;color:#516783;margin-top:8px;line-height:1.6}.cad-floor-list{display:grid;gap:7px;margin-top:9px}.cad-floor-row{display:grid;grid-template-columns:minmax(115px,1.2fr) minmax(95px,1fr) repeat(3,minmax(62px,.65fr)) auto;gap:6px;align-items:center;border:1px solid #e5ebf3;border-radius:8px;padding:7px}.cad-floor-row.active{border-color:#9ab3ed;background:#f8faff}.cad-floor-row .field{padding:7px 6px;font-size:10px}.cad-floor-row label{display:block;min-width:0;font-size:8px;color:#8a98aa}.cad-floor-row small{display:block;color:#8a98aa;font-size:8px;overflow-wrap:anywhere}.cad-floor-row button{white-space:nowrap}.cad-floor-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}.cad-floor-actions>*{flex:1}.cad-hidden{display:none!important}@media(max-width:700px){.cad-preview{height:220px}.cad-layer-row{grid-template-columns:minmax(0,1fr) 125px}.cad-floor-row{grid-template-columns:repeat(2,minmax(0,1fr))}.cad-floor-row>div:first-child{grid-column:1/-1}}
+.cad-panel{margin-top:14px}.cad-preview{width:100%;height:280px;display:block;background:#fbfcfe;border:1px solid #e2e8f1;border-radius:8px}.cad-intelligence{margin-top:9px;padding:10px 11px;border:1px solid #dce6f5;border-radius:8px;background:#f7faff}.cad-intelligence strong{display:block;font-size:10px;color:#2458d3;margin-bottom:4px}.cad-intelligence p{font-size:10px;color:#536882;line-height:1.55;margin:0}.cad-intel-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}.cad-intel-tag{display:inline-block;padding:4px 7px;border-radius:99px;background:#eaf0fa;color:#405a7a;font-size:9px;font-weight:800}.cad-layer-list{display:grid;gap:7px;margin-top:10px}.cad-layer-row{display:grid;grid-template-columns:minmax(0,1fr) 145px;gap:8px;align-items:center;border:1px solid #edf1f6;border-radius:7px;padding:7px}.cad-layer-row strong{font-size:10px;overflow-wrap:anywhere}.cad-layer-row small{display:block;color:#8a98aa;font-size:9px}.cad-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.cad-actions .action{flex:1}.cad-status{font-size:10px;color:#516783;margin-top:8px;line-height:1.6}.cad-floor-list{display:grid;gap:7px;margin-top:9px}.cad-floor-row{display:grid;grid-template-columns:minmax(115px,1.2fr) minmax(95px,1fr) repeat(3,minmax(62px,.65fr)) auto;gap:6px;align-items:center;border:1px solid #e5ebf3;border-radius:8px;padding:7px}.cad-floor-row.active{border-color:#9ab3ed;background:#f8faff}.cad-floor-row .field{padding:7px 6px;font-size:10px}.cad-floor-row label{display:block;min-width:0;font-size:8px;color:#8a98aa}.cad-floor-row small{display:block;color:#8a98aa;font-size:8px;overflow-wrap:anywhere}.cad-floor-row button{white-space:nowrap}.cad-floor-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}.cad-floor-actions>*{flex:1}.cad-hidden{display:none!important}@media(max-width:700px){.cad-preview{height:220px}.cad-layer-row{grid-template-columns:minmax(0,1fr) 125px}.cad-floor-row{grid-template-columns:repeat(2,minmax(0,1fr))}.cad-floor-row>div:first-child{grid-column:1/-1}}
 @media(max-width:1050px){.app{grid-template-columns:230px 1fr}.grid{grid-template-columns:1fr}.right{display:grid;grid-template-columns:1fr 1fr}.viewer{height:650px}.viewer-foot{flex-wrap:wrap}}
 @media(max-width:700px){.app{display:block;height:auto;min-height:100vh;overflow:visible}.top{height:62px}.side{border-right:0;border-bottom:1px solid var(--line);padding:12px 15px}.side .steps{display:flex;overflow:auto;gap:5px}.step{min-width:145px;margin:0}.tip{display:none}.main{padding:14px}.right{display:flex}.viewer{height:560px;min-height:0}.grid{display:flex;flex-direction:column}}
 @media(max-width:600px){.ai-launch{right:15px;bottom:15px;width:44px;height:44px}.ai-popover{right:15px;bottom:70px;width:calc(100vw - 30px)}}
@@ -77,12 +77,12 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <section class="panel box cad-panel">
 <span class="pill">NEW · ARCHITECTURAL CAD</span>
 <h3>IMPORT AUTOCAD FLOOR PLAN</h3>
-<div class="note" style="margin-top:0">Upload a DWG or DXF architectural plan. DWG conversion and drawing analysis run in your browser; your drawing is not uploaded to a conversion server.</div>
+<div class="note" style="margin-top:0">Upload a DWG or DXF architectural plan. Conversion and analysis run in your browser; your drawing is not uploaded to a conversion server. The importer analyses geometry as well as layer names.</div>
 <label class="action" style="display:block;text-align:center;margin-top:9px">Choose DWG / DXF floor plan<input type="file" id="cadFile" accept=".dwg,.dxf" style="display:none"></label>
 <div class="cad-actions"><button class="action" id="cadSampleBtn" type="button">Load sample plan</button><button class="action" id="cadClearBtn" type="button">Clear plan</button></div>
 <div id="cadStatus" class="cad-status" aria-live="polite">No floor plan loaded. Use the sample plan to test the workflow.</div>
 <div id="cadMappingWrap" class="cad-hidden">
-<div class="section-title">2D FLOOR-PLAN PREVIEW</div><canvas id="cadPreview" class="cad-preview" width="1000" height="560"></canvas>
+<div class="section-title">2D FLOOR-PLAN PREVIEW</div><canvas id="cadPreview" class="cad-preview" width="1000" height="560"></canvas><div class="cad-intelligence" id="cadIntelligence" aria-live="polite"><strong>DRAWING INTELLIGENCE</strong><p id="cadIntelligenceText">Import a plan to analyse its geometry, curves, possible room outlines and architectural labels.</p><div class="cad-intel-tags" id="cadIntelligenceTags"></div></div>
 <div class="section-title">MULTI-FLOOR BUILDING</div>
 <div class="note" style="margin-top:0">Add a separate DWG/DXF for every level. Each floor keeps its own layer mapping, elevation and alignment offsets.</div>
 <label class="action" style="display:block;text-align:center;margin-top:9px">＋ Add more floor drawings<input type="file" id="cadMultiFile" accept=".dwg,.dxf" multiple style="display:none"></label>
@@ -102,7 +102,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div style="flex:1"><div class="label">Window sill height (m)</div><input class="field" id="cadWindowSill" type="number" min=".3" max="1.5" step=".05" value=".9"></div>
 <div style="flex:1"><div class="label">Window height (m)</div><input class="field" id="cadWindowHeight" type="number" min=".5" max="2.5" step=".05" value="1.35"></div></div>
 <div class="cad-actions"><button class="action main" id="cadBuildBtn" type="button">Generate active floor only</button><button class="action" id="cadDownloadBtn" type="button">Download active DXF</button></div>
-<div class="note">Opening recognition: door swing arcs are matched to nearby walls and converted into door-width cuts; mapped door/window layers create openings. Short paired parallel glazing lines near walls can also be recognized as window markers when their spacing and overlap match common window detailing. Door height, window sill height and window height are editable before generation. The result reports matched and uncertain symbols; unusual symbols still need manual layer mapping. Parallel wall faces are paired into one centerline wall with measured thickness. Not a construction-ready BIM model.</div>
+<div class="note">Geometry analysis suggests walls from paired parallel faces, recognises curved wall segments and closed room outlines, and extracts common room labels from CAD text. Door swing arcs and mapped door/window markers can create openings. Review the detected layer roles before generation; a role you manually set to Ignore will stay ignored. Some specialised entities, external references and 3D solids may need conversion or manual review. This is a conceptual reconstruction, not a construction-ready BIM model.</div>
 </div></section>
 <section class="panel box">
 <span class="pill">OPTIONAL</span>
@@ -601,15 +601,205 @@ nameInput.addEventListener('input',e=>document.getElementById('projectTitle').te
 let cadDocument=null,cadDxfText="",cadFileName="",cadLayers=[];
 let cadFloors=[],cadActiveFloorIndex=0,cadRenderedFloorGroups=[],cadFloorSequence=1,cadExploded=false;
 const CAD_ROLES=["Ignore","Walls","Columns","Doors","Windows","Stairs","Elevators","Beams","Rooms","Floors","Room labels","Dimensions"];
-function cadGeometryRole(e){const t=String(e.type||"").toUpperCase(),pts=cadEntityPoints(e),closed=!!(e.closed||e.shape||t==="CIRCLE"),xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),w=xs.length?Math.max(...xs)-Math.min(...xs):0,h=ys.length?Math.max(...ys)-Math.min(...ys):0,span=Math.max(w,h),area=w*h;if(t==="ARC"&&e.radius>=.45&&e.radius<=1.8)return "Doors";if(closed&&span>.8&&area>1.5)return "Rooms";if(closed&&span<1.2&&area>.015&&area<1.5)return "Columns";if(["LINE","LWPOLYLINE","POLYLINE","SPLINE"].includes(t)&&span>1.8&&pts.length>=2)return "Walls";return "Ignore";}
-function cadEntityRole(e){const mapped=cadLayers.find(l=>l.name===(e.layer||"0"))?.role||"Ignore";if(mapped!=="Ignore")return mapped;return cadGeometryRole(e);}
-function cadLayerRole(name){const n=String(name||"").toLowerCase();if(/wall|partition|masonry|a-wall|i-wall|extwall|intwall/.test(n))return "Walls";if(/column|col-|pillar/.test(n))return "Columns";if(/door|dr-/.test(n))return "Doors";if(/window|win-|glaz/.test(n))return "Windows";if(/stair|step/.test(n))return "Stairs";if(/elev|lift/.test(n))return "Elevators";if(/beam|girder/.test(n))return "Beams";if(/room|space|area/.test(n))return "Rooms";if(/slab|floor/.test(n))return "Floors";if(/text|label|name/.test(n))return "Room labels";if(/dim|dimension|measure/.test(n))return "Dimensions";return "Ignore";}
-function cadArcPoints(cx,cy,r,start,end,ccw=true,steps){let sweep=end-start;if(ccw){while(sweep<0)sweep+=Math.PI*2;}else{while(sweep>0)sweep-=Math.PI*2;}const n=Math.max(6,Math.min(96,steps||Math.ceil(Math.abs(sweep)*Math.max(r,1)/.18)));return Array.from({length:n+1},(_,i)=>{const a=start+sweep*i/n;return{x:cx+Math.cos(a)*r,y:cy+Math.sin(a)*r,z:0};});}
-function cadBulgePoints(a,b,bulge){if(!bulge||Math.abs(bulge)<1e-8)return [a,b];const dx=b.x-a.x,dy=b.y-a.y,chord=Math.hypot(dx,dy),theta=4*Math.atan(bulge),radius=chord/(2*Math.sin(Math.abs(theta)/2)),midX=(a.x+b.x)/2,midY=(a.y+b.y)/2,offset=chord/(2*Math.tan(theta/2)),nx=-dy/chord,ny=dx/chord,cx=midX+nx*offset,cy=midY+ny*offset,start=Math.atan2(a.y-cy,a.x-cx);return cadArcPoints(cx,cy,radius,start,start+theta,true,Math.ceil(Math.abs(theta)*Math.max(radius,1)/.15));}
-function cadEntityPoints(e){const type=String(e.type||"").toUpperCase();if(type==="LINE")return [e.startPoint||e.vertices?.[0],e.endPoint||e.vertices?.[1]].filter(Boolean);if(type==="ARC")return cadArcPoints(e.center?.x??e.centerPoint?.x??0,e.center?.y??e.centerPoint?.y??0,e.radius||0,(e.startAngle||0)*Math.PI/180,(e.endAngle||0)*Math.PI/180,true);if(type==="CIRCLE")return cadArcPoints(e.center?.x??0,e.center?.y??0,e.radius||0,0,Math.PI*2,true,48);if(type==="ELLIPSE"){const c=e.center||{},major=e.majorAxisEndPoint||e.majorAxis||{x:1,y:0},ratio=e.axisRatio||1,mx=major.x||1,my=major.y||0,pts=[];for(let i=0;i<=48;i++){const a=i/48*Math.PI*2,co=Math.cos(a),si=Math.sin(a);pts.push({x:(c.x||0)+mx*co-my*ratio*si,y:(c.y||0)+my*co+mx*ratio*si});}return pts;}if(["LWPOLYLINE","POLYLINE"].includes(type)){const v=(e.vertices||[]).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));if(v.length<2)return v;const out=[];for(let i=0;i<v.length-1+(e.shape||e.closed?1:0);i++){const a=v[i%v.length],b=v[(i+1)%v.length],seg=cadBulgePoints(a,b,a.bulge||0);out.push(...(i?seg.slice(1):seg));}return out;}if(type==="SPLINE"){const v=(e.fitPoints&&e.fitPoints.length>1?e.fitPoints:e.controlPoints||e.vertices||[]).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));if(v.length<3)return v;const out=[];for(let i=0;i<v.length-1;i++){const p0=v[Math.max(0,i-1)],p1=v[i],p2=v[i+1],p3=v[Math.min(v.length-1,i+2)];for(let j=0;j<8;j++){const t=j/8,t2=t*t,t3=t2*t;out.push({x:.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),y:.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3)});}}out.push(v[v.length-1]);return out;}return [];}
-function cadBounds(entities){let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;for(const e of entities)for(const p of cadEntityPoints(e)){minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);}if(!Number.isFinite(minX))return null;return {minX,minY,maxX,maxY,width:maxX-minX,height:maxY-minY};}
-function cadRenderPreview(){const c=el("cadPreview"),ctx=c.getContext("2d"),entities=cadDocument?.entities||[],b=cadBounds(entities);ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle="#fbfcfe";ctx.fillRect(0,0,c.width,c.height);if(!b||!b.width||!b.height){ctx.fillStyle="#71819a";ctx.fillText("No drawable linework detected",24,32);return;}const pad=35,scale=Math.min((c.width-pad*2)/b.width,(c.height-pad*2)/b.height),px=x=>pad+(x-b.minX)*scale,py=y=>c.height-pad-(y-b.minY)*scale,colors={Walls:"#344d72",Columns:"#d97706",Doors:"#15966a",Windows:"#2493bd",Stairs:"#8757c5",Elevators:"#c34e74",Ignore:"#aab4c2"};for(const e of entities){const role=cadEntityRole(e),pts=cadEntityPoints(e);if(pts.length<2)continue;ctx.strokeStyle=colors[role]||"#aab4c2";ctx.lineWidth=role==="Walls"?2.2:1.2;ctx.beginPath();ctx.moveTo(px(pts[0].x),py(pts[0].y));pts.slice(1).forEach(p=>ctx.lineTo(px(p.x),py(p.y)));if(e.shape||e.closed)ctx.closePath();ctx.stroke();}ctx.fillStyle="#71819a";ctx.font="12px Arial";ctx.fillText("Plan preview · top view",14,20);}
-function cadShowLayers(){const list=el("cadLayerList");list.innerHTML="";cadLayers.forEach(layer=>{const row=document.createElement("div");row.className="cad-layer-row";const info=document.createElement("div"),title=document.createElement("strong"),sub=document.createElement("small");title.textContent=layer.name;sub.textContent=layer.count+" entities";info.append(title,sub);const select=document.createElement("select");select.className="field";select.dataset.layer=layer.name;CAD_ROLES.forEach(role=>{const opt=document.createElement("option");opt.value=role;opt.textContent=role;select.appendChild(opt)});select.value=layer.role;select.addEventListener("change",()=>{layer.role=select.value;cadRenderPreview()});row.append(info,select);list.appendChild(row);});cadRenderPreview();}
+let cadAnalysisScale=1,cadAutoWallEntities=new WeakSet(),cadAutoWallPairs=0,cadWallPairingSkipped=false;
+function cadEntityText(e){
+ const raw=e?.text??e?.textString??e?.string??e?.contents??e?.mText??e?.value??"";
+ return String(raw||"").replace(/\\P/gi," ").replace(/\\[A-Za-z][^;]*;?/g," ").replace(/[{}]/g," ").replace(/\s+/g," ").trim();
+}
+function cadEntityAnchor(e){
+ const candidates=[e?.position,e?.insertionPoint,e?.insertPoint,e?.startPoint,e?.location,e?.textMidPoint,e?.definitionPoint,e?.center,e?.centerPoint];
+ return candidates.find(p=>p&&Number.isFinite(Number(p.x))&&Number.isFinite(Number(p.y)))||null;
+}
+function cadHatchPoints(e){
+ const paths=Array.isArray(e?.boundaryPaths)?e.boundaryPaths:(Array.isArray(e?.paths)?e.paths:[]);
+ let best=[];
+ for(const path of paths){
+  let pts=(path?.vertices||path?.points||path?.polyline?.vertices||[]).filter(p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y));
+  if(pts.length<3&&Array.isArray(path?.edges)){
+   pts=[];
+   for(const edge of path.edges){
+    const type=String(edge?.type||edge?.edgeType||"").toUpperCase();
+    if(type.includes("ARC")||Number.isFinite(edge?.radius)){
+     const c=edge.center||edge.centerPoint||{},r=Number(edge.radius)||0;
+     if(r>0)pts.push(...cadArcPoints(c.x||0,c.y||0,r,(Number(edge.startAngle)||0)*Math.PI/180,(Number(edge.endAngle)||0)*Math.PI/180,true,24).slice(0,-1));
+    }else{
+     const a=edge.startPoint||edge.start||edge.startVertex,b=edge.endPoint||edge.end||edge.endVertex;
+     if(a&&Number.isFinite(a.x)&&Number.isFinite(a.y))pts.push(a);
+     if(b&&Number.isFinite(b.x)&&Number.isFinite(b.y))pts.push(b);
+    }
+   }
+  }
+  if(pts.length>best.length)best=pts;
+ }
+ return best;
+}
+function cadEntityPoints(e){
+ const type=String(e?.type||"").toUpperCase();
+ if(type==="LINE")return [e.startPoint||e.vertices?.[0],e.endPoint||e.vertices?.[1]].filter(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y));
+ if(type==="ARC")return cadArcPoints(e.center?.x??e.centerPoint?.x??0,e.center?.y??e.centerPoint?.y??0,e.radius||0,(e.startAngle||0)*Math.PI/180,(e.endAngle||0)*Math.PI/180,true);
+ if(type==="CIRCLE")return cadArcPoints(e.center?.x??0,e.center?.y??0,e.radius||0,0,Math.PI*2,true,48);
+ if(type==="ELLIPSE"){
+  const c=e.center||{},major=e.majorAxisEndPoint||e.majorAxis||{x:1,y:0},ratio=e.axisRatio||1,mx=major.x||1,my=major.y||0,pts=[];
+  for(let i=0;i<=64;i++){const a=i/64*Math.PI*2,co=Math.cos(a),si=Math.sin(a);pts.push({x:(c.x||0)+mx*co-my*ratio*si,y:(c.y||0)+my*co+mx*ratio*si});}
+  return pts;
+ }
+ if(["LWPOLYLINE","POLYLINE"].includes(type)){
+  const v=(e.vertices||[]).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));if(v.length<2)return v;
+  const out=[];for(let i=0;i<v.length-1+(e.shape||e.closed?1:0);i++){const a=v[i%v.length],b=v[(i+1)%v.length],seg=cadBulgePoints(a,b,a.bulge||0);out.push(...(i?seg.slice(1):seg));}return out;
+ }
+ if(type==="SPLINE"){
+  const v=(e.fitPoints&&e.fitPoints.length>1?e.fitPoints:e.controlPoints||e.vertices||[]).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));if(v.length<3)return v;
+  const out=[];for(let i=0;i<v.length-1;i++){const p0=v[Math.max(0,i-1)],p1=v[i],p2=v[i+1],p3=v[Math.min(v.length-1,i+2)];for(let j=0;j<8;j++){const t=j/8,t2=t*t,t3=t2*t;out.push({x:.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),y:.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3)});}}
+  out.push(v[v.length-1]);return out;
+ }
+ if(["SOLID","TRACE","3DFACE"].includes(type)){
+  const pts=e.vertices||e.points||e.corners||[e.firstCorner,e.secondCorner,e.thirdCorner,e.fourthCorner].filter(Boolean);
+  return Array.isArray(pts)?pts.filter(p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y)):[];
+ }
+ if(type==="HATCH")return cadHatchPoints(e);
+ return [];
+}
+function cadEntityIsClosed(e){
+ const type=String(e?.type||"").toUpperCase();
+ return !!(e?.closed||e?.shape||type==="CIRCLE"||type==="ELLIPSE"||type==="HATCH");
+}
+function cadLayerRole(name){
+ const n=String(name||"").toLowerCase();
+ if(/wall|partition|masonry|blockwork|brick|a-wall|i-wall|extwall|intwall/.test(n))return "Walls";
+ if(/column|pillar|(^|[-_ ])col($|[-_ 0-9])|s-col/.test(n))return "Columns";
+ if(/door|dr[-_ ]|door[-_ ]/.test(n))return "Doors";
+ if(/window|win[-_ ]|glaz|curtain/.test(n))return "Windows";
+ if(/stair|step|staircase/.test(n))return "Stairs";
+ if(/elev|lift/.test(n))return "Elevators";
+ if(/beam|girder/.test(n))return "Beams";
+ if(/room|space|area|zone/.test(n))return "Rooms";
+ if(/slab|floor|raft/.test(n))return "Floors";
+ if(/text|label|name|room[-_ ]?tag/.test(n))return "Room labels";
+ if(/dim|dimension|measure|anno/.test(n))return "Dimensions";
+ return "Ignore";
+}
+function cadGeometryRole(e){
+ const type=String(e?.type||"").toUpperCase(),text=cadEntityText(e);
+ if(["TEXT","MTEXT","ATTRIB","ATTDEF"].includes(type))return text?"Room labels":"Ignore";
+ if(cadAutoWallEntities.has(e))return "Walls";
+ const pts=cadEntityPoints(e),xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+ const w=xs.length?Math.max(...xs)-Math.min(...xs):0,h=ys.length?Math.max(...ys)-Math.min(...ys):0,span=Math.max(w,h),scale=Math.max(.000000001,cadAnalysisScale||1),minSide=Math.min(w,h)*scale,maxSide=span*scale;
+ if(type==="ARC"){
+  const radius=(Number(e.radius)||0)*scale,curveLength=pts.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-pts[i].x,p.y-pts[i].y),0)*scale;
+  if(radius>=.5&&radius<=1.7&&curveLength>=.55)return "Doors";
+  if(radius>1.7&&curveLength>=1.2)return "Walls";
+  return "Ignore";
+ }
+ const closed=cadEntityIsClosed(e)&&pts.length>=3;
+ if(type==="CIRCLE"){
+  const radius=(Number(e.radius)||0)*scale;
+  if(radius>=.07&&radius<=.8)return "Columns";
+  if(radius>1.35)return "Rooms";
+ }
+ if(closed){
+  let area=0;for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length];area+=a.x*b.y-b.x*a.y;}area=Math.abs(area*.5)*scale*scale;
+  if(minSide>=.7&&area>=1.5)return "Rooms";
+  if(maxSide<=1.5&&minSide>=.08&&area>=.015&&area<=1.8)return "Columns";
+  if(area>=1.5&&maxSide>=1.5)return "Rooms";
+ }
+ if(["LINE","LWPOLYLINE","POLYLINE","SPLINE","SOLID","TRACE","3DFACE"].includes(type)&&maxSide>=1.25)return "Walls";
+ return "Ignore";
+}
+function cadEntityRole(e){
+ const layer=cadLayers.find(l=>l.name===(e.layer||"0"));
+ if(layer?.manual)return layer.role;
+ if(layer&&layer.role!=="Ignore")return layer.role;
+ return cadGeometryRole(e);
+}
+function cadBuildAutoWallCandidates(entities){
+ const records=[],found=new WeakSet();let pairCount=0;
+ for(const e of entities||[]){
+  const layer=cadLayers.find(l=>l.name===(e.layer||"0"));
+  if(layer&&(layer.manual||layer.role!=="Ignore"))continue;
+  const type=String(e.type||"").toUpperCase();if(!["LINE","LWPOLYLINE","POLYLINE"].includes(type))continue;
+  const pts=cadEntityPoints(e);for(let k=1;k<pts.length;k++){
+   const a=pts[k-1],b=pts[k],dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy)*cadAnalysisScale;
+   if(len<.35||len>120)continue;
+   records.push({e,a,b,len,ux:(b.x-a.x)/Math.hypot(b.x-a.x,b.y-a.y),uy:(b.y-a.y)/Math.hypot(b.x-a.x,b.y-a.y)});
+  }
+ }
+ if(records.length>2800){cadWallPairingSkipped=true;return found;}
+ cadWallPairingSkipped=false;
+ for(let i=0;i<records.length;i++){
+  const a=records[i],normal={x:-a.uy,y:a.ux},alen=Math.hypot(a.b.x-a.a.x,a.b.y-a.a.y);
+  for(let j=i+1;j<records.length;j++){
+   const b=records[j];if(a.e===b.e)continue;
+   const parallel=Math.abs(a.ux*b.ux+a.uy*b.uy);if(parallel<.992)continue;
+   const off0=(b.a.x-a.a.x)*normal.x+(b.a.y-a.a.y)*normal.y,off1=(b.b.x-a.a.x)*normal.x+(b.b.y-a.a.y)*normal.y;
+   if(off0*off1<=0)continue;
+   const gap=(Math.abs(off0)+Math.abs(off1))*.5*cadAnalysisScale;
+   if(gap<.06||gap>.55||Math.abs(Math.abs(off0)-Math.abs(off1))*cadAnalysisScale>Math.max(.04,gap*.18))continue;
+   const project=p=>(p.x-a.a.x)*a.ux+(p.y-a.a.y)*a.uy;
+   const lo=Math.max(0,Math.min(project(b.a),project(b.b))),hi=Math.min(alen,Math.max(project(b.a),project(b.b))),overlap=Math.max(0,hi-lo)*cadAnalysisScale;
+   if(overlap<Math.max(.65,Math.min(a.len,b.len)*.45))continue;
+   if(!found.has(a.e)){found.add(a.e);pairCount++;}
+   if(!found.has(b.e)){found.add(b.e);pairCount++;}
+  }
+ }
+ cadAutoWallPairs=pairCount/2;return found;
+}
+function cadBounds(entities){
+ let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+ for(const e of entities||[])for(const p of cadEntityPoints(e)){minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);}
+ if(!Number.isFinite(minX))return null;return {minX,minY,maxX,maxY,width:maxX-minX,height:maxY-minY};
+}
+function cadPrepareAnalysis(){
+ cadAnalysisScale=cadUnitScale();
+ cadAutoWallEntities=cadBuildAutoWallCandidates(cadDocument?.entities||[]);
+}
+function cadUpdateIntelligence(){
+ const panel=el("cadIntelligence"),copy=el("cadIntelligenceText"),tags=el("cadIntelligenceTags");if(!panel||!copy||!tags)return;
+ if(!cadDocument){copy.textContent="Import a plan to analyse its geometry, curves, possible room outlines and architectural labels.";tags.replaceChildren();return;}
+ const entities=cadDocument.entities||[],counts={},types={},labels=[];
+ for(const e of entities){
+  const role=cadEntityRole(e),type=String(e.type||"UNKNOWN").toUpperCase();counts[role]=(counts[role]||0)+1;types[type]=(types[type]||0)+1;
+  const label=cadEntityText(e);if(label)labels.push(label);
+ }
+ const rooms=entities.filter(e=>["Rooms","Floors"].includes(cadEntityRole(e))&&cadEntityIsClosed(e)&&cadEntityPoints(e).length>=3).length;
+ const curved=(types.ARC||0)+(types.ELLIPSE||0)+(types.SPLINE||0);
+ const roomWords=labels.filter(t=>/bed(room)?|kitchen|toilet|bath(room)?|living|dining|office|laboratory|lab|reception|corridor|lobby|store|utility|conference|meeting|pantry|closet|stair/i.test(t)).slice(0,6);
+ const unsupported=entities.filter(e=>!cadEntityPoints(e).length&&!["TEXT","MTEXT","ATTRIB","ATTDEF","DIMENSION","LEADER","INSERT"].includes(String(e.type||"").toUpperCase())).length;
+ const b=cadBounds(entities),extent=b?((b.width*cadAnalysisScale).toFixed(1)+" × "+(b.height*cadAnalysisScale).toFixed(1)+" m"):"unknown";
+ copy.textContent=entities.length+" entities analysed · "+extent+" plan extent · "+(counts.Walls||0)+" wall candidates · "+rooms+" closed room/floor outlines · "+(counts.Doors||0)+" door markers · "+(counts.Columns||0)+" column candidates · "+labels.length+" CAD text labels. "+(curved?curved+" curved entities retained for geometric analysis. ":"")+(unsupported?unsupported+" specialised entities need review. ":"")+(cadWallPairingSkipped?"Automatic paired-wall analysis was skipped for this very dense drawing. ":"");
+ tags.replaceChildren();
+ const chips=[(cadLayers.length+" layers"),(cadAutoWallPairs+" paired wall-line pairs"),(curved+" curves"),(labels.length+" text labels")];
+ if(roomWords.length)chips.push("Labels: "+roomWords.join(", "));
+ chips.forEach(value=>{const span=document.createElement("span");span.className="cad-intel-tag";span.textContent=value;tags.appendChild(span);});
+ if(!(counts.Walls||0)){const warn=document.createElement("span");warn.className="cad-intel-tag";warn.textContent="No wall role detected · review layer mapping";tags.appendChild(warn);}
+}
+function cadRefreshIntelligence(){cadPrepareAnalysis();cadRenderPreview();cadUpdateIntelligence();}
+function cadRenderPreview(){
+ const c=el("cadPreview"),ctx=c.getContext("2d"),entities=cadDocument?.entities||[],b=cadBounds(entities);
+ ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle="#fbfcfe";ctx.fillRect(0,0,c.width,c.height);
+ if(!b||!b.width||!b.height){ctx.fillStyle="#71819a";ctx.fillText("No drawable linework detected",24,32);return;}
+ const pad=35,scale=Math.min((c.width-pad*2)/b.width,(c.height-pad*2)/b.height),px=x=>pad+(x-b.minX)*scale,py=y=>c.height-pad-(y-b.minY)*scale;
+ const colors={Walls:"#344d72",Columns:"#d97706",Doors:"#15966a",Windows:"#2493bd",Stairs:"#8757c5",Elevators:"#c34e74",Rooms:"#a27a4b",Floors:"#8795a8","Room labels":"#2458d3",Dimensions:"#9aa4b2",Ignore:"#aab4c2"};
+ for(const e of entities){
+  const role=cadEntityRole(e),pts=cadEntityPoints(e);if(pts.length<2)continue;
+  ctx.strokeStyle=colors[role]||"#aab4c2";ctx.lineWidth=role==="Walls"?2.2:1.2;ctx.beginPath();ctx.moveTo(px(pts[0].x),py(pts[0].y));pts.slice(1).forEach(p=>ctx.lineTo(px(p.x),py(p.y)));if(cadEntityIsClosed(e))ctx.closePath();ctx.stroke();
+ }
+ ctx.save();ctx.fillStyle="#2458d3";ctx.font="11px Arial";ctx.textAlign="left";
+ entities.forEach(e=>{const text=cadEntityText(e),p=cadEntityAnchor(e);if(!text||!p)return;ctx.fillText(text.slice(0,26),px(p.x)+3,py(p.y)-3);});
+ ctx.restore();ctx.fillStyle="#71819a";ctx.font="12px Arial";ctx.fillText("Plan preview · top view · labels shown where available",14,20);
+}
+function cadShowLayers(){
+ const list=el("cadLayerList");list.innerHTML="";
+ cadLayers.forEach(layer=>{
+  const row=document.createElement("div");row.className="cad-layer-row";
+  const info=document.createElement("div"),title=document.createElement("strong"),sub=document.createElement("small");
+  title.textContent=layer.name;sub.textContent=layer.count+" entities · suggested: "+(layer.role==="Ignore"?"geometry review":layer.role);info.append(title,sub);
+  const select=document.createElement("select");select.className="field";select.dataset.layer=layer.name;
+  CAD_ROLES.forEach(role=>{const opt=document.createElement("option");opt.value=role;opt.textContent=role;select.appendChild(opt)});
+  select.value=layer.role;select.addEventListener("change",()=>{layer.role=select.value;layer.manual=true;sub.textContent=layer.count+" entities · manually set: "+layer.role;cadRefreshIntelligence();});
+  row.append(info,select);list.appendChild(row);
+ });
+ cadRefreshIntelligence();
+}
 function cadExpandBlocks(doc){
  const source=Array.isArray(doc?.entities)?doc.entities:[],blocks=doc?.blocks||{},expanded=[],stats={insertRefs:0,expandedEntities:0,unresolved:0,cycles:0};
  const getBlock=name=>blocks[name]||blocks[String(name||"").toUpperCase()]||blocks[String(name||"").toLowerCase()]||null;
@@ -639,7 +829,7 @@ function cadExpandBlocks(doc){
    const layer=(!e.layer||e.layer==="0")?(inheritedLayer||e.layer||"0"):e.layer;
    if(nonUniform&&["ARC","CIRCLE","ELLIPSE"].includes(type)){
     const pts=cadEntityPoints(e).map(p=>point(p,m));
-    if(pts.length>1)expanded.push({type:"LWPOLYLINE",layer,vertices:pts.map(p=>({x:p.x,y:p.y})),shape:type==="CIRCLE"||!!e.closed});
+    if(pts.length>1)expanded.push({type:"LWPOLYLINE",layer,vertices:pts.map(p=>({x:p.x,y:p.y})),shape:type==="CIRCLE"||type==="ELLIPSE"||!!e.closed});
     stats.expandedEntities++;continue;
    }
    const clone=JSON.parse(JSON.stringify(e));clone.layer=layer;
@@ -741,7 +931,7 @@ function cadInferRoomLoops(entities,tolerance,providedWallSegments){
  if(Array.isArray(providedWallSegments)){
   for(const pair of providedWallSegments||[]){const a=pair?.[0],b=pair?.[1];if(a&&b&&Math.hypot(b.x-a.x,b.y-a.y)>tolerance*.5)segments.push({a,b,cuts:[0,1]});}
  }else{
-  for(const e of entities||[]){if(cadEntityRole(e)!=="Walls")continue;const pts=cadEntityPoints(e);for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];if(Math.hypot(b.x-a.x,b.y-a.y)>tolerance*.5)segments.push({a,b,cuts:[0,1]});}if((e.closed||e.shape)&&pts.length>2){const a=pts[pts.length-1],b=pts[0];segments.push({a,b,cuts:[0,1]});}}
+  for(const e of entities||[]){if(cadEntityRole(e)!=="Walls")continue;const pts=cadEntityPoints(e);for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];if(Math.hypot(b.x-a.x,b.y-a.y)>tolerance*.5)segments.push({a,b,cuts:[0,1]});}if(cadEntityIsClosed(e)&&pts.length>2){const a=pts[pts.length-1],b=pts[0];segments.push({a,b,cuts:[0,1]});}}
  }
  if(!segments.length||segments.length>6000)return [];
  for(let i=0;i<segments.length;i++)for(let j=i+1;j<segments.length;j++){const p=segments[i].a,r={x:segments[i].b.x-p.x,y:segments[i].b.y-p.y},q=segments[j].a,v={x:segments[j].b.x-q.x,y:segments[j].b.y-q.y},cross=r.x*v.y-r.y*v.x;if(Math.abs(cross)<1e-10)continue;const dx=q.x-p.x,dy=q.y-p.y,t=(dx*v.y-dy*v.x)/cross,u=(dx*r.y-dy*r.x)/cross;if(t>=-1e-7&&t<=1.0000001&&u>=-1e-7&&u<=1.0000001){segments[i].cuts.push(Math.max(0,Math.min(1,t)));segments[j].cuts.push(Math.max(0,Math.min(1,u)));}}
@@ -769,7 +959,7 @@ function cadFloorListRender(){
 function cadActivateFloor(index,snapshot=true){
  if(index<0||index>=cadFloors.length)return;if(snapshot)cadSnapshotActiveFloor();cadActiveFloorIndex=index;
  const f=cadFloors[index];cadDocument=f.document;cadDxfText=f.dxfText;cadFileName=f.fileName;cadLayers=f.layers;
- el("cadMappingWrap").classList.remove("cad-hidden");cadShowLayers();cadFloorListRender();
+ cadPrepareAnalysis();el("cadMappingWrap").classList.remove("cad-hidden");cadShowLayers();cadFloorListRender();
  const b=cadBounds(cadDocument.entities);el("cadStatus").textContent="Editing "+(f.label||cadDefaultFloorName(index))+" · "+cadDocument.entities.length+" entities · "+cadLayers.length+" layers"+(b?" · "+b.width.toFixed(2)+" × "+b.height.toFixed(2)+" drawing units":"")+". Each floor retains its own layer mapping.";
 }
 function cadSetDocument(doc,dxfText,fileName,options={}){
@@ -790,7 +980,7 @@ function cadSetDocument(doc,dxfText,fileName,options={}){
 async function cadReadDrawing(file,statusTarget){
  const ext=file.name.toLowerCase().split(".").pop();if(!["dwg","dxf"].includes(ext))throw new Error("Choose a DWG or DXF file");if(file.size>100*1024*1024)throw new Error(file.name+" exceeds the 100 MB per-file limit.");
  const status=message=>{if(statusTarget)statusTarget.textContent=message;};let dxfText;
- if(ext==="dwg"){status("Loading the in-browser DWG converter…");const lib=await import("https://cdn.jsdelivr.net/npm/dwgdxf@2.0.1/+esm");await lib.init({wasmBase:lib.CDN_WASM_BASE});status("Converting "+file.name+" in your browser…");const converted=await lib.convertDwgToDxf(new Uint8Array(await file.arrayBuffer()));dxfText=new TextDecoder().decode(converted);}else{status("Reading "+file.name+" locally…");dxfText=await file.text();}
+ if(ext==="dwg"){status("Loading the in-browser DWG converter…");const lib=await import("https://cdn.jsdelivr.net/npm/dwgdxf@2.0.1/+esm");await lib.init({wasmBase:lib.CDN_WASM_BASE});status("Converting "+file.name+" in your browser…");const converted=await lib.convertDwgToDxf(new Uint8Array(await file.arrayBuffer()));dxfText=new TextDecoder().decode(converted);}else{status("Reading "+file.name+" locally…");const bytes=new Uint8Array(await file.arrayBuffer());const signature=new TextDecoder().decode(bytes.slice(0,22));if(signature.startsWith("AutoCAD Binary DXF"))throw new Error("This is a binary DXF. Save it from AutoCAD as ASCII DXF, or upload the original DWG file.");dxfText=new TextDecoder().decode(bytes);}
  status("Analysing "+file.name+"…");const mod=await import("https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/+esm");let doc;if(mod.DxfParser){const parser=new mod.DxfParser();doc=parser.parseSync(dxfText);}else if(typeof mod.default==="function"){doc=mod.default(dxfText);}else throw new Error("The DXF parser module did not expose a supported parser.");
  if(!doc||!Array.isArray(doc.entities)||!doc.entities.length)throw new Error("No supported drawing entities were found in "+file.name+".");return {doc,dxfText};
 }
@@ -836,9 +1026,10 @@ function cadAddSampleUpperFloor(){
  cadSetDocument(clone,source.dxfText,"sample-upper-floor.dxf",{append:true,label:cadDefaultFloorName(cadFloors.length),elevation:(Number(cadFloors[cadFloors.length-1]?.elevation)||0)+story});
  el("cadStatus").textContent="A sample upper floor was added. Its plan is a copy of the selected floor so you can test stacking and alignment.";toast("Sample upper floor added");
 }
-function cadUnitScale(){const unit=el("cadUnits").value;if(unit==="mm")return .001;if(unit==="cm")return .01;if(unit==="m")return 1;if(unit==="inch")return .0254;if(unit==="foot")return .3048;const u=Number(cadDocument?.header?.$INSUNITS||0),known={1:.0254,2:.3048,4:.001,5:.01,6:1};if(known[u])return known[u];const b=cadBounds(cadDocument?.entities||[]),span=Math.max(b?.width||0,b?.height||0);return span > 1000 ? 0.001 : span > 100 ? 0.01 : 1;}
+function cadUnitScale(){const unit=el("cadUnits").value;if(unit==="mm")return .001;if(unit==="cm")return .01;if(unit==="m")return 1;if(unit==="inch")return .0254;if(unit==="foot")return .3048;const u=Number(cadDocument?.header?.$INSUNITS||0),known={1:.0254,2:.3048,3:1609.344,4:.001,5:.01,6:1,7:1000,8:.0000000254,9:.0000254,10:.9144,13:.000001,14:.1};if(known[u])return known[u];const b=cadBounds(cadDocument?.entities||[]),span=Math.max(b?.width||0,b?.height||0);return span > 1000 ? 0.001 : span > 100 ? 0.01 : 1;}
 function cadBuild3D(options={}){
  if(!cadDocument)return false;
+ cadPrepareAnalysis();
  if(!options.preserveExisting){if(model){disposeImportedModel(model);model=null;}customModel=false;clearGenerated();cadRenderedFloorGroups=[];cadExploded=false;const explodeButton=el("cadExplodeBtn");if(explodeButton)explodeButton.textContent="Explode floors";}
  const partStart=parts.length;
  const height=Math.max(2,Math.min(8,Number(el("cadWallHeight").value)||3));
@@ -897,7 +1088,7 @@ function cadBuild3D(options={}){
 
  const addBox=(w,h,d,x,y,z,mat,rot=0)=>{if(w<=.015||h<=.015||d<=.015)return;const o=cube(w,h,d,x,y,z,mat,rot);created.push(o);return o;};
  const addWallPiece=(a,b,z0,z1,offset=0,wallWidth=thick)=>{const dx=(b.x-a.x)*scale,dy=(b.y-a.y)*scale,len=Math.hypot(dx,dy);if(len<.025||len>500)return;const ux=dx/len,uz=-dy/len;const midx=(a.x+b.x)*.5*scale+(-uz)*offset,midz=-(a.y+b.y)*.5*scale+ux*offset;addBox(len,z1-z0,wallWidth,midx,(z0+z1)/2,midz,wallMat,Math.atan2(dy,dx));};
- const drawingBounds=cadBounds(all),roomTolerance=Math.max(.005,Math.min(.05,Math.max(drawingBounds?.width||0,drawingBounds?.height||0)*.0005));const explicitRoomEntities=all.filter(e=>["Rooms","Floors"].includes(cadEntityRole(e))&&(e.closed||e.shape)&&cadEntityPoints(e).length>=3);const inferredRoomLoops=explicitRoomEntities.length?[]:cadInferRoomLoops(all,roomTolerance,walls.map(w=>[w.a,w.b]));
+ const drawingBounds=cadBounds(all),roomTolerance=Math.max(.005,Math.min(.05,Math.max(drawingBounds?.width||0,drawingBounds?.height||0)*.0005));const explicitRoomEntities=all.filter(e=>["Rooms","Floors"].includes(cadEntityRole(e))&&cadEntityIsClosed(e)&&cadEntityPoints(e).length>=3);const inferredRoomLoops=explicitRoomEntities.length?[]:cadInferRoomLoops(all,roomTolerance,walls.map(w=>[w.a,w.b]));
  walls.forEach(wall=>{const {a,b}=wall,wallThickness=wall.thickness||thick,len=dist(a,b);if(len*scale<.05)return;const ux=(b.x-a.x)/len,uy=(b.y-a.y)/len;const cuts=[];openingSegments.forEach(o=>{const p=project(o.a,a,ux,uy),q=project(o.b,a,ux,uy),olen=dist(o.a,o.b);if(p.off*scale<=Math.max(.12,thick*1.5)&&q.off*scale<=Math.max(.12,thick*1.5)&&olen*scale>=.45){const lo=Math.max(.04,Math.min(p.t,q.t)),hi=Math.min(len-.04,Math.max(p.t,q.t));if(hi-lo>=.45)cuts.push({lo,hi,role:o.role,confidence:o.confidence||"mapped-layer"});}});
    cuts.sort((x,y)=>x.lo-y.lo);const merged=[];cuts.forEach(c=>{const last=merged[merged.length-1];if(last&&c.lo<=last.hi+.05){last.hi=Math.max(last.hi,c.hi);if(c.role==="Doors")last.role="Doors";}else merged.push({...c});});
    let cursor=0;merged.forEach(c=>{if(c.lo>cursor){const p={x:a.x+ux*cursor,y:a.y+uy*cursor},q={x:a.x+ux*c.lo,y:a.y+uy*c.lo};addWallPiece(p,q,0,height,0,wallThickness);}
@@ -979,6 +1170,7 @@ el("cadSampleBtn").addEventListener("click",cadMakeSample);
 el("cadSampleUpperBtn").addEventListener("click",cadAddSampleUpperFloor);
 el("cadClearBtn").addEventListener("click",()=>{cadDocument=null;cadDxfText="";cadFileName="";cadLayers=[];cadFloors=[];cadActiveFloorIndex=0;clearGenerated();el("cadMappingWrap").classList.add("cad-hidden");el("cadStatus").textContent="All floor plans and generated CAD geometry cleared.";el("modelStatus").textContent="Ready to create";});
 el("cadBuildBtn").addEventListener("click",cadBuild3D);
+el("cadUnits").addEventListener("change",cadRefreshIntelligence);
 el("cadBuildMultiBtn").addEventListener("click",cadBuildMultiFloor);
 el("cadExplodeBtn").addEventListener("click",cadToggleExplodedView);
 el("cadDownloadBtn").addEventListener("click",()=>{if(!cadDxfText){toast("The active floor has no source DXF to download.");return;}download(new Blob([cadDxfText],{type:"application/dxf"}),(cadFileName.replace(/\.[^.]+$/,"")||"floor-plan")+".dxf");});
