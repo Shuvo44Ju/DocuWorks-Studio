@@ -96,4 +96,9 @@ function mountAssistant() {
   send.addEventListener("click",submit);
   input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submit();}});
 }
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded",mountAssistant,{once:true}); else mountAssistant();
+// Project 360 has its own compact circular launcher and design-edit popup in project360.html.
+// Keep the shared AI API available there, but do not inject a second text launcher over it.
+if (AI_TOOL !== "project360") {
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded",mountAssistant,{once:true});
+  else mountAssistant();
+}
