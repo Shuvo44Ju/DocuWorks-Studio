@@ -1247,7 +1247,16 @@ el("cadFile").addEventListener("change",e=>{const file=e.target.files?.[0];if(fi
 el("cadMultiFile").addEventListener("change",e=>cadAddFloorFiles(e.target.files));
 el("cadSampleBtn").addEventListener("click",cadMakeSample);
 el("cadSampleUpperBtn").addEventListener("click",cadAddSampleUpperFloor);
-el("cadClearBtn").addEventListener("click",()=>{cadDocument=null;cadDxfText="";cadFileName="";cadLayers=[];cadFloors=[];cadActiveFloorIndex=0;clearGenerated();el("cadMappingWrap").classList.add("cad-hidden");el("cadStatus").textContent="All floor plans and generated CAD geometry cleared.";el("modelStatus").textContent="Ready to create";});
+el("cadClearBtn").addEventListener("click",()=>{
+ cadDocument=null;cadDxfText="";cadFileName="";cadLayers=[];cadFloors=[];cadActiveFloorIndex=0;
+ cadAutoWindowSegments=[];cadAutoWallEntities=new WeakSet();cadAutoWindowEntities=new WeakSet();cadAutoWallPairs=0;cadWallPairingSkipped=false;
+ clearGenerated();cadExploded=false;el("cadExplodeBtn").textContent="Explode floors";
+ el("cadFloorList").replaceChildren();el("cadMappingWrap").classList.add("cad-hidden");
+ currentDesign=null;
+ if(!model){customModel=false;el("emptyView").style.display="grid";el("modelStatus").textContent="Ready to create";}
+ else{el("emptyView").style.display="none";el("modelStatus").textContent="Imported model";}
+ el("cadStatus").textContent="All floor plans and generated CAD geometry cleared.";
+});
 el("cadBuildBtn").addEventListener("click",cadBuild3D);
 el("cadUnits").addEventListener("change",()=>cadShowLayers());
 el("cadBuildMultiBtn").addEventListener("click",cadBuildMultiFloor);
