@@ -29,9 +29,9 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <h2>Project 360</h2><p>Create a concept 3D project from your own description.</p>
 <div class="steps">
 <div class="step active"><div class="num">1</div><div><strong>Describe project</strong><span>Write your thoughts</span></div></div>
-<div class="step"><div class="num">2</div><div><strong>Set building</strong><span>Dimensions & floors</span></div></div>
-<div class="step"><div class="num">3</div><div><strong>Create 3D</strong><span>Generate locally</span></div></div>
-<div class="step"><div class="num">4</div><div><strong>360° video</strong><span>Record the view</span></div></div>
+<div class="step"><div class="num">2</div><div><strong>Optional settings</strong><span>Size, floors, stairs & lifts</span></div></div>
+<div class="step"><div class="num">3</div><div><strong>Create model</strong><span>Build the 3D concept</span></div></div>
+<div class="step"><div class="num">4</div><div><strong>Export & share</strong><span>Video or presentation</span></div></div>
 </div>
 <div class="tip"><b>Free & local-first</b><br>The 3D concept is generated in your browser. No AI API, account, upload quota or paid service is required.</div>
 </aside>
@@ -65,6 +65,8 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="row"><div style="flex:1"><div class="label">Width (m)</div><input class="field" id="bWidth" type="number" min="3" max="200" value="20"></div><div style="flex:1"><div class="label">Depth (m)</div><input class="field" id="bDepth" type="number" min="3" max="200" value="15"></div></div>
 <div class="row"><div style="flex:1"><div class="label">Floors</div><input class="field" id="floors" type="number" min="1" max="60" value="3"></div><div style="flex:1"><div class="label">Floor height (m)</div><input class="field" id="floorH" type="number" min="2" max="8" step=".1" value="3.2"></div></div>
 <div class="row"><div style="flex:1"><div class="label">Windows / side</div><input class="field" id="windows" type="number" min="0" max="20" value="5"></div><div style="flex:1"><div class="label">Entrance width (m)</div><input class="field" id="doorW" type="number" min="1" max="10" step=".1" value="2.4"></div></div>
+<div class="row"><div style="flex:1"><div class="label">External staircases</div><input class="field" id="staircases" type="number" min="0" max="3" step="1" value="0"></div><div style="flex:1"><div class="label">Elevator shafts</div><input class="field" id="elevators" type="number" min="0" max="4" step="1" value="0"></div></div>
+<div class="note">These are simplified exterior concept elements, not detailed internal stair or lift designs.</div>
 <div class="label">Building style</div>
 <select class="field" id="style"><option value="modern">Modern</option><option value="industrial">Industrial</option><option value="clean">Clean / Laboratory</option><option value="simple">Simple</option></select>
 <div class="note">This creates a free parametric concept model. It is not a full BIM/CAD replacement.</div>
@@ -108,7 +110,7 @@ import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
 
 const el=id=>document.getElementById(id);
 const nameInput=el('name'),locationInput=el('location'),revisionInput=el('revision'),detailsInput=el('details');
-const useSettingsInput=el('useSettings'),bWidthInput=el('bWidth'),bDepthInput=el('bDepth'),floorsInput=el('floors'),floorHInput=el('floorH'),windowsInput=el('windows'),doorWInput=el('doorW'),styleInput=el('style');
+const useSettingsInput=el('useSettings'),bWidthInput=el('bWidth'),bDepthInput=el('bDepth'),floorsInput=el('floors'),floorHInput=el('floorH'),windowsInput=el('windows'),doorWInput=el('doorW'),styleInput=el('style'),staircasesInput=el('staircases'),elevatorsInput=el('elevators');
 const canvas=el('three'),wrap=el('canvasWrap');
 let parts=[],model=null,customModel=false,autoRotate=false,wire=false;
 let renderer;
@@ -173,7 +175,7 @@ function makeBuilding(){
  const brief=detailsInput.value||'';
  const parsed=interpretPrompt(brief);
  const use=useSettingsInput.checked;
- const base=currentDesign||{width:use?+bWidthInput.value||20:parsed.width||20,depth:use?+bDepthInput.value||15:parsed.depth||15,floors:use?+floorsInput.value||3:parsed.floors||3,floorHeight:use?+floorHInput.value||3.2:parsed.floorHeight||3.2,windows:use?+windowsInput.value||5:parsed.windows??5,doorWidth:use?+doorWInput.value||2.4:2.4,style:use?styleInput.value:parsed.style,staircases:parsed.staircases??0,elevators:parsed.elevators??0};
+ const base=currentDesign||{width:use?+bWidthInput.value||20:parsed.width||20,depth:use?+bDepthInput.value||15:parsed.depth||15,floors:use?+floorsInput.value||3:parsed.floors||3,floorHeight:use?+floorHInput.value||3.2:parsed.floorHeight||3.2,windows:use?+windowsInput.value||5:parsed.windows??5,doorWidth:use?+doorWInput.value||2.4:2.4,style:use?styleInput.value:parsed.style,staircases:use?Math.max(0,Math.min(3,+staircasesInput.value||0)):(parsed.staircases??0),elevators:use?Math.max(0,Math.min(4,+elevatorsInput.value||0)):(parsed.elevators??0)};
  currentDesign={...base};
  const W=Math.max(3,currentDesign.width||20),D=Math.max(3,currentDesign.depth||15),F=Math.max(1,Math.min(60,currentDesign.floors||3)),H=Math.max(2,Math.min(8,currentDesign.floorHeight||3.2)),N=Math.max(0,Math.min(20,currentDesign.windows??5)),DW=Math.min(W*.5,Math.max(1,currentDesign.doorWidth||2.4));
  const total=F*H;
@@ -258,8 +260,8 @@ document.getElementById('createBtn').onclick=async()=>{
    windows:use?(+windowsInput.value||5):(aiChanges.windows??parsed.windows??5),
    doorWidth:use?(+doorWInput.value||2.4):(aiChanges.doorWidth??2.4),
    style:use?styleInput.value:(aiChanges.style??parsed.style??'modern'),
-   staircases:use?0:(aiChanges.staircases??parsed.staircases??0),
-   elevators:use?0:(aiChanges.elevators??parsed.elevators??0)
+   staircases:use?Math.max(0,Math.min(3,+staircasesInput.value||0)):(aiChanges.staircases??parsed.staircases??0),
+   elevators:use?Math.max(0,Math.min(4,+elevatorsInput.value||0)):(aiChanges.elevators??parsed.elevators??0)
   };
   makeBuilding();
   if(aiReply)document.getElementById('changeFeedback').textContent=aiReply+' The 3D concept is visible. You can now request changes in the assistant or change box.';
