@@ -183,8 +183,12 @@ function makeBuilding(){
  const parsed=interpretPrompt(brief);
  const use=useSettingsInput.checked;
  const base=currentDesign||{width:use?+bWidthInput.value||20:parsed.width||20,depth:use?+bDepthInput.value||15:parsed.depth||15,floors:use?+floorsInput.value||3:parsed.floors||3,floorHeight:use?+floorHInput.value||3.2:parsed.floorHeight||3.2,windows:use?+windowsInput.value||5:parsed.windows??5,doorWidth:use?+doorWInput.value||2.4:parsed.doorWidth||2.4,style:use?styleInput.value:parsed.style,staircases:use?Math.max(0,Math.min(3,+staircasesInput.value||0)):(parsed.staircases??0),elevators:use?Math.max(0,Math.min(4,+elevatorsInput.value||0)):(parsed.elevators??0)};
- currentDesign={...base,staircases:Math.max(0,Math.min(3,Math.round(Number(base.staircases)||0))),elevators:Math.max(0,Math.min(4,Math.round(Number(base.elevators)||0)))};
- const W=Math.max(3,currentDesign.width||20),D=Math.max(3,currentDesign.depth||15),F=Math.max(1,Math.min(60,currentDesign.floors||3)),H=Math.max(2,Math.min(8,currentDesign.floorHeight||3.2)),N=Math.max(0,Math.min(20,currentDesign.windows??5)),DW=Math.min(W*.5,Math.max(1,currentDesign.doorWidth||2.4));
+ currentDesign={...base,
+  width:Math.max(3,Math.min(200,Number(base.width)||20)),depth:Math.max(3,Math.min(200,Number(base.depth)||15)),
+  floors:Math.max(1,Math.min(60,Math.round(Number(base.floors)||3))),floorHeight:Math.max(2,Math.min(8,Number(base.floorHeight)||3.2)),
+  windows:Math.max(0,Math.min(20,Math.round(Number(base.windows??5)||0))),doorWidth:Math.max(1,Math.min(10,Number(base.doorWidth)||2.4)),
+  staircases:Math.max(0,Math.min(3,Math.round(Number(base.staircases)||0))),elevators:Math.max(0,Math.min(4,Math.round(Number(base.elevators)||0)))};
+ const W=currentDesign.width,D=currentDesign.depth,F=currentDesign.floors,H=currentDesign.floorHeight,N=currentDesign.windows,DW=Math.min(W*.5,currentDesign.doorWidth);
  const total=F*H;
  const s=currentDesign.style||'modern', wall=s==='industrial'?0x7d8793:s==='clean'?0xe8edf2:s==='simple'?0xd7dbe0:0xdfe6ee;
  const trim=s==='industrial'?0x3f4650:s==='clean'?0x2458d3:s==='simple'?0x596879:0x263b58;
@@ -197,12 +201,13 @@ function makeBuilding(){
   const y=f*H+H*.57;
   for(let i=0;i<N;i++){
    const x=-W/2+(i+1)*W/(N+1);
-   cube(Math.max(.55,W/(N+1)*.58),H*.42,.08,x,y,-D/2-.045,glassMat);
-   cube(Math.max(.55,W/(N+1)*.58),H*.42,.08,x,y,D/2+.045,glassMat);
+   const windowWidth=Math.max(.08,Math.min(1.8,W/(N+1)*.65));
+   cube(windowWidth,H*.42,.08,x,y,-D/2-.045,glassMat);
+   cube(windowWidth,H*.42,.08,x,y,D/2+.045,glassMat);
   }
  }
- const sideN=Math.max(1,Math.round(N*.7));
- for(let f=0;f<F;f++){const y=f*H+H*.57;for(let i=0;i<sideN;i++){const z=-D/2+(i+1)*D/(sideN+1);cube(.08,H*.42,Math.max(.55,D/(sideN+1)*.58),-W/2-.045,y,z,glassMat);cube(.08,H*.42,Math.max(.55,D/(sideN+1)*.58),W/2+.045,y,z,glassMat)}}
+ const sideN=Math.round(N*.7);
+ for(let f=0;f<F;f++){const y=f*H+H*.57;for(let i=0;i<sideN;i++){const z=-D/2+(i+1)*D/(sideN+1);const sideWindowDepth=Math.max(.08,Math.min(1.8,D/(sideN+1)*.65));cube(.08,H*.42,sideWindowDepth,-W/2-.045,y,z,glassMat);cube(.08,H*.42,sideWindowDepth,W/2+.045,y,z,glassMat)}}
  // Visible conceptual external circulation elements (separate from opaque massing blocks).
  const stairCount=Math.max(0,Math.min(3,Math.round(Number(currentDesign.staircases)||0)));
  const liftCount=Math.max(0,Math.min(4,Math.round(Number(currentDesign.elevators)||0)));
