@@ -77,7 +77,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <h3>IMPORT EXISTING 3D MODEL</h3>
 <div class="note" style="margin-top:0">Only use this if you already have a model. It is no longer required to create a project.</div>
 <label class="action" style="display:block;text-align:center;margin-top:9px">Choose GLB / GLTF / OBJ<input type="file" id="modelFile" accept=".glb,.gltf,.obj" style="display:none"></label>
-<div id="modelFileInfo" class="note"></div>
+<div id="modelFileInfo" class="note">GLB and OBJ are recommended. A GLTF file must include embedded resources; separate .bin or texture files may not load from a single-file import.</div>
 </section>
 
 <section class="panel box">
@@ -154,6 +154,7 @@ function interpretPrompt(text){
  const dim=t.match(/\b(\d+(?:\.\d+)?)\s*(?:m|meter|metre)?\s*[x×]\s*(\d+(?:\.\d+)?)\s*(?:m|meter|metre)\b/i)
   ||t.match(/\b(?:width|wide)\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*m\b[\s\S]{0,50}?\b(?:depth|deep)\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*m\b/i);
  const floorHeight=t.match(/\b(?:floor\s*height|floor-to-floor|storey\s*height)\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*m\b/i);
+ const doorWidth=t.match(/\b(?:entrance|door)\s*width\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*m\b/i);
  const height=t.match(/\b(?:building\s*)?height\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*m\b/i);
  const windows=t.match(/\b(\d+)\s*(?:windows?)\s*(?:per|on each)\s*(?:side|floor)\b/i);
  let style='modern';
@@ -164,7 +165,7 @@ function interpretPrompt(text){
  return {
   floors:floors===null?null:Math.max(1,Math.min(60,Math.round(floors))),
   levelMatch, width:dim?Number(dim[1]):null, depth:dim?Number(dim[2]):null,
-  floorHeight:floorHeight?Number(floorHeight[1]):(height&&floors?Number(height[1])/floors:null),
+  floorHeight:floorHeight?Number(floorHeight[1]):(height&&floors?Number(height[1])/floors:null), doorWidth:doorWidth?Number(doorWidth[1]):null,
   windows:windows?Number(windows[1]):null, style,
   staircases: /\b(?:stairs?|staircases?)\b/i.test(t) ? (Number((t.match(/\b(\d+)\s*(?:stairs?|staircases?)\b/i)||[])[1])||1) : 0,
   elevators: /\b(?:elevators?|lifts?)\b/i.test(t) ? (Number((t.match(/\b(\d+)\s*(?:elevators?|lifts?)\b/i)||[])[1])||1) : 0
@@ -176,7 +177,7 @@ function makeBuilding(){
  const brief=detailsInput.value||'';
  const parsed=interpretPrompt(brief);
  const use=useSettingsInput.checked;
- const base=currentDesign||{width:use?+bWidthInput.value||20:parsed.width||20,depth:use?+bDepthInput.value||15:parsed.depth||15,floors:use?+floorsInput.value||3:parsed.floors||3,floorHeight:use?+floorHInput.value||3.2:parsed.floorHeight||3.2,windows:use?+windowsInput.value||5:parsed.windows??5,doorWidth:use?+doorWInput.value||2.4:2.4,style:use?styleInput.value:parsed.style,staircases:use?Math.max(0,Math.min(3,+staircasesInput.value||0)):(parsed.staircases??0),elevators:use?Math.max(0,Math.min(4,+elevatorsInput.value||0)):(parsed.elevators??0)};
+ const base=currentDesign||{width:use?+bWidthInput.value||20:parsed.width||20,depth:use?+bDepthInput.value||15:parsed.depth||15,floors:use?+floorsInput.value||3:parsed.floors||3,floorHeight:use?+floorHInput.value||3.2:parsed.floorHeight||3.2,windows:use?+windowsInput.value||5:parsed.windows??5,doorWidth:use?+doorWInput.value||2.4:parsed.doorWidth||2.4,style:use?styleInput.value:parsed.style,staircases:use?Math.max(0,Math.min(3,+staircasesInput.value||0)):(parsed.staircases??0),elevators:use?Math.max(0,Math.min(4,+elevatorsInput.value||0)):(parsed.elevators??0)};
  currentDesign={...base};
  const W=Math.max(3,currentDesign.width||20),D=Math.max(3,currentDesign.depth||15),F=Math.max(1,Math.min(60,currentDesign.floors||3)),H=Math.max(2,Math.min(8,currentDesign.floorHeight||3.2)),N=Math.max(0,Math.min(20,currentDesign.windows??5)),DW=Math.min(W*.5,Math.max(1,currentDesign.doorWidth||2.4));
  const total=F*H;
@@ -260,7 +261,7 @@ document.getElementById('createBtn').onclick=async()=>{
    floors:use?(+floorsInput.value||3):(aiChanges.floors??parsed.floors??3),
    floorHeight:use?(+floorHInput.value||3.2):(aiChanges.floorHeight??parsed.floorHeight??3.2),
    windows:use?(+windowsInput.value||5):(aiChanges.windows??parsed.windows??5),
-   doorWidth:use?(+doorWInput.value||2.4):(aiChanges.doorWidth??2.4),
+   doorWidth:use?(+doorWInput.value||2.4):(aiChanges.doorWidth??parsed.doorWidth??2.4),
    style:use?styleInput.value:(aiChanges.style??parsed.style??'modern'),
    staircases:use?Math.max(0,Math.min(3,+staircasesInput.value||0)):(aiChanges.staircases??parsed.staircases??0),
    elevators:use?Math.max(0,Math.min(4,+elevatorsInput.value||0)):(aiChanges.elevators??parsed.elevators??0)
@@ -280,6 +281,7 @@ function understandChange(raw){
  if((m=t.match(/(?:width|wide)\D{0,16}(\d+(?:\.\d+)?)\s*m|(\d+(?:\.\d+)?)\s*m\s*(?:wide|width)/i))){d.width=+(m[1]||m[2]);changed.push('width');}
  if((m=t.match(/(?:depth|deep)\D{0,16}(\d+(?:\.\d+)?)\s*m|(\d+(?:\.\d+)?)\s*m\s*(?:deep|depth)/i))){d.depth=+(m[1]||m[2]);changed.push('depth');}
  if((m=t.match(/(?:floor height|floor-to-floor height)\D{0,16}(\d+(?:\.\d+)?)\s*m/i))){d.floorHeight=+m[1];changed.push('floor height');}
+ if((m=t.match(/(?:entrance|door)\s*width\D{0,16}(\d+(?:\.\d+)?)\s*m/i))){d.doorWidth=+m[1];changed.push('door width');}
  if((m=t.match(/(\d+)\s+windows?\s+(?:per|on each)\s+(?:side|floor)/i))){d.windows=+m[1];changed.push('windows');}
  if(/more windows|add windows/i.test(t)&&!changed.includes('windows')){d.windows=Math.min(20,(d.windows??5)+2);changed.push('windows');}
  if(/fewer windows|less windows|reduce windows/i.test(t)){d.windows=Math.max(0,(d.windows??5)-2);changed.push('windows');}
@@ -293,7 +295,27 @@ function understandChange(raw){
  else if(/simple|basic/i.test(t)){d.style='simple';changed.push('style');}
  else if(/modern|glass facade|curtain wall/i.test(t)){d.style='modern';changed.push('style');}
  if(!changed.length)return {error:'I could not identify that change yet. Try “make it 8 floors”, “40m wide”, “add more windows”, or “change to laboratory style”.'};
- d.floors=Math.max(1,Math.min(60,Math.round(d.floors||3)));d.width=Math.max(3,Math.min(200,d.width||20));d.depth=Math.max(3,Math.min(200,d.depth||15));d.floorHeight=Math.max(2,Math.min(8,d.floorHeight||3.2));d.windows=Math.max(0,Math.min(20,d.windows??5));return {design:d,changed:[...new Set(changed)]};
+ d.floors=Math.max(1,Math.min(60,Math.round(d.floors||3)));d.width=Math.max(3,Math.min(200,d.width||20));d.depth=Math.max(3,Math.min(200,d.depth||15));d.floorHeight=Math.max(2,Math.min(8,d.floorHeight||3.2));d.windows=Math.max(0,Math.min(20,d.windows??5));d.doorWidth=Math.max(1,Math.min(10,Number(d.doorWidth)||2.4));d.staircases=Math.max(0,Math.min(3,Math.round(Number(d.staircases)||0)));d.elevators=Math.max(0,Math.min(4,Math.round(Number(d.elevators)||0)));return {design:d,changed:[...new Set(changed)]};
+}
+async function resolveDesignChange(instruction){
+ let aiError=null,aiReply='';
+ if(window.DocuWorksAI?.askDesign){
+  try{
+   const answer=await window.DocuWorksAI.askDesign(instruction,currentDesign);
+   aiReply=answer?.reply||'';
+   const next={...currentDesign},changed=[];
+   for(const key of ['width','depth','floors','floorHeight','windows','doorWidth','style','staircases','elevators']){
+    const value=answer?.changes?.[key];
+    if(value!==null&&value!==undefined){next[key]=value;changed.push(key);}
+   }
+   if(changed.length)return {design:next,changed,reply:aiReply,source:'AI'};
+  }catch(err){aiError=err;}
+ }
+ const local=understandChange(instruction);
+ if(local.error){
+  return {error:aiError?'AI is unavailable ('+(aiError.message||String(aiError))+'). '+local.error:(aiReply||local.error)};
+ }
+ return {design:local.design,changed:local.changed,source:'local',reply:aiError?'AI is unavailable; I applied the change locally.':(aiReply||'I applied the change I could identify locally.')};
 }
 document.getElementById('applyChangeBtn').onclick=async()=>{
  const btn=document.getElementById('applyChangeBtn'),feedback=document.getElementById('changeFeedback'),prompt=document.getElementById('changePrompt');
@@ -301,20 +323,10 @@ document.getElementById('applyChangeBtn').onclick=async()=>{
  const instruction=prompt.value.trim();if(!instruction){feedback.textContent='Describe the change you want first.';return;}
  btn.disabled=true;btn.textContent='Understanding…';feedback.textContent='AI is interpreting your instruction and checking the current drawing…';
  try{
-  let next,changed=[];
-  if(window.DocuWorksAI?.askDesign){
-   const answer=await window.DocuWorksAI.askDesign(instruction,currentDesign);
-   const updates=answer.changes||{};
-   next={...currentDesign};
-   for(const key of ['width','depth','floors','floorHeight','windows','doorWidth','style','staircases','elevators']){
-    if(updates[key]!==null&&updates[key]!==undefined){next[key]=updates[key];changed.push(key);}
-   }
-   if(!changed.length){feedback.textContent=answer.reply||'I could not make that change to this model yet.';return;}
-   feedback.textContent=answer.reply||'I understood the requested changes.';
-  }else{
-   const local=understandChange(instruction);if(local.error){feedback.textContent=local.error;return;}
-   next=local.design;changed=local.changed;
-  }
+  const resolved=await resolveDesignChange(instruction);
+  if(resolved.error){feedback.textContent=resolved.error;return;}
+  let next=resolved.design,changed=resolved.changed;
+  feedback.textContent=resolved.reply||'I understood the requested changes.';
   next.floors=Math.max(1,Math.min(60,Math.round(Number(next.floors)||3)));
   next.width=Math.max(3,Math.min(200,Number(next.width)||20));next.depth=Math.max(3,Math.min(200,Number(next.depth)||15));
   next.floorHeight=Math.max(2,Math.min(8,Number(next.floorHeight)||3.2));next.windows=Math.max(0,Math.min(20,Math.round(Number(next.windows)||0)));
@@ -350,13 +362,9 @@ window.DocuWorksProject360={async run(instruction){
   document.getElementById('changeFeedback').textContent=(aiReply||'AI interpreted your building description.')+' The generated concept is visible in the viewer.';
   return (aiReply||'I interpreted your description and created the building concept.')+' The result is now visible in the 3D viewer.';
  }
- const answer=await window.DocuWorksAI.askDesign(message,currentDesign);
- const next={...currentDesign},changed=[];
- for(const key of ['width','depth','floors','floorHeight','windows','doorWidth','style','staircases','elevators']){
-  const value=answer?.changes?.[key];
-  if(value!==null&&value!==undefined){next[key]=value;changed.push(key);}
- }
- if(!changed.length)throw new Error(answer?.reply||'I understood the request, but this model cannot apply that change yet.');
+ const resolved=await resolveDesignChange(message);
+ if(resolved.error)throw new Error(resolved.error);
+ const next=resolved.design,changed=resolved.changed;
  next.floors=Math.max(1,Math.min(60,Math.round(Number(next.floors)||3)));
  next.width=Math.max(3,Math.min(200,Number(next.width)||20));
  next.depth=Math.max(3,Math.min(200,Number(next.depth)||15));
@@ -364,9 +372,9 @@ window.DocuWorksProject360={async run(instruction){
  next.windows=Math.max(0,Math.min(20,Math.round(Number(next.windows)||0)));
  next.doorWidth=Math.max(1,Math.min(10,Number(next.doorWidth)||2.4));
  designHistory.push({...currentDesign});currentDesign=next;makeBuilding();
- document.getElementById('changeFeedback').textContent=(answer.reply||'Applied your change.')+' Updated: '+changed.join(', ');
+ document.getElementById('changeFeedback').textContent=(resolved.reply||'Applied your change.')+' Updated: '+changed.join(', ');
  document.getElementById('undoChangeBtn').disabled=false;
- return (answer.reply||'Your design has been updated.')+' The updated drawing is now visible in the 3D viewer.';
+ return (resolved.reply||'Your design has been updated.')+' The updated drawing is now visible in the 3D viewer.';
 }};
 document.getElementById('undoChangeBtn').onclick=()=>{if(!designHistory.length)return;currentDesign=designHistory.pop();makeBuilding();document.getElementById('changeFeedback').textContent='Last change undone.';document.getElementById('undoChangeBtn').disabled=!designHistory.length;};
 nameInput.addEventListener('input',e=>document.getElementById('projectTitle').textContent=e.target.value||'Project 360° Viewer');
@@ -386,12 +394,19 @@ document.getElementById('resetBtn').onclick=()=>{if(model)fitObject(model);else 
 document.getElementById('rotateBtn').onclick=()=>{autoRotate=!autoRotate;controls.autoRotate=autoRotate;controls.autoRotateSpeed=1.4;document.getElementById('rotateBtn').textContent=autoRotate?'Stop rotation':'Auto rotate'};
 document.getElementById('wireBtn').onclick=()=>{wire=!wire;parts.forEach(o=>{if(o.material)o.material.wireframe=wire});if(model)model.traverse(o=>{if(o.isMesh){const m=Array.isArray(o.material)?o.material:[o.material];m.forEach(x=>x.wireframe=wire)}});toast(wire?'Wireframe on':'Wireframe off')};
 
-function projectData(){const d=currentDesign||{};return{name:nameInput.value||'Untitled Project',location:locationInput.value||'',revision:revisionInput.value||'',details:detailsInput.value||'',width:d.width??bWidthInput.value,depth:d.depth??bDepthInput.value,floors:d.floors??floorsInput.value,floorH:d.floorHeight??floorHInput.value,windows:d.windows??windowsInput.value,doorW:d.doorWidth??doorWInput.value,style:d.style??styleInput.value}}
+function projectData(){const d=currentDesign||{};return{name:nameInput.value||'Untitled Project',location:locationInput.value||'',revision:revisionInput.value||'',details:detailsInput.value||'',width:d.width??bWidthInput.value,depth:d.depth??bDepthInput.value,floors:d.floors??floorsInput.value,floorH:d.floorHeight??floorHInput.value,windows:d.windows??windowsInput.value,doorW:d.doorWidth??doorWInput.value,style:d.style??styleInput.value,staircases:d.staircases??0,elevators:d.elevators??0}}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function safe(s){return String(s).replace(/[^a-z0-9_-]+/gi,'-').replace(/^-|-$/g,'')||'project-360'}
 function download(blob,n){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 
-document.getElementById('htmlBtn').onclick=()=>{const p=projectData();const h='<!doctype html><html><head><meta charset="utf-8"><title>'+esc(p.name)+' | Project 360</title><style>body{font:15px Arial;margin:0;background:#f3f6fa;color:#17335e}.wrap{max-width:900px;margin:40px auto;background:#fff;padding:35px;border-radius:12px}h1{margin-top:0}.meta{color:#71819a}.spec{display:grid;grid-template-columns:1fr 1fr;gap:10px}.card{border:1px solid #e2e8f1;padding:12px;border-radius:8px}.details{white-space:pre-wrap;line-height:1.6}</style></head><body><div class="wrap"><h1>'+esc(p.name)+'</h1><div class="meta">'+esc(p.location)+' · '+esc(p.revision)+'</div><div class="spec"><div class="card">Size: '+esc(p.width)+' m × '+esc(p.depth)+' m</div><div class="card">Floors: '+esc(p.floors)+'</div><div class="card">Floor height: '+esc(p.floorH)+' m</div><div class="card">Style: '+esc(p.style)+'</div></div><h2>Project thoughts</h2><div class="details">'+esc(p.details)+'</div><p>Created with DocuWorks Studio — Project 360.</p></div></body></html>';download(new Blob([h],{type:'text/html'}),safe(p.name)+'-presentation.html')};
+document.getElementById('htmlBtn').onclick=()=>{
+ const p=projectData();
+ let preview='';
+ try{if(model||parts.length)preview=canvas.toDataURL('image/jpeg',.86)}catch(err){console.warn('Project preview could not be embedded:',err)}
+ const previewHtml=preview?'<h2>3D model preview</h2><img class="preview" src="'+preview+'" alt="Project 3D model preview">':'<p class="meta">A model preview could not be captured in this browser.</p>';
+ const h='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(p.name)+' | Project 360</title><style>body{font:15px Arial;margin:0;background:#f3f6fa;color:#17335e}.wrap{max-width:900px;margin:40px auto;background:#fff;padding:35px;border-radius:12px}h1{margin-top:0}.meta{color:#71819a}.spec{display:grid;grid-template-columns:1fr 1fr;gap:10px}.card{border:1px solid #e2e8f1;padding:12px;border-radius:8px}.details{white-space:pre-wrap;line-height:1.6}.preview{width:100%;height:auto;display:block;border:1px solid #e2e8f1;border-radius:9px;background:#eef2f7}@media(max-width:600px){.wrap{margin:10px;padding:18px}.spec{grid-template-columns:1fr}}</style></head><body><div class="wrap"><h1>'+esc(p.name)+'</h1><div class="meta">'+esc(p.location)+' · '+esc(p.revision)+'</div><div class="spec"><div class="card">Size: '+esc(p.width)+' m × '+esc(p.depth)+' m</div><div class="card">Floors: '+esc(p.floors)+'</div><div class="card">Floor height: '+esc(p.floorH)+' m</div><div class="card">Style: '+esc(p.style)+'</div><div class="card">External staircases: '+esc(p.staircases)+'</div><div class="card">Elevator shafts: '+esc(p.elevators)+'</div></div>'+previewHtml+'<h2>Project thoughts</h2><div class="details">'+esc(p.details)+'</div><p>Created with DocuWorks Studio — Project 360.</p></div></body></html>';
+ download(new Blob([h],{type:'text/html'}),safe(p.name)+'-presentation.html')
+};
 
 async function makeVideo(){
  if(!model&&!parts.length){toast('Create the 3D project first');return}
@@ -399,9 +414,9 @@ async function makeVideo(){
  const overlay=document.getElementById('renderOverlay'),viewerProgress=document.getElementById('viewerProgress'),percent=document.getElementById('renderPercent'),sub=document.getElementById('renderSub'),foot=document.getElementById('renderFoot');
  if(!canvas.captureStream){toast('This browser cannot record the 3D canvas. Please open this page in Chrome.');return}
  if(typeof MediaRecorder==='undefined'){toast('This browser does not support video recording. Please open this page in Chrome.');return}
- btn.disabled=true;btn.textContent='Preparing video…';progress.style.width='0%';viewerProgress.style.width='0%';percent.textContent='0%';result.style.display='none';result.innerHTML='';overlay.classList.add('show');
+ btn.disabled=true;btn.textContent='Preparing video…';progress.style.width='0%';viewerProgress.style.width='0%';percent.textContent='0%';result.style.display='none';result.innerHTML='';overlay.querySelector('.render-spinner').style.display='block';document.getElementById('renderTitle').textContent='Creating your 360° video';sub.textContent='Preparing the 3D view';foot.textContent='Please keep this page open while recording.';overlay.classList.add('show');
  document.getElementById('modelStatus').textContent='Recording 360° video…';
- let stream=null,oldAuto=controls.autoRotate,rec=null;
+ let stream=null,oldAuto=controls.autoRotate,oldDamping=controls.enableDamping,rec=null;
  try{
    const mimeCandidates=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
    let mime=mimeCandidates.find(m=>MediaRecorder.isTypeSupported(m));
@@ -411,13 +426,12 @@ async function makeVideo(){
    rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6000000});
    rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
    const done=new Promise((resolve,reject)=>{rec.onstop=resolve;rec.onerror=e=>reject(e.error||new Error('Recorder error'))});
-   const startAngle=controls.getAzimuthalAngle();
-   controls.autoRotate=false;
+   controls.autoRotate=false;controls.enableDamping=false;
    btn.textContent='Recording 360°…';
    sub.textContent='Recording the 3D view from every angle';
    foot.textContent='The building is rotating in the viewer. Please keep this page open.';
    rec.start(250);
-   const start=performance.now(),duration=15000;
+   const start=performance.now(),duration=15000;let lastElapsed=0;
    await new Promise((resolve,reject)=>{
      function tick(now){
        if(rec.state==='inactive'){reject(new Error('Recording stopped unexpectedly'));return}
@@ -425,7 +439,7 @@ async function makeVideo(){
        const p=Math.round(pct*100);
        progress.style.width=p+'%';viewerProgress.style.width=p+'%';percent.textContent=p+'%';
        sub.textContent=p<100?'Recording 360° view · '+Math.ceil((duration-elapsed)/1000)+' seconds remaining':'Finishing video…';
-       controls.setAzimuthalAngle(startAngle+pct*Math.PI*2);controls.update();renderer.render(scene,camera);
+       const delta=(elapsed-lastElapsed)/duration*Math.PI*2;lastElapsed=elapsed;controls.rotateLeft(delta);controls.update();renderer.render(scene,camera);
        if(pct<1)requestAnimationFrame(tick);else{try{rec.stop();resolve()}catch(e){reject(e)}}
      }
      requestAnimationFrame(tick);
@@ -454,7 +468,7 @@ async function makeVideo(){
    toast('Video creation failed: '+(err.message||'unknown error'));
  }finally{
    if(stream)stream.getTracks().forEach(t=>t.stop());
-   controls.autoRotate=oldAuto;
+   controls.autoRotate=oldAuto;controls.enableDamping=oldDamping;
    btn.disabled=false;btn.textContent='Create 360° Video';
  }
 }
