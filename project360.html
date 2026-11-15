@@ -14,7 +14,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 .main{min-width:0;overflow:auto;padding:24px}.grid{max-width:1400px;margin:auto;display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:18px}.panel{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 7px rgba(24,49,91,.035);overflow:hidden}.viewer{height:calc(100vh - 116px);min-height:560px;display:flex;flex-direction:column}.viewer-head{padding:15px 17px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}.viewer-head h1{font-size:15px;margin:0}.status{margin-left:auto;font-size:10px;color:#71819a}.canvas-wrap{position:relative;flex:1;min-height:0;background:radial-gradient(circle at 50% 45%,#fff 0,#eef2f7 70%,#e6ebf2 100%)}#three{width:100%;height:100%;display:block}.empty-view{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;color:#77869d;pointer-events:none}.empty-view>div{max-width:420px}.empty-view .big{font-size:42px;margin-bottom:7px}.empty-view b{color:#425774}.viewer-foot{display:flex;align-items:center;gap:8px;padding:11px 14px;border-top:1px solid var(--line);font-size:10px;color:#7c8ba0}.viewer-foot span:last-child{margin-left:auto}.controls{display:flex;gap:7px;flex-wrap:wrap}.iconbtn{border:1px solid #dce4ef;background:#fff;border-radius:7px;padding:7px 9px;color:#506581;font-size:11px;font-weight:700}.iconbtn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
 .right{display:flex;flex-direction:column;gap:14px}.box{padding:16px}.box h3{margin:0 0 11px;font-size:12px}.row{display:flex;gap:8px;margin-bottom:9px}.row>*{min-width:0}.field{width:100%;border:1px solid #dce4ef;border-radius:7px;padding:9px 10px;outline:none;background:#fff;color:var(--ink);font-size:11px}.field:focus{border-color:#9ab3ed;box-shadow:0 0 0 3px #2458d313}.label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#8a98aa;font-weight:800;margin:0 0 4px}.details{height:125px;resize:vertical}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.action{border:1px solid #dce4ef;background:#fff;border-radius:8px;padding:10px;color:#4e6380;font-weight:800;font-size:10px}.action.main{background:var(--blue);color:#fff;border-color:var(--blue)}.note{font-size:9px;color:#8a98aa;margin-top:8px;line-height:1.6}.section-title{font-size:10px;color:#516783;font-weight:800;margin:14px 0 8px;padding-top:12px;border-top:1px solid #edf1f6}.pill{display:inline-block;background:#edf3ff;color:#2458d3;border-radius:99px;padding:4px 7px;font-size:9px;font-weight:800;margin-bottom:8px}
 .toast{position:fixed;right:20px;bottom:20px;background:#17335e;color:#fff;padding:10px 13px;border-radius:8px;font-size:11px;box-shadow:0 10px 30px #17335e33;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;z-index:20}.toast.show{opacity:1;transform:none}
-.progress{height:6px;background:#e9eef5;border-radius:99px;overflow:hidden;margin-top:9px}.progress i{display:block;width:0;height:100%;background:var(--blue);transition:width .1s}.render-overlay{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);width:min(390px,calc(100% - 28px));background:rgba(255,255,255,.96);border:1px solid #d8e2f0;border-radius:12px;padding:12px 14px;box-shadow:0 8px 28px rgba(23,43,77,.16);z-index:4;display:none}.render-overlay.show{display:block}.render-top{display:flex;align-items:center;gap:9px}.render-spinner{width:17px;height:17px;border:2px solid #dce6f7;border-top-color:#2458d3;border-radius:50%;animation:renderSpin .8s linear infinite;flex:none}@keyframes renderSpin{to{transform:rotate(360deg)}}.render-title{font-size:11px;font-weight:800;color:#263e60}.render-sub{font-size:10px;color:#71819a;margin-top:2px}.render-percent{margin-left:auto;font-size:15px;font-weight:900;color:#2458d3;font-variant-numeric:tabular-nums}.render-track{height:7px;background:#e9eef5;border-radius:99px;overflow:hidden;margin-top:10px}.render-track i{display:block;width:0;height:100%;background:linear-gradient(90deg,#2458d3,#5b91f5);border-radius:99px;transition:width .12s linear}.render-foot{font-size:9px;color:#8492a6;margin-top:6px}
+.progress{height:6px;background:#e9eef5;border-radius:99px;overflow:hidden;margin-top:9px}.progress i{display:block;width:0;height:100%;background:var(--blue);transition:width .1s}.render-overlay{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);width:min(390px,calc(100% - 28px));background:rgba(255,255,255,.96);border:1px solid #d8e2f0;border-radius:12px;padding:12px 14px;box-shadow:0 8px 28px rgba(23,43,77,.16);z-index:4;display:none}.render-overlay.show{display:block}.render-top{display:flex;align-items:center;gap:9px}.render-spinner{width:17px;height:17px;border:2px solid #dce6f7;border-top-color:#2458d3;border-radius:50%;animation:renderSpin .8s linear infinite;flex:none}@keyframes renderSpin{to{transform:rotate(360deg)}}.render-title{font-size:11px;font-weight:800;color:#263e60}.render-sub{font-size:10px;color:#71819a;margin-top:2px}.render-percent{margin-left:auto;font-size:15px;font-weight:900;color:#2458d3;font-variant-numeric:tabular-nums}.render-track{height:7px;background:#e9eef5;border-radius:99px;overflow:hidden;margin-top:10px}.render-track i{display:block;width:0;height:100%;background:linear-gradient(90deg,#2458d3,#5b91f5);border-radius:99px;transition:width .12s linear}.render-foot{font-size:9px;color:#8492a6;margin-top:6px}.viewer-error{position:absolute;inset:14px;display:none;place-items:center;text-align:center;padding:20px;background:rgba(255,255,255,.96);border:1px solid #efc9c9;border-radius:12px;color:#8b3030;z-index:6}.viewer-error.show{display:grid}.viewer-error b{display:block;color:#7e2424;margin-bottom:6px}.viewer-error small{display:block;color:#845f5f;line-height:1.6}
 @media(max-width:1050px){.app{grid-template-columns:230px 1fr}.grid{grid-template-columns:1fr}.right{display:grid;grid-template-columns:1fr 1fr}.viewer{height:650px}.viewer-foot{flex-wrap:wrap}}
 @media(max-width:700px){.app{display:block;height:auto;min-height:100vh;overflow:visible}.top{height:62px}.side{border-right:0;border-bottom:1px solid var(--line);padding:12px 15px}.side .steps{display:flex;overflow:auto;gap:5px}.step{min-width:145px;margin:0}.tip{display:none}.main{padding:14px}.right{display:flex}.viewer{height:560px;min-height:0}.grid{display:flex;flex-direction:column}}
 </style>
@@ -39,7 +39,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="grid">
 <section class="panel viewer">
 <div class="viewer-head"><h1 id="projectTitle">Project 360° Viewer</h1><span class="status" id="modelStatus">Ready to create</span></div>
-<div class="canvas-wrap" id="canvasWrap"><canvas id="three"></canvas><div class="render-overlay" id="renderOverlay" role="status" aria-live="polite"><div class="render-top"><span class="render-spinner"></span><div><div class="render-title" id="renderTitle">Creating your 360° video</div><div class="render-sub" id="renderSub">Recording the 3D view from every angle</div></div><span class="render-percent" id="renderPercent">0%</span></div><div class="render-track"><i id="viewerProgress"></i></div><div class="render-foot" id="renderFoot">Please keep this page open while recording.</div></div><div class="empty-view" id="emptyView"><div><div class="big">◇</div><b>Your 3D project will appear here</b><br>Describe your project, set the building parameters, then click <b>Create 3D Project</b>.<br><br>After creation: drag to rotate · wheel to zoom · right-drag to pan</div></div></div>
+<div class="canvas-wrap" id="canvasWrap"><canvas id="three"></canvas><div class="render-overlay" id="renderOverlay" role="status" aria-live="polite"><div class="render-top"><span class="render-spinner"></span><div><div class="render-title" id="renderTitle">Creating your 360° video</div><div class="render-sub" id="renderSub">Recording the 3D view from every angle</div></div><span class="render-percent" id="renderPercent">0%</span></div><div class="render-track"><i id="viewerProgress"></i></div><div class="render-foot" id="renderFoot">Please keep this page open while recording.</div></div><div class="viewer-error" id="viewerError"><div><b>3D viewer could not start</b><span id="viewerErrorText">Please refresh the page and try again.</span><small>Check your internet connection because the 3D engine loads in your browser.</small></div></div><div class="empty-view" id="emptyView"><div><div class="big">◇</div><b>Your 3D project will appear here</b><br>Describe your project, set the building parameters, then click <b>Create 3D Project</b>.<br><br>After creation: drag to rotate · wheel to zoom · right-drag to pan</div></div></div>
 <div class="viewer-foot"><div class="controls"><button class="iconbtn" id="resetBtn">Reset view</button><button class="iconbtn" id="rotateBtn">Auto rotate</button><button class="iconbtn" id="wireBtn">Wireframe</button></div><span>3D generation runs locally</span></div>
 </section>
 <aside class="right">
@@ -94,13 +94,13 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script type="module">
+<script>\nwindow.showProject360Error=function(message){const panel=document.getElementById('viewerError'),text=document.getElementById('viewerErrorText');if(panel){text.textContent=message||'The 3D engine failed to start.';panel.classList.add('show');}const status=document.getElementById('modelStatus');if(status)status.textContent='Viewer error';};\nwindow.addEventListener('error',e=>{if(e.message||e.error)window.showProject360Error(e.message||String(e.error));});\nwindow.addEventListener('unhandledrejection',e=>window.showProject360Error(e.reason?.message||String(e.reason||'3D loading failed')));\n</script>\n<script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
 
-const canvas=document.getElementById('three'),wrap=document.getElementById('canvasWrap');
+const el=id=>document.getElementById(id);\nconst nameInput=el('name'),locationInput=el('location'),revisionInput=el('revision'),detailsInput=el('details');\nconst useSettingsInput=el('useSettings'),bWidthInput=el('bWidth'),bDepthInput=el('bDepth'),floorsInput=el('floors'),floorHInput=el('floorH'),windowsInput=el('windows'),doorWInput=el('doorW'),styleInput=el('style');\nconst canvas=el('three'),wrap=el('canvasWrap');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(wrap.clientWidth,wrap.clientHeight,false);renderer.outputColorSpace=THREE.SRGBColorSpace;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0xf0f3f7);
@@ -116,22 +116,22 @@ function toast(s){const t=document.getElementById('toast');t.textContent=s;t.cla
 function material(color,rough=.65){return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:.05})}
 function cube(w,h,d,x,y,z,m){const g=new THREE.BoxGeometry(w,h,d);const o=new THREE.Mesh(g,m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);parts.push(o);return o}
 function clearGenerated(){parts.forEach(o=>{scene.remove(o);o.geometry?.dispose();o.material?.dispose()});parts=[]}
-function fitObject(obj){const box=new THREE.Box3().setFromObject(obj),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),max=Math.max(size.x,size.y,size.z)||1;const dist=max/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))*1.25;camera.position.copy(center).add(new THREE.Vector3(dist*.75,dist*.55,dist));camera.near=max/10000;camera.far=max*100;camera.updateProjectionMatrix();controls.target.copy(center);controls.update();grid.position.y=box.min.y}
+function fitBounds(box){const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),max=Math.max(size.x,size.y,size.z)||1;const dist=max/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))*1.55;camera.position.copy(center).add(new THREE.Vector3(dist*.85,dist*.62,dist));camera.near=Math.max(.01,max/10000);camera.far=Math.max(100,max*100);camera.updateProjectionMatrix();controls.target.copy(center);controls.update();grid.position.y=box.min.y}\nfunction fitObject(obj){fitBounds(new THREE.Box3().setFromObject(obj))}\nfunction fitParts(){const box=new THREE.Box3();parts.forEach(o=>{o.updateWorldMatrix(true,false);box.union(new THREE.Box3().setFromObject(o))});if(!box.isEmpty())fitBounds(box)}
 function makeBuilding(){
  if(customModel){scene.remove(model);model=null;customModel=false}
  clearGenerated();
- const brief=details.value||'';
- const use=useSettings.checked;
+ const brief=detailsInput.value||'';
+ const use=useSettingsInput.checked;
  const dim=brief.match(/(\\d+(?:\\.\\d+)?)\\s*(?:m|meter|metre)\\s*[x×]\\s*(\\d+(?:\\.\\d+)?)\\s*(?:m|meter|metre)/i);
  const floorMatch=brief.match(/(\\d+)\\s*(?:storey|story|floor|floors)/i);
- const W=use?Math.max(3,+bWidth.value||20):Math.max(3,+(dim?.[1]||20));
- const D=use?Math.max(3,+bDepth.value||15):Math.max(3,+(dim?.[2]||15));
- const F=use?Math.max(1,Math.min(30,+floors.value||3)):Math.max(1,Math.min(30,+(floorMatch?.[1]||3)));
- const H=use?Math.max(2,+floorH.value||3.2):3.2;
- const N=use?Math.max(0,Math.min(20,+windows.value||5)):5;
- const DW=use?Math.min(W*.5,Math.max(1,+doorW.value||2.4)):2.4;
+ const W=use?Math.max(3,+bWidthInput.value||20):Math.max(3,+(dim?.[1]||20));
+ const D=use?Math.max(3,+bDepthInput.value||15):Math.max(3,+(dim?.[2]||15));
+ const F=use?Math.max(1,Math.min(30,+floorsInput.value||3)):Math.max(1,Math.min(30,+(floorMatch?.[1]||3)));
+ const H=use?Math.max(2,+floorHInput.value||3.2):3.2;
+ const N=use?Math.max(0,Math.min(20,+windowsInput.value||5)):5;
+ const DW=use?Math.min(W*.5,Math.max(1,+doorWInput.value||2.4)):2.4;
  const total=F*H;
- const s=style.value, wall=s==='industrial'?0x7d8793:s==='clean'?0xe8edf2:s==='simple'?0xd7dbe0:0xdfe6ee;
+ const s=styleInput.value, wall=s==='industrial'?0x7d8793:s==='clean'?0xe8edf2:s==='simple'?0xd7dbe0:0xdfe6ee;
  const trim=s==='industrial'?0x3f4650:s==='clean'?0x2458d3:s==='simple'?0x596879:0x263b58;
  const glass=s==='industrial'?0x8fa7b9:0x78b8d8;
  const floorMat=material(wall),trimMat=material(trim),glassMat=material(glass,.2),roofMat=material(trim);
@@ -145,14 +145,14 @@ function makeBuilding(){
  cube(.12,H*.76,.14,-DW/2,H*.38,-D/2-.14,trimMat);cube(.12,H*.76,.14,DW/2,H*.38,-D/2-.14,trimMat);
  for(let f=0;f<F;f++)cube(W*.92,.04,D*.92,0,f*H+.06,0,material(0xc9d0d9));
  grid.scale.set(Math.max(1,W/10),1,Math.max(1,D/10));grid.position.y=0;
- fitObject({children:parts});
+ fitParts();
  document.getElementById('emptyView').style.display='none';
  document.getElementById('modelStatus').textContent='3D project created';
- document.getElementById('projectTitle').textContent=name.value||'Project 360° Viewer';
+ document.getElementById('projectTitle').textContent=nameInput.value||'Project 360° Viewer';
  toast('3D project created');
 }
-document.getElementById('createBtn').onclick=makeBuilding;
-name.addEventListener('input',e=>document.getElementById('projectTitle').textContent=e.target.value||'Project 360° Viewer');
+document.getElementById('createBtn').onclick=()=>{try{makeBuilding();}catch(err){console.error(err);toast('Could not create 3D model: '+(err.message||'unknown error'));window.showProject360Error('Could not create the model: '+(err.message||'unknown error'));}};
+nameInput.addEventListener('input',e=>document.getElementById('projectTitle').textContent=e.target.value||'Project 360° Viewer');
 
 function loadExisting(file){
  const ext=file.name.toLowerCase().split('.').pop();
@@ -165,11 +165,11 @@ function loadExisting(file){
 }
 document.getElementById('modelFile').addEventListener('change',e=>e.target.files[0]&&loadExisting(e.target.files[0]));
 
-document.getElementById('resetBtn').onclick=()=>{if(model)fitObject(model);else if(parts.length)fitObject({children:parts})};
+document.getElementById('resetBtn').onclick=()=>{if(model)fitObject(model);else if(parts.length)fitParts()};
 document.getElementById('rotateBtn').onclick=()=>{autoRotate=!autoRotate;controls.autoRotate=autoRotate;controls.autoRotateSpeed=1.4;document.getElementById('rotateBtn').textContent=autoRotate?'Stop rotation':'Auto rotate'};
 document.getElementById('wireBtn').onclick=()=>{wire=!wire;parts.forEach(o=>{if(o.material)o.material.wireframe=wire});if(model)model.traverse(o=>{if(o.isMesh){const m=Array.isArray(o.material)?o.material:[o.material];m.forEach(x=>x.wireframe=wire)}});toast(wire?'Wireframe on':'Wireframe off')};
 
-function projectData(){return{name:name.value||'Untitled Project',location:location.value||'',revision:revision.value||'',details:details.value||'',width:bWidth.value,depth:bDepth.value,floors:floors.value,floorH:floorH.value,windows:windows.value,doorW:doorW.value,style:style.value}}
+function projectData(){return{name:nameInput.value||'Untitled Project',location:locationInput.value||'',revision:revisionInput.value||'',details:detailsInput.value||'',width:bWidthInput.value,depth:bDepthInput.value,floors:floorsInput.value,floorH:floorHInput.value,windows:windowsInput.value,doorW:doorWInput.value,style:styleInput.value}}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function safe(s){return String(s).replace(/[^a-z0-9_-]+/gi,'-').replace(/^-|-$/g,'')||'project-360'}
 function download(blob,n){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
@@ -244,7 +244,7 @@ async function makeVideo(){
 document.getElementById('useSettings').onchange=e=>document.getElementById('settingsFields').style.display=e.target.checked?'block':'none';
 document.getElementById('videoBtn').onclick=makeVideo;
 function resize(){const w=wrap.clientWidth,h=wrap.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();
-function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();\nconst resizeObserver=new ResizeObserver(resize);resizeObserver.observe(wrap);\ndocument.getElementById('modelStatus').textContent='3D viewer ready';
 </script>
 </body>
 </html>
