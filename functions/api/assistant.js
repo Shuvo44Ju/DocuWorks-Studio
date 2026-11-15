@@ -12,10 +12,13 @@ const TOOL_GUIDANCE = {
   workspace: "You are the DocuWorks Studio general assistant. Help the user choose and operate the correct document/procurement tool. Be practical, precise, and explain limitations honestly."
 };
 
+const TRUSTED_ORIGINS = new Set([
+  "https://shuvo44ju.github.io",
+  "https://shuvo44.github.io",
+  "https://docuworks-studio.shuvokh97.workers.dev"
+]);
 function allowed(origin) {
-  return origin === "https://shuvo44ju.github.io" || origin === "https://shuvo44.github.io" ||
-    /^https:\/\/[a-z0-9-]+\.pages\.dev$/i.test(origin || "") ||
-    /^https:\/\/(?:[a-z0-9-]+\.)*[a-z0-9-]+\.workers\.dev$/i.test(origin || "") ||
+  return TRUSTED_ORIGINS.has(origin) ||
     /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin || "");
 }
 function response(data, status, origin) {
