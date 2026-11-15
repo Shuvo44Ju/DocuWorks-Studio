@@ -407,7 +407,7 @@ document.getElementById('createBtn').onclick=async()=>{
  const btn=document.getElementById('createBtn'),original=btn.textContent;
  btn.disabled=true;btn.textContent='Understanding your description…';setWizardStep(3);
  try{
-  currentDesign=null;designHistory=[];
+  currentDesign=null;designHistory=[];designRedoHistory=[];hideDesignPreview();
   const brief=detailsInput.value||'',use=useSettingsInput.checked;
   let aiChanges={},aiReply='',aiFallbackMessage='';
   if(brief.trim()&&!use&&window.DocuWorksAI?.askDesign){
