@@ -27,48 +27,14 @@ function addMergedText(ws, range, text, style) {
   return cell;
 }
 function setTopBlock(ws, model, lastCol) {
-  const lastLetter = lastCol === 5 ? 'E' : 'D';
-  addMergedText(ws, 'A1:' + lastLetter + '1', makeBanner(model), {
+  const lastLetter = 'C';
+  addMergedText(ws, 'A1:C1', makeBanner(model), {
     font: { name: 'Arial', size: 13, bold: true, color: { argb: 'FFFFFFFF' } },
     fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } },
     alignment: { horizontal: 'center', vertical: 'middle', wrapText: true }
   });
   ws.getRow(1).height = 28;
-
-  addMergedText(ws, 'A2:' + lastLetter + '2',
-    'VENDOR FEEDBACK SHEET AGAINST USER REQUIREMENT SPECIFICATION (URS)', {
-      font: { name: 'Arial', size: 12, bold: true, color: { argb: 'FF1F4E78' } },
-      alignment: { horizontal: 'center', vertical: 'middle', wrapText: true }
-    });
-  ws.getRow(2).height = 24;
-
-  const info = [
-    ['Equipment Name', model.equipmentName],
-    ['URS No.', model.ursNumber],
-    ['Ref. Doc. No.', model.referenceDocumentNumber],
-    ['Version No.', model.version],
-    ['Department', model.department]
-  ].filter(pair => String(pair[1] || '').trim());
-
-  let row = 3;
-  for (const [label, value] of info) {
-    ws.mergeCells('A' + row + ':B' + row);
-    ws.mergeCells('C' + row + ':' + lastLetter + row);
-    ws.getCell('A' + row).value = label;
-    ws.getCell('C' + row).value = value;
-    setFont(ws.getCell('A' + row), { size: 10, bold: true, color: { argb: 'FF333333' } });
-    setFont(ws.getCell('C' + row), { size: 10, color: { argb: 'FF333333' } });
-    ws.getRow(row).height = 19;
-    row++;
-  }
-  const instruction = 'Instructions to Vendor: Review each requirement and fill in the Vendor Compliance (\'Comply\' / \'Partial Comply\' / \'Not Comply\') and the Vendor Remarks / Deviation & Justification column.';
-  const instructionCell = addMergedText(ws, 'A' + row + ':' + lastLetter + row, instruction, {
-    font: { name: 'Arial', size: 9, italic: true, color: { argb: 'FF777777' } },
-    alignment: { horizontal: 'left', vertical: 'middle', wrapText: true }
-  });
-  instructionCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
-  ws.getRow(row).height = 32;
-  return row + 2;
+  return 2;
 }
 function styleHeader(ws, row, labels, lastCol) {
   labels.forEach((label, i) => {
@@ -104,8 +70,7 @@ function styleBodyRow(ws, row, lastCol, isReview) {
   }
 }
 function sectionRow(ws, row, title, lastCol) {
-  const lastLetter = lastCol === 5 ? 'E' : 'D';
-  ws.mergeCells('A' + row + ':' + lastLetter + row);
+  ws.mergeCells('A' + row + ':C' + row);
   const cell = ws.getCell(row, 1);
   cell.value = title;
   cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF222222' } };
@@ -115,19 +80,18 @@ function sectionRow(ws, row, title, lastCol) {
 }
 function writeStandardBody(ws, startRow, model) {
   let row = startRow;
-  sectionRow(ws, row++, 'Vendor / Product Information', 4);
+  sectionRow(ws, row++, 'Vendor / Product Information', 3);
   for (const label of ['Manufacturer', 'Local Agent', 'Origin', 'Model']) {
     ws.getCell(row, 1).value = label;
     ws.getCell(row, 2).value = 'NA';
     ws.getCell(row, 3).value = null;
-    ws.getCell(row, 4).value = null;
-    styleBodyRow(ws, row, 4, false);
+    styleBodyRow(ws, row, 3, false);
     row++;
   }
   for (const sheet of model.sheets || []) {
     for (const item of sheet.rows || []) {
       if (item.type === 'section') {
-        sectionRow(ws, row++, item.title || 'Section', 4);
+        sectionRow(ws, row++, item.title || 'Section', 3);
         continue;
       }
       if (item.type !== 'row' && item.type !== 'sw') continue;
@@ -136,15 +100,14 @@ function writeStandardBody(ws, startRow, model) {
       ws.getCell(row, 1).value = req;
       ws.getCell(row, 2).value = desc;
       ws.getCell(row, 3).value = null;
-      ws.getCell(row, 4).value = null;
-      styleBodyRow(ws, row, 4, Boolean(item.review));
+      styleBodyRow(ws, row, 3, Boolean(item.review));
       if (item.review) {
         ws.getCell(row, 2).note = [
           item.reviewReason || 'This cell needs verification against the original URS.',
           item.loc ? 'Source: ' + item.loc : '',
           item.minConf != null ? 'Minimum OCR confidence: ' + item.minConf + '%' : '',
           item.raw ? 'OCR source text: ' + item.raw : ''
-        ].filter(Boolean).join('\n');
+        ].filter(Boolean).join('\\n');
       }
       row++;
     }
@@ -187,7 +150,7 @@ function createWorkbook(model) {
   }
   const workbook = new root.ExcelJS.Workbook();
   const software = String(model.layout || '').toLowerCase() === 'software';
-  const lastCol = software ? 5 : 4;
+  const lastCol = software ? 5 : 3;
   const ws = workbook.addWorksheet(cleanSheetName(model.equipmentName));
   ws.properties.defaultRowHeight = 18;
   ws.views = [{ showGridLines: false }];
@@ -198,13 +161,13 @@ function createWorkbook(model) {
     ];
   } else {
     ws.columns = [
-      { width: 34 }, { width: 52 }, { width: 18 }, { width: 38 }
+      { width: 34 }, { width: 52 }, { width: 38 }
     ];
   }
   const headerRow = setTopBlock(ws, model, lastCol);
   const labels = software
     ? ['Requirement ID', 'Requirement Description', 'Priority (1=Regulatory, 2=Business, 3=Desired)', 'Vendor Compliance', 'Vendor Remarks']
-    : ['Requirement', 'Incepta Specification / Description', 'Vendor Compliance (Comply / Partial / Not Comply)', 'Vendor Remarks / Offered Specification / Deviation & Justification (if any)'];
+    : ['Requirement', 'Incepta Specification / Description', 'Vendor Feedback'];
   styleHeader(ws, headerRow, labels, lastCol);
   const lastDataRow = software
     ? writeSoftwareBody(ws, headerRow + 1, model)
@@ -226,7 +189,7 @@ function createWorkbook(model) {
     margins: { left: 0.25, right: 0.25, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 }
   };
   // Do not add source/page numbering to the generated CS sheet.
-  ws.printArea = 'A1:' + (software ? 'E' : 'D') + lastDataRow;
+  ws.printArea = 'A1:' + (software ? 'E' : 'C') + lastDataRow;
   return { workbook, worksheet: ws, lastRow: lastDataRow, sheetName: ws.name, layout: software ? 'software' : 'equipment' };
 }
 function getFilename(model) {
