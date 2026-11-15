@@ -213,7 +213,7 @@ function interpretPrompt(text){
   floorHeight:floorHeight?Number(floorHeight[1]||floorHeight[2]):(height&&floors?Number(height[1])/floors:null), doorWidth:doorWidth?Number(doorWidth[1]||doorWidth[2]):null,
   windows:windowsNone?0:(windows?numberInWords(windows[1]):null), style,
   staircases: /\b(?:stairs?|staircases?)\b/i.test(t) ? (/\b(?:no|without|zero|remove|delete|exclude|omit)\s+(?:any\s+)?(?:external\s+)?(?:stairs?|staircases?)\b/i.test(t) ? 0 : ((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:stairs?|staircases?)\b/i)||[])[1]!==undefined ? numberInWords((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:stairs?|staircases?)\b/i)||[])[1]) : 1)) : 0,
-  elevators: /\b(?:elevators?|lifts?)\b/i.test(t) ? (/\b(?:no|without|zero|remove|delete|exclude|omit)\s+(?:any\s+)?(?:external\s+)?(?:elevators?|lifts?)\b/i.test(t) ? 0 : ((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:elevators?|lifts?)\b/i)||[])[1]!==undefined ? numberInWords((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:elevators?|lifts?)\b/i)||[])[1]) : 1)) : 0
+  elevators: /\b(?:elevators?|lifts?)\b/i.test(t) ? (/\b(?:no|without|zero|remove|delete|exclude|omit)\s+(?:any\s+)?(?:external\s+)?(?:elevators?|lifts?)\b/i.test(t) ? 0 : ((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:elevators?|lifts?)\b/i)||[])[1]!==undefined ? numberInWords((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:elevators?|lifts?)\b/i)||[])[1]) : 1)) : 0,
   staircasePositions:elementPlacementUpdates(t,'staircase'),
   elevatorPositions:elementPlacementUpdates(t,'elevator')
  };
