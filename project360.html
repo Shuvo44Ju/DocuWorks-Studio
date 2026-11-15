@@ -228,7 +228,36 @@ function understandChange(raw){
  if(!changed.length)return {error:'I could not identify that change yet. Try “make it 8 floors”, “40m wide”, “add more windows”, or “change to laboratory style”.'};
  d.floors=Math.max(1,Math.min(60,Math.round(d.floors||3)));d.width=Math.max(3,Math.min(200,d.width||20));d.depth=Math.max(3,Math.min(200,d.depth||15));d.floorHeight=Math.max(2,Math.min(8,d.floorHeight||3.2));d.windows=Math.max(0,Math.min(20,d.windows??5));return {design:d,changed:[...new Set(changed)]};
 }
-document.getElementById('applyChangeBtn').onclick=()=>{if(!currentDesign){toast('Create your first 3D drawing before editing it.');return;}const r=understandChange(document.getElementById('changePrompt').value);if(r.error){document.getElementById('changeFeedback').textContent=r.error;return;}designHistory.push({...currentDesign});currentDesign=r.design;try{makeBuilding();document.getElementById('changeFeedback').textContent='Updated the same drawing: '+r.changed.join(', ')+'. You can continue refining it.';document.getElementById('changePrompt').value='';}catch(err){currentDesign=designHistory.pop();document.getElementById('changeFeedback').textContent='Could not apply change: '+err.message;}};
+document.getElementById('applyChangeBtn').onclick=async()=>{
+ const btn=document.getElementById('applyChangeBtn'),feedback=document.getElementById('changeFeedback'),prompt=document.getElementById('changePrompt');
+ if(!currentDesign){toast('Create your first 3D drawing before editing it.');return;}
+ const instruction=prompt.value.trim();if(!instruction){feedback.textContent='Describe the change you want first.';return;}
+ btn.disabled=true;btn.textContent='Understanding…';feedback.textContent='AI is interpreting your instruction and checking the current drawing…';
+ try{
+  let next,changed=[];
+  if(window.DocuWorksAI?.askDesign){
+   const answer=await window.DocuWorksAI.askDesign(instruction,currentDesign);
+   const updates=answer.changes||{};
+   next={...currentDesign};
+   for(const key of ['width','depth','floors','floorHeight','windows','doorWidth','style']){
+    if(updates[key]!==null&&updates[key]!==undefined){next[key]=updates[key];changed.push(key);}
+   }
+   if(!changed.length){feedback.textContent=answer.reply||'I could not make that change to this model yet.';return;}
+   feedback.textContent=answer.reply||'I understood the requested changes.';
+  }else{
+   const local=understandChange(instruction);if(local.error){feedback.textContent=local.error;return;}
+   next=local.design;changed=local.changed;
+  }
+  next.floors=Math.max(1,Math.min(60,Math.round(Number(next.floors)||3)));
+  next.width=Math.max(3,Math.min(200,Number(next.width)||20));next.depth=Math.max(3,Math.min(200,Number(next.depth)||15));
+  next.floorHeight=Math.max(2,Math.min(8,Number(next.floorHeight)||3.2));next.windows=Math.max(0,Math.min(20,Math.round(Number(next.windows)||0)));
+  next.doorWidth=Math.max(1,Math.min(10,Number(next.doorWidth)||2.4));
+  designHistory.push({...currentDesign});currentDesign=next;
+  try{makeBuilding();feedback.textContent+=' Updated the same drawing ('+changed.join(', ')+'). You can keep refining it.';prompt.value='';}
+  catch(err){currentDesign=designHistory.pop();throw err;}
+ }catch(err){feedback.textContent='AI could not update the drawing: '+(err.message||String(err));}
+ finally{btn.disabled=false;btn.textContent='Apply change';}
+};
 document.getElementById('undoChangeBtn').onclick=()=>{if(!designHistory.length)return;currentDesign=designHistory.pop();makeBuilding();document.getElementById('changeFeedback').textContent='Last change undone.';document.getElementById('undoChangeBtn').disabled=!designHistory.length;};
 nameInput.addEventListener('input',e=>document.getElementById('projectTitle').textContent=e.target.value||'Project 360° Viewer');
 
