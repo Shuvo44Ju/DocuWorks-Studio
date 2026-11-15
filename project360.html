@@ -546,8 +546,8 @@ document.getElementById('confirmDesignBtn').onclick=()=>{try{applyPendingDesign(
 document.getElementById('cancelDesignBtn').onclick=()=>{hideDesignPreview();document.getElementById('changeFeedback').textContent='Preview cancelled. Your 3D model is unchanged.';};
 window.DocuWorksProject360={async run(instruction){
  const message=String(instruction||'').trim();if(!message)throw new Error('Tell me what you want to create or change.');
- const asksForExplanation=/^(?:hi|hello|hey|good morning|good afternoon|good evening|what|how|why|when|where|who|can i|can you|could you|would you|tell me|explain|help me understand|i want to know)\\b/i.test(message)||/\\?$/.test(message);
- const requestsEdit=/\\b(?:add(?:ing)?|remove|delete|change|changing|make|making|set|increase|decrease|reduce|widen|wider|narrow|taller|shorter|include|install|create|build|design|generate|replace|move|relocate|shift|position|place|turn it into|convert it into)\\b/i.test(message);
+ const asksForExplanation=/^(?:hi|hello|hey|good morning|good afternoon|good evening|what|how|why|when|where|who|can i|can you|could you|would you|tell me|explain|help me understand|i want to know)\b/i.test(message)||/\?$/.test(message);
+ const requestsEdit=/\b(?:add(?:ing)?|remove|delete|change|changing|make|making|set|increase|decrease|reduce|widen|wider|narrow|taller|shorter|include|install|create|build|design|generate|replace|move|relocate|shift|position|place|turn it into|convert it into)\b/i.test(message);
  if(asksForExplanation&&!requestsEdit&&window.DocuWorksAI?.ask){
   const context=JSON.stringify({currentDesign,importedModel:!!customModel});
   const answer=await window.DocuWorksAI.ask(message,[],context);
