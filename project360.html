@@ -88,7 +88,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div style="flex:1"><div class="label">Wall height (m)</div><input class="field" id="cadWallHeight" type="number" min="2" max="8" step=".1" value="3"></div>
 <div style="flex:1"><div class="label">Wall thickness (m)</div><input class="field" id="cadWallThickness" type="number" min=".08" max="1" step=".02" value=".2"></div></div>
 <div class="cad-actions"><button class="action main" id="cadBuildBtn" type="button">Generate 3D from plan</button><button class="action" id="cadDownloadBtn" type="button">Download converted DXF</button></div>
-<div class="note">Geometry-aware reconstruction: curved ARC/CIRCLE entities and polyline bulges are tessellated; INSERT block references (including nested and repeated blocks) are expanded when definitions are available; neutral-layer entities receive geometry-based role suggestions; closed outlines can become room plates; door swing arcs can indicate openings. Layer mapping remains editable. Unresolved blocks, spline control geometry and ambiguous symbols may still need manual review. Not a construction-ready BIM model.</div>
+<div class="note">Geometry-aware reconstruction: parallel wall faces are paired into one centerline wall with measured thickness; broken and differently segmented wall faces are matched where they overlap. Recognized door swing arcs are aligned to nearby walls to cut openings, and unmarked wall gaps are left open rather than filled. Curved ARC/CIRCLE entities and polyline bulges are tessellated; nested INSERT blocks are expanded when definitions are available. Layer mapping remains editable. Ambiguous symbols may still need manual review. Not a construction-ready BIM model.</div>
 </div></section>
 <section class="panel box">
 <span class="pill">OPTIONAL</span>
@@ -617,9 +617,86 @@ function cadExpandBlocks(doc){
  walk(source,identity,0,[],"0");
  return {entities:expanded,stats};
 }
-function cadInferRoomLoops(entities,tolerance){
+function cadNormalizeWallSegments(input, scale, defaultThickness) {
+ const unit=Math.max(1e-9,Number(scale)||1),target=Math.max(.08,Math.min(1,Number(defaultThickness)||.2));
+ const minGap=Math.max(.025,target*.12)/unit,maxGap=Math.min(.55,Math.max(.16,target*2.5))/unit;
+ const duplicateTol=.002/unit,minPiece=.10/unit,angleLimit=Math.cos(1.5*Math.PI/180);
+ const pointAt=(item,t)=>({x:item.a.x+(item.b.x-item.a.x)*t,y:item.a.y+(item.b.y-item.a.y)*t});
+ const dot=(p,u)=>p.x*u.x+p.y*u.y;
+ const raw=[],seen=new Set();
+ for(const seg of input||[]){
+  const a=seg?.[0],b=seg?.[1];if(!a||!b||![a.x,a.y,b.x,b.y].every(Number.isFinite))continue;
+  const keyPoint=p=>Math.round(p.x/duplicateTol)+","+Math.round(p.y/duplicateTol);
+  const p=keyPoint(a),q=keyPoint(b),key=p<q?p+"|"+q:q+"|"+p;if(seen.has(key))continue;seen.add(key);
+  const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);if(len<.005/unit)continue;
+  let ux=dx/len,uy=dy/len;if(ux<0||(Math.abs(ux)<1e-8&&uy<0)){ux=-ux;uy=-uy;}
+  raw.push({a:{x:a.x,y:a.y},b:{x:b.x,y:b.y},len,ux,uy,occupied:[]});
+ }
+ const candidates=[];
+ if(raw.length<=3500){
+  for(let i=0;i<raw.length;i++){
+   const a=raw[i],u={x:a.ux,y:a.uy},n={x:-u.y,y:u.x},sa0=dot(a.a,u),sa1=dot(a.b,u);
+   for(let j=i+1;j<raw.length;j++){
+    const b=raw[j],parallel=a.ux*b.ux+a.uy*b.uy;if(parallel<angleLimit)continue;
+    const off0=(b.a.x-a.a.x)*n.x+(b.a.y-a.a.y)*n.y,off1=(b.b.x-a.a.x)*n.x+(b.b.y-a.b.y)*n.y;
+    if(off0*off1<=0)continue;
+    const bs0=dot(b.a,u),bs1=dot(b.b,u),lo=Math.max(Math.min(sa0,sa1),Math.min(bs0,bs1)),hi=Math.min(Math.max(sa0,sa1),Math.max(bs0,bs1)),overlap=hi-lo;
+    if(overlap<Math.max(.18/unit,Math.min(a.len,b.len)*.55))continue;
+    const ta=s=>(s-sa0)/(sa1-sa0),tb=s=>(s-bs0)/(bs1-bs0);
+    const pa0=pointAt(a,ta(lo)),pa1=pointAt(a,ta(hi)),pb0=pointAt(b,tb(lo)),pb1=pointAt(b,tb(hi));
+    const g0=(pb0.x-pa0.x)*n.x+(pb0.y-pa0.y)*n.y,g1=(pb1.x-pa1.x)*n.x+(pb1.y-pa1.y)*n.y;
+    const gap=(Math.abs(g0)+Math.abs(g1))/2;if(g0*g1<=0||gap<minGap||gap>maxGap)continue;
+    if(Math.abs(Math.abs(g0)-Math.abs(g1))>Math.max(.035/unit,gap*.12+overlap*.025))continue;
+    const score=Math.abs(gap*unit-target)+Math.abs(g0-g1)*unit*.35+(1-parallel)*.5;
+    candidates.push({i,j,u,lo,hi,score});
+    if(candidates.length>60000)break;
+   }
+   if(candidates.length>60000)break;
+  }
+ }
+ const subtract=(lo,hi,intervals)=>{
+  const clipped=intervals.map(r=>[Math.max(lo,Math.min(r[0],r[1])),Math.min(hi,Math.max(r[0],r[1]))]).filter(r=>r[1]-r[0]>1e-9).sort((a,b)=>a[0]-b[0]);
+  const merged=[];for(const r of clipped){const last=merged[merged.length-1];if(last&&r[0]<=last[1]+1e-8)last[1]=Math.max(last[1],r[1]);else merged.push(r);}
+  const out=[];let cursor=lo;for(const r of merged){if(r[0]>cursor+1e-8)out.push([cursor,r[0]]);cursor=Math.max(cursor,r[1]);}if(cursor<hi-1e-8)out.push([cursor,hi]);return out;
+ };
+ const occupiedOnAxis=(item,u)=>item.occupied.map(r=>{const p=pointAt(item,r[0]),q=pointAt(item,r[1]);return [dot(p,u),dot(q,u)];});
+ const atProjection=(item,s,u)=>{const s0=dot(item.a,u),s1=dot(item.b,u),t=Math.max(0,Math.min(1,(s-s0)/(s1-s0)));return pointAt(item,t);};
+ const output=[],matched=new Set();let pairedSections=0;
+ if(candidates.length<=60000){
+  candidates.sort((a,b)=>a.score-b.score);
+  for(const c of candidates){
+   const a=raw[c.i],b=raw[c.j],fa=subtract(c.lo,c.hi,occupiedOnAxis(a,c.u)),fb=subtract(c.lo,c.hi,occupiedOnAxis(b,c.u));
+   let ia=0,ib=0;
+   while(ia<fa.length&&ib<fb.length){
+    const lo=Math.max(fa[ia][0],fb[ib][0]),hi=Math.min(fa[ia][1],fb[ib][1]);
+    if(hi-lo>=minPiece){
+     const ta0=(lo-dot(a.a,c.u))/(dot(a.b,c.u)-dot(a.a,c.u)),ta1=(hi-dot(a.a,c.u))/(dot(a.b,c.u)-dot(a.a,c.u));
+     const tb0=(lo-dot(b.a,c.u))/(dot(b.b,c.u)-dot(b.a,c.u)),tb1=(hi-dot(b.a,c.u))/(dot(b.b,c.u)-dot(b.a,c.u));
+     const aa=pointAt(a,ta0),ab=pointAt(a,ta1),ba=pointAt(b,tb0),bb=pointAt(b,tb1);
+     const center0={x:(aa.x+ba.x)/2,y:(aa.y+ba.y)/2},center1={x:(ab.x+bb.x)/2,y:(ab.y+bb.y)/2};
+     const measured=(Math.hypot(aa.x-ba.x,aa.y-ba.y)+Math.hypot(ab.x-bb.x,ab.y-bb.y))*.5*unit;
+     output.push({a:center0,b:center1,thickness:Math.max(.04,Math.min(.65,measured)),paired:true});
+     a.occupied.push([Math.min(ta0,ta1),Math.max(ta0,ta1)]);b.occupied.push([Math.min(tb0,tb1),Math.max(tb0,tb1)]);
+     matched.add(c.i+":"+c.j);pairedSections++;
+    }
+    if(fa[ia][1]<fb[ib][1]-1e-8)ia++;else if(fb[ib][1]<fa[ia][1]-1e-8)ib++;else{ia++;ib++;}
+   }
+  }
+ }
+ for(let i=0;i<raw.length;i++){
+  const item=raw[i],remaining=subtract(0,1,item.occupied);
+  for(const r of remaining){const a=pointAt(item,r[0]),b=pointAt(item,r[1]);if(Math.hypot(b.x-a.x,b.y-a.y)>minPiece)output.push({a,b,thickness:target,paired:false});}
+ }
+ const measured=output.filter(s=>s.paired).map(s=>s.thickness);
+ return {segments:output,pairedSections,pairedLinePairs:matched.size,averageThickness:measured.length?measured.reduce((a,b)=>a+b,0)/measured.length:0,pairingSkipped:raw.length>3500||candidates.length>60000,sourceCount:raw.length};
+}
+function cadInferRoomLoops(entities,tolerance,providedWallSegments){
  const segments=[];
- for(const e of entities||[]){if(cadEntityRole(e)!=="Walls")continue;const pts=cadEntityPoints(e);for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];if(Math.hypot(b.x-a.x,b.y-a.y)>tolerance*.5)segments.push({a,b,cuts:[0,1]});}if((e.closed||e.shape)&&pts.length>2){const a=pts[pts.length-1],b=pts[0];segments.push({a,b,cuts:[0,1]});}}
+ if(Array.isArray(providedWallSegments)){
+  for(const pair of providedWallSegments||[]){const a=pair?.[0],b=pair?.[1];if(a&&b&&Math.hypot(b.x-a.x,b.y-a.y)>tolerance*.5)segments.push({a,b,cuts:[0,1]});}
+ }else{
+  for(const e of entities||[]){if(cadEntityRole(e)!=="Walls")continue;const pts=cadEntityPoints(e);for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];if(Math.hypot(b.x-a.x,b.y-a.y)>tolerance*.5)segments.push({a,b,cuts:[0,1]});}if((e.closed||e.shape)&&pts.length>2){const a=pts[pts.length-1],b=pts[0];segments.push({a,b,cuts:[0,1]});}}
+ }
  if(!segments.length||segments.length>6000)return [];
  for(let i=0;i<segments.length;i++)for(let j=i+1;j<segments.length;j++){const p=segments[i].a,r={x:segments[i].b.x-p.x,y:segments[i].b.y-p.y},q=segments[j].a,v={x:segments[j].b.x-q.x,y:segments[j].b.y-q.y},cross=r.x*v.y-r.y*v.x;if(Math.abs(cross)<1e-10)continue;const dx=q.x-p.x,dy=q.y-p.y,t=(dx*v.y-dy*v.x)/cross,u=(dx*r.y-dy*r.x)/cross;if(t>=-1e-7&&t<=1.0000001&&u>=-1e-7&&u<=1.0000001){segments[i].cuts.push(Math.max(0,Math.min(1,t)));segments[j].cuts.push(Math.max(0,Math.min(1,u)));}}
  const nodes=new Map(),adj=new Map(),edges=new Set(),nodeId=p=>{const x=Math.round(p.x/tolerance),y=Math.round(p.y/tolerance),id=x+","+y;if(!nodes.has(id))nodes.set(id,{x:x*tolerance,y:y*tolerance});return id;};
@@ -644,19 +721,34 @@ function cadBuild3D(){
  const wallMat=material(0xd6dee8),columnMat=material(0x64748b),slabMat=material(0xb9c5d5),glassMat=new THREE.MeshStandardMaterial({color:0x69b9df,roughness:.18,metalness:.05,transparent:true,opacity:.48}),frameMat=material(0x526b86),stairMat=material(0x9aa9bc),beamMat=material(0x71849b);
  const created=[],wallSegments=[],openingSegments=[];
  const all=cadDocument.entities||[];
- const pointSegments=(role)=>all.filter(e=>cadEntityRole(e)===role).flatMap(e=>{if(role==="Doors"&&String(e.type).toUpperCase()==="ARC"){const c=e.center||e.centerPoint||{},pts=cadEntityPoints(e);return pts.length?[[{x:c.x||0,y:c.y||0},pts[pts.length-1]]]:[];}const pts=cadEntityPoints(e);const out=[];for(let k=1;k<pts.length;k++)out.push([pts[k-1],pts[k]]);if((e.closed||e.shape)&&pts.length>2)out.push([pts[pts.length-1],pts[0]]);return out;});
- ["Doors","Windows"].forEach(role=>pointSegments(role).forEach(seg=>openingSegments.push({role,a:seg[0],b:seg[1]})));
+ const pointSegments=(role)=>all.filter(e=>cadEntityRole(e)===role).flatMap(e=>{const pts=cadEntityPoints(e);const out=[];for(let k=1;k<pts.length;k++)out.push([pts[k-1],pts[k]]);if((e.closed||e.shape)&&pts.length>2)out.push([pts[pts.length-1],pts[0]]);return out;});
  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const project=(p,a,ux,uy)=>({t:(p.x-a.x)*ux+(p.y-a.y)*uy,off:Math.abs((p.x-a.x)*uy-(p.y-a.y)*ux)});
+ const wallResult=cadNormalizeWallSegments(pointSegments("Walls"),scale,thick),walls=wallResult.segments;
+ pointSegments("Windows").forEach(seg=>openingSegments.push({role:"Windows",a:seg[0],b:seg[1]}));
+ all.filter(e=>cadEntityRole(e)==="Doors").forEach(e=>{
+  if(String(e.type||"").toUpperCase()==="ARC"){
+   const center=e.center||e.centerPoint||{x:0,y:0},pts=cadEntityPoints(e),candidates=[pts[0],pts[pts.length-1]].filter(Boolean);let best=null;
+   for(const endpoint of candidates){const rayLength=dist(center,endpoint);if(rayLength*scale<.45)continue;
+    for(const wall of walls){const dx=wall.b.x-wall.a.x,dy=wall.b.y-wall.a.y,len=Math.hypot(dx,dy);if(len<.05)continue;const ux=dx/len,uy=dy/len,p=project(center,wall.a,ux,uy),q=project(endpoint,wall.a,ux,uy),alignment=Math.abs(q.t-p.t)/Math.max(rayLength,1e-9),off=Math.max(p.off,q.off);
+     if(alignment<.72||off*scale>Math.max(.12,thick*1.6)||Math.max(p.t,q.t)<-.15/scale||Math.min(p.t,q.t)>len+.15/scale)continue;
+     const score=off*scale+(1-alignment)*.6;if(!best||score<best.score)best={endpoint,score};
+    }
+   }
+   if(best)openingSegments.push({role:"Doors",a:center,b:best.endpoint});
+  }else{
+   const pts=cadEntityPoints(e);for(let k=1;k<pts.length;k++)openingSegments.push({role:"Doors",a:pts[k-1],b:pts[k]});if((e.closed||e.shape)&&pts.length>2)openingSegments.push({role:"Doors",a:pts[pts.length-1],b:pts[0]});
+  }
+ });
  const addBox=(w,h,d,x,y,z,mat,rot=0)=>{if(w<=.015||h<=.015||d<=.015)return;const o=cube(w,h,d,x,y,z,mat,rot);created.push(o);return o;};
- const addWallPiece=(a,b,z0,z1,offset=0)=>{const dx=(b.x-a.x)*scale,dy=(b.y-a.y)*scale,len=Math.hypot(dx,dy);if(len<.025||len>500)return;const ux=dx/len,uz=-dy/len;const midx=(a.x+b.x)*.5*scale+(-uz)*offset,midz=-(a.y+b.y)*.5*scale+ux*offset;addBox(len,z1-z0,thick,midx,(z0+z1)/2,midz,wallMat,Math.atan2(dy,dx));};
- const walls=pointSegments("Walls");const drawingBounds=cadBounds(all),roomTolerance=Math.max(.005,Math.min(.05,Math.max(drawingBounds?.width||0,drawingBounds?.height||0)*.0005));const explicitRoomEntities=all.filter(e=>["Rooms","Floors"].includes(cadEntityRole(e))&&(e.closed||e.shape)&&cadEntityPoints(e).length>=3);const inferredRoomLoops=explicitRoomEntities.length?[]:cadInferRoomLoops(all,roomTolerance);
- walls.forEach(([a,b])=>{const len=dist(a,b);if(len*scale<.05)return;const ux=(b.x-a.x)/len,uy=(b.y-a.y)/len;const cuts=[];openingSegments.forEach(o=>{const p=project(o.a,a,ux,uy),q=project(o.b,a,ux,uy),olen=dist(o.a,o.b);if(p.off*scale<=Math.max(.12,thick*1.5)&&q.off*scale<=Math.max(.12,thick*1.5)&&olen*scale>=.45){const lo=Math.max(.04,Math.min(p.t,q.t)),hi=Math.min(len-.04,Math.max(p.t,q.t));if(hi-lo>=.45)cuts.push({lo,hi,role:o.role});}});
+ const addWallPiece=(a,b,z0,z1,offset=0,wallWidth=thick)=>{const dx=(b.x-a.x)*scale,dy=(b.y-a.y)*scale,len=Math.hypot(dx,dy);if(len<.025||len>500)return;const ux=dx/len,uz=-dy/len;const midx=(a.x+b.x)*.5*scale+(-uz)*offset,midz=-(a.y+b.y)*.5*scale+ux*offset;addBox(len,z1-z0,wallWidth,midx,(z0+z1)/2,midz,wallMat,Math.atan2(dy,dx));};
+ const drawingBounds=cadBounds(all),roomTolerance=Math.max(.005,Math.min(.05,Math.max(drawingBounds?.width||0,drawingBounds?.height||0)*.0005));const explicitRoomEntities=all.filter(e=>["Rooms","Floors"].includes(cadEntityRole(e))&&(e.closed||e.shape)&&cadEntityPoints(e).length>=3);const inferredRoomLoops=explicitRoomEntities.length?[]:cadInferRoomLoops(all,roomTolerance,walls.map(w=>[w.a,w.b]));
+ walls.forEach(wall=>{const {a,b}=wall,wallThickness=wall.thickness||thick,len=dist(a,b);if(len*scale<.05)return;const ux=(b.x-a.x)/len,uy=(b.y-a.y)/len;const cuts=[];openingSegments.forEach(o=>{const p=project(o.a,a,ux,uy),q=project(o.b,a,ux,uy),olen=dist(o.a,o.b);if(p.off*scale<=Math.max(.12,thick*1.5)&&q.off*scale<=Math.max(.12,thick*1.5)&&olen*scale>=.45){const lo=Math.max(.04,Math.min(p.t,q.t)),hi=Math.min(len-.04,Math.max(p.t,q.t));if(hi-lo>=.45)cuts.push({lo,hi,role:o.role});}});
    cuts.sort((x,y)=>x.lo-y.lo);const merged=[];cuts.forEach(c=>{const last=merged[merged.length-1];if(last&&c.lo<=last.hi+.05){last.hi=Math.max(last.hi,c.hi);if(c.role==="Doors")last.role="Doors";}else merged.push({...c});});
-   let cursor=0;merged.forEach(c=>{if(c.lo>cursor){const p={x:a.x+ux*cursor,y:a.y+uy*cursor},q={x:a.x+ux*c.lo,y:a.y+uy*c.lo};addWallPiece(p,q,0,height);}
+   let cursor=0;merged.forEach(c=>{if(c.lo>cursor){const p={x:a.x+ux*cursor,y:a.y+uy*cursor},q={x:a.x+ux*c.lo,y:a.y+uy*c.lo};addWallPiece(p,q,0,height,0,wallThickness);}
      const p={x:a.x+ux*c.lo,y:a.y+uy*c.lo},q={x:a.x+ux*c.hi,y:a.y+uy*c.hi};
-     if(c.role==="Doors"){addWallPiece(p,q,doorH,height);const mid={x:(p.x+q.x)/2,y:(p.y+q.y)/2};const w=(c.hi-c.lo)*scale;addBox(w,.07,.07,mid.x*scale,doorH-.035,-mid.y*scale,frameMat,Math.atan2((q.y-p.y),(q.x-p.x)));const leaf=addBox(Math.max(.05,w-.08,0),doorH-.08,.045,mid.x*scale,doorH/2,-mid.y*scale,frameMat,Math.atan2((q.y-p.y),(q.x-p.x)));}
-     else {addWallPiece(p,q,0,windowSill);addWallPiece(p,q,windowSill+windowH,height);const mid={x:(p.x+q.x)/2,y:(p.y+q.y)/2};const w=(c.hi-c.lo)*scale;addBox(w,windowH,.045,mid.x*scale,windowSill+windowH/2,-mid.y*scale,glassMat,Math.atan2((q.y-p.y),(q.x-p.x)));addBox(w,.055,.08,mid.x*scale,windowSill,-mid.y*scale,frameMat,Math.atan2((q.y-p.y),(q.x-p.x)));addBox(w,.055,.08,mid.x*scale,windowSill+windowH,-mid.y*scale,frameMat,Math.atan2((q.y-p.y),(q.x-p.x)));}
+     if(c.role==="Doors"){addWallPiece(p,q,doorH,height,0,wallThickness);const mid={x:(p.x+q.x)/2,y:(p.y+q.y)/2};const w=(c.hi-c.lo)*scale;addBox(w,.07,.07,mid.x*scale,doorH-.035,-mid.y*scale,frameMat,Math.atan2((q.y-p.y),(q.x-p.x)));const leaf=addBox(Math.max(.05,w-.08,0),doorH-.08,.045,mid.x*scale,doorH/2,-mid.y*scale,frameMat,Math.atan2((q.y-p.y),(q.x-p.x)));}
+     else {addWallPiece(p,q,0,windowSill,0,wallThickness);addWallPiece(p,q,windowSill+windowH,height,0,wallThickness);const mid={x:(p.x+q.x)/2,y:(p.y+q.y)/2};const w=(c.hi-c.lo)*scale;addBox(w,windowH,.045,mid.x*scale,windowSill+windowH/2,-mid.y*scale,glassMat,Math.atan2((q.y-p.y),(q.x-p.x)));addBox(w,.055,.08,mid.x*scale,windowSill,-mid.y*scale,frameMat,Math.atan2((q.y-p.y),(q.x-p.x)));addBox(w,.055,.08,mid.x*scale,windowSill+windowH,-mid.y*scale,frameMat,Math.atan2((q.y-p.y),(q.x-p.x)));}
      cursor=Math.max(cursor,c.hi);
    });
    if(cursor<len){const p={x:a.x+ux*cursor,y:a.y+uy*cursor};addWallPiece(p,b,0,height);}
@@ -672,7 +764,7 @@ function cadBuild3D(){
  // Stairs and lift layers are reconstructed from their plan extents, with stair treads and a lift core.
  ["Stairs","Elevators"].forEach(role=>{const segs=pointSegments(role);if(!segs.length)return;const pts=segs.flat();const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),minX=Math.min(...xs)*scale,maxX=Math.max(...xs)*scale,minY=Math.min(...ys)*scale,maxY=Math.max(...ys)*scale,w=maxX-minX,d=maxY-minY;if(w<.5||d<.5)return;const cx=(minX+maxX)/2,cz=-(minY+maxY)/2;if(role==="Elevators"){addBox(w,height,d,cx,height/2,cz,frameMat);addBox(Math.max(.1,w-.12),height-.15,Math.max(.1,d-.12),cx,height/2,cz,slabMat);}else{const n=12;for(let k=0;k<n;k++){const x=minX+(k+.5)*w/n;addBox(w/n*.92,(k+1)*height/n,d*.55,x,(k+.5)*height/n,cz,stairMat);}}});
  if(!created.length){toast("No 3D geometry generated. Map wall, column, room or floor layers first.");return;}
- currentDesign=null;customModel=false;model=null;el("emptyView").style.display="none";fitParts();el("modelStatus").textContent="Architectural 3D generated · "+explicitRoomEntities.length+" explicit room outlines · "+inferredRoomLoops.length+" inferred enclosed spaces";el("changeFeedback").textContent="CAD reconstruction generated. "+(inferredRoomLoops.length?inferredRoomLoops.length+" enclosed spaces inferred from connected wall lines. ":"")+"Review openings, structural elements and dimensions; this is a visual concept, not a verified BIM model.";toast("Architectural 3D reconstruction generated");
+ currentDesign=null;customModel=false;model=null;el("emptyView").style.display="none";fitParts();const wallNote=wallResult.pairingSkipped?"Wall-face pairing skipped because this drawing has a very large wall-segment count.":wallResult.pairedSections?wallResult.pairedSections+" paired wall sections merged · average measured thickness "+wallResult.averageThickness.toFixed(2)+" m":"No paired wall faces detected; the selected default thickness was used.";el("modelStatus").textContent="Architectural 3D generated · "+explicitRoomEntities.length+" explicit room outlines · "+inferredRoomLoops.length+" inferred enclosed spaces · "+wallResult.pairedSections+" paired wall sections";el("changeFeedback").textContent="CAD reconstruction generated. "+wallNote+" "+(inferredRoomLoops.length?inferredRoomLoops.length+" enclosed spaces inferred from normalized wall centerlines. ":"")+"Door gaps are not bridged with solid walls; recognized door markers are used as opening cuts. Review the result because this is a visual concept, not a verified BIM model.";toast("Architectural 3D reconstruction generated");
 }
 el("cadFile").addEventListener("change",e=>{const file=e.target.files?.[0];if(file)cadLoadFile(file)});el("cadSampleBtn").addEventListener("click",cadMakeSample);el("cadClearBtn").addEventListener("click",()=>{cadDocument=null;cadDxfText="";cadLayers=[];el("cadMappingWrap").classList.add("cad-hidden");el("cadStatus").textContent="Floor plan cleared.";});el("cadBuildBtn").addEventListener("click",cadBuild3D);el("cadDownloadBtn").addEventListener("click",()=>{if(!cadDxfText){toast("The sample plan has no source DXF to download.");return;}download(new Blob([cadDxfText],{type:"application/dxf"}),(cadFileName.replace(/\.[^.]+$/,"")||"floor-plan")+".dxf");});
 
