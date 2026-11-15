@@ -54,8 +54,11 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 </section>
 
 <section class="panel box">
-<span class="pill">STEP 2 · BUILDING SETTINGS</span>
-<h3>CREATE THE 3D STRUCTURE</h3>
+<span class="pill">STEP 2 · OPTIONAL SETTINGS</span>
+<h3>BUILDING SETTINGS <span style="font-weight:500;color:#8a98aa">· optional</span></h3>
+<div class="note" style="margin:0 0 10px">You can leave all of these alone. Your project description is enough to create a concept model. Use these only when you want to control the size and structure.</div>
+<div style="display:flex;align-items:center;gap:7px;margin-bottom:9px"><input type="checkbox" id="useSettings"><label for="useSettings" style="font-size:10px;font-weight:800;color:#516783">Use my building settings</label></div>
+<div id="settingsFields" style="display:none">
 <div class="row"><div style="flex:1"><div class="label">Width (m)</div><input class="field" id="bWidth" type="number" min="3" max="200" value="20"></div><div style="flex:1"><div class="label">Depth (m)</div><input class="field" id="bDepth" type="number" min="3" max="200" value="15"></div></div>
 <div class="row"><div style="flex:1"><div class="label">Floors</div><input class="field" id="floors" type="number" min="1" max="30" value="3"></div><div style="flex:1"><div class="label">Floor height (m)</div><input class="field" id="floorH" type="number" min="2" max="8" step=".1" value="3.2"></div></div>
 <div class="row"><div style="flex:1"><div class="label">Windows / side</div><input class="field" id="windows" type="number" min="0" max="20" value="5"></div><div style="flex:1"><div class="label">Entrance width (m)</div><input class="field" id="doorW" type="number" min="1" max="10" step=".1" value="2.4"></div></div>
@@ -63,7 +66,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <select class="field" id="style"><option value="modern">Modern</option><option value="industrial">Industrial</option><option value="clean">Clean / Laboratory</option><option value="simple">Simple</option></select>
 <button class="action main" id="createBtn" style="width:100%;margin-top:8px">Create 3D Project</button>
 <div class="note">This creates a free parametric concept model. It is not a full BIM/CAD replacement.</div>
-</section>
+</div></section>
 
 <section class="panel box">
 <span class="pill">OPTIONAL</span>
@@ -175,6 +178,7 @@ async function makeVideo(){
  function tick(now){const pct=Math.min((now-start)/duration,1);progress.style.width=(pct*100)+'%';controls.setAzimuthalAngle(az+pct*Math.PI*2);controls.update();if(pct<1)requestAnimationFrame(tick);else rec.stop()}
  requestAnimationFrame(tick);await done;download(new Blob(chunks,{type:mime}),safe(projectData().name)+'-360-video.webm');btn.disabled=false;btn.textContent='Create 360° Video';toast('360° video created');autoRotate=old;controls.autoRotate=old
 }
+document.getElementById('useSettings').onchange=e=>document.getElementById('settingsFields').style.display=e.target.checked?'block':'none';
 document.getElementById('videoBtn').onclick=makeVideo;
 function resize(){const w=wrap.clientWidth,h=wrap.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();
 function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();
