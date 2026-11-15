@@ -169,8 +169,8 @@ document.getElementById('htmlBtn').onclick=()=>{const p=projectData();const h='<
 async function makeVideo(){
  if(!model&&!parts.length){toast('Create the 3D project first');return}
  const btn=document.getElementById('videoBtn');btn.disabled=true;btn.textContent='Recording…';const progress=document.getElementById('progress');progress.style.width='0%';
+ if(!canvas.captureStream||typeof MediaRecorder==='undefined'){toast('360° video is not supported by this browser. Try Chrome or Edge on desktop.');return}
  const stream=canvas.captureStream(30);let mime='video/webm;codecs=vp9';if(!MediaRecorder.isTypeSupported(mime))mime='video/webm;codecs=vp8';if(!MediaRecorder.isTypeSupported(mime))mime='video/webm';
- const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8000000}),chunks=[];rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
  const done=new Promise(resolve=>rec.onstop=resolve);rec.start();const start=performance.now(),duration=30000,az=controls.getAzimuthalAngle(),old=autoRotate;controls.autoRotate=false;
  function tick(now){const pct=Math.min((now-start)/duration,1);progress.style.width=(pct*100)+'%';controls.setAzimuthalAngle(az+pct*Math.PI*2);controls.update();if(pct<1)requestAnimationFrame(tick);else rec.stop()}
  requestAnimationFrame(tick);await done;download(new Blob(chunks,{type:mime}),safe(projectData().name)+'-360-video.webm');btn.disabled=false;btn.textContent='Create 360° Video';toast('360° video created');autoRotate=old;controls.autoRotate=old
