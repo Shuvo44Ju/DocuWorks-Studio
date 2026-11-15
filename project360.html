@@ -804,7 +804,10 @@ function cadShowLayers(){
  cadLayers.forEach(layer=>{
   const row=document.createElement("div");row.className="cad-layer-row";
   const info=document.createElement("div"),title=document.createElement("strong"),sub=document.createElement("small");
-  title.textContent=layer.name;sub.textContent=layer.count+" entities · suggested: "+(layer.role==="Ignore"?"geometry review":layer.role);info.append(title,sub);
+  const layerEntities=(cadDocument?.entities||[]).filter(e=>(e.layer||"0")===layer.name),suggestions=new Map();
+  layerEntities.forEach(e=>{const role=cadGeometryRole(e);if(role!=="Ignore")suggestions.set(role,(suggestions.get(role)||0)+1);});
+  const suggested=[...suggestions.entries()].sort((a,b)=>b[1]-a[1])[0];
+  title.textContent=layer.name;sub.textContent=layer.count+" entities · auto geometry: "+(suggested?suggested[0]+" ("+suggested[1]+")":(layer.role==="Ignore"?"needs review":layer.role));info.append(title,sub);
   const select=document.createElement("select");select.className="field";select.dataset.layer=layer.name;
   CAD_ROLES.forEach(role=>{const opt=document.createElement("option");opt.value=role;opt.textContent=role;select.appendChild(opt)});
   select.value=layer.role;select.addEventListener("change",()=>{layer.role=select.value;layer.manual=true;sub.textContent=layer.count+" entities · manually set: "+layer.role;cadRefreshIntelligence();});
@@ -971,7 +974,7 @@ function cadFloorListRender(){
 function cadActivateFloor(index,snapshot=true){
  if(index<0||index>=cadFloors.length)return;if(snapshot)cadSnapshotActiveFloor();cadActiveFloorIndex=index;
  const f=cadFloors[index];cadDocument=f.document;cadDxfText=f.dxfText;cadFileName=f.fileName;cadLayers=f.layers;
- cadPrepareAnalysis();el("cadMappingWrap").classList.remove("cad-hidden");cadShowLayers();cadFloorListRender();
+ el("cadMappingWrap").classList.remove("cad-hidden");cadShowLayers();cadFloorListRender();
  const b=cadBounds(cadDocument.entities);el("cadStatus").textContent="Editing "+(f.label||cadDefaultFloorName(index))+" · "+cadDocument.entities.length+" entities · "+cadLayers.length+" layers"+(b?" · "+b.width.toFixed(2)+" × "+b.height.toFixed(2)+" drawing units":"")+". Each floor retains its own layer mapping.";
 }
 function cadSetDocument(doc,dxfText,fileName,options={}){
