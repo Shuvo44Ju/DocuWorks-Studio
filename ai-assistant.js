@@ -76,7 +76,18 @@ function mountAssistant() {
     const context=panel.querySelector("#dw-ai-include").checked?toolContext():"";
     add("user",message);history.push({role:"user",content:message});input.value="";send.disabled=true;send.textContent="…";
     const wait=document.createElement("div");wait.className="dw-ai-msg bot";wait.textContent="Thinking…";messages.appendChild(wait);messages.scrollTop=messages.scrollHeight;
-    try{const result=await callAI({tool:AI_TOOL,message,history:history.slice(0,-1),context});wait.remove();add("assistant",result.reply||"I couldn't prepare a response.");history.push({role:"assistant",content:result.reply||""});if(history.length>12)history.splice(0,history.length-12);}
+    try{
+      if(AI_TOOL==="project360" && window.DocuWorksProject360?.run){
+        wait.textContent="Understanding your instruction and updating the 3D project…";
+        const reply=await window.DocuWorksProject360.run(message);
+        wait.remove();add("assistant",reply);
+      }else{
+        const result=await callAI({tool:AI_TOOL,message,history:history.slice(0,-1),context});
+        wait.remove();add("assistant",result.reply||"I couldn't prepare a response.");
+        history.push({role:"assistant",content:result.reply||""});
+        if(history.length>12)history.splice(0,history.length-12);
+      }
+    }
     catch(e){wait.remove();add("assistant","I couldn't reach the AI service. "+e.message);}
     finally{send.disabled=false;send.textContent="Send";input.focus();}
   }
