@@ -584,7 +584,7 @@ function cadExpandBlocks(doc){
     const local={a:la,b:lb,c:lc,d:ld,tx:(pos.x||0)-la*(base.x||0)-lc*(base.y||0),ty:(pos.y||0)-lb*(base.x||0)-ld*(base.y||0)};
     const combined=compose(m,local),rows=Math.max(1,Math.min(50,Number(e.rowCount)||1)),cols=Math.max(1,Math.min(50,Number(e.columnCount)||1)),rowGap=Number(e.rowSpacing)||0,colGap=Number(e.columnSpacing)||0;
     for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
-     const arrayOffset=compose(combined,{a:1,b:0,c:0,d:1,tx:combined.a*(c*colGap)+combined.c*(r*rowGap),ty:combined.b*(c*colGap)+combined.d*(r*rowGap)});
+     const arrayOffset={...combined,tx:combined.tx+combined.a*(c*colGap)+combined.c*(r*rowGap),ty:combined.ty+combined.b*(c*colGap)+combined.d*(r*rowGap)};
      walk(block.entities,arrayOffset,depth+1,path.concat(String(name)),e.layer||inheritedLayer||"0");
     }
     continue;
