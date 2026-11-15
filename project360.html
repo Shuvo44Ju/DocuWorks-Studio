@@ -27,7 +27,7 @@ button,input,textarea{font:inherit}button{cursor:pointer}.app{height:100vh;displ
 <aside class="side">
 <h2>Project 360</h2><p>Build a shareable 3D project presentation.</p>
 <div class="steps">
-<div class="step active"><div class="num">1</div><div><strong>Project details</strong><span>Word or manual information</span></div></div>
+<div class="step active"><div class="num">1</div><div><strong>Project details</strong><span>Write, paste or upload Word</span></div></div>
 <div class="step"><div class="num">2</div><div><strong>3D model</strong><span>GLB / GLTF / OBJ</span></div></div>
 <div class="step"><div class="num">3</div><div><strong>Presentation</strong><span>Rotate, inspect, annotate</span></div></div>
 <div class="step"><div class="num">4</div><div><strong>360° video</strong><span>Record locally in browser</span></div></div>
@@ -46,11 +46,11 @@ button,input,textarea{font:inherit}button{cursor:pointer}.app{height:100vh;displ
 <h3>PROJECT INFORMATION</h3>
 <div class="label">Project name</div><input class="field" id="name" placeholder="e.g. Pharmaceutical Laboratory">
 <div class="row" style="margin-top:9px"><div style="flex:1"><div class="label">Location</div><input class="field" id="location" placeholder="Dhaka"></div><div style="flex:1"><div class="label">Revision</div><input class="field" id="revision" placeholder="Rev. 01"></div></div>
-<div class="label">Description / technical details</div><textarea class="field details" id="details" placeholder="Paste project details here, or import a Word document..."></textarea>
+<div class="label">Your project thoughts / design brief</div><textarea class="field details" id="details" placeholder="Write or paste your project thoughts here. You can describe the building, design concept, rooms, dimensions, materials, equipment, layout, technical requirements, special features, or anything you want people to understand about the project..."></textarea><div class="note">You can type freely or paste text from an email, note, PDF, or any other source. A Word file is not required.</div>
 </section>
 <section class="panel box">
-<h3>IMPORT PROJECT DETAILS</h3>
-<div class="drop" id="docDrop"><strong>Drop a Word document here</strong>.docx files are read locally in your browser.<br><label class="action" style="display:inline-block;margin-top:8px;padding:7px 10px">Choose Word file<input type="file" id="docFile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label></div>
+<h3>OR UPLOAD A WORD DOCUMENT (OPTIONAL)</h3>
+<div class="drop" id="docDrop"><strong>Already have your project description in Word?</strong>Drop it here, or select a .docx file. Its text will be imported into the project thoughts box above.<br><label class="action" style="display:inline-block;margin-top:8px;padding:7px 10px">Choose Word file<input type="file" id="docFile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label></div>
 <div class="file" id="docFileInfo" style="display:none"><span id="docName"></span><button id="clearDoc">Remove</button></div>
 </section>
 <section class="panel box">
