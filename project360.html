@@ -308,7 +308,7 @@ function makeBuilding(){
  const towerW=Math.min(3.4,Math.max(2.4,W*.18)),towerD=Math.min(5.4,Math.max(3.8,D*.32));
  function exteriorPlacement(layout,elementWidth,alongLength){
   const side=layout?.side||'right',offset=Math.max(-.4,Math.min(.4,Number(layout?.offset)||0));
-  const clearance=.35,half=elementWidth/2,along=offset*alongLength;
+  const clearance=.35,half=elementWidth/2,sideLength=(side==='front'||side==='back')?W:D,along=offset*sideLength;
   if(side==='left')return{x:-W/2-clearance-half,z:along,rotation:0};
   if(side==='front')return{x:along,z:-D/2-clearance-half,rotation:Math.PI/2};
   if(side==='back')return{x:along,z:D/2+clearance+half,rotation:Math.PI/2};
@@ -316,7 +316,7 @@ function makeBuilding(){
  }
  function elementLayout(list,index,count,kind){
   const configured=(Array.isArray(list)?list:[]).find(p=>Number(p?.index)===index);
-  const defaultOffset=kind==='elevator'?((index-(count+1)/2)*.22):((index-(count+1)/2)*.34);
+  const defaultOffset=kind==='elevator'?(-.22+(index-(count+1)/2)*.22):((index-(count+1)/2)*.34);
   return configured||{side:'right',offset:defaultOffset};
  }
  for(let c=0;c<stairCount;c++){
