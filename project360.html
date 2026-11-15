@@ -165,8 +165,11 @@ function elementPlacementUpdates(text,kind,currentCount=0){
  inferred=Math.max(1,Math.min(max,inferred||1));
  const index=ordinal?ordinalMap[ordinal[1]]:numbered?Number(numbered[1]):1;
  const all=/\b(?:all|every)\s+(?:the\s+)?(?:staircases?|stairs?|stairwells?|elevators?|lifts?)\b/.test(t);
- const indices=all?Array.from({length:Math.min(max,Number(currentCount)||inferred)},(_,i)=>i+1):[index];
- return indices.filter(i=>i>=1&&i<=max).map(index=>({index,side,offset}));
+ const pluralTarget=/\b(?:staircases|stairs|stairwells|elevators|lifts)\b/.test(t);
+ if(inferred>1&&!ordinal&&!numbered&&!all&&!pluralTarget)return [];
+ const moveAll=all||(pluralTarget&&inferred>1);
+ const indices=moveAll?Array.from({length:Math.min(max,inferred)},(_,i)=>i+1):[index];
+ return indices.filter(i=>i>=1&&i<=max&&i<=inferred).map(index=>({index,side,offset}));
 }
 function mergePositionUpdates(existing,updates){
  const map=new Map((Array.isArray(existing)?existing:[]).filter(x=>x&&Number.isInteger(Number(x.index))).map(x=>[Number(x.index),{index:Number(x.index),side:x.side,offset:Number(x.offset)||0}]));
@@ -415,7 +418,11 @@ function understandChange(raw){
  else if(/laboratory|lab|cleanroom/i.test(t)){d.style='clean';changed.push('style');}
  else if(/simple|basic/i.test(t)){d.style='simple';changed.push('style');}
  else if(/modern|glass facade|curtain wall/i.test(t)){d.style='modern';changed.push('style');}
- if(!changed.length)return {error:'I could not identify that change yet. Try “make it 8 floors”, “40m wide”, “move the staircase to the left side”, “move the second elevator to the back-right corner”, or “change to laboratory style”.'};
+ if(!changed.length){
+  if(/(?:staircases?|stairs?|stairwells?)/i.test(t)&&Number(d.staircases)>1)return {error:'There are '+d.staircases+' staircases. Tell me which one to move (for example, “move the second staircase to the left side”) or say “move all staircases”.'};
+  if(/(?:elevators?|lifts?)/i.test(t)&&Number(d.elevators)>1)return {error:'There are '+d.elevators+' elevators. Tell me which one to move (for example, “move elevator 2 to the back-right corner”) or say “move all elevators”.'};
+  return {error:'I could not identify that change yet. Try “make it 8 floors”, “40m wide”, “move the staircase to the left side”, “move the second elevator to the back-right corner”, or “change to laboratory style”.'};
+ }
  d.floors=Math.max(1,Math.min(60,Math.round(d.floors||3)));d.width=Math.max(3,Math.min(200,d.width||20));d.depth=Math.max(3,Math.min(200,d.depth||15));d.floorHeight=Math.max(2,Math.min(8,d.floorHeight||3.2));d.windows=Math.max(0,Math.min(20,d.windows??5));d.doorWidth=Math.max(1,Math.min(10,Number(d.doorWidth)||2.4));d.staircases=Math.max(0,Math.min(3,Math.round(Number(d.staircases)||0)));d.elevators=Math.max(0,Math.min(4,Math.round(Number(d.elevators)||0)));return {design:d,changed:[...new Set(changed)]};
 }
 async function resolveDesignChange(instruction){
