@@ -1,4 +1,5 @@
 import { onRequestGet, onRequestPost, onRequestOptions } from "./functions/api/convert.js";
+import { onRequestPost as onAssistantPost, onRequestOptions as onAssistantOptions } from "./functions/api/assistant.js";
 
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -14,6 +15,12 @@ function jsonResponse(data, status = 200) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    if (url.pathname === "/api/assistant" || url.pathname === "/api/assistant/") {
+      if (request.method === "OPTIONS") return onAssistantOptions({ request, env, ctx, params: {} });
+      if (request.method === "POST") return onAssistantPost({ request, env, ctx, params: {} });
+      return jsonResponse({ error: "Method not allowed." }, 405);
+    }
 
     if (url.pathname === "/api/convert" || url.pathname === "/api/convert/") {
       const context = { request, env, ctx, params: {} };
