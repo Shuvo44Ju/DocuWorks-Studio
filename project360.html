@@ -727,6 +727,7 @@ function cadMakeSample(){
  line("A-DOOR",5,0.1,7,0.1);
  ents.push({type:"ARC",layer:"A-DOOR",center:{x:6.1,y:3.5},radius:.9,startAngle:0,endAngle:90});
  line("A-WINDOW",4,11.9,8,11.9);
+ line("A-GLASS-DETAIL",9,11.86,11,11.86);line("A-GLASS-DETAIL",9,11.94,11,11.94);
  rect("S-COLUMN",.35,.35,.35,.35);rect("S-COLUMN",15.3,.35,.35,.35);rect("S-COLUMN",.35,11.3,.35,.35);rect("S-COLUMN",15.3,11.3,.35,.35);
  line("A-STAIR",12,8.5,15,8.5);line("A-STAIR",12,9.2,15,9.2);
  line("A-ELEV",10,9,11.5,9);line("A-ELEV",11.5,9,11.5,11);
@@ -753,7 +754,7 @@ function cadBuild3D(){
  let detectedDoorCount=0,detectedWindowCount=0,uncertainOpeningCount=0;
  pointSegments("Windows").forEach(seg=>{openingSegments.push({role:"Windows",a:seg[0],b:seg[1],confidence:"layer"});detectedWindowCount++;});
  // Infer glazing from two short, close, parallel linework segments lying along the same wall.
- const looseSegments=all.filter(e=>cadEntityRole(e)==="Ignore").flatMap(e=>{const pts=cadEntityPoints(e),out=[];for(let k=1;k<pts.length;k++)out.push([pts[k-1],pts[k]]);return out;});
+ const looseSegments=all.filter(e=>["Ignore","Walls"].includes(cadEntityRole(e))).flatMap(e=>{const pts=cadEntityPoints(e),out=[];for(let k=1;k<pts.length;k++)out.push([pts[k-1],pts[k]]);return out;});
  const autoWindowKeys=new Set();
  for(let i=0;i<looseSegments.length&&autoWindowKeys.size<120;i++){
   const [a,b]=looseSegments[i],dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);if(len*scale<.45||len*scale>4.5)continue;
@@ -761,7 +762,7 @@ function cadBuild3D(){
   for(let j=i+1;j<looseSegments.length;j++){
    const [c,d]=looseSegments[j],ex=d.x-c.x,ey=d.y-c.y,elen=Math.hypot(ex,ey);if(elen*scale<.45||elen*scale>4.5||Math.abs((dx*ex+dy*ey)/(len*elen))<.985)continue;
    const nx=-uy,ny=ux,off0=(c.x-a.x)*nx+(c.y-a.y)*ny,off1=(d.x-a.x)*nx+(d.y-a.y)*ny,gap=Math.abs((off0+off1)*.5)*scale;
-   if(off0*off1<=0||gap<.015||gap>.12)continue;
+   if(gap<.015||gap>.12)continue;
    const projectS=p=>(p.x-a.x)*ux+(p.y-a.y)*uy,lo=Math.max(0,Math.min(projectS(c),projectS(d))),hi=Math.min(len,Math.max(projectS(c),projectS(d))),overlap=hi-lo;
    if(overlap*scale<.45||overlap*scale>4.5)continue;
    const midOff=(off0+off1)*.5,mid=(p)=>({x:a.x+ux*p+nx*midOff,y:a.y+uy*p+ny*midOff}),p0=mid(lo),p1=mid(hi);
