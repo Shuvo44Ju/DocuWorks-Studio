@@ -156,8 +156,9 @@ function interpretPrompt(text){
   const g=t.match(/\bg\s*\+\s*(\d+)\b/i);
   if(g){floors=Number(g[1])+1;levelMatch=g[0]+' (ground + upper levels)'}
  }
- const dim=t.match(/\b(\d+(?:\.\d+)?)\s*(?:m|meter|metre)?\s*[x×]\s*(\d+(?:\.\d+)?)\s*(?:m|meter|metre)\b/i)
-  ||t.match(/\b(?:width|wide)\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*m\b[\s\S]{0,50}?\b(?:depth|deep)\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*m\b/i);
+ const dim=t.match(/\b(\d+(?:\.\d+)?)\s*(?:m|meters?|metres?)?\s*[x×]\s*(\d+(?:\.\d+)?)\s*(?:m|meters?|metres?)\b/i)
+  ||t.match(/\b(?:width|wide)\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*(?:m|meters?|metres?)\b[\s\S]{0,50}?\b(?:depth|deep)\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*(?:m|meters?|metres?)\b/i)
+  ||t.match(/\b(\d+(?:\.\d+)?)\s*(?:m|meters?|metres?)\s*(?:wide|width)\b[\s\S]{0,50}?\b(\d+(?:\.\d+)?)\s*(?:m|meters?|metres?)\s*(?:deep|depth)\b/i);
  const floorHeight=t.match(/\b(?:floor\s*height|floor-to-floor|storey\s*height)\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*m\b/i)||t.match(/\b(\d+(?:\.\d+)?)\s*m\s*(?:floor\s*height|floor-to-floor|storey\s*height)\b/i);
  const doorWidth=t.match(/\b(?:entrance|door)\s*width\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*m\b/i)||t.match(/\b(\d+(?:\.\d+)?)\s*m\s*(?:entrance|door)\s*width\b/i);
  const height=t.match(/\b(?:building\s*)?height\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*m\b/i);
