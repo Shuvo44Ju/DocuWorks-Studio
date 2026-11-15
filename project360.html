@@ -245,11 +245,11 @@ function makeBuilding(){
  document.getElementById('emptyView').style.display='none';
  setWizardStep(4);
  document.getElementById('viewerError').classList.remove('show');
- document.getElementById('modelStatus').textContent=F+' levels · '+total.toFixed(1)+' m high';
+ document.getElementById('modelStatus').textContent=F+' levels · '+total.toFixed(1)+' m high · '+stairCount+' stairs · '+liftCount+' lifts';
  document.getElementById('projectTitle').textContent=nameInput.value||'Project 360° Viewer';
- const summary='Detected: '+F+' levels · '+W+' m × '+D+' m · '+H.toFixed(1)+' m floor height · '+s+' style'+(parsed.levelMatch?' · read “'+parsed.levelMatch+'”':' · no level count found, used '+F);
+ const summary='Detected: '+F+' levels · '+W+' m × '+D+' m · '+H.toFixed(1)+' m floor height · '+s+' style · '+stairCount+' external staircases · '+liftCount+' elevator shafts'+(parsed.levelMatch?' · read “'+parsed.levelMatch+'”':' · no level count found, used '+F);
  document.getElementById('promptReadout').textContent=summary;
- document.getElementById('changeFeedback').textContent='Current drawing: '+F+' floors · '+W+'m × '+D+'m · '+s+' style. Tell me your next change.';
+ document.getElementById('changeFeedback').textContent='Current drawing: '+F+' floors · '+W+'m × '+D+'m · '+s+' style · '+stairCount+' stairs · '+liftCount+' lifts. Tell me your next change.';
  document.getElementById('undoChangeBtn').disabled=designHistory.length===0;
  toast('Created '+F+'-level building concept');
 }
@@ -298,7 +298,7 @@ function understandChange(raw){
  if(/fewer windows|less windows|reduce windows/i.test(t)){d.windows=Math.max(0,(d.windows??5)-2);changed.push('windows');}
  if(/remove all windows|no windows/i.test(t)){d.windows=0;changed.push('windows');}
   if(/stairs?|staircase/.test(t)&&/\b(?:remove|delete|without|no|zero|exclude|omit)\b/.test(t)){d.staircases=0;changed.push('staircases');}
-  else if(/stairs?|staircase/.test(t)&&/\b(?:add|install|include|create|put|increase)\b/.test(t)){const count=(t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:stairs?|staircases?)/)||[])[1];d.staircases=Math.max(0,Math.min(3,count===undefined?1:numberInWords(count)));changed.push('staircases');}
+  else if(/stairs?|staircase/.test(t)&&/\b(?:add|install|include|create|put|increase)\b/.test(t)){const count=(t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:stairs?|staircases?)/)||[])[1];d.staircases=Math.max(0,Math.min(3,count===undefined?1:numberInWords(count)));changed.push('staircases');}
   if(/elevators?|lifts?/.test(t)&&/\b(?:remove|delete|without|no|zero|exclude|omit)\b/.test(t)){d.elevators=0;changed.push('elevators');}
   else if(/elevators?|lifts?/.test(t)&&/\b(?:add|install|include|create|put|increase)\b/.test(t)){const count=(t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:elevators?|lifts?)/)||[])[1];d.elevators=Math.max(0,Math.min(4,count===undefined?1:numberInWords(count)));changed.push('elevators');}
  if(/industrial|factory|warehouse/i.test(t)){d.style='industrial';changed.push('style');}
