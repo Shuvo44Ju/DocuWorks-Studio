@@ -724,7 +724,7 @@ function cadMakeSample(){
  line("A-WALL-INT",.1,6,6.1,6);line("A-WALL-INT",.1,6.2,6.1,6.2);
  line("A-WALL-INT",6.1,8,15.9,8);line("A-WALL-INT",6.1,8.2,15.9,8.2);
  // Opening markers are separate from wall faces; the wall geometry itself stays continuous.
- line("A-DOOR",5,0.1,7,0.1);line("A-DOOR",6.1,3,6.1,4);
+ line("A-DOOR",5,0.1,7,0.1);
  ents.push({type:"ARC",layer:"A-DOOR",center:{x:6.1,y:3.5},radius:.9,startAngle:0,endAngle:90});
  line("A-WINDOW",4,11.9,8,11.9);
  rect("S-COLUMN",.35,.35,.35,.35);rect("S-COLUMN",15.3,.35,.35,.35);rect("S-COLUMN",.35,11.3,.35,.35);rect("S-COLUMN",15.3,11.3,.35,.35);
