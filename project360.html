@@ -94,13 +94,21 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script>\nwindow.showProject360Error=function(message){const panel=document.getElementById('viewerError'),text=document.getElementById('viewerErrorText');if(panel){text.textContent=message||'The 3D engine failed to start.';panel.classList.add('show');}const status=document.getElementById('modelStatus');if(status)status.textContent='Viewer error';};\nwindow.addEventListener('error',e=>{if(e.message||e.error)window.showProject360Error(e.message||String(e.error));});\nwindow.addEventListener('unhandledrejection',e=>window.showProject360Error(e.reason?.message||String(e.reason||'3D loading failed')));\n</script>\n<script type="module">
+<script>
+window.showProject360Error=function(message){const panel=document.getElementById('viewerError'),text=document.getElementById('viewerErrorText');if(panel){text.textContent=message||'The 3D engine failed to start.';panel.classList.add('show');}const status=document.getElementById('modelStatus');if(status)status.textContent='Viewer error';};
+window.addEventListener('error',e=>{if(e.message||e.error)window.showProject360Error(e.message||String(e.error));});
+window.addEventListener('unhandledrejection',e=>window.showProject360Error(e.reason?.message||String(e.reason||'3D loading failed')));
+</script>
+<script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
 
-const el=id=>document.getElementById(id);\nconst nameInput=el('name'),locationInput=el('location'),revisionInput=el('revision'),detailsInput=el('details');\nconst useSettingsInput=el('useSettings'),bWidthInput=el('bWidth'),bDepthInput=el('bDepth'),floorsInput=el('floors'),floorHInput=el('floorH'),windowsInput=el('windows'),doorWInput=el('doorW'),styleInput=el('style');\nconst canvas=el('three'),wrap=el('canvasWrap');
+const el=id=>document.getElementById(id);
+const nameInput=el('name'),locationInput=el('location'),revisionInput=el('revision'),detailsInput=el('details');
+const useSettingsInput=el('useSettings'),bWidthInput=el('bWidth'),bDepthInput=el('bDepth'),floorsInput=el('floors'),floorHInput=el('floorH'),windowsInput=el('windows'),doorWInput=el('doorW'),styleInput=el('style');
+const canvas=el('three'),wrap=el('canvasWrap');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(wrap.clientWidth,wrap.clientHeight,false);renderer.outputColorSpace=THREE.SRGBColorSpace;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0xf0f3f7);
@@ -116,7 +124,9 @@ function toast(s){const t=document.getElementById('toast');t.textContent=s;t.cla
 function material(color,rough=.65){return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:.05})}
 function cube(w,h,d,x,y,z,m){const g=new THREE.BoxGeometry(w,h,d);const o=new THREE.Mesh(g,m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);parts.push(o);return o}
 function clearGenerated(){parts.forEach(o=>{scene.remove(o);o.geometry?.dispose();o.material?.dispose()});parts=[]}
-function fitBounds(box){const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),max=Math.max(size.x,size.y,size.z)||1;const dist=max/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))*1.55;camera.position.copy(center).add(new THREE.Vector3(dist*.85,dist*.62,dist));camera.near=Math.max(.01,max/10000);camera.far=Math.max(100,max*100);camera.updateProjectionMatrix();controls.target.copy(center);controls.update();grid.position.y=box.min.y}\nfunction fitObject(obj){fitBounds(new THREE.Box3().setFromObject(obj))}\nfunction fitParts(){const box=new THREE.Box3();parts.forEach(o=>{o.updateWorldMatrix(true,false);box.union(new THREE.Box3().setFromObject(o))});if(!box.isEmpty())fitBounds(box)}
+function fitBounds(box){const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),max=Math.max(size.x,size.y,size.z)||1;const dist=max/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))*1.55;camera.position.copy(center).add(new THREE.Vector3(dist*.85,dist*.62,dist));camera.near=Math.max(.01,max/10000);camera.far=Math.max(100,max*100);camera.updateProjectionMatrix();controls.target.copy(center);controls.update();grid.position.y=box.min.y}
+function fitObject(obj){fitBounds(new THREE.Box3().setFromObject(obj))}
+function fitParts(){const box=new THREE.Box3();parts.forEach(o=>{o.updateWorldMatrix(true,false);box.union(new THREE.Box3().setFromObject(o))});if(!box.isEmpty())fitBounds(box)}
 function makeBuilding(){
  if(customModel){scene.remove(model);model=null;customModel=false}
  clearGenerated();
@@ -244,7 +254,9 @@ async function makeVideo(){
 document.getElementById('useSettings').onchange=e=>document.getElementById('settingsFields').style.display=e.target.checked?'block':'none';
 document.getElementById('videoBtn').onclick=makeVideo;
 function resize(){const w=wrap.clientWidth,h=wrap.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();
-function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();\nconst resizeObserver=new ResizeObserver(resize);resizeObserver.observe(wrap);\ndocument.getElementById('modelStatus').textContent='3D viewer ready';
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();
+const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(wrap);
+document.getElementById('modelStatus').textContent='3D viewer ready';
 </script>
 </body>
 </html>
