@@ -765,7 +765,7 @@ function cadBuild3D(){
    if(gap<.015||gap>.12)continue;
    const projectS=p=>(p.x-a.x)*ux+(p.y-a.y)*uy,lo=Math.max(0,Math.min(projectS(c),projectS(d))),hi=Math.min(len,Math.max(projectS(c),projectS(d))),overlap=hi-lo;
    if(overlap*scale<.45||overlap*scale>4.5)continue;
-   const midOff=(off0+off1)*.5,mid=(p)=>({x:a.x+ux*p+nx*midOff,y:a.y+uy*p+ny*midOff}),p0=mid(lo),p1=mid(hi);
+   const midOff=(off0+off1)*.25,mid=(p)=>({x:a.x+ux*p+nx*midOff,y:a.y+uy*p+ny*midOff}),p0=mid(lo),p1=mid(hi);
    let nearWall=false;for(const wall of walls){const wx=wall.b.x-wall.a.x,wy=wall.b.y-wall.a.y,wl=Math.hypot(wx,wy);if(wl<.05)continue;const dot=Math.abs((wx*ux+wy*uy)/wl),q0=project(p0,wall.a,wx/wl,wy/wl),q1=project(p1,wall.a,wx/wl,wy/wl);if(dot>.985&&Math.max(q0.off,q1.off)*scale<=Math.max(.25,thick*1.5)){nearWall=true;break;}}
    if(!nearWall)continue;
    const key=[Math.round(p0.x*1000),Math.round(p0.y*1000),Math.round(p1.x*1000),Math.round(p1.y*1000)].join(":");if(autoWindowKeys.has(key))continue;
