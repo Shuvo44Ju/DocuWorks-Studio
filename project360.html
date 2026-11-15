@@ -162,7 +162,23 @@ function setWizardStep(n){document.querySelectorAll('.steps .step').forEach((ste
 function toast(s){const t=document.getElementById('toast');t.textContent=s;t.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),2600)}
 function material(color,rough=.65){return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:.05})}
 function cube(w,h,d,x,y,z,m,rotationY=0){const g=new THREE.BoxGeometry(w,h,d);const o=new THREE.Mesh(g,m);o.position.set(x,y,z);o.rotation.y=rotationY;o.castShadow=true;o.receiveShadow=true;scene.add(o);parts.push(o);return o}
-function clearGenerated(){parts.forEach(o=>{scene.remove(o);o.geometry?.dispose();o.material?.dispose()});parts=[]}
+function clearGenerated(){
+ // CAD floor meshes are re-parented into floor groups. Remove those groups first,
+ // otherwise a rebuild/clear can leave stale geometry in the scene.
+ if(Array.isArray(cadRenderedFloorGroups)){
+  cadRenderedFloorGroups.forEach(group=>{scene.remove(group);group.clear();});
+  cadRenderedFloorGroups=[];
+ }
+ parts.forEach(o=>{
+  if(o.parent)o.parent.remove(o);
+  o.geometry?.dispose();
+  if(o.material){
+   const materials=Array.isArray(o.material)?o.material:[o.material];
+   materials.forEach(m=>m?.dispose());
+  }
+ });
+ parts=[];
+}
 function disposeImportedModel(root){if(!root)return;scene.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m){for(const value of Object.values(m)){if(value&&value.isTexture)value.dispose()}m.dispose()}})}})}
 function fitBounds(box){const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),max=Math.max(size.x,size.y,size.z)||1;const dist=max/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))*1.55;camera.position.copy(center).add(new THREE.Vector3(dist*.85,dist*.62,dist));camera.near=Math.max(.01,max/10000);camera.far=Math.max(100,max*100);camera.updateProjectionMatrix();controls.target.copy(center);controls.update();grid.position.y=box.min.y}
 function fitObject(obj){fitBounds(new THREE.Box3().setFromObject(obj))}
@@ -832,11 +848,19 @@ function cadRenderPreview(){
  const colors={Walls:"#344d72",Columns:"#d97706",Doors:"#15966a",Windows:"#2493bd",Stairs:"#8757c5",Elevators:"#c34e74",Rooms:"#a27a4b",Floors:"#8795a8","Room labels":"#2458d3",Dimensions:"#9aa4b2",Ignore:"#aab4c2"};
  for(const e of entities){
   const role=cadEntityRole(e),pts=cadEntityPoints(e);if(pts.length<2)continue;
-  ctx.strokeStyle=colors[role]||"#aab4c2";ctx.lineWidth=role==="Walls"?2.2:1.2;ctx.beginPath();ctx.moveTo(px(pts[0].x),py(pts[0].y));pts.slice(1).forEach(p=>ctx.lineTo(px(p.x),py(p.y)));if(cadEntityIsClosed(e))ctx.closePath();ctx.stroke();
+  const inferredWall=cadAutoWallEntities.has(e);
+  ctx.strokeStyle=colors[role]||"#aab4c2";ctx.lineWidth=role==="Walls"?2.2:1.2;
+  ctx.setLineDash(inferredWall?[6,4]:[]);
+  ctx.beginPath();ctx.moveTo(px(pts[0].x),py(pts[0].y));pts.slice(1).forEach(p=>ctx.lineTo(px(p.x),py(p.y)));if(cadEntityIsClosed(e))ctx.closePath();ctx.stroke();
  }
+ // Show geometry-inferred glazing centre-lines as well as source CAD entities.
+ ctx.setLineDash([4,3]);ctx.strokeStyle="#087f9e";ctx.lineWidth=2.4;
+ cadAutoWindowSegments.forEach(seg=>{ctx.beginPath();ctx.moveTo(px(seg.a.x),py(seg.a.y));ctx.lineTo(px(seg.b.x),py(seg.b.y));ctx.stroke();});
+ ctx.setLineDash([]);
  ctx.save();ctx.fillStyle="#2458d3";ctx.font="11px Arial";ctx.textAlign="left";
  entities.forEach(e=>{const text=cadEntityText(e),p=cadEntityAnchor(e);if(!text||!p)return;ctx.fillText(text.slice(0,26),px(p.x)+3,py(p.y)-3);});
  ctx.restore();ctx.fillStyle="#71819a";ctx.font="12px Arial";ctx.fillText("Plan preview · top view · labels shown where available",14,20);
+ ctx.font="10px Arial";ctx.fillText("Dashed dark = inferred wall · dashed cyan = inferred window centre-line",14,36);
 }
 function cadShowLayers(){
  cadPrepareAnalysis();
