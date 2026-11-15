@@ -264,9 +264,26 @@ window.DocuWorksProject360={async run(instruction){
  const message=String(instruction||'').trim();if(!message)throw new Error('Tell me what you want to create or change.');
  if(!currentDesign){
   detailsInput.value=message;
-  document.getElementById('createBtn').click();
-  if(!currentDesign)throw new Error('The 3D model could not be created. Check the viewer message.');
-  return 'Created the 3D model from your instruction. The result is now visible in the viewer.';
+  let aiChanges=null,aiReply='';
+  try{
+   const answer=await window.DocuWorksAI.askDesign(message,{},'create');
+   aiChanges=answer?.changes||{};aiReply=answer?.reply||'';
+  }catch(err){
+   const parsed=interpretPrompt(message);
+   currentDesign={width:parsed.width||20,depth:parsed.depth||15,floors:parsed.floors||3,floorHeight:parsed.floorHeight||3.2,windows:parsed.windows??5,doorWidth:2.4,style:parsed.style||'modern'};
+   makeBuilding();
+   return 'Created a basic concept using details recognized locally. AI interpretation is unavailable: '+(err.message||String(err));
+  }
+  const parsed=interpretPrompt(message);
+  currentDesign={
+   width:aiChanges.width??parsed.width??20,depth:aiChanges.depth??parsed.depth??15,
+   floors:aiChanges.floors??parsed.floors??3,floorHeight:aiChanges.floorHeight??parsed.floorHeight??3.2,
+   windows:aiChanges.windows??parsed.windows??5,doorWidth:aiChanges.doorWidth??2.4,
+   style:aiChanges.style??parsed.style??'modern'
+  };
+  makeBuilding();
+  document.getElementById('changeFeedback').textContent=(aiReply||'AI interpreted your building description.')+' The generated concept is visible in the viewer.';
+  return (aiReply||'I interpreted your description and created the building concept.')+' The result is now visible in the 3D viewer.';
  }
  const answer=await window.DocuWorksAI.askDesign(message,currentDesign);
  const next={...currentDesign},changed=[];
