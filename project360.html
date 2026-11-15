@@ -251,7 +251,7 @@ function setEditorMode(mode){
  const active={select:"editSelectBtn",translate:"editMoveBtn",rotate:"editRotateBtn",scale:"editScaleBtn"}[mode];
  ["editSelectBtn","editMoveBtn","editRotateBtn","editScaleBtn"].forEach(id=>el(id)?.classList.toggle("active",id===active));
  if(mode==="select")transformControls.detach();else if(selectedEditable)transformControls.attach(selectedEditable);
- el("editModeStatus").textContent=mode==="select"?"Double-click an object to select it":({translate:"Move selected object with the arrows",rotate:"Rotate selected object",scale:"Resize selected object"}[mode]||"Editing mode");
+ el("editModeStatus").textContent=mode==="select"?"Double-click an object to select it":(selectedEditable?(String(selectedEditable.userData.label||selectedEditable.name||"Selected object")+" · "+({translate:"Move mode",rotate:"Rotate mode",scale:"Resize mode"}[mode]||"Editing")):({translate:"Select an object to move it",rotate:"Select an object to rotate it",scale:"Select an object to resize it"}[mode]||"Editing mode"));
 }
 function findEditableAncestor(object){let node=object;while(node&&node!==scene){if(node.userData?.editable===true)return node;node=node.parent;}return null;}
 function selectEditableByLabel(label){const root=editableRoots().find(o=>o.userData?.label===label);if(root){selectEditable(root);setEditorMode("translate");}}
