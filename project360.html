@@ -192,6 +192,34 @@ function makeBuilding(){
  }
  const sideN=Math.max(1,Math.round(N*.7));
  for(let f=0;f<F;f++){const y=f*H+H*.57;for(let i=0;i<sideN;i++){const z=-D/2+(i+1)*D/(sideN+1);cube(.08,H*.42,Math.max(.55,D/(sideN+1)*.58),-W/2-.045,y,z,glassMat);cube(.08,H*.42,Math.max(.55,D/(sideN+1)*.58),W/2+.045,y,z,glassMat)}}
+ // Visible conceptual external circulation elements (separate from opaque massing blocks).
+ const stairCount=Math.max(0,Math.min(3,Math.round(Number(currentDesign.staircases)||0)));
+ const liftCount=Math.max(0,Math.min(4,Math.round(Number(currentDesign.elevators)||0)));
+ const coreMat=material(0x9aa8b8),stepMat=material(0x68798c),liftDoorMat=material(0x315b83);
+ const towerW=Math.min(3.4,Math.max(2.4,W*.18)),towerD=Math.min(5.4,Math.max(3.8,D*.32));
+ for(let c=0;c<stairCount;c++){
+  const cx=W/2+1.9+c*(towerW+1.0),cz=0;
+  cube(.16,total,towerD,cx-towerW/2,total/2,cz,coreMat);
+  cube(.16,total,towerD,cx+towerW/2,total/2,cz,coreMat);
+  for(let f=0;f<F;f++){
+   const y0=f*H,steps=8,run=towerD*.82,stepDepth=run/steps,stepRise=H/(steps*2);
+   for(let k=0;k<steps;k++){
+    const z=cz-towerD/2+stepDepth*(k+.5);
+    cube(towerW*.42,Math.max(.12,stepRise),stepDepth*.94,cx,y0+stepRise*(k+.5),z,stepMat);
+    cube(towerW*.42,Math.max(.12,stepRise),stepDepth*.94,cx,y0+H/2+stepRise*(k+.5),cz+towerD/2-stepDepth*(k+.5),stepMat);
+   }
+   cube(towerW*.9,.16,towerD*.9,cx,y0+H,cz,coreMat);
+  }
+ }
+ const shaftW=Math.min(2.0,Math.max(1.5,W*.1)),shaftD=Math.min(2.2,Math.max(1.8,D*.14));
+ for(let e=0;e<liftCount;e++){
+  const cx=W/2+1.9+stairCount*(towerW+1)+e*(shaftW+.35),cz=-D*.22;
+  cube(shaftW,total,shaftD,cx,total/2,cz,coreMat);
+  for(let f=0;f<F;f++){
+   const y=f*H+H*.5;
+   cube(shaftW*.78,H*.58,.10,cx,y,cz-shaftD/2-.12,liftDoorMat);
+  }
+ }
  const doorMat=material(0x344b66);cube(DW,H*.72,.1,0,H*.36,-D/2-.09,doorMat);
  cube(Math.min(W*.55,DW+2.2),.18,2.2,0,H*.76,-D/2-1.0,trimMat);
  cube(.12,H*.76,.14,-DW/2,H*.38,-D/2-.14,trimMat);cube(.12,H*.76,.14,DW/2,H*.38,-D/2-.14,trimMat);
@@ -241,7 +269,7 @@ document.getElementById('applyChangeBtn').onclick=async()=>{
    const answer=await window.DocuWorksAI.askDesign(instruction,currentDesign);
    const updates=answer.changes||{};
    next={...currentDesign};
-   for(const key of ['width','depth','floors','floorHeight','windows','doorWidth','style']){
+   for(const key of ['width','depth','floors','floorHeight','windows','doorWidth','style','staircases','elevators']){
     if(updates[key]!==null&&updates[key]!==undefined){next[key]=updates[key];changed.push(key);}
    }
    if(!changed.length){feedback.textContent=answer.reply||'I could not make that change to this model yet.';return;}
@@ -270,7 +298,7 @@ window.DocuWorksProject360={async run(instruction){
    aiChanges=answer?.changes||{};aiReply=answer?.reply||'';
   }catch(err){
    const parsed=interpretPrompt(message);
-   currentDesign={width:parsed.width||20,depth:parsed.depth||15,floors:parsed.floors||3,floorHeight:parsed.floorHeight||3.2,windows:parsed.windows??5,doorWidth:2.4,style:parsed.style||'modern'};
+   currentDesign={width:parsed.width||20,depth:parsed.depth||15,floors:parsed.floors||3,floorHeight:parsed.floorHeight||3.2,windows:parsed.windows??5,doorWidth:2.4,style:parsed.style||'modern',staircases:/\b(staircase|stairs?)\b/i.test(message)?1:0,elevators:Number((message.match(/\b(\d+)\s*(?:elevators?|lifts?)\b/i)||[])[1]||(/\b(elevator|lift)\b/i.test(message)?1:0))};
    makeBuilding();
    return 'Created a basic concept using details recognized locally. AI interpretation is unavailable: '+(err.message||String(err));
   }
@@ -279,7 +307,7 @@ window.DocuWorksProject360={async run(instruction){
    width:aiChanges.width??parsed.width??20,depth:aiChanges.depth??parsed.depth??15,
    floors:aiChanges.floors??parsed.floors??3,floorHeight:aiChanges.floorHeight??parsed.floorHeight??3.2,
    windows:aiChanges.windows??parsed.windows??5,doorWidth:aiChanges.doorWidth??2.4,
-   style:aiChanges.style??parsed.style??'modern'
+   style:aiChanges.style??parsed.style??'modern',staircases:aiChanges.staircases??(/\b(staircase|stairs?)\b/i.test(message)?1:0),elevators:aiChanges.elevators??Number((message.match(/\b(\d+)\s*(?:elevators?|lifts?)\b/i)||[])[1]||(/\b(elevator|lift)\b/i.test(message)?1:0))
   };
   makeBuilding();
   document.getElementById('changeFeedback').textContent=(aiReply||'AI interpreted your building description.')+' The generated concept is visible in the viewer.';
