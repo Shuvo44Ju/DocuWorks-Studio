@@ -214,8 +214,8 @@ function understandChange(raw){
  else if((m=t.match(/(?:make|change|set)\D{0,20}(\d+)\s*(?:floors?|levels?|storeys?)/i))){d.floors=+m[1];changed.push('floors');}
  else if((m=t.match(/(?:add|increase)\s+(\d+)\s+floors?/i))){d.floors=(d.floors||3)+ +m[1];changed.push('floors');}
  else if((m=t.match(/(?:remove|reduce|decrease)\s+(\d+)\s+floors?/i))){d.floors=(d.floors||3)- +m[1];changed.push('floors');}
- if((m=t.match(/(?:width|wide)\D{0,16}(\d+(?:\.\d+)?)\s*m/i))){d.width=+m[1];changed.push('width');}
- if((m=t.match(/(?:depth|deep)\D{0,16}(\d+(?:\.\d+)?)\s*m/i))){d.depth=+m[1];changed.push('depth');}
+ if((m=t.match(/(?:width|wide)\D{0,16}(\d+(?:\.\d+)?)\s*m|(\d+(?:\.\d+)?)\s*m\s*(?:wide|width)/i))){d.width=+(m[1]||m[2]);changed.push('width');}
+ if((m=t.match(/(?:depth|deep)\D{0,16}(\d+(?:\.\d+)?)\s*m|(\d+(?:\.\d+)?)\s*m\s*(?:deep|depth)/i))){d.depth=+(m[1]||m[2]);changed.push('depth');}
  if((m=t.match(/(?:floor height|floor-to-floor height)\D{0,16}(\d+(?:\.\d+)?)\s*m/i))){d.floorHeight=+m[1];changed.push('floor height');}
  if((m=t.match(/(\d+)\s+windows?\s+(?:per|on each)\s+(?:side|floor)/i))){d.windows=+m[1];changed.push('windows');}
  if(/more windows|add windows/i.test(t)&&!changed.includes('windows')){d.windows=Math.min(20,(d.windows??5)+2);changed.push('windows');}
