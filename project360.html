@@ -162,7 +162,9 @@ function interpretPrompt(text){
   floors:floors===null?null:Math.max(1,Math.min(60,Math.round(floors))),
   levelMatch, width:dim?Number(dim[1]):null, depth:dim?Number(dim[2]):null,
   floorHeight:floorHeight?Number(floorHeight[1]):(height&&floors?Number(height[1])/floors:null),
-  windows:windows?Number(windows[1]):null, style
+  windows:windows?Number(windows[1]):null, style,
+  staircases: /\b(?:stairs?|staircases?)\b/i.test(t) ? (Number((t.match(/\b(\d+)\s*(?:stairs?|staircases?)\b/i)||[])[1])||1) : 0,
+  elevators: /\b(?:elevators?|lifts?)\b/i.test(t) ? (Number((t.match(/\b(\d+)\s*(?:elevators?|lifts?)\b/i)||[])[1])||1) : 0
  };
 }
 function makeBuilding(){
@@ -171,7 +173,7 @@ function makeBuilding(){
  const brief=detailsInput.value||'';
  const parsed=interpretPrompt(brief);
  const use=useSettingsInput.checked;
- const base=currentDesign||{width:use?+bWidthInput.value||20:parsed.width||20,depth:use?+bDepthInput.value||15:parsed.depth||15,floors:use?+floorsInput.value||3:parsed.floors||3,floorHeight:use?+floorHInput.value||3.2:parsed.floorHeight||3.2,windows:use?+windowsInput.value||5:parsed.windows??5,doorWidth:use?+doorWInput.value||2.4:2.4,style:use?styleInput.value:parsed.style};
+ const base=currentDesign||{width:use?+bWidthInput.value||20:parsed.width||20,depth:use?+bDepthInput.value||15:parsed.depth||15,floors:use?+floorsInput.value||3:parsed.floors||3,floorHeight:use?+floorHInput.value||3.2:parsed.floorHeight||3.2,windows:use?+windowsInput.value||5:parsed.windows??5,doorWidth:use?+doorWInput.value||2.4:2.4,style:use?styleInput.value:parsed.style,staircases:parsed.staircases??0,elevators:parsed.elevators??0};
  currentDesign={...base};
  const W=Math.max(3,currentDesign.width||20),D=Math.max(3,currentDesign.depth||15),F=Math.max(1,Math.min(60,currentDesign.floors||3)),H=Math.max(2,Math.min(8,currentDesign.floorHeight||3.2)),N=Math.max(0,Math.min(20,currentDesign.windows??5)),DW=Math.min(W*.5,Math.max(1,currentDesign.doorWidth||2.4));
  const total=F*H;
@@ -236,7 +238,34 @@ function makeBuilding(){
  document.getElementById('undoChangeBtn').disabled=designHistory.length===0;
  toast('Created '+F+'-level building concept');
 }
-document.getElementById('createBtn').onclick=()=>{try{currentDesign=null;designHistory=[];makeBuilding();}catch(err){console.error(err);toast('Could not create 3D model: '+(err.message||'unknown error'));window.showProject360Error('Could not create the model: '+(err.message||'unknown error'));}};
+document.getElementById('createBtn').onclick=async()=>{
+ const btn=document.getElementById('createBtn'),original=btn.textContent;
+ btn.disabled=true;btn.textContent='Understanding your description…';
+ try{
+  currentDesign=null;designHistory=[];
+  const brief=detailsInput.value||'';
+  let aiChanges={},aiReply='';
+  if(brief.trim()&&window.DocuWorksAI?.askDesign){
+   try{const answer=await window.DocuWorksAI.askDesign(brief,{},'create');aiChanges=answer?.changes||{};aiReply=answer?.reply||'';}
+   catch(err){document.getElementById('changeFeedback').textContent='AI unavailable; creating from details recognized in your description. '+(err.message||String(err));}
+  }
+  const parsed=interpretPrompt(brief),use=useSettingsInput.checked;
+  currentDesign={
+   width:use?(+bWidthInput.value||20):(aiChanges.width??parsed.width??20),
+   depth:use?(+bDepthInput.value||15):(aiChanges.depth??parsed.depth??15),
+   floors:use?(+floorsInput.value||3):(aiChanges.floors??parsed.floors??3),
+   floorHeight:use?(+floorHInput.value||3.2):(aiChanges.floorHeight??parsed.floorHeight??3.2),
+   windows:use?(+windowsInput.value||5):(aiChanges.windows??parsed.windows??5),
+   doorWidth:use?(+doorWInput.value||2.4):(aiChanges.doorWidth??2.4),
+   style:use?styleInput.value:(aiChanges.style??parsed.style??'modern'),
+   staircases:use?0:(aiChanges.staircases??parsed.staircases??0),
+   elevators:use?0:(aiChanges.elevators??parsed.elevators??0)
+  };
+  makeBuilding();
+  if(aiReply)document.getElementById('changeFeedback').textContent=aiReply+' The 3D concept is visible. You can now request changes in the assistant or change box.';
+ }catch(err){console.error(err);toast('Could not create 3D model: '+(err.message||'unknown error'));window.showProject360Error('Could not create the model: '+(err.message||'unknown error'));}
+ finally{btn.disabled=false;btn.textContent=original;}
+};
 function understandChange(raw){
  const t=String(raw||'').toLowerCase().trim();if(!t)return {error:'Write what you want to change first.'};
  const d={...(currentDesign||{})};let changed=[],m;
@@ -251,7 +280,7 @@ function understandChange(raw){
  if(/more windows|add windows/i.test(t)&&!changed.includes('windows')){d.windows=Math.min(20,(d.windows??5)+2);changed.push('windows');}
  if(/fewer windows|less windows|reduce windows/i.test(t)){d.windows=Math.max(0,(d.windows??5)-2);changed.push('windows');}
  if(/remove all windows|no windows/i.test(t)){d.windows=0;changed.push('windows');}
-  if(/add|install|include|create|put/.test(t)&&/stairs?|staircase/.test(t)){d.staircases=Math.max(1,Number((t.match(/(\d+)\s+staircases?/)||[])[1]||1));changed.push('staircases');}
+  if(/add|install|include|create|put/.test(t)&&/stairs?|staircase/.test(t)){d.staircases=Math.max(1,Number((t.match(/(\d+)\s*(?:stairs?|staircases?)/)||[])[1]||1));changed.push('staircases');}
   if(/remove|delete/.test(t)&&/stairs?|staircase/.test(t)){d.staircases=0;changed.push('staircases');}
   if(/add|install|include|create|put/.test(t)&&/elevators?|lifts?/.test(t)){d.elevators=Math.max(1,Number((t.match(/(\d+)\s+(?:elevators?|lifts?)/)||[])[1]||1));changed.push('elevators');}
   if(/remove|delete/.test(t)&&/elevators?|lifts?/.test(t)){d.elevators=0;changed.push('elevators');}
