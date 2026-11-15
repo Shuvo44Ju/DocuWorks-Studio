@@ -204,11 +204,12 @@ function makeBuilding(){
  document.getElementById('undoChangeBtn').disabled=designHistory.length===0;
  toast('Created '+F+'-level building concept');
 }
-document.getElementById('createBtn').onclick=()=>{try{makeBuilding();}catch(err){console.error(err);toast('Could not create 3D model: '+(err.message||'unknown error'));window.showProject360Error('Could not create the model: '+(err.message||'unknown error'));}};
+document.getElementById('createBtn').onclick=()=>{try{currentDesign=null;designHistory=[];makeBuilding();}catch(err){console.error(err);toast('Could not create 3D model: '+(err.message||'unknown error'));window.showProject360Error('Could not create the model: '+(err.message||'unknown error'));}};
 function understandChange(raw){
  const t=String(raw||'').toLowerCase().trim();if(!t)return {error:'Write what you want to change first.'};
  const d={...(currentDesign||{})};let changed=[],m;
- if((m=t.match(/(?:make|change|set)\D{0,20}(\d+)\s*(?:floors?|levels?|storeys?)/i))){d.floors=+m[1];changed.push('floors');}
+ if((m=t.match(/(?:make it|make the building|make this building)\s+(\d+)\s+floors?\s+taller/i))){d.floors=(d.floors||3)+ +m[1];changed.push('floors');}
+ else if((m=t.match(/(?:make|change|set)\D{0,20}(\d+)\s*(?:floors?|levels?|storeys?)/i))){d.floors=+m[1];changed.push('floors');}
  else if((m=t.match(/(?:add|increase)\s+(\d+)\s+floors?/i))){d.floors=(d.floors||3)+ +m[1];changed.push('floors');}
  else if((m=t.match(/(?:remove|reduce|decrease)\s+(\d+)\s+floors?/i))){d.floors=(d.floors||3)- +m[1];changed.push('floors');}
  if((m=t.match(/(?:width|wide)\D{0,16}(\d+(?:\.\d+)?)\s*m/i))){d.width=+m[1];changed.push('width');}
