@@ -132,8 +132,8 @@ function makeBuilding(){
  clearGenerated();
  const brief=detailsInput.value||'';
  const use=useSettingsInput.checked;
- const dim=brief.match(/(\\d+(?:\\.\\d+)?)\\s*(?:m|meter|metre)\\s*[x×]\\s*(\\d+(?:\\.\\d+)?)\\s*(?:m|meter|metre)/i);
- const floorMatch=brief.match(/(\\d+)\\s*(?:storey|story|floor|floors)/i);
+ const dim=brief.match(/(\d+(?:\.\d+)?)\s*(?:m|meter|metre)\s*[x×]\s*(\d+(?:\.\d+)?)\s*(?:m|meter|metre)/i);
+ const floorMatch=brief.match(/(\d+)\s*(?:storey|story|floor|floors)/i);
  const W=use?Math.max(3,+bWidthInput.value||20):Math.max(3,+(dim?.[1]||20));
  const D=use?Math.max(3,+bDepthInput.value||15):Math.max(3,+(dim?.[2]||15));
  const F=use?Math.max(1,Math.min(30,+floorsInput.value||3)):Math.max(1,Math.min(30,+(floorMatch?.[1]||3)));
