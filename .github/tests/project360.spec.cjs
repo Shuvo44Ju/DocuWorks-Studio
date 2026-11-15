@@ -103,6 +103,15 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
   await page.locator("#cadBuildBtn").click();
   await expect(page.locator("#modelStatus")).toContainText("Architectural 3D generated", { timeout: 30000 });
   await expect(page.locator("#viewerError")).not.toHaveClass(/show/);
+  await expect(page.locator("#cadRoomList .cad-room-row")).not.toHaveCount(0);
+  await expect(page.locator("#cadRoomList")).toContainText("OFFICE");
+  await page.locator("#cadRoomList .cad-room-row").first().click();
+  await expect(page.locator("#editModeStatus")).toContainText("Room ·");
+  await expect(page.locator("#editMoveBtn")).toHaveClass(/active/);
+  await page.locator("#editRotateBtn").click();
+  await expect(page.locator("#editRotateBtn")).toHaveClass(/active/);
+  await page.locator("#editMoveBtn").click();
+  await expect(page.locator("#editMoveBtn")).toHaveClass(/active/);
   const cad3dPixels = await page.locator("#three").evaluate(canvas => {
     const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
     if (!gl) return 0;
