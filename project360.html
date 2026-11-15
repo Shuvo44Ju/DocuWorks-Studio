@@ -14,7 +14,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 .main{min-width:0;overflow:auto;padding:24px}.grid{max-width:1400px;margin:auto;display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:18px}.panel{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 7px rgba(24,49,91,.035);overflow:hidden}.viewer{height:calc(100vh - 116px);min-height:560px;display:flex;flex-direction:column}.viewer-head{padding:15px 17px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}.viewer-head h1{font-size:15px;margin:0}.status{margin-left:auto;font-size:10px;color:#71819a}.canvas-wrap{position:relative;flex:1;min-height:0;background:radial-gradient(circle at 50% 45%,#fff 0,#eef2f7 70%,#e6ebf2 100%)}#three{width:100%;height:100%;display:block}.empty-view{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;color:#77869d;pointer-events:none}.empty-view>div{max-width:420px}.empty-view .big{font-size:42px;margin-bottom:7px}.empty-view b{color:#425774}.viewer-foot{display:flex;align-items:center;gap:8px;padding:11px 14px;border-top:1px solid var(--line);font-size:10px;color:#7c8ba0}.viewer-foot span:last-child{margin-left:auto}.controls{display:flex;gap:7px;flex-wrap:wrap}.iconbtn{border:1px solid #dce4ef;background:#fff;border-radius:7px;padding:7px 9px;color:#506581;font-size:11px;font-weight:700}.iconbtn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
 .right{display:flex;flex-direction:column;gap:14px}.box{padding:16px}.box h3{margin:0 0 11px;font-size:12px}.row{display:flex;gap:8px;margin-bottom:9px}.row>*{min-width:0}.field{width:100%;border:1px solid #dce4ef;border-radius:7px;padding:9px 10px;outline:none;background:#fff;color:var(--ink);font-size:11px}.field:focus{border-color:#9ab3ed;box-shadow:0 0 0 3px #2458d313}.label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#8a98aa;font-weight:800;margin:0 0 4px}.details{height:125px;resize:vertical}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.action{border:1px solid #dce4ef;background:#fff;border-radius:8px;padding:10px;color:#4e6380;font-weight:800;font-size:10px}.action.main{background:var(--blue);color:#fff;border-color:var(--blue)}.note{font-size:9px;color:#8a98aa;margin-top:8px;line-height:1.6}.section-title{font-size:10px;color:#516783;font-weight:800;margin:14px 0 8px;padding-top:12px;border-top:1px solid #edf1f6}.pill{display:inline-block;background:#edf3ff;color:#2458d3;border-radius:99px;padding:4px 7px;font-size:9px;font-weight:800;margin-bottom:8px}
 .toast{position:fixed;right:20px;bottom:20px;background:#17335e;color:#fff;padding:10px 13px;border-radius:8px;font-size:11px;box-shadow:0 10px 30px #17335e33;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;z-index:20}.toast.show{opacity:1;transform:none}
-.progress{height:6px;background:#e9eef5;border-radius:99px;overflow:hidden;margin-top:9px}.progress i{display:block;width:0;height:100%;background:var(--blue);transition:width .1s}
+.progress{height:6px;background:#e9eef5;border-radius:99px;overflow:hidden;margin-top:9px}.progress i{display:block;width:0;height:100%;background:var(--blue);transition:width .1s}.render-overlay{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);width:min(390px,calc(100% - 28px));background:rgba(255,255,255,.96);border:1px solid #d8e2f0;border-radius:12px;padding:12px 14px;box-shadow:0 8px 28px rgba(23,43,77,.16);z-index:4;display:none}.render-overlay.show{display:block}.render-top{display:flex;align-items:center;gap:9px}.render-spinner{width:17px;height:17px;border:2px solid #dce6f7;border-top-color:#2458d3;border-radius:50%;animation:renderSpin .8s linear infinite;flex:none}@keyframes renderSpin{to{transform:rotate(360deg)}}.render-title{font-size:11px;font-weight:800;color:#263e60}.render-sub{font-size:10px;color:#71819a;margin-top:2px}.render-percent{margin-left:auto;font-size:15px;font-weight:900;color:#2458d3;font-variant-numeric:tabular-nums}.render-track{height:7px;background:#e9eef5;border-radius:99px;overflow:hidden;margin-top:10px}.render-track i{display:block;width:0;height:100%;background:linear-gradient(90deg,#2458d3,#5b91f5);border-radius:99px;transition:width .12s linear}.render-foot{font-size:9px;color:#8492a6;margin-top:6px}
 @media(max-width:1050px){.app{grid-template-columns:230px 1fr}.grid{grid-template-columns:1fr}.right{display:grid;grid-template-columns:1fr 1fr}.viewer{height:650px}.viewer-foot{flex-wrap:wrap}}
 @media(max-width:700px){.app{display:block;height:auto;min-height:100vh;overflow:visible}.top{height:62px}.side{border-right:0;border-bottom:1px solid var(--line);padding:12px 15px}.side .steps{display:flex;overflow:auto;gap:5px}.step{min-width:145px;margin:0}.tip{display:none}.main{padding:14px}.right{display:flex}.viewer{height:560px;min-height:0}.grid{display:flex;flex-direction:column}}
 </style>
@@ -39,7 +39,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="grid">
 <section class="panel viewer">
 <div class="viewer-head"><h1 id="projectTitle">Project 360° Viewer</h1><span class="status" id="modelStatus">Ready to create</span></div>
-<div class="canvas-wrap" id="canvasWrap"><canvas id="three"></canvas><div class="empty-view" id="emptyView"><div><div class="big">◇</div><b>Your 3D project will appear here</b><br>Describe your project, set the building parameters, then click <b>Create 3D Project</b>.<br><br>After creation: drag to rotate · wheel to zoom · right-drag to pan</div></div></div>
+<div class="canvas-wrap" id="canvasWrap"><canvas id="three"></canvas><div class="render-overlay" id="renderOverlay" role="status" aria-live="polite"><div class="render-top"><span class="render-spinner"></span><div><div class="render-title" id="renderTitle">Creating your 360° video</div><div class="render-sub" id="renderSub">Recording the 3D view from every angle</div></div><span class="render-percent" id="renderPercent">0%</span></div><div class="render-track"><i id="viewerProgress"></i></div><div class="render-foot" id="renderFoot">Please keep this page open while recording.</div></div><div class="empty-view" id="emptyView"><div><div class="big">◇</div><b>Your 3D project will appear here</b><br>Describe your project, set the building parameters, then click <b>Create 3D Project</b>.<br><br>After creation: drag to rotate · wheel to zoom · right-drag to pan</div></div></div>
 <div class="viewer-foot"><div class="controls"><button class="iconbtn" id="resetBtn">Reset view</button><button class="iconbtn" id="rotateBtn">Auto rotate</button><button class="iconbtn" id="wireBtn">Wireframe</button></div><span>3D generation runs locally</span></div>
 </section>
 <aside class="right">
@@ -178,47 +178,65 @@ document.getElementById('htmlBtn').onclick=()=>{const p=projectData();const h='<
 async function makeVideo(){
  if(!model&&!parts.length){toast('Create the 3D project first');return}
  const btn=document.getElementById('videoBtn'),progress=document.getElementById('progress'),result=document.getElementById('videoResult');
- if(!canvas.captureStream){toast('This browser cannot record the 3D canvas. Please use Chrome.');return}
- if(typeof MediaRecorder==='undefined'){toast('This browser does not support video recording. Please use Chrome.');return}
- btn.disabled=true;btn.textContent='Starting recording…';progress.style.width='0%';result.style.display='none';result.innerHTML='';
+ const overlay=document.getElementById('renderOverlay'),viewerProgress=document.getElementById('viewerProgress'),percent=document.getElementById('renderPercent'),sub=document.getElementById('renderSub'),foot=document.getElementById('renderFoot');
+ if(!canvas.captureStream){toast('This browser cannot record the 3D canvas. Please open this page in Chrome.');return}
+ if(typeof MediaRecorder==='undefined'){toast('This browser does not support video recording. Please open this page in Chrome.');return}
+ btn.disabled=true;btn.textContent='Preparing video…';progress.style.width='0%';viewerProgress.style.width='0%';percent.textContent='0%';result.style.display='none';result.innerHTML='';overlay.classList.add('show');
+ document.getElementById('modelStatus').textContent='Recording 360° video…';
+ let stream=null,oldAuto=controls.autoRotate,rec=null;
  try{
-   const stream=canvas.captureStream(30);
-   let mime='';
-   for(const m of ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm']){if(MediaRecorder.isTypeSupported(m)){mime=m;break}}
-   if(!mime)throw new Error('No supported video format');
-   const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6000000});
+   const mimeCandidates=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+   let mime=mimeCandidates.find(m=>MediaRecorder.isTypeSupported(m));
+   if(!mime)throw new Error('This browser has no supported video recording format');
+   stream=canvas.captureStream(30);
    const chunks=[];
+   rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6000000});
    rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
    const done=new Promise((resolve,reject)=>{rec.onstop=resolve;rec.onerror=e=>reject(e.error||new Error('Recorder error'))});
-   const oldAuto=controls.autoRotate;
    const startAngle=controls.getAzimuthalAngle();
    controls.autoRotate=false;
    btn.textContent='Recording 360°…';
-   rec.start(200);
+   sub.textContent='Recording the 3D view from every angle';
+   foot.textContent='The building is rotating in the viewer. Please keep this page open.';
+   rec.start(250);
    const start=performance.now(),duration=15000;
-   function tick(now){
-     const pct=Math.min((now-start)/duration,1);
-     progress.style.width=(pct*100)+'%';
-     controls.setAzimuthalAngle(startAngle+pct*Math.PI*2);
-     controls.update();
-     renderer.render(scene,camera);
-     if(pct<1)requestAnimationFrame(tick);else rec.stop();
-   }
-   requestAnimationFrame(tick);
+   await new Promise((resolve,reject)=>{
+     function tick(now){
+       if(rec.state==='inactive'){reject(new Error('Recording stopped unexpectedly'));return}
+       const elapsed=Math.min(now-start,duration),pct=Math.min(elapsed/duration,1);
+       const p=Math.round(pct*100);
+       progress.style.width=p+'%';viewerProgress.style.width=p+'%';percent.textContent=p+'%';
+       sub.textContent=p<100?'Recording 360° view · '+Math.ceil((duration-elapsed)/1000)+' seconds remaining':'Finishing video…';
+       controls.setAzimuthalAngle(startAngle+pct*Math.PI*2);controls.update();renderer.render(scene,camera);
+       if(pct<1)requestAnimationFrame(tick);else{try{rec.stop();resolve()}catch(e){reject(e)}}
+     }
+     requestAnimationFrame(tick);
+   });
    await done;
-   stream.getTracks().forEach(t=>t.stop());
    const blob=new Blob(chunks,{type:mime});
-   if(!blob.size)throw new Error('Empty video');
+   if(!blob.size)throw new Error('The browser produced an empty video');
    const url=URL.createObjectURL(blob);
    result.style.display='block';
-   result.innerHTML='<div style="border:1px solid #dce4ef;border-radius:8px;padding:9px;background:#f8faff"><div style="font-size:10px;font-weight:800;color:#516783;margin-bottom:7px">360° VIDEO READY</div><video controls playsinline style="width:100%;max-height:220px;border-radius:6px;background:#111"></video><a id="downloadVideo" href="'+url+'" download="'+safe(projectData().name)+'-360-video.webm" style="display:block;text-align:center;margin-top:8px;background:#2458d3;color:#fff;text-decoration:none;border-radius:7px;padding:9px;font-size:10px;font-weight:800">Download 360° Video</a></div>';
+   result.innerHTML='<div style="border:1px solid #dce4ef;border-radius:8px;padding:9px;background:#f8faff"><div style="font-size:10px;font-weight:800;color:#16804a;margin-bottom:7px">✓ 360° VIDEO READY</div><video controls playsinline style="width:100%;max-height:220px;border-radius:6px;background:#111"></video><a id="downloadVideo" href="'+url+'" download="'+safe(projectData().name)+'-360-video.webm" style="display:block;text-align:center;margin-top:8px;background:#2458d3;color:#fff;text-decoration:none;border-radius:7px;padding:9px;font-size:10px;font-weight:800">Download 360° Video</a></div>';
    result.querySelector('video').src=url;
-   toast('360° video created');
-   controls.autoRotate=oldAuto;
+   percent.textContent='100%';viewerProgress.style.width='100%';progress.style.width='100%';
+   document.getElementById('renderTitle').textContent='360° video completed';
+   sub.textContent='Your video is ready to preview and download.';
+   foot.textContent='Completed successfully.';
+   overlay.querySelector('.render-spinner').style.display='none';
+   document.getElementById('modelStatus').textContent='360° video ready';
+   toast('360° video created successfully');
  }catch(err){
    console.error(err);
+   document.getElementById('renderTitle').textContent='Video creation failed';
+   sub.textContent=err.message||'An unexpected recording error occurred.';
+   foot.textContent='Try opening this page in Google Chrome and record again.';
+   document.getElementById('modelStatus').textContent='Video creation failed';
+   overlay.querySelector('.render-spinner').style.display='none';
    toast('Video creation failed: '+(err.message||'unknown error'));
  }finally{
+   if(stream)stream.getTracks().forEach(t=>t.stop());
+   controls.autoRotate=oldAuto;
    btn.disabled=false;btn.textContent='Create 360° Video';
  }
 }
