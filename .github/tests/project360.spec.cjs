@@ -108,6 +108,14 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
   await page.locator("#cadRoomList .cad-room-row").filter({ hasText: "OFFICE" }).click();
   await expect(page.locator("#editModeStatus")).toContainText("Room ·");
   await expect(page.locator("#editMoveBtn")).toHaveClass(/active/);
+  await expect(page.locator("#editNumericPanel")).toBeVisible();
+  const initialRoomX = Number(await page.locator("#editPosX").inputValue());
+  await page.locator("#editPosX").fill((initialRoomX + 0.5).toFixed(2));
+  await page.locator("#editPosX").dispatchEvent("change");
+  await expect(page.locator("#editUndoBtn")).toBeEnabled();
+  await page.locator("#editUndoBtn").click();
+  await expect(page.locator("#editRedoBtn")).toBeEnabled();
+  await page.locator("#editRedoBtn").click();
   await page.locator("#editRotateBtn").click();
   await expect(page.locator("#editRotateBtn")).toHaveClass(/active/);
   await page.locator("#editMoveBtn").click();
