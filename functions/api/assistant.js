@@ -13,7 +13,7 @@ const TOOL_GUIDANCE = {
 };
 
 function allowed(origin) {
-  return origin === "https://shuvo44ju.github.io" ||
+  return origin === "https://shuvo44ju.github.io" || origin === "https://shuvo44.github.io" ||
     /^https:\/\/[a-z0-9-]+\.pages\.dev$/i.test(origin || "") ||
     /^https:\/\/(?:[a-z0-9-]+\.)*[a-z0-9-]+\.workers\.dev$/i.test(origin || "") ||
     /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin || "");
