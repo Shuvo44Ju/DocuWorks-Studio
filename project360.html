@@ -118,31 +118,36 @@ function fitObject(obj){const box=new THREE.Box3().setFromObject(obj),size=box.g
 function makeBuilding(){
  if(customModel){scene.remove(model);model=null;customModel=false}
  clearGenerated();
- const W=Math.max(3,+bWidth.value||20),D=Math.max(3,+bDepth.value||15),F=Math.max(1,Math.min(30,+floors.value||3)),H=Math.max(2,+floorH.value||3.2),N=Math.max(0,Math.min(20,+windows.value||5)),DW=Math.min(W*.5,Math.max(1,+doorW.value||2.4)),total=F*H;
+ const brief=details.value||'';
+ const use=useSettings.checked;
+ const dim=brief.match(/(\\d+(?:\\.\\d+)?)\\s*(?:m|meter|metre)\\s*[x×]\\s*(\\d+(?:\\.\\d+)?)\\s*(?:m|meter|metre)/i);
+ const floorMatch=brief.match(/(\\d+)\\s*(?:storey|story|floor|floors)/i);
+ const W=use?Math.max(3,+bWidth.value||20):Math.max(3,+(dim?.[1]||20));
+ const D=use?Math.max(3,+bDepth.value||15):Math.max(3,+(dim?.[2]||15));
+ const F=use?Math.max(1,Math.min(30,+floors.value||3)):Math.max(1,Math.min(30,+(floorMatch?.[1]||3)));
+ const H=use?Math.max(2,+floorH.value||3.2):3.2;
+ const N=use?Math.max(0,Math.min(20,+windows.value||5)):5;
+ const DW=use?Math.min(W*.5,Math.max(1,+doorW.value||2.4)):2.4;
+ const total=F*H;
  const s=style.value, wall=s==='industrial'?0x7d8793:s==='clean'?0xe8edf2:s==='simple'?0xd7dbe0:0xdfe6ee;
  const trim=s==='industrial'?0x3f4650:s==='clean'?0x2458d3:s==='simple'?0x596879:0x263b58;
  const glass=s==='industrial'?0x8fa7b9:0x78b8d8;
  const floorMat=material(wall),trimMat=material(trim),glassMat=material(glass,.2),roofMat=material(trim);
- // Main floor volumes
  for(let f=0;f<F;f++){const y=f*H+H/2;cube(W,H,D,0,y,0,floorMat);cube(W+.05,.08,D+.05,0,f*H,0,trimMat)}
- // vertical facade bands and roof
  cube(.16,total+.1,D+.1,-W/2-.08,total/2,0,trimMat);cube(.16,total+.1,D+.1,W/2+.08,total/2,0,trimMat);
  cube(W+.2,.25,D+.2,0,total+.13,0,roofMat);
- // front/back windows
  for(let f=0;f<F;f++){const y=f*H+H*.57;for(let i=0;i<N;i++){const x=-W/2+(i+1)*W/(N+1);cube(Math.max(.55,W/(N+1)*.58),H*.42,.08,x,y,-D/2-.045,glassMat);cube(Math.max(.55,W/(N+1)*.58),H*.42,.08,x,y,D/2+.045,glassMat)}}
- // side windows
  const sideN=Math.max(1,Math.round(N*.7));for(let f=0;f<F;f++){const y=f*H+H*.57;for(let i=0;i<sideN;i++){const z=-D/2+(i+1)*D/(sideN+1);cube(.08,H*.42,Math.max(.55,D/(sideN+1)*.58),-W/2-.045,y,z,glassMat);cube(.08,H*.42,Math.max(.55,D/(sideN+1)*.58),W/2+.045,y,z,glassMat)}}
- // entrance overlay on front
  const doorMat=material(0x344b66);cube(DW,H*.72,.1,0,H*.36,-D/2-.09,doorMat);
- // entrance canopy
  cube(Math.min(W*.55,DW+2.2),.18,2.2,0,H*.76,-D/2-1.0,trimMat);
- // central vertical entrance frame
  cube(.12,H*.76,.14,-DW/2,H*.38,-D/2-.14,trimMat);cube(.12,H*.76,.14,DW/2,H*.38,-D/2-.14,trimMat);
- // floor labels as subtle slabs
  for(let f=0;f<F;f++)cube(W*.92,.04,D*.92,0,f*H+.06,0,material(0xc9d0d9));
  grid.scale.set(Math.max(1,W/10),1,Math.max(1,D/10));grid.position.y=0;
  fitObject({children:parts});
- document.getElementById('emptyView').style.display='none';document.getElementById('modelStatus').textContent='3D project created';document.getElementById('projectTitle').textContent=name.value||'Project 360° Viewer';toast('3D project created');
+ document.getElementById('emptyView').style.display='none';
+ document.getElementById('modelStatus').textContent='3D project created';
+ document.getElementById('projectTitle').textContent=name.value||'Project 360° Viewer';
+ toast('3D project created');
 }
 document.getElementById('createBtn').onclick=makeBuilding;
 name.addEventListener('input',e=>document.getElementById('projectTitle').textContent=e.target.value||'Project 360° Viewer');
@@ -171,12 +176,38 @@ document.getElementById('htmlBtn').onclick=()=>{const p=projectData();const h='<
 
 async function makeVideo(){
  if(!model&&!parts.length){toast('Create the 3D project first');return}
- const btn=document.getElementById('videoBtn');btn.disabled=true;btn.textContent='Recording…';const progress=document.getElementById('progress');progress.style.width='0%';
- if(!canvas.captureStream||typeof MediaRecorder==='undefined'){toast('360° video is not supported by this browser. Try Chrome or Edge on desktop.');return}
- const stream=canvas.captureStream(30);let mime='video/webm;codecs=vp9';if(!MediaRecorder.isTypeSupported(mime))mime='video/webm;codecs=vp8';if(!MediaRecorder.isTypeSupported(mime))mime='video/webm';
- const done=new Promise(resolve=>rec.onstop=resolve);rec.start();const start=performance.now(),duration=30000,az=controls.getAzimuthalAngle(),old=autoRotate;controls.autoRotate=false;
- function tick(now){const pct=Math.min((now-start)/duration,1);progress.style.width=(pct*100)+'%';controls.setAzimuthalAngle(az+pct*Math.PI*2);controls.update();if(pct<1)requestAnimationFrame(tick);else rec.stop()}
- requestAnimationFrame(tick);await done;download(new Blob(chunks,{type:mime}),safe(projectData().name)+'-360-video.webm');btn.disabled=false;btn.textContent='Create 360° Video';toast('360° video created');autoRotate=old;controls.autoRotate=old
+ if(!canvas.captureStream||typeof MediaRecorder==='undefined'){toast('Video recording is not supported in this browser. Please use Chrome or Edge.');return}
+ const btn=document.getElementById('videoBtn'),progress=document.getElementById('progress');
+ btn.disabled=true;btn.textContent='Recording…';progress.style.width='0%';
+ const stream=canvas.captureStream(30);
+ let mime='video/webm;codecs=vp9';
+ if(!MediaRecorder.isTypeSupported(mime))mime='video/webm;codecs=vp8';
+ if(!MediaRecorder.isTypeSupported(mime))mime='video/webm';
+ const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8000000});
+ const chunks=[];
+ rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+ const done=new Promise(resolve=>rec.onstop=resolve);
+ const oldAuto=controls.autoRotate;
+ const startAngle=controls.getAzimuthalAngle();
+ controls.autoRotate=false;
+ rec.start(250);
+ const start=performance.now(),duration=30000;
+ function tick(now){
+   const pct=Math.min((now-start)/duration,1);
+   progress.style.width=(pct*100)+'%';
+   controls.setAzimuthalAngle(startAngle+pct*Math.PI*2);
+   controls.update();
+   renderer.render(scene,camera);
+   if(pct<1)requestAnimationFrame(tick);else rec.stop();
+ }
+ requestAnimationFrame(tick);
+ await done;
+ stream.getTracks().forEach(t=>t.stop());
+ const blob=new Blob(chunks,{type:mime});
+ if(!blob.size){btn.disabled=false;btn.textContent='Create 360° Video';toast('No video data was produced. Try Chrome or Edge.');return}
+ download(blob,safe(projectData().name)+'-360-video.webm');
+ btn.disabled=false;btn.textContent='Create 360° Video';toast('360° video created');
+ controls.autoRotate=oldAuto;
 }
 document.getElementById('useSettings').onchange=e=>document.getElementById('settingsFields').style.display=e.target.checked?'block':'none';
 document.getElementById('videoBtn').onclick=makeVideo;
