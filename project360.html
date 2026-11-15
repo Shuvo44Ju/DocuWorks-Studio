@@ -87,8 +87,12 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div style="flex:1"><div class="label">Drawing units</div><select class="field" id="cadUnits"><option value="auto">Auto detect</option><option value="mm">Millimetres</option><option value="cm">Centimetres</option><option value="m">Metres</option><option value="inch">Inches</option><option value="foot">Feet</option></select></div>
 <div style="flex:1"><div class="label">Wall height (m)</div><input class="field" id="cadWallHeight" type="number" min="2" max="8" step=".1" value="3"></div>
 <div style="flex:1"><div class="label">Wall thickness (m)</div><input class="field" id="cadWallThickness" type="number" min=".08" max="1" step=".02" value=".2"></div></div>
+<div class="row" style="margin-top:9px">
+<div style="flex:1"><div class="label">Door height (m)</div><input class="field" id="cadDoorHeight" type="number" min="1.8" max="2.8" step=".05" value="2.1"></div>
+<div style="flex:1"><div class="label">Window sill height (m)</div><input class="field" id="cadWindowSill" type="number" min=".3" max="1.5" step=".05" value=".9"></div>
+<div style="flex:1"><div class="label">Window height (m)</div><input class="field" id="cadWindowHeight" type="number" min=".5" max="2.5" step=".05" value="1.35"></div></div>
 <div class="cad-actions"><button class="action main" id="cadBuildBtn" type="button">Generate 3D from plan</button><button class="action" id="cadDownloadBtn" type="button">Download converted DXF</button></div>
-<div class="note">Geometry-aware reconstruction: parallel wall faces are paired into one centerline wall with measured thickness; broken and differently segmented wall faces are matched where they overlap. Recognized door swing arcs are aligned to nearby walls to cut openings, and unmarked wall gaps are left open rather than filled. Curved ARC/CIRCLE entities and polyline bulges are tessellated; nested INSERT blocks are expanded when definitions are available. Layer mapping remains editable. Ambiguous symbols may still need manual review. Not a construction-ready BIM model.</div>
+<div class="note">Opening recognition: door swing arcs are matched to nearby walls and converted into door-width cuts; mapped door/window layers create their own openings. Door height, window sill height and window height are editable before generation. The result reports matched and uncertain symbols; window geometry still relies on a mapped window/glazing layer or explicit window markers, so ambiguous symbols need manual layer mapping. Parallel wall faces are paired into one centerline wall with measured thickness. Not a construction-ready BIM model.</div>
 </div></section>
 <section class="panel box">
 <span class="pill">OPTIONAL</span>
@@ -737,7 +741,7 @@ function cadBuild3D(){
  const height=Math.max(2,Math.min(8,Number(el("cadWallHeight").value)||3));
  const thick=Math.max(.08,Math.min(1,Number(el("cadWallThickness").value)||.2));
  const scale=cadUnitScale(),roles=new Map(cadLayers.map(l=>[l.name,l.role]));
- const doorH=2.1,windowH=1.35,windowSill=.9,slab=.16;
+ const doorH=Math.max(1.8,Math.min(2.8,Number(el("cadDoorHeight")?.value)||2.1)),windowH=Math.max(.5,Math.min(2.5,Number(el("cadWindowHeight")?.value)||1.35)),windowSill=Math.max(.3,Math.min(1.5,Number(el("cadWindowSill")?.value)||.9)),slab=.16;
  const wallMat=material(0xd6dee8),columnMat=material(0x64748b),slabMat=material(0xb9c5d5),glassMat=new THREE.MeshStandardMaterial({color:0x69b9df,roughness:.18,metalness:.05,transparent:true,opacity:.48}),frameMat=material(0x526b86),stairMat=material(0x9aa9bc),beamMat=material(0x71849b);
  const created=[],wallSegments=[],openingSegments=[];
  const all=cadDocument.entities||[];
@@ -745,25 +749,33 @@ function cadBuild3D(){
  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const project=(p,a,ux,uy)=>({t:(p.x-a.x)*ux+(p.y-a.y)*uy,off:Math.abs((p.x-a.x)*uy-(p.y-a.y)*ux)});
  const wallResult=cadNormalizeWallSegments(pointSegments("Walls"),scale,thick),walls=wallResult.segments;
- pointSegments("Windows").forEach(seg=>openingSegments.push({role:"Windows",a:seg[0],b:seg[1]}));
+ let detectedDoorCount=0,detectedWindowCount=0,uncertainOpeningCount=0;
+ pointSegments("Windows").forEach(seg=>{openingSegments.push({role:"Windows",a:seg[0],b:seg[1],confidence:"layer"});detectedWindowCount++;});
  all.filter(e=>cadEntityRole(e)==="Doors").forEach(e=>{
   if(String(e.type||"").toUpperCase()==="ARC"){
-   const center=e.center||e.centerPoint||{x:0,y:0},pts=cadEntityPoints(e),candidates=[pts[0],pts[pts.length-1]].filter(Boolean);let best=null;
-   for(const endpoint of candidates){const rayLength=dist(center,endpoint);if(rayLength*scale<.45)continue;
-    for(const wall of walls){const dx=wall.b.x-wall.a.x,dy=wall.b.y-wall.a.y,len=Math.hypot(dx,dy);if(len<.05)continue;const ux=dx/len,uy=dy/len,p=project(center,wall.a,ux,uy),q=project(endpoint,wall.a,ux,uy),alignment=Math.abs(q.t-p.t)/Math.max(rayLength,1e-9),off=Math.max(p.off,q.off);
-     if(alignment<.72||off*scale>Math.max(.12,thick*1.6)||Math.max(p.t,q.t)<-.15/scale||Math.min(p.t,q.t)>len+.15/scale)continue;
-     const score=off*scale+(1-alignment)*.6;if(!best||score<best.score)best={endpoint,score};
-    }
+   const center=e.center||e.centerPoint||{x:0,y:0},radius=Number(e.radius)||0;
+   if(radius*scale<.55||radius*scale>1.5){uncertainOpeningCount++;return;}
+   let best=null;
+   for(const wall of walls){const dx=wall.b.x-wall.a.x,dy=wall.b.y-wall.a.y,len=Math.hypot(dx,dy);if(len<.05)continue;const ux=dx/len,uy=dy/len,p=project(center,wall.a,ux,uy);
+    if(p.off*scale>Math.max(.12,thick*1.6)||p.t<-.05/scale||p.t>len+.05/scale)continue;
+    const left=Math.max(0,p.t),right=Math.max(0,len-p.t),direction=right>=left?1:-1,available=Math.max(left,right),width=Math.min(radius,available);
+    if(width*scale<.55)continue;
+    const score=p.off*scale+Math.max(0,radius-width)*.5;
+    if(!best||score<best.score)best={a:{x:center.x+ux*(direction>0?-p.t:len-p.t),y:center.y+uy*(direction>0?-p.t:len-p.t)},b:{x:center.x+ux*(direction>0?width-p.t:len-p.t-width),y:center.y+uy*(direction>0?width-p.t:len-p.t-width)},score,width};
    }
-   if(best)openingSegments.push({role:"Doors",a:center,b:best.endpoint});
+   if(best){openingSegments.push({role:"Doors",a:best.a,b:best.b,confidence:"swing-arc"});detectedDoorCount++;}else uncertainOpeningCount++;
   }else{
-   const pts=cadEntityPoints(e);for(let k=1;k<pts.length;k++)openingSegments.push({role:"Doors",a:pts[k-1],b:pts[k]});if((e.closed||e.shape)&&pts.length>2)openingSegments.push({role:"Doors",a:pts[pts.length-1],b:pts[0]});
+   const pts=cadEntityPoints(e),segments=[];for(let k=1;k<pts.length;k++)segments.push([pts[k-1],pts[k]]);if((e.closed||e.shape)&&pts.length>2)segments.push([pts[pts.length-1],pts[0]]);
+   let matched=false;
+   for(const seg of segments){let best=null;for(const wall of walls){const dx=wall.b.x-wall.a.x,dy=wall.b.y-wall.a.y,len=Math.hypot(dx,dy);if(len<.05)continue;const ux=dx/len,uy=dy/len,p=project(seg[0],wall.a,ux,uy),q=project(seg[1],wall.a,ux,uy),gap=dist(seg[0],seg[1]);if(p.off*scale>Math.max(.12,thick*1.6)||q.off*scale>Math.max(.12,thick*1.6)||gap*scale<.55||Math.abs(p.t-q.t)*scale<.45)continue;const score=(p.off+q.off)*scale;if(!best||score<best.score)best={score,seg};}if(best){openingSegments.push({role:"Doors",a:best.seg[0],b:best.seg[1],confidence:"mapped-layer"});matched=true;}}
+   if(matched)detectedDoorCount++;else uncertainOpeningCount++;
   }
  });
+
  const addBox=(w,h,d,x,y,z,mat,rot=0)=>{if(w<=.015||h<=.015||d<=.015)return;const o=cube(w,h,d,x,y,z,mat,rot);created.push(o);return o;};
  const addWallPiece=(a,b,z0,z1,offset=0,wallWidth=thick)=>{const dx=(b.x-a.x)*scale,dy=(b.y-a.y)*scale,len=Math.hypot(dx,dy);if(len<.025||len>500)return;const ux=dx/len,uz=-dy/len;const midx=(a.x+b.x)*.5*scale+(-uz)*offset,midz=-(a.y+b.y)*.5*scale+ux*offset;addBox(len,z1-z0,wallWidth,midx,(z0+z1)/2,midz,wallMat,Math.atan2(dy,dx));};
  const drawingBounds=cadBounds(all),roomTolerance=Math.max(.005,Math.min(.05,Math.max(drawingBounds?.width||0,drawingBounds?.height||0)*.0005));const explicitRoomEntities=all.filter(e=>["Rooms","Floors"].includes(cadEntityRole(e))&&(e.closed||e.shape)&&cadEntityPoints(e).length>=3);const inferredRoomLoops=explicitRoomEntities.length?[]:cadInferRoomLoops(all,roomTolerance,walls.map(w=>[w.a,w.b]));
- walls.forEach(wall=>{const {a,b}=wall,wallThickness=wall.thickness||thick,len=dist(a,b);if(len*scale<.05)return;const ux=(b.x-a.x)/len,uy=(b.y-a.y)/len;const cuts=[];openingSegments.forEach(o=>{const p=project(o.a,a,ux,uy),q=project(o.b,a,ux,uy),olen=dist(o.a,o.b);if(p.off*scale<=Math.max(.12,thick*1.5)&&q.off*scale<=Math.max(.12,thick*1.5)&&olen*scale>=.45){const lo=Math.max(.04,Math.min(p.t,q.t)),hi=Math.min(len-.04,Math.max(p.t,q.t));if(hi-lo>=.45)cuts.push({lo,hi,role:o.role});}});
+ walls.forEach(wall=>{const {a,b}=wall,wallThickness=wall.thickness||thick,len=dist(a,b);if(len*scale<.05)return;const ux=(b.x-a.x)/len,uy=(b.y-a.y)/len;const cuts=[];openingSegments.forEach(o=>{const p=project(o.a,a,ux,uy),q=project(o.b,a,ux,uy),olen=dist(o.a,o.b);if(p.off*scale<=Math.max(.12,thick*1.5)&&q.off*scale<=Math.max(.12,thick*1.5)&&olen*scale>=.45){const lo=Math.max(.04,Math.min(p.t,q.t)),hi=Math.min(len-.04,Math.max(p.t,q.t));if(hi-lo>=.45)cuts.push({lo,hi,role:o.role,confidence:o.confidence||"mapped-layer"});}});
    cuts.sort((x,y)=>x.lo-y.lo);const merged=[];cuts.forEach(c=>{const last=merged[merged.length-1];if(last&&c.lo<=last.hi+.05){last.hi=Math.max(last.hi,c.hi);if(c.role==="Doors")last.role="Doors";}else merged.push({...c});});
    let cursor=0;merged.forEach(c=>{if(c.lo>cursor){const p={x:a.x+ux*cursor,y:a.y+uy*cursor},q={x:a.x+ux*c.lo,y:a.y+uy*c.lo};addWallPiece(p,q,0,height,0,wallThickness);}
      const p={x:a.x+ux*c.lo,y:a.y+uy*c.lo},q={x:a.x+ux*c.hi,y:a.y+uy*c.hi};
@@ -784,7 +796,7 @@ function cadBuild3D(){
  // Stairs and lift layers are reconstructed from their plan extents, with stair treads and a lift core.
  ["Stairs","Elevators"].forEach(role=>{const segs=pointSegments(role);if(!segs.length)return;const pts=segs.flat();const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),minX=Math.min(...xs)*scale,maxX=Math.max(...xs)*scale,minY=Math.min(...ys)*scale,maxY=Math.max(...ys)*scale,w=maxX-minX,d=maxY-minY;if(w<.5||d<.5)return;const cx=(minX+maxX)/2,cz=-(minY+maxY)/2;if(role==="Elevators"){addBox(w,height,d,cx,height/2,cz,frameMat);addBox(Math.max(.1,w-.12),height-.15,Math.max(.1,d-.12),cx,height/2,cz,slabMat);}else{const n=12;for(let k=0;k<n;k++){const x=minX+(k+.5)*w/n;addBox(w/n*.92,(k+1)*height/n,d*.55,x,(k+.5)*height/n,cz,stairMat);}}});
  if(!created.length){toast("No 3D geometry generated. Map wall, column, room or floor layers first.");return;}
- currentDesign=null;customModel=false;model=null;el("emptyView").style.display="none";fitParts();const wallNote=wallResult.pairingSkipped?"Wall-face pairing skipped because this drawing has a very large wall-segment count.":wallResult.pairedSections?wallResult.pairedSections+" paired wall sections merged · average measured thickness "+wallResult.averageThickness.toFixed(2)+" m":"No paired wall faces detected; the selected default thickness was used.";el("modelStatus").textContent="Architectural 3D generated · "+explicitRoomEntities.length+" explicit room outlines · "+inferredRoomLoops.length+" inferred enclosed spaces · "+wallResult.pairedSections+" paired wall sections";el("changeFeedback").textContent="CAD reconstruction generated. "+wallNote+" "+(inferredRoomLoops.length?inferredRoomLoops.length+" enclosed spaces inferred from normalized wall centerlines. ":"")+"Door gaps are not bridged with solid walls; recognized door markers are used as opening cuts. Review the result because this is a visual concept, not a verified BIM model.";toast("Architectural 3D reconstruction generated");
+ currentDesign=null;customModel=false;model=null;el("emptyView").style.display="none";fitParts();const wallNote=wallResult.pairingSkipped?"Wall-face pairing skipped because this drawing has a very large wall-segment count.":wallResult.pairedSections?wallResult.pairedSections+" paired wall sections merged · average measured thickness "+wallResult.averageThickness.toFixed(2)+" m":"No paired wall faces detected; the selected default thickness was used.";const openingNote=detectedDoorCount+" door markers and "+detectedWindowCount+" window-layer markers matched · "+uncertainOpeningCount+" uncertain opening symbols · door height "+doorH.toFixed(2)+" m · window sill "+windowSill.toFixed(2)+" m · window height "+windowH.toFixed(2)+" m.";el("modelStatus").textContent="Architectural 3D generated · "+explicitRoomEntities.length+" explicit room outlines · "+inferredRoomLoops.length+" inferred enclosed spaces · "+wallResult.pairedSections+" paired wall sections · "+detectedDoorCount+" doors · "+detectedWindowCount+" windows";el("changeFeedback").textContent="CAD reconstruction generated. "+wallNote+" "+openingNote+" "+(inferredRoomLoops.length?inferredRoomLoops.length+" enclosed spaces inferred from normalized wall centerlines. ":"")+"Only openings matched to mapped CAD markers or door swing arcs are cut; uncertain symbols need review. This is a visual concept, not a verified BIM model.";toast("Architectural 3D reconstruction generated");
 }
 el("cadFile").addEventListener("change",e=>{const file=e.target.files?.[0];if(file)cadLoadFile(file)});el("cadSampleBtn").addEventListener("click",cadMakeSample);el("cadClearBtn").addEventListener("click",()=>{cadDocument=null;cadDxfText="";cadLayers=[];el("cadMappingWrap").classList.add("cad-hidden");el("cadStatus").textContent="Floor plan cleared.";});el("cadBuildBtn").addEventListener("click",cadBuild3D);el("cadDownloadBtn").addEventListener("click",()=>{if(!cadDxfText){toast("The sample plan has no source DXF to download.");return;}download(new Blob([cadDxfText],{type:"application/dxf"}),(cadFileName.replace(/\.[^.]+$/,"")||"floor-plan")+".dxf");});
 
