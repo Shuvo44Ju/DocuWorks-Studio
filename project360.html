@@ -50,7 +50,9 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="row" style="margin-top:9px"><div style="flex:1"><div class="label">Location</div><input class="field" id="location" placeholder="Dhaka"></div><div style="flex:1"><div class="label">Revision</div><input class="field" id="revision" placeholder="Rev. 01"></div></div>
 <div class="label">Your project thoughts / design brief</div>
 <textarea class="field details" id="details" placeholder="Tell me what you want to build. Example: 3-storey pharmaceutical laboratory, reception on ground floor, QC labs on first floor, office on second floor, large front entrance, flat roof, modern exterior, windows on all sides..."></textarea>
-<div class="note">Write freely. This text becomes part of your project presentation. The geometry is created from the building settings below.</div>
+<div class="note">Write freely. This text becomes part of your project presentation. The geometry is generated from your description and optional settings.</div>
+<button class="action main" id="createBtn" style="width:100%;margin-top:12px;padding:13px;font-size:12px">Create 3D Project</button>
+<div class="note">Click here to generate your building. Building settings are optional and can be enabled below.</div>
 </section>
 
 <section class="panel box">
@@ -64,7 +66,6 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="row"><div style="flex:1"><div class="label">Windows / side</div><input class="field" id="windows" type="number" min="0" max="20" value="5"></div><div style="flex:1"><div class="label">Entrance width (m)</div><input class="field" id="doorW" type="number" min="1" max="10" step=".1" value="2.4"></div></div>
 <div class="label">Building style</div>
 <select class="field" id="style"><option value="modern">Modern</option><option value="industrial">Industrial</option><option value="clean">Clean / Laboratory</option><option value="simple">Simple</option></select>
-<button class="action main" id="createBtn" style="width:100%;margin-top:8px">Create 3D Project</button>
 <div class="note">This creates a free parametric concept model. It is not a full BIM/CAD replacement.</div>
 </div></section>
 
