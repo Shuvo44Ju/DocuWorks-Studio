@@ -746,10 +746,10 @@ function cadBuildAutoWallCandidates(entities){
    const off0=(b.a.x-a.a.x)*normal.x+(b.a.y-a.a.y)*normal.y,off1=(b.b.x-a.a.x)*normal.x+(b.b.y-a.a.y)*normal.y;
    if(off0*off1<=0)continue;
    const gap=(Math.abs(off0)+Math.abs(off1))*.5*cadAnalysisScale;
-   if(gap<.06||gap>.55||Math.abs(Math.abs(off0)-Math.abs(off1))*cadAnalysisScale>Math.max(.04,gap*.18))continue;
+   if(gap<.13||gap>.55||Math.abs(Math.abs(off0)-Math.abs(off1))*cadAnalysisScale>Math.max(.04,gap*.18))continue;
    const project=p=>(p.x-a.a.x)*a.ux+(p.y-a.a.y)*a.uy;
    const lo=Math.max(0,Math.min(project(b.a),project(b.b))),hi=Math.min(alen,Math.max(project(b.a),project(b.b))),overlap=Math.max(0,hi-lo)*cadAnalysisScale;
-   if(overlap<Math.max(.65,Math.min(a.len,b.len)*.45))continue;
+   if(overlap<Math.max(1.15,Math.min(a.len,b.len)*.45))continue;
    found.add(a.e);found.add(b.e);pairCount++;
   }
  }
