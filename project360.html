@@ -92,7 +92,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div style="flex:1"><div class="label">Window sill height (m)</div><input class="field" id="cadWindowSill" type="number" min=".3" max="1.5" step=".05" value=".9"></div>
 <div style="flex:1"><div class="label">Window height (m)</div><input class="field" id="cadWindowHeight" type="number" min=".5" max="2.5" step=".05" value="1.35"></div></div>
 <div class="cad-actions"><button class="action main" id="cadBuildBtn" type="button">Generate 3D from plan</button><button class="action" id="cadDownloadBtn" type="button">Download converted DXF</button></div>
-<div class="note">Opening recognition: door swing arcs are matched to nearby walls and converted into door-width cuts; mapped door/window layers create their own openings. Door height, window sill height and window height are editable before generation. The result reports matched and uncertain symbols; window geometry still relies on a mapped window/glazing layer or explicit window markers, so ambiguous symbols need manual layer mapping. Parallel wall faces are paired into one centerline wall with measured thickness. Not a construction-ready BIM model.</div>
+<div class="note">Opening recognition: door swing arcs are matched to nearby walls and converted into door-width cuts; mapped door/window layers create openings. Short paired parallel glazing lines near walls can also be recognized as window markers when their spacing and overlap match common window detailing. Door height, window sill height and window height are editable before generation. The result reports matched and uncertain symbols; unusual symbols still need manual layer mapping. Parallel wall faces are paired into one centerline wall with measured thickness. Not a construction-ready BIM model.</div>
 </div></section>
 <section class="panel box">
 <span class="pill">OPTIONAL</span>
@@ -752,6 +752,26 @@ function cadBuild3D(){
  const wallResult=cadNormalizeWallSegments(pointSegments("Walls"),scale,thick),walls=wallResult.segments;
  let detectedDoorCount=0,detectedWindowCount=0,uncertainOpeningCount=0;
  pointSegments("Windows").forEach(seg=>{openingSegments.push({role:"Windows",a:seg[0],b:seg[1],confidence:"layer"});detectedWindowCount++;});
+ // Infer glazing from two short, close, parallel linework segments lying along the same wall.
+ const looseSegments=all.filter(e=>cadEntityRole(e)==="Ignore").flatMap(e=>{const pts=cadEntityPoints(e),out=[];for(let k=1;k<pts.length;k++)out.push([pts[k-1],pts[k]]);return out;});
+ const autoWindowKeys=new Set();
+ for(let i=0;i<looseSegments.length&&autoWindowKeys.size<120;i++){
+  const [a,b]=looseSegments[i],dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);if(len*scale<.45||len*scale>4.5)continue;
+  const ux=dx/len,uy=dy/len;
+  for(let j=i+1;j<looseSegments.length;j++){
+   const [c,d]=looseSegments[j],ex=d.x-c.x,ey=d.y-c.y,elen=Math.hypot(ex,ey);if(elen*scale<.45||elen*scale>4.5||Math.abs((dx*ex+dy*ey)/(len*elen))<.985)continue;
+   const nx=-uy,ny=ux,off0=(c.x-a.x)*nx+(c.y-a.y)*ny,off1=(d.x-a.x)*nx+(d.y-a.y)*ny,gap=Math.abs((off0+off1)*.5)*scale;
+   if(off0*off1<=0||gap<.015||gap>.12)continue;
+   const projectS=p=>(p.x-a.x)*ux+(p.y-a.y)*uy,lo=Math.max(0,Math.min(projectS(c),projectS(d))),hi=Math.min(len,Math.max(projectS(c),projectS(d))),overlap=hi-lo;
+   if(overlap*scale<.45||overlap*scale>4.5)continue;
+   const midOff=(off0+off1)*.5,mid=(p)=>({x:a.x+ux*p+nx*midOff,y:a.y+uy*p+ny*midOff}),p0=mid(lo),p1=mid(hi);
+   let nearWall=false;for(const wall of walls){const wx=wall.b.x-wall.a.x,wy=wall.b.y-wall.a.y,wl=Math.hypot(wx,wy);if(wl<.05)continue;const dot=Math.abs((wx*ux+wy*uy)/wl),q0=project(p0,wall.a,wx/wl,wy/wl),q1=project(p1,wall.a,wx/wl,wy/wl);if(dot>.985&&Math.max(q0.off,q1.off)*scale<=Math.max(.25,thick*1.5)){nearWall=true;break;}}
+   if(!nearWall)continue;
+   const key=[Math.round(p0.x*1000),Math.round(p0.y*1000),Math.round(p1.x*1000),Math.round(p1.y*1000)].join(":");if(autoWindowKeys.has(key))continue;
+   autoWindowKeys.add(key);openingSegments.push({role:"Windows",a:p0,b:p1,confidence:"geometry"});detectedWindowCount++;
+   break;
+  }
+ }
  all.filter(e=>cadEntityRole(e)==="Doors").forEach(e=>{
   if(String(e.type||"").toUpperCase()==="ARC"){
    const center=e.center||e.centerPoint||{x:0,y:0},radius=Number(e.radius)||0;
