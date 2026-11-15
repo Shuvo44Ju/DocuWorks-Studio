@@ -19,7 +19,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 @media(max-width:1050px){.app{grid-template-columns:230px 1fr}.grid{grid-template-columns:1fr}.right{display:grid;grid-template-columns:1fr 1fr}.viewer{height:650px}.viewer-foot{flex-wrap:wrap}}
 @media(max-width:700px){.app{display:block;height:auto;min-height:100vh;overflow:visible}.top{height:62px}.side{border-right:0;border-bottom:1px solid var(--line);padding:12px 15px}.side .steps{display:flex;overflow:auto;gap:5px}.step{min-width:145px;margin:0}.tip{display:none}.main{padding:14px}.right{display:flex}.viewer{height:560px;min-height:0}.grid{display:flex;flex-direction:column}}
 @media(max-width:600px){.ai-launch{right:15px;bottom:15px;width:44px;height:44px}.ai-popover{right:15px;bottom:70px;width:calc(100vw - 30px)}}
-</style>
+.edit-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 11px;border-top:1px solid #e8edf4;background:#fbfcfe}.edit-toolbar .iconbtn{padding:6px 8px;font-size:10px}.edit-toolbar .iconbtn.active{background:#eaf1ff;border-color:#8ca9e9;color:#2458d3}.edit-toolbar .edit-status{font-size:9px;color:#71819a;min-width:130px;flex:1}.edit-toolbar .edit-status strong{color:#2458d3}.cad-room-list{display:grid;gap:6px;margin-top:8px}.cad-room-row{display:flex;align-items:center;gap:8px;width:100%;padding:8px;border:1px solid #e4eaf2;border-radius:8px;background:#fff;text-align:left;color:#405672}.cad-room-row:hover{border-color:#9ab3ed;background:#f8faff}.cad-room-row strong{display:block;font-size:10px}.cad-room-row small{display:block;font-size:9px;color:#8492a6}.cad-room-dot{width:9px;height:9px;border-radius:50%;background:#6b91d7;flex:none}.cad-room-empty{font-size:10px;color:#8492a6;padding:9px;border:1px dashed #dce4ef;border-radius:8px}</style>
 </head>
 <body>
 <div class="app">
@@ -42,7 +42,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <section class="panel viewer">
 <div class="viewer-head"><h1 id="projectTitle">Project 360° Viewer</h1><span class="status" id="modelStatus">Ready to create</span></div>
 <div class="canvas-wrap" id="canvasWrap"><canvas id="three"></canvas><div class="render-overlay" id="renderOverlay" role="status" aria-live="polite"><div class="render-top"><span class="render-spinner"></span><div><div class="render-title" id="renderTitle">Creating your 360° video</div><div class="render-sub" id="renderSub">Recording the 3D view from every angle</div></div><span class="render-percent" id="renderPercent">0%</span></div><div class="render-track"><i id="viewerProgress"></i></div><div class="render-foot" id="renderFoot">Please keep this page open while recording.</div></div><div class="viewer-error" id="viewerError"><div><b>3D viewer could not start</b><span id="viewerErrorText">Please refresh the page and try again.</span><small>Check the error above. WebGL, browser support, or a failed 3D module may be responsible.</small></div></div><div class="empty-view" id="emptyView"><div><div class="big">◇</div><b>Your 3D project will appear here</b><br>Describe your project, set the building parameters, then click <b>Create 3D Project</b>.<br><br>After creation: drag to rotate · wheel to zoom · right-drag to pan</div></div></div>
-<div class="viewer-foot"><button class="ai-launch" id="askAiToggle" type="button" aria-label="AI assistant"><span>✦</span></button><div class="ai-popover" id="askAiPopover" role="dialog" aria-label="AI assistant"><div class="ai-popover-head"><span aria-hidden="true">✦</span><button class="ai-popover-close" id="askAiClose" type="button" aria-label="Close">✕</button></div><div class="note" style="margin:0">Describe a change and I’ll update the current 3D concept.</div><textarea class="field details" id="changePrompt" placeholder="e.g. Add 3 floors, move the stairs to the left, or change the facade."></textarea><div class="edit-actions"><button class="action main" id="applyChangeBtn">Preview change</button><button class="action" id="undoChangeBtn" disabled>Undo</button><button class="action" id="redoChangeBtn" disabled>Redo</button></div><div class="note" id="changeFeedback">You can keep refining your design.</div><div class="design-preview" id="designPreview"><strong>REVIEW YOUR DESIGN CHANGE</strong><p id="designPreviewText"></p><div class="design-preview-actions"><button class="action main" id="confirmDesignBtn" type="button">Apply to 3D model</button><button class="action" id="cancelDesignBtn" type="button">Cancel</button></div></div></div><div class="controls"><button class="iconbtn" id="resetBtn">Reset view</button><button class="iconbtn" id="rotateBtn">Auto rotate</button><button class="iconbtn" id="wireBtn">Wireframe</button><button class="iconbtn" id="cutawayBtn" title="Hide the front and right exterior walls to inspect the conceptual room partitions">Interior view</button></div><span>Use Interior view to inspect conceptual rooms · not construction drawings</span></div>
+<div class="viewer-foot"><button class="ai-launch" id="askAiToggle" type="button" aria-label="AI assistant"><span>✦</span></button><div class="ai-popover" id="askAiPopover" role="dialog" aria-label="AI assistant"><div class="ai-popover-head"><span aria-hidden="true">✦</span><button class="ai-popover-close" id="askAiClose" type="button" aria-label="Close">✕</button></div><div class="note" style="margin:0">Describe a change and I’ll update the current 3D concept.</div><textarea class="field details" id="changePrompt" placeholder="e.g. Add 3 floors, move the stairs to the left, or change the facade."></textarea><div class="edit-actions"><button class="action main" id="applyChangeBtn">Preview change</button><button class="action" id="undoChangeBtn" disabled>Undo</button><button class="action" id="redoChangeBtn" disabled>Redo</button></div><div class="note" id="changeFeedback">You can keep refining your design.</div><div class="design-preview" id="designPreview"><strong>REVIEW YOUR DESIGN CHANGE</strong><p id="designPreviewText"></p><div class="design-preview-actions"><button class="action main" id="confirmDesignBtn" type="button">Apply to 3D model</button><button class="action" id="cancelDesignBtn" type="button">Cancel</button></div></div></div><div class="edit-toolbar" id="modelEditToolbar" aria-label="3D object editing tools"><span class="edit-status" id="editModeStatus">Double-click an object to select it</span><button class="iconbtn active" id="editSelectBtn" type="button">Select</button><button class="iconbtn" id="editMoveBtn" type="button">Move</button><button class="iconbtn" id="editRotateBtn" type="button">Rotate</button><button class="iconbtn" id="editScaleBtn" type="button">Resize</button><button class="iconbtn" id="editUndoBtn" type="button" disabled>Undo edit</button><button class="iconbtn" id="editRedoBtn" type="button" disabled>Redo edit</button><button class="iconbtn" id="editDeselectBtn" type="button">Deselect</button></div><div class="controls"><button class="iconbtn" id="resetBtn">Reset view</button><button class="iconbtn" id="rotateBtn">Auto rotate</button><button class="iconbtn" id="wireBtn">Wireframe</button><button class="iconbtn" id="cutawayBtn" title="Hide the front and right exterior walls to inspect the conceptual room partitions">Interior view</button></div><span>Use Interior view to inspect conceptual rooms · not construction drawings</span></div>
 </section>
 <aside class="right">
 <section class="panel box">
@@ -82,7 +82,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="cad-actions"><button class="action" id="cadSampleBtn" type="button">Load sample plan</button><button class="action" id="cadClearBtn" type="button">Clear plan</button></div>
 <div id="cadStatus" class="cad-status" aria-live="polite">No floor plan loaded. Use the sample plan to test the workflow.</div>
 <div id="cadMappingWrap" class="cad-hidden">
-<div class="section-title">2D FLOOR-PLAN PREVIEW</div><canvas id="cadPreview" class="cad-preview" width="1000" height="560"></canvas><div class="cad-intelligence" id="cadIntelligence" aria-live="polite"><strong>DRAWING INTELLIGENCE</strong><p id="cadIntelligenceText">Import a plan to analyse its geometry, curves, possible room outlines and architectural labels.</p><div class="cad-intel-tags" id="cadIntelligenceTags"></div></div>
+<div class="section-title">2D FLOOR-PLAN PREVIEW</div><canvas id="cadPreview" class="cad-preview" width="1000" height="560"></canvas><div class="cad-intelligence" id="cadIntelligence" aria-live="polite"><strong>DRAWING INTELLIGENCE</strong><p id="cadIntelligenceText">Import a plan to analyse its geometry, curves, possible room outlines and architectural labels.</p><div class="cad-intel-tags" id="cadIntelligenceTags"></div></div><div class="section-title">RECOGNISED ROOMS · CLICK TO SELECT IN 3D</div><div id="cadRoomSummary" class="note" style="margin-top:0">Room boundaries and names will appear after analysis.</div><div id="cadRoomList" class="cad-room-list"><div class="cad-room-empty">No room analysis yet.</div></div>
 <div class="section-title">MULTI-FLOOR BUILDING</div>
 <div class="note" style="margin-top:0">Add a separate DWG/DXF for every level. Each floor keeps its own layer mapping, elevation and alignment offsets.</div>
 <label class="action" style="display:block;text-align:center;margin-top:9px">＋ Add more floor drawings<input type="file" id="cadMultiFile" accept=".dwg,.dxf" multiple style="display:none"></label>
@@ -137,6 +137,7 @@ window.addEventListener('unhandledrejection',e=>window.showProject360Error(e.rea
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {TransformControls} from 'three/addons/controls/TransformControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
 
@@ -163,6 +164,8 @@ function toast(s){const t=document.getElementById('toast');t.textContent=s;t.cla
 function material(color,rough=.65){return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:.05})}
 function cube(w,h,d,x,y,z,m,rotationY=0){const g=new THREE.BoxGeometry(w,h,d);const o=new THREE.Mesh(g,m);o.position.set(x,y,z);o.rotation.y=rotationY;o.castShadow=true;o.receiveShadow=true;scene.add(o);parts.push(o);return o}
 function clearGenerated(){
+ if(typeof clearEditableSelection==="function")clearEditableSelection();
+ objectUndoStack=[];objectRedoStack=[];updateObjectEditButtons();
  // CAD floor meshes are re-parented into floor groups. Remove those groups first,
  // otherwise a rebuild/clear can leave stale geometry in the scene.
  if(Array.isArray(cadRenderedFloorGroups)){
@@ -171,11 +174,14 @@ function clearGenerated(){
  }
  parts.forEach(o=>{
   if(o.parent)o.parent.remove(o);
-  o.geometry?.dispose();
-  if(o.material){
-   const materials=Array.isArray(o.material)?o.material:[o.material];
-   materials.forEach(m=>m?.dispose());
-  }
+  const disposeNode=node=>{
+   node.geometry?.dispose();
+   if(node.material){
+    const materials=Array.isArray(node.material)?node.material:[node.material];
+    materials.forEach(m=>{if(m){for(const value of Object.values(m)){if(value&&value.isTexture)value.dispose();}m.dispose();}});
+   }
+  };
+  if(o.traverse)o.traverse(disposeNode);else disposeNode(o);
  });
  parts=[];
 }
@@ -183,6 +189,98 @@ function disposeImportedModel(root){if(!root)return;scene.remove(root);root.trav
 function fitBounds(box){const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),max=Math.max(size.x,size.y,size.z)||1;const dist=max/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))*1.55;camera.position.copy(center).add(new THREE.Vector3(dist*.85,dist*.62,dist));camera.near=Math.max(.01,max/10000);camera.far=Math.max(100,max*100);camera.updateProjectionMatrix();controls.target.copy(center);controls.update();grid.position.y=box.min.y}
 function fitObject(obj){fitBounds(new THREE.Box3().setFromObject(obj))}
 function fitParts(){const box=new THREE.Box3();parts.forEach(o=>{o.updateWorldMatrix(true,false);box.union(new THREE.Box3().setFromObject(o))});if(!box.isEmpty())fitBounds(box)}
+
+let transformControls=null,selectedEditable=null,selectionBox=null,objectUndoStack=[],objectRedoStack=[],objectEditStart=null;
+function makeEditableGroupFromParts(startIndex,label,category,metadata={}){
+ const children=parts.slice(startIndex);if(!children.length)return null;
+ const bounds=new THREE.Box3();children.forEach(o=>{o.updateWorldMatrix(true,false);bounds.expandByObject(o);});
+ const center=bounds.isEmpty()?new THREE.Vector3():bounds.getCenter(new THREE.Vector3());
+ const group=new THREE.Group();group.name=label||category||"Editable object";group.position.copy(center);scene.add(group);
+ children.forEach(o=>group.attach(o));
+ group.userData={...metadata,editable:true,label:label||category||"Editable object",category:category||"architectural-element"};
+ const sources=Array.isArray(metadata.sourceEntities)?metadata.sourceEntities:[];
+ group.userData.sourceEntitySnapshots=sources.map(entity=>({entity,snapshot:JSON.parse(JSON.stringify(entity))}));
+ group.userData.sourceDocument=metadata.sourceDocument||null;group.userData.cadScale=Number(metadata.cadScale)||null;
+ group.userData.initialMatrix=null;group.userData.syncedPosition=group.position.clone();
+ parts.splice(startIndex,children.length,group);return group;
+}
+function editableRoots(){const out=[];scene.traverse(o=>{if(o.userData?.editable===true)out.push(o);});return out;}
+function editorState(root){return {position:root.position.toArray(),rotation:root.rotation.toArray(),scale:root.scale.toArray()};}
+function updateObjectEditButtons(){
+ const undo=el("editUndoBtn"),redo=el("editRedoBtn");if(undo)undo.disabled=!objectUndoStack.length;if(redo)redo.disabled=!objectRedoStack.length;
+}
+function cadTransformEntitySnapshot(target,snapshot,matrix,scale){
+ const transformed=JSON.parse(JSON.stringify(snapshot)),vectorKeys=new Set(["majorAxis","majorAxisEndPoint","normal","extrusionDirection","direction","axis"]);
+ const visit=(obj,key)=>{
+  if(!obj||typeof obj!=="object")return;
+  if(Array.isArray(obj)){obj.forEach(v=>visit(v,key));return;}
+  if(Number.isFinite(obj.x)&&Number.isFinite(obj.y)){
+   if(!vectorKeys.has(key)){const p=new THREE.Vector3(obj.x*scale,0,-obj.y*scale).applyMatrix4(matrix);obj.x=p.x/scale;obj.y=-p.z/scale;}
+   return;
+  }
+  Object.keys(obj).forEach(k=>visit(obj[k],k));
+ };
+ Object.keys(transformed).forEach(k=>visit(transformed[k],k));
+ Object.keys(target).forEach(k=>delete target[k]);Object.assign(target,transformed);
+}
+function syncEditableRootToCad(root){
+ const data=root?.userData;if(!data?.sourceEntitySnapshots?.length||!data.cadScale||!data.initialMatrix)return;
+ root.updateMatrix();const delta=root.matrix.clone().multiply(data.initialMatrix.clone().invert());
+ data.sourceEntitySnapshots.forEach(item=>cadTransformEntitySnapshot(item.entity,item.snapshot,delta,data.cadScale));
+ if(data.sourceDocument&&data.sourceDocument===cadDocument)cadRefreshIntelligence();
+}
+function setEditorState(root,state){
+ if(!root||!state)return;root.position.fromArray(state.position);root.rotation.fromArray(state.rotation);root.scale.fromArray(state.scale);
+ root.updateMatrix();root.updateMatrixWorld(true);syncEditableRootToCad(root);
+ if(selectionBox)selectionBox.update();renderer.render(scene,camera);
+}
+function selectEditable(root){
+ if(!root||root.userData?.editable!==true)return;selectedEditable=root;transformControls.attach(root);
+ if(selectionBox){scene.remove(selectionBox);selectionBox.geometry?.dispose();selectionBox.material?.dispose();}
+ selectionBox=new THREE.BoxHelper(root,0x2458d3);scene.add(selectionBox);
+ const label=String(root.userData.label||root.name||"Selected object");
+ el("editModeStatus").textContent=label+" · "+(root.userData.category||"object");renderer.render(scene,camera);
+}
+function clearEditableSelection(){
+ selectedEditable=null;if(transformControls)transformControls.detach();
+ if(selectionBox){scene.remove(selectionBox);selectionBox.geometry?.dispose();selectionBox.material?.dispose();selectionBox=null;}
+ if(el("editModeStatus"))el("editModeStatus").textContent="Double-click an object to select it";renderer.render(scene,camera);
+}
+function setEditorMode(mode){
+ if(!transformControls)return;transformControls.setMode(mode);
+ const active={select:"editSelectBtn",translate:"editMoveBtn",rotate:"editRotateBtn",scale:"editScaleBtn"}[mode];
+ ["editSelectBtn","editMoveBtn","editRotateBtn","editScaleBtn"].forEach(id=>el(id)?.classList.toggle("active",id===active));
+ if(mode==="select")transformControls.detach();else if(selectedEditable)transformControls.attach(selectedEditable);
+ el("editModeStatus").textContent=mode==="select"?"Double-click an object to select it":({translate:"Move selected object with the arrows",rotate:"Rotate selected object",scale:"Resize selected object"}[mode]||"Editing mode");
+}
+function findEditableAncestor(object){let node=object;while(node&&node!==scene){if(node.userData?.editable===true)return node;node=node.parent;}return null;}
+function selectEditableByLabel(label){const root=editableRoots().find(o=>o.userData?.label===label);if(root){selectEditable(root);setEditorMode("translate");}}
+function initObjectEditor(){
+ if(transformControls)return;
+ transformControls=new TransformControls(camera,renderer.domElement);transformControls.setSize(.8);scene.add(transformControls.getHelper());
+ transformControls.addEventListener("dragging-changed",event=>{controls.enabled=!event.value;});
+ transformControls.addEventListener("mouseDown",()=>{objectEditStart=selectedEditable?editorState(selectedEditable):null;});
+ transformControls.addEventListener("objectChange",()=>{if(selectionBox)selectionBox.update();});
+ transformControls.addEventListener("mouseUp",()=>{
+  if(selectedEditable&&objectEditStart){objectUndoStack.push({root:selectedEditable,before:objectEditStart,after:editorState(selectedEditable)});if(objectUndoStack.length>80)objectUndoStack.shift();objectRedoStack=[];syncEditableRootToCad(selectedEditable);updateObjectEditButtons();}
+  objectEditStart=null;
+ });
+ renderer.domElement.addEventListener("dblclick",event=>{
+  if(transformControls.dragging)return;const rect=renderer.domElement.getBoundingClientRect();
+  const pointer=new THREE.Vector2((event.clientX-rect.left)/rect.width*2-1,-((event.clientY-rect.top)/rect.height)*2+1);
+  const raycaster=new THREE.Raycaster();raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObjects(parts,true),root=hits.map(hit=>findEditableAncestor(hit.object)).find(Boolean);
+  if(root){selectEditable(root);setEditorMode("translate");}
+ });
+ el("editSelectBtn").onclick=()=>setEditorMode("select");
+ el("editMoveBtn").onclick=()=>{if(!selectedEditable){el("editModeStatus").textContent="Double-click an editable object first";return;}setEditorMode("translate");};
+ el("editRotateBtn").onclick=()=>{if(!selectedEditable){el("editModeStatus").textContent="Double-click an editable object first";return;}setEditorMode("rotate");};
+ el("editScaleBtn").onclick=()=>{if(!selectedEditable){el("editModeStatus").textContent="Double-click an editable object first";return;}setEditorMode("scale");};
+ el("editDeselectBtn").onclick=()=>{clearEditableSelection();setEditorMode("select");};
+ el("editUndoBtn").onclick=()=>{const item=objectUndoStack.pop();if(!item)return;objectRedoStack.push(item);if(selectedEditable!==item.root)selectEditable(item.root);setEditorState(item.root,item.before);updateObjectEditButtons();};
+ el("editRedoBtn").onclick=()=>{const item=objectRedoStack.pop();if(!item)return;objectUndoStack.push(item);if(selectedEditable!==item.root)selectEditable(item.root);setEditorState(item.root,item.after);updateObjectEditButtons();};
+}
+
 function numberInWords(value){
  const words={zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
  return Object.prototype.hasOwnProperty.call(words,String(value).toLowerCase())?words[String(value).toLowerCase()]:Number(value);
@@ -384,6 +482,7 @@ function makeBuilding(){
  for(let c=0;c<stairCount;c++){
   const layout=elementLayout(currentDesign.staircasePositions,c+1,stairCount,'staircase');
   const pos=exteriorPlacement(layout,towerW,D),cx=pos.x,cz=pos.z,rot=pos.rotation;
+  const stairPartStart=parts.length;
   cube(.16,total,towerD,cx-towerW/2,total/2,cz,coreMat,rot);
   cube(.16,total,towerD,cx+towerW/2,total/2,cz,coreMat,rot);
   for(let f=0;f<F;f++){
@@ -395,16 +494,19 @@ function makeBuilding(){
    }
    cube(towerW*.9,.16,towerD*.9,cx,y0+H,cz,coreMat,rot);
   }
+  makeEditableGroupFromParts(stairPartStart,"Staircase "+(c+1),"staircase",{index:c+1,side:layout.side||"right"});
  }
  const shaftW=Math.min(2.0,Math.max(1.5,W*.1)),shaftD=Math.min(2.2,Math.max(1.8,D*.14));
  for(let e=0;e<liftCount;e++){
   const layout=elementLayout(currentDesign.elevatorPositions,e+1,liftCount,'elevator');
   const pos=exteriorPlacement(layout,shaftW,D),cx=pos.x,cz=pos.z,rot=pos.rotation;
+  const liftPartStart=parts.length;
   cube(shaftW,total,shaftD,cx,total/2,cz,coreMat,rot);
   for(let f=0;f<F;f++){
    const y=f*H+H*.5;
    cube(shaftW*.78,H*.58,.10,cx,y,cz-shaftD/2-.12,liftDoorMat,rot);
   }
+  makeEditableGroupFromParts(liftPartStart,"Elevator "+(e+1),"elevator",{index:e+1,side:layout.side||"right"});
  }
  grid.scale.set(Math.max(1,W/10),1,Math.max(1,D/10));grid.position.y=0;
  fitParts();
@@ -839,7 +941,7 @@ function cadUpdateIntelligence(){
  chips.forEach(value=>{const span=document.createElement("span");span.className="cad-intel-tag";span.textContent=value;tags.appendChild(span);});
  if(!(counts.Walls||0)){const warn=document.createElement("span");warn.className="cad-intel-tag";warn.textContent="No wall role detected · review layer mapping";tags.appendChild(warn);}
 }
-function cadRefreshIntelligence(){cadPrepareAnalysis();cadRenderPreview();cadUpdateIntelligence();}
+function cadRefreshIntelligence(){cadPrepareAnalysis();cadRenderPreview();cadUpdateIntelligence();if(typeof cadRenderDetectedRooms==="function")cadRenderDetectedRooms();}
 function cadRenderPreview(){
  const c=el("cadPreview"),ctx=c.getContext("2d"),entities=cadDocument?.entities||[],b=cadBounds(entities);
  ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle="#fbfcfe";ctx.fillRect(0,0,c.width,c.height);
@@ -1005,6 +1107,103 @@ function cadNormalizeWallSegments(input, scale, defaultThickness) {
  const measured=output.filter(s=>s.paired).map(s=>s.thickness);
  return {segments:output,pairedSections,pairedLinePairs:matched.size,averageThickness:measured.length?measured.reduce((a,b)=>a+b,0)/measured.length:0,pairingSkipped:raw.length>3500||candidates.length>60000,sourceCount:raw.length};
 }
+
+function cadPointInPolygon(point,polygon){
+ let inside=false;
+ for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){
+  const a=polygon[i],b=polygon[j];
+  if(((a.y>point.y)!==(b.y>point.y))&&(point.x<(b.x-a.x)*(point.y-a.y)/(b.y-a.y+1e-12)+a.x))inside=!inside;
+ }
+ return inside;
+}
+function cadPolygonMetrics(points){
+ let twiceArea=0,cx=0,cy=0;
+ for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length],cross=a.x*b.y-b.x*a.y;twiceArea+=cross;cx+=(a.x+b.x)*cross;cy+=(a.y+b.y)*cross;}
+ const area=twiceArea/2;if(Math.abs(area)<1e-9)return {area:0,centroid:points[0]||{x:0,y:0}};
+ return {area:Math.abs(area),centroid:{x:cx/(3*twiceArea),y:cy/(3*twiceArea)}};
+}
+function cadRoomType(label){
+ const t=String(label||"").toLowerCase(),types=[
+  ["Bedroom",/\b(bed ?room|bedroom|master bed|guest bed)\b/],["Bathroom",/\b(bath ?room|bathroom|toilet|wc|shower|powder room)\b/],
+  ["Kitchen",/\b(kitchen|pantry|scullery)\b/],["Living",/\b(living|family room|lounge|drawing room)\b/],["Dining",/\b(dining|dining room)\b/],
+  ["Office",/\b(office|workspace|work room|cabin)\b/],["Laboratory",/\b(lab|laboratory|cleanroom|clean room)\b/],
+  ["Corridor",/\b(corridor|passage|hallway|lobby)\b/],["Meeting",/\b(meeting|conference|board room)\b/],
+  ["Reception",/\b(reception|front desk|waiting)\b/],["Storage",/\b(store|storage|utility|janitor|closet)\b/],
+  ["Stair",/\b(stair|staircase)\b/],["Lift",/\b(lift|elevator)\b/]
+ ];
+ return types.find(([name,re])=>re.test(t))?.[0]||"Unclassified";
+}
+function cadBuildRoomRecords(entities,scale){
+ const all=entities||[],bounds=cadBounds(all),extent=Math.max(bounds?.width||0,bounds?.height||0);
+ const tolerance=Math.max(.012,Math.min(.12,Math.max(extent*.0008,(Number(el("cadWallThickness")?.value)||.2)*.36/Math.max(scale,.000001))));
+ const wallSegments=all.filter(e=>cadEntityRole(e)==="Walls").flatMap(e=>{
+  const pts=cadEntityPoints(e),segments=[];for(let i=1;i<pts.length;i++)segments.push([pts[i-1],pts[i]]);
+  if(cadEntityIsClosed(e)&&pts.length>2)segments.push([pts[pts.length-1],pts[0]]);return segments;
+ });
+ const normalized=cadNormalizeWallSegments(wallSegments,scale,Number(el("cadWallThickness")?.value)||.2);
+ const explicit=all.filter(e=>["Rooms","Floors"].includes(cadEntityRole(e))&&cadEntityIsClosed(e)&&cadEntityPoints(e).length>=3);
+ const inferred=cadInferRoomLoops(all,tolerance,normalized.segments.map(w=>[w.a,w.b]));
+ let loops=explicit.map(e=>({points:cadEntityPoints(e),source:e})).concat(inferred.map(points=>({points,source:null})));
+ const seen=new Set();
+ loops=loops.filter(item=>{
+  if(item.points.length<3)return false;const metrics=cadPolygonMetrics(item.points),area=metrics.area*scale*scale;
+  if(area<1.5||area>100000)return false;
+  const key=item.points.map(p=>Math.round(p.x/tolerance)+","+Math.round(p.y/tolerance)).sort().join(";");
+  if(seen.has(key))return false;seen.add(key);item.area=area;item.centroid=metrics.centroid;return true;
+ }).sort((a,b)=>a.area-b.area);
+ const labels=all.filter(e=>/^(TEXT|MTEXT|ATTRIB|ATTDEF)$/i.test(String(e.type||""))).map(e=>({entity:e,text:cadEntityText(e),point:cadEntityAnchor(e)})).filter(x=>x.text&&x.point);
+ const used=new Set();
+ return loops.map((item,index)=>{
+  const matches=labels.filter(label=>cadPointInPolygon(label.point,item.points)&&!used.has(label.entity));
+  const chosen=matches.sort((a,b)=>a.text.length-b.text.length)[0]||null;if(chosen)used.add(chosen.entity);
+  const label=chosen?.text||("Unlabelled room "+(index+1)),type=cadRoomType(label);
+  const width=(Math.max(...item.points.map(p=>p.x))-Math.min(...item.points.map(p=>p.x)))*scale;
+  const depth=(Math.max(...item.points.map(p=>p.y))-Math.min(...item.points.map(p=>p.y)))*scale;
+  return {...item,label,type,width,depth,confidence:chosen?.text?0.96:0.42,sourceEntity:chosen?.entity||null};
+ });
+}
+function cadRoomLabelSprite(label,area){
+ const c=document.createElement("canvas");c.width=512;c.height=128;const ctx=c.getContext("2d");
+ ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle="rgba(24,48,81,.82)";ctx.beginPath();ctx.roundRect(8,16,496,96,20);ctx.fill();
+ ctx.fillStyle="#fff";ctx.font="bold 34px Arial";ctx.textAlign="center";ctx.textBaseline="middle";
+ let text=String(label||"Room");if(text.length>22)text=text.slice(0,20)+"…";ctx.fillText(text,256,54);
+ ctx.font="22px Arial";ctx.fillStyle="#dbe8ff";ctx.fillText(Number(area||0).toFixed(1)+" m²",256,88);
+ const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;
+ const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false}));
+ const w=Math.max(1.2,Math.min(4.5,Math.sqrt(Math.max(area||.5,.5))*.62));sprite.scale.set(w,w*.25,1);return sprite;
+}
+function cadRenderDetectedRooms(){
+ const list=el("cadRoomList"),summary=el("cadRoomSummary");if(!list||!summary)return;
+ const source=cadDocument?.entities||[];
+ if(!source.length){list.innerHTML='<div class="cad-room-empty">Import a floor plan to detect its rooms.</div>';summary.textContent="No floor plan loaded.";return;}
+ const rooms=cadBuildRoomRecords(source,cadUnitScale());cadDetectedRooms=rooms;
+ summary.textContent=rooms.length+" enclosed spaces detected · "+rooms.filter(r=>r.confidence>.8).length+" have an in-room CAD label. Geometry-only names are provisional.";
+ list.replaceChildren();
+ if(!rooms.length){const empty=document.createElement("div");empty.className="cad-room-empty";empty.textContent="No closed room boundaries found yet. Check the wall mapping or gaps between wall lines.";list.appendChild(empty);return;}
+ rooms.forEach((room,index)=>{
+  const button=document.createElement("button");button.type="button";button.className="cad-room-row";
+  const dot=document.createElement("span");dot.className="cad-room-dot";
+  const text=document.createElement("span"),strong=document.createElement("strong"),small=document.createElement("small");
+  strong.textContent=room.label;small.textContent=(room.type==="Unclassified"?"Type needs review":room.type)+" · "+room.area.toFixed(1)+" m² · "+Math.round(room.confidence*100)+"% label confidence";
+  text.append(strong,small);button.append(dot,text);button.addEventListener("click",()=>selectEditableByLabel("Room · "+room.label+" · "+(index+1)));list.appendChild(button);
+ });
+}
+function cadEntityClusters(role,scale){
+ const entries=(cadDocument?.entities||[]).filter(e=>cadEntityRole(e)===role).map(entity=>{
+  const pts=cadEntityPoints(entity);if(pts.length<2)return null;
+  return {entity,pts,minX:Math.min(...pts.map(p=>p.x)),maxX:Math.max(...pts.map(p=>p.x)),minY:Math.min(...pts.map(p=>p.y)),maxY:Math.max(...pts.map(p=>p.y))};
+ }).filter(Boolean);
+ const parent=entries.map((_,i)=>i),find=i=>parent[i]===i?i:(parent[i]=find(parent[i])),join=(a,b)=>{a=find(a);b=find(b);if(a!==b)parent[b]=a;};
+ const gap=.85/Math.max(scale,.000001);
+ for(let i=0;i<entries.length;i++)for(let j=i+1;j<entries.length;j++){
+  const a=entries[i],b=entries[j],dx=Math.max(0,a.minX-b.maxX,b.minX-a.maxX),dy=Math.max(0,a.minY-b.maxY,b.minY-a.maxY);
+  if(Math.hypot(dx,dy)<=gap)join(i,j);
+ }
+ const groups=new Map();entries.forEach((item,index)=>{const root=find(index);if(!groups.has(root))groups.set(root,[]);groups.get(root).push(item);});
+ return [...groups.values()].map(items=>({entities:items.map(x=>x.entity),points:items.flatMap(x=>x.pts),
+  minX:Math.min(...items.map(x=>x.minX)),maxX:Math.max(...items.map(x=>x.maxX)),minY:Math.min(...items.map(x=>x.minY)),maxY:Math.max(...items.map(x=>x.maxY))}));
+}
+
 function cadInferRoomLoops(entities,tolerance,providedWallSegments){
  const segments=[];
  if(Array.isArray(providedWallSegments)){
@@ -1038,7 +1237,7 @@ function cadFloorListRender(){
 function cadActivateFloor(index,snapshot=true){
  if(index<0||index>=cadFloors.length)return;if(snapshot)cadSnapshotActiveFloor();cadActiveFloorIndex=index;
  const f=cadFloors[index];cadDocument=f.document;cadDxfText=f.dxfText;cadFileName=f.fileName;cadLayers=f.layers;
- el("cadMappingWrap").classList.remove("cad-hidden");cadShowLayers();cadFloorListRender();
+ el("cadMappingWrap").classList.remove("cad-hidden");cadShowLayers();cadRenderDetectedRooms();cadFloorListRender();
  const b=cadBounds(cadDocument.entities);el("cadStatus").textContent="Editing "+(f.label||cadDefaultFloorName(index))+" · "+cadDocument.entities.length+" entities · "+cadLayers.length+" layers"+(b?" · "+b.width.toFixed(2)+" × "+b.height.toFixed(2)+" drawing units":"")+". Each floor retains its own layer mapping.";
 }
 function cadSetDocument(doc,dxfText,fileName,options={}){
@@ -1123,7 +1322,7 @@ function cadBuild3D(options={}){
  const project=(p,a,ux,uy)=>({t:(p.x-a.x)*ux+(p.y-a.y)*uy,off:Math.abs((p.x-a.x)*uy-(p.y-a.y)*ux)});
  const wallResult=cadNormalizeWallSegments(pointSegments("Walls"),scale,thick),walls=wallResult.segments;
  let detectedDoorCount=0,detectedWindowCount=0,uncertainOpeningCount=0;
- pointSegments("Windows").forEach(seg=>{openingSegments.push({role:"Windows",a:seg[0],b:seg[1],confidence:"layer"});detectedWindowCount++;});
+ all.filter(e=>cadEntityRole(e)==="Windows"&&!cadAutoWindowEntities.has(e)).forEach(e=>{const pts=cadEntityPoints(e);for(let k=1;k<pts.length;k++){openingSegments.push({role:"Windows",a:pts[k-1],b:pts[k],confidence:"layer",sourceEntities:[e]});detectedWindowCount++;}});
  // Infer glazing from two short, close, parallel linework segments lying along the same wall.
  const looseSegments=all.filter(e=>["Ignore","Walls"].includes(cadEntityRole(e))).flatMap(e=>{const pts=cadEntityPoints(e),out=[];for(let k=1;k<pts.length;k++)out.push([pts[k-1],pts[k]]);return out;});
  const autoWindowKeys=new Set();
@@ -1156,24 +1355,41 @@ function cadBuild3D(options={}){
     const score=p.off*scale+Math.max(0,radius-width)*.5;
     if(!best||score<best.score){const start=direction>0?p.t:p.t-width,end=direction>0?p.t+width:p.t;best={a:{x:wall.a.x+ux*start,y:wall.a.y+uy*start},b:{x:wall.a.x+ux*end,y:wall.a.y+uy*end},score,width};}
    }
-   if(best){openingSegments.push({role:"Doors",a:best.a,b:best.b,confidence:"swing-arc"});detectedDoorCount++;}else uncertainOpeningCount++;
+   if(best){openingSegments.push({role:"Doors",a:best.a,b:best.b,confidence:"swing-arc",sourceEntities:[e]});detectedDoorCount++;}else uncertainOpeningCount++;
   }else{
    const pts=cadEntityPoints(e),segments=[];for(let k=1;k<pts.length;k++)segments.push([pts[k-1],pts[k]]);if((e.closed||e.shape)&&pts.length>2)segments.push([pts[pts.length-1],pts[0]]);
    let matched=false;
-   for(const seg of segments){let best=null;for(const wall of walls){const dx=wall.b.x-wall.a.x,dy=wall.b.y-wall.a.y,len=Math.hypot(dx,dy);if(len<.05)continue;const ux=dx/len,uy=dy/len,p=project(seg[0],wall.a,ux,uy),q=project(seg[1],wall.a,ux,uy),gap=dist(seg[0],seg[1]);if(p.off*scale>Math.max(.12,thick*1.6)||q.off*scale>Math.max(.12,thick*1.6)||gap*scale<.55||Math.abs(p.t-q.t)*scale<.45)continue;const score=(p.off+q.off)*scale;if(!best||score<best.score)best={score,seg};}if(best){openingSegments.push({role:"Doors",a:best.seg[0],b:best.seg[1],confidence:"mapped-layer"});matched=true;}}
+   for(const seg of segments){let best=null;for(const wall of walls){const dx=wall.b.x-wall.a.x,dy=wall.b.y-wall.a.y,len=Math.hypot(dx,dy);if(len<.05)continue;const ux=dx/len,uy=dy/len,p=project(seg[0],wall.a,ux,uy),q=project(seg[1],wall.a,ux,uy),gap=dist(seg[0],seg[1]);if(p.off*scale>Math.max(.12,thick*1.6)||q.off*scale>Math.max(.12,thick*1.6)||gap*scale<.55||Math.abs(p.t-q.t)*scale<.45)continue;const score=(p.off+q.off)*scale;if(!best||score<best.score)best={score,seg};}if(best){openingSegments.push({role:"Doors",a:best.seg[0],b:best.seg[1],confidence:"mapped-layer",sourceEntities:[e]});matched=true;}}
    if(matched)detectedDoorCount++;else uncertainOpeningCount++;
   }
  });
 
  const addBox=(w,h,d,x,y,z,mat,rot=0)=>{if(w<=.015||h<=.015||d<=.015)return;const o=cube(w,h,d,x,y,z,mat,rot);created.push(o);return o;};
  const addWallPiece=(a,b,z0,z1,offset=0,wallWidth=thick)=>{const dx=(b.x-a.x)*scale,dy=(b.y-a.y)*scale,len=Math.hypot(dx,dy);if(len<.025||len>500)return;const ux=dx/len,uz=-dy/len;const midx=(a.x+b.x)*.5*scale+(-uz)*offset,midz=-(a.y+b.y)*.5*scale+ux*offset;addBox(len,z1-z0,wallWidth,midx,(z0+z1)/2,midz,wallMat,Math.atan2(dy,dx));};
- const drawingBounds=cadBounds(all),roomTolerance=Math.max(.005,Math.min(.05,Math.max(drawingBounds?.width||0,drawingBounds?.height||0)*.0005));const explicitRoomEntities=all.filter(e=>["Rooms","Floors"].includes(cadEntityRole(e))&&cadEntityIsClosed(e)&&cadEntityPoints(e).length>=3);const inferredRoomLoops=explicitRoomEntities.length?[]:cadInferRoomLoops(all,roomTolerance,walls.map(w=>[w.a,w.b]));
+ const drawingBounds=cadBounds(all),roomTolerance=Math.max(.012,Math.min(.12,Math.max((drawingBounds?.width||0)*.0008,thick*.36/Math.max(scale,.000001))));const explicitRoomEntities=all.filter(e=>["Rooms","Floors"].includes(cadEntityRole(e))&&cadEntityIsClosed(e)&&cadEntityPoints(e).length>=3);const inferredRoomLoops=cadInferRoomLoops(all,roomTolerance,walls.map(w=>[w.a,w.b]));const roomRecords=cadBuildRoomRecords(all,scale);cadDetectedRooms=roomRecords;
  walls.forEach(wall=>{const {a,b}=wall,wallThickness=wall.thickness||thick,len=dist(a,b);if(len*scale<.05)return;const ux=(b.x-a.x)/len,uy=(b.y-a.y)/len;const cuts=[];openingSegments.forEach(o=>{const p=project(o.a,a,ux,uy),q=project(o.b,a,ux,uy),olen=dist(o.a,o.b);if(p.off*scale<=Math.max(.12,thick*1.5)&&q.off*scale<=Math.max(.12,thick*1.5)&&olen*scale>=.45){const lo=Math.max(.04,Math.min(p.t,q.t)),hi=Math.min(len-.04,Math.max(p.t,q.t));if(hi-lo>=.45)cuts.push({lo,hi,role:o.role,confidence:o.confidence||"mapped-layer"});}});
    cuts.sort((x,y)=>x.lo-y.lo);const merged=[];cuts.forEach(c=>{const last=merged[merged.length-1];if(last&&c.lo<=last.hi+.05){last.hi=Math.max(last.hi,c.hi);if(c.role==="Doors")last.role="Doors";}else merged.push({...c});});
    let cursor=0;merged.forEach(c=>{if(c.lo>cursor){const p={x:a.x+ux*cursor,y:a.y+uy*cursor},q={x:a.x+ux*c.lo,y:a.y+uy*c.lo};addWallPiece(p,q,0,height,0,wallThickness);}
      const p={x:a.x+ux*c.lo,y:a.y+uy*c.lo},q={x:a.x+ux*c.hi,y:a.y+uy*c.hi};
-     if(c.role==="Doors"){addWallPiece(p,q,doorH,height,0,wallThickness);const mid={x:(p.x+q.x)/2,y:(p.y+q.y)/2};const w=(c.hi-c.lo)*scale;addBox(w,.07,.07,mid.x*scale,doorH-.035,-mid.y*scale,frameMat,Math.atan2((q.y-p.y),(q.x-p.x)));const leaf=addBox(Math.max(.05,w-.08,0),doorH-.08,.045,mid.x*scale,doorH/2,-mid.y*scale,frameMat,Math.atan2((q.y-p.y),(q.x-p.x)));}
-     else {addWallPiece(p,q,0,windowSill,0,wallThickness);addWallPiece(p,q,windowSill+windowH,height,0,wallThickness);const mid={x:(p.x+q.x)/2,y:(p.y+q.y)/2};const w=(c.hi-c.lo)*scale;addBox(w,windowH,.045,mid.x*scale,windowSill+windowH/2,-mid.y*scale,glassMat,Math.atan2((q.y-p.y),(q.x-p.x)));addBox(w,.055,.08,mid.x*scale,windowSill,-mid.y*scale,frameMat,Math.atan2((q.y-p.y),(q.x-p.x)));addBox(w,.055,.08,mid.x*scale,windowSill+windowH,-mid.y*scale,frameMat,Math.atan2((q.y-p.y),(q.x-p.x)));}
+     if(c.role==="Doors"){
+      addWallPiece(p,q,doorH,height,0,wallThickness);
+      const openingStart=parts.length,mid={x:(p.x+q.x)/2,y:(p.y+q.y)/2},w=(c.hi-c.lo)*scale,angle=Math.atan2((q.y-p.y),(q.x-p.x)),length=Math.max(.001,dist(p,q)),nx=-(q.y-p.y)/length,ny=(q.x-p.x)/length;
+      addBox(.075,doorH,.10,p.x*scale,doorH/2,-p.y*scale,frameMat,angle);
+      addBox(.075,doorH,.10,q.x*scale,doorH/2,-q.y*scale,frameMat,angle);
+      addBox(w,.075,.10,mid.x*scale,doorH-.04,-mid.y*scale,frameMat,angle);
+      const leafCenter={x:p.x+(q.x-p.x)*.43+nx*.08,y:p.y+(q.y-p.y)*.43+ny*.08};
+      addBox(Math.max(.15,w*.86),doorH-.12,.055,leafCenter.x*scale,doorH/2,-leafCenter.y*scale,material(0x8a6b4d),angle+.22);
+      makeEditableGroupFromParts(openingStart,"Door "+(detectedDoorCount||1),"door",{sourceEntities:c.sourceEntities||[],cadScale:scale,sourceDocument:cadDocument});
+     }else{
+      addWallPiece(p,q,0,windowSill,0,wallThickness);addWallPiece(p,q,windowSill+windowH,height,0,wallThickness);
+      const openingStart=parts.length,mid={x:(p.x+q.x)/2,y:(p.y+q.y)/2},w=(c.hi-c.lo)*scale,angle=Math.atan2((q.y-p.y),(q.x-p.x));
+      addBox(w,windowH,.045,mid.x*scale,windowSill+windowH/2,-mid.y*scale,glassMat,angle);
+      addBox(w,.055,.08,mid.x*scale,windowSill,-mid.y*scale,frameMat,angle);
+      addBox(w,.055,.08,mid.x*scale,windowSill+windowH,-mid.y*scale,frameMat,angle);
+      addBox(.07,windowH,.08,p.x*scale,windowSill+windowH/2,-p.y*scale,frameMat,angle);
+      addBox(.07,windowH,.08,q.x*scale,windowSill+windowH/2,-q.y*scale,frameMat,angle);
+      makeEditableGroupFromParts(openingStart,"Window "+(detectedWindowCount||1),"window",{sourceEntities:c.sourceEntities||[],cadScale:scale,sourceDocument:cadDocument});
+     }
      cursor=Math.max(cursor,c.hi);
    });
    if(cursor<len){const p={x:a.x+ux*cursor,y:a.y+uy*cursor};addWallPiece(p,b,0,height);}
@@ -1181,13 +1397,41 @@ function cadBuild3D(options={}){
  // Columns: closed outlines are extruded as individual structural piers.
  all.forEach(e=>{if(cadEntityRole(e)!=="Columns")return;const pts=cadEntityPoints(e);if(pts.length<3)return;const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),w=(Math.max(...xs)-Math.min(...xs))*scale,d=(Math.max(...ys)-Math.min(...ys))*scale;if(w<.08||d<.08||w>5||d>5)return;addBox(w,height,d,(Math.min(...xs)+Math.max(...xs))/2*scale,height/2,-(Math.min(...ys)+Math.max(...ys))/2*scale,columnMat);});
  // Explicit room/floor outlines take priority; otherwise infer enclosed faces from connected wall lines.
- const floorLoops=explicitRoomEntities.map(e=>cadEntityPoints(e)).concat(inferredRoomLoops);floorLoops.forEach(pts=>{if(pts.length<3)return;const shape=new THREE.Shape();shape.moveTo(pts[0].x*scale,-pts[0].y*scale);pts.slice(1).forEach(p=>shape.lineTo(p.x*scale,-p.y*scale));shape.closePath();const geo=new THREE.ShapeGeometry(shape);const mesh=new THREE.Mesh(geo,slabMat);mesh.rotation.x=-Math.PI/2;mesh.position.y=-slab/2;mesh.receiveShadow=true;scene.add(mesh);parts.push(mesh);created.push(mesh);});
+ const floorLoops=roomRecords.length?roomRecords:explicitRoomEntities.map(e=>({points:cadEntityPoints(e),label:"Room",area:0,centroid:cadPolygonMetrics(cadEntityPoints(e)).centroid,confidence:.4}));floorLoops.forEach((room,index)=>{
+  const pts=room.points;if(pts.length<3)return;const roomStart=parts.length;
+  const shape=new THREE.Shape();shape.moveTo(pts[0].x*scale,-pts[0].y*scale);pts.slice(1).forEach(p=>shape.lineTo(p.x*scale,-p.y*scale));shape.closePath();
+  const roomMat=new THREE.MeshStandardMaterial({color:index%2?0xdce7f2:0xe7edf5,roughness:.9,side:THREE.DoubleSide});
+  const geo=new THREE.ShapeGeometry(shape);const mesh=new THREE.Mesh(geo,roomMat);mesh.rotation.x=-Math.PI/2;mesh.position.y=-slab/2;mesh.receiveShadow=true;scene.add(mesh);parts.push(mesh);created.push(mesh);
+  const labelSprite=cadRoomLabelSprite(room.label||("Room "+(index+1)),room.area||0);labelSprite.position.set(room.centroid.x*scale,.06,-room.centroid.y*scale);scene.add(labelSprite);parts.push(labelSprite);
+  makeEditableGroupFromParts(roomStart,"Room · "+(room.label||("Room "+(index+1)))+" · "+(index+1),"room",{roomLabel:room.label,roomType:room.type,areaM2:room.area,confidence:room.confidence});
+ });
  // If no enclosed room faces were found, use one footprint slab as a visual base.
  if(!floorLoops.length){const b=cadBounds(all);if(b){addBox(b.width*scale,slab,b.height*scale,(b.minX+b.maxX)*.5*scale,-slab/2,-(b.minY+b.maxY)*.5*scale,slabMat);}}
  // Beam lines become horizontal structural members at the top of the wall level.
  pointSegments("Beams").forEach(([a,b])=>{const dx=(b.x-a.x)*scale,dy=(b.y-a.y)*scale,len=Math.hypot(dx,dy);if(len>.1&&len<500)addBox(len,.3,.3,(a.x+b.x)*.5*scale,height-.15,-(a.y+b.y)*.5*scale,beamMat,Math.atan2(dy,dx));});
- // Stairs and lift layers are reconstructed from their plan extents, with stair treads and a lift core.
- ["Stairs","Elevators"].forEach(role=>{const segs=pointSegments(role);if(!segs.length)return;const pts=segs.flat();const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),minX=Math.min(...xs)*scale,maxX=Math.max(...xs)*scale,minY=Math.min(...ys)*scale,maxY=Math.max(...ys)*scale,w=maxX-minX,d=maxY-minY;if(w<.5||d<.5)return;const cx=(minX+maxX)/2,cz=-(minY+maxY)/2;if(role==="Elevators"){addBox(w,height,d,cx,height/2,cz,frameMat);addBox(Math.max(.1,w-.12),height-.15,Math.max(.1,d-.12),cx,height/2,cz,slabMat);}else{const n=12;for(let k=0;k<n;k++){const x=minX+(k+.5)*w/n;addBox(w/n*.92,(k+1)*height/n,d*.55,x,(k+.5)*height/n,cz,stairMat);}}});
+ // Reconstruct each disconnected stair/lift footprint independently, not as one layer-wide bounding box.
+ ["Stairs","Elevators"].forEach(role=>{
+  const clusters=cadEntityClusters(role,scale);
+  clusters.forEach((cluster,index)=>{
+   const minX=cluster.minX*scale,maxX=cluster.maxX*scale,minY=cluster.minY*scale,maxY=cluster.maxY*scale,w=maxX-minX,d=maxY-minY;
+   if(w<.45||d<.45||w>80||d>80)return;
+   const cx=(minX+maxX)/2,cz=-(minY+maxY)/2,start=parts.length;
+   if(role==="Elevators"){
+    const shaftW=Math.max(.8,Math.min(w,3.5)),shaftD=Math.max(.8,Math.min(d,3.5));
+    addBox(shaftW,height,shaftD,cx,height/2,cz,frameMat);
+    addBox(Math.max(.15,shaftW-.14),height-.16,Math.max(.15,shaftD-.14),cx,height/2,cz,slabMat);
+    addBox(Math.max(.55,shaftW*.72),Math.min(2.2,height*.72),.06,cx,Math.min(1.1,height*.36),cz-shaftD/2-.04,glassMat);
+   }else{
+    const alongX=w>=d,run=alongX?w:d,span=alongX?d:w,steps=Math.max(8,Math.min(18,Math.round(run/.24))),stepRun=run/steps,stepDepth=Math.max(.55,span*.62),stepRise=height/steps;
+    for(let k=0;k<steps;k++){
+     const x=alongX?minX+(k+.5)*stepRun:cx,z=alongX?cz:-(minY*scale+(k+.5)*stepRun);
+     addBox(alongX?stepRun*.94:stepDepth,stepRise*(k+1),alongX?stepDepth:stepRun*.94,x,stepRise*(k+.5),z,stairMat);
+    }
+    addBox(alongX?run*.92:span*.82,.14,alongX?span*.82:run*.92,cx,height*.98,cz,frameMat);
+   }
+   makeEditableGroupFromParts(start,role==="Stairs"?"Staircase "+(index+1):"Elevator "+(index+1),role==="Stairs"?"staircase":"elevator",{index:index+1,sourceEntities:cluster.entities,cadScale:scale,sourceDocument:cadDocument});
+  });
+ });
  // If the drawing contains only non-wall layers, still build a visible concept preview.
  // Doors/windows normally cut wall openings; without walls, show them as standalone panels instead.
  if(!created.length){
@@ -1215,9 +1459,10 @@ function cadBuild3D(options={}){
   }
  }
  if(!created.length){if(!options.quiet)toast("No 3D geometry found. Map a layer containing visible linework to Walls, Columns, Doors, Windows, Stairs, Elevators, Beams, Rooms or Floors. Text and dimensions are reference-only.");return false;}
- const floorParts=parts.slice(partStart),floorGroup=new THREE.Group();floorParts.forEach(object=>floorGroup.attach(object));floorGroup.position.set(Number(options.offsetX)||0,Number(options.baseElevation)||0,-(Number(options.offsetY)||0));floorGroup.userData.floorLabel=options.floorLabel||"Floor";floorGroup.userData.floorId=options.floorId||cadFloors[cadActiveFloorIndex]?.id||null;floorGroup.userData.floorIndex=options.floorIndex??cadActiveFloorIndex;floorGroup.userData.baseElevation=Number(options.baseElevation)||0;floorGroup.visible=options.visible!==false;scene.add(floorGroup);cadRenderedFloorGroups.push(floorGroup);
+ const floorParts=parts.slice(partStart),floorGroup=new THREE.Group();floorParts.forEach(object=>{floorGroup.attach(object);if(object.userData?.editable){object.updateMatrix();object.userData.initialMatrix=object.matrix.clone();object.userData.syncedPosition=object.position.clone();}});floorGroup.position.set(Number(options.offsetX)||0,Number(options.baseElevation)||0,-(Number(options.offsetY)||0));floorGroup.userData.floorLabel=options.floorLabel||"Floor";floorGroup.userData.floorId=options.floorId||cadFloors[cadActiveFloorIndex]?.id||null;floorGroup.userData.floorIndex=options.floorIndex??cadActiveFloorIndex;floorGroup.userData.baseElevation=Number(options.baseElevation)||0;floorGroup.visible=options.visible!==false;scene.add(floorGroup);cadRenderedFloorGroups.push(floorGroup);
  currentDesign=null;customModel=false;model=null;el("emptyView").style.display="none";if(!options.deferFit)fitParts();const wallNote=wallResult.pairingSkipped?"Wall-face pairing skipped because this drawing has a very large wall-segment count.":wallResult.pairedSections?wallResult.pairedSections+" paired wall sections merged · average measured thickness "+wallResult.averageThickness.toFixed(2)+" m":"No paired wall faces detected; the selected default thickness was used.";const openingNote=detectedDoorCount+" door markers and "+detectedWindowCount+" window-layer markers matched · "+uncertainOpeningCount+" uncertain opening symbols · door height "+doorH.toFixed(2)+" m · window sill "+windowSill.toFixed(2)+" m · window height "+windowH.toFixed(2)+" m.";el("modelStatus").textContent="Architectural 3D generated · "+explicitRoomEntities.length+" explicit room outlines · "+inferredRoomLoops.length+" inferred enclosed spaces · "+wallResult.pairedSections+" paired wall sections · "+detectedDoorCount+" doors · "+detectedWindowCount+" windows";el("changeFeedback").textContent="CAD reconstruction generated. "+wallNote+" "+openingNote+" "+(inferredRoomLoops.length?inferredRoomLoops.length+" enclosed spaces inferred from normalized wall centerlines. ":"")+"Only openings matched to mapped CAD markers or door swing arcs are cut; uncertain symbols need review. This is a visual concept, not a verified BIM model.";if(!options.quiet)toast("Architectural 3D reconstruction generated");return true;
 }
+let cadDetectedRooms=[];
 function cadSetRenderedFloorVisibility(floorId,visible){const group=cadRenderedFloorGroups.find(g=>g.userData.floorId===floorId);if(group){group.visible=visible;renderer.render(scene,camera);}}
 function cadToggleExplodedView(){
  cadExploded=!cadExploded;const distance=Math.max(1,Math.min(30,Number(el("cadExplodeDistance").value)||4));
@@ -1251,7 +1496,7 @@ el("cadClearBtn").addEventListener("click",()=>{
  cadDocument=null;cadDxfText="";cadFileName="";cadLayers=[];cadFloors=[];cadActiveFloorIndex=0;
  cadAutoWindowSegments=[];cadAutoWallEntities=new WeakSet();cadAutoWindowEntities=new WeakSet();cadAutoWallPairs=0;cadWallPairingSkipped=false;
  clearGenerated();cadExploded=false;el("cadExplodeBtn").textContent="Explode floors";
- el("cadFloorList").replaceChildren();el("cadMappingWrap").classList.add("cad-hidden");
+ el("cadFloorList").replaceChildren();el("cadRoomList").innerHTML='<div class="cad-room-empty">No room analysis yet.</div>';el("cadRoomSummary").textContent="Room boundaries and names will appear after analysis.";el("cadMappingWrap").classList.add("cad-hidden");
  currentDesign=null;
  if(!model){customModel=false;el("emptyView").style.display="grid";el("modelStatus").textContent="Ready to create";}
  else{el("emptyView").style.display="none";el("modelStatus").textContent="Imported model";}
@@ -1376,8 +1621,9 @@ async function makeVideo(){
 }
 document.getElementById('useSettings').onchange=e=>{document.getElementById('settingsFields').style.display=e.target.checked?'block':'none';setWizardStep(e.target.checked?2:1)};
 document.getElementById('videoBtn').onclick=makeVideo;
+initObjectEditor();
 function resize(){const w=wrap.clientWidth,h=wrap.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();
-function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();
+function animate(){requestAnimationFrame(animate);controls.update();if(selectionBox)selectionBox.update();renderer.render(scene,camera)}animate();
 const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(wrap);
 document.getElementById('modelStatus').textContent='3D viewer ready';
 </script>
