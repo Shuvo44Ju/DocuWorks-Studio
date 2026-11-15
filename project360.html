@@ -564,7 +564,60 @@ function cadEntityPoints(e){const type=String(e.type||"").toUpperCase();if(type=
 function cadBounds(entities){let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;for(const e of entities)for(const p of cadEntityPoints(e)){minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);}if(!Number.isFinite(minX))return null;return {minX,minY,maxX,maxY,width:maxX-minX,height:maxY-minY};}
 function cadRenderPreview(){const c=el("cadPreview"),ctx=c.getContext("2d"),entities=cadDocument?.entities||[],b=cadBounds(entities);ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle="#fbfcfe";ctx.fillRect(0,0,c.width,c.height);if(!b||!b.width||!b.height){ctx.fillStyle="#71819a";ctx.fillText("No drawable linework detected",24,32);return;}const pad=35,scale=Math.min((c.width-pad*2)/b.width,(c.height-pad*2)/b.height),px=x=>pad+(x-b.minX)*scale,py=y=>c.height-pad-(y-b.minY)*scale,colors={Walls:"#344d72",Columns:"#d97706",Doors:"#15966a",Windows:"#2493bd",Stairs:"#8757c5",Elevators:"#c34e74",Ignore:"#aab4c2"};for(const e of entities){const role=cadEntityRole(e),pts=cadEntityPoints(e);if(pts.length<2)continue;ctx.strokeStyle=colors[role]||"#aab4c2";ctx.lineWidth=role==="Walls"?2.2:1.2;ctx.beginPath();ctx.moveTo(px(pts[0].x),py(pts[0].y));pts.slice(1).forEach(p=>ctx.lineTo(px(p.x),py(p.y)));if(e.shape||e.closed)ctx.closePath();ctx.stroke();}ctx.fillStyle="#71819a";ctx.font="12px Arial";ctx.fillText("Plan preview · top view",14,20);}
 function cadShowLayers(){const list=el("cadLayerList");list.innerHTML="";cadLayers.forEach(layer=>{const row=document.createElement("div");row.className="cad-layer-row";const info=document.createElement("div"),title=document.createElement("strong"),sub=document.createElement("small");title.textContent=layer.name;sub.textContent=layer.count+" entities";info.append(title,sub);const select=document.createElement("select");select.className="field";select.dataset.layer=layer.name;CAD_ROLES.forEach(role=>{const opt=document.createElement("option");opt.value=role;opt.textContent=role;select.appendChild(opt)});select.value=layer.role;select.addEventListener("change",()=>{layer.role=select.value;cadRenderPreview()});row.append(info,select);list.appendChild(row);});cadRenderPreview();}
-function cadSetDocument(doc,dxfText,fileName){if(!doc||!Array.isArray(doc.entities)||!doc.entities.length)throw new Error("No supported drawing entities were found in this file.");cadDocument=doc;cadDxfText=dxfText;cadFileName=fileName;const counts=new Map();doc.entities.forEach(e=>{const layer=e.layer||"0";counts.set(layer,(counts.get(layer)||0)+1)});cadLayers=[...counts.entries()].map(([name,count])=>({name,count,role:cadLayerRole(name)})).sort((a,b)=>a.name.localeCompare(b.name));el("cadMappingWrap").classList.remove("cad-hidden");cadShowLayers();const b=cadBounds(doc.entities);el("cadStatus").textContent="Loaded "+fileName+" · "+doc.entities.length+" entities · "+cadLayers.length+" layers"+(b?" · drawing span "+b.width.toFixed(2)+" × "+b.height.toFixed(2)+" drawing units":"")+". Review the layer mapping before generating 3D.";el("modelStatus").textContent="Architectural plan loaded";}
+function cadExpandBlocks(doc){
+ const source=Array.isArray(doc?.entities)?doc.entities:[],blocks=doc?.blocks||{},expanded=[],stats={insertRefs:0,expandedEntities:0,unresolved:0,cycles:0};
+ const getBlock=name=>blocks[name]||blocks[String(name||"").toUpperCase()]||blocks[String(name||"").toLowerCase()]||null;
+ const point=(p,m)=>({x:m.a*p.x+m.c*p.y+m.tx,y:m.b*p.x+m.d*p.y+m.ty,...(Number.isFinite(p.z)?{z:p.z}: {})});
+ const compose=(p,l)=>({a:p.a*l.a+p.c*l.b,b:p.b*l.a+p.d*l.b,c:p.a*l.c+p.c*l.d,d:p.b*l.c+p.d*l.d,tx:p.a*l.tx+p.c*l.ty+p.tx,ty:p.b*l.tx+p.d*l.ty+p.ty});
+ const identity={a:1,b:0,c:0,d:1,tx:0,ty:0};
+ const walk=(items,m,depth,path,inheritedLayer)=>{
+  if(depth>8){stats.unresolved+=items.length;return;}
+  for(const original of items||[]){
+   const e=original||{},type=String(e.type||"").toUpperCase();
+   if(type==="INSERT"){
+    stats.insertRefs++;
+    const name=e.name||e.block||e.blockName||e.blockNameRef,block=getBlock(name);
+    if(!block||!Array.isArray(block.entities)){stats.unresolved++;continue;}
+    if(path.includes(String(name))){stats.cycles++;continue;}
+    const pos=e.position||e.insertPoint||e.insertionPoint||{x:0,y:0},sx=Number(e.xScale??e.scaleX??1)||1,sy=Number(e.yScale??e.scaleY??1)||1,ang=(Number(e.rotation)||0)*Math.PI/180,co=Math.cos(ang),si=Math.sin(ang);
+    const la=co*sx,lb=si*sx,lc=-si*sy,ld=co*sy,base=block.position||block.basePoint||block.base||{x:0,y:0};
+    const local={a:la,b:lb,c:lc,d:ld,tx:(pos.x||0)-la*(base.x||0)-lc*(base.y||0),ty:(pos.y||0)-lb*(base.x||0)-ld*(base.y||0)};
+    const combined=compose(m,local),rows=Math.max(1,Math.min(50,Number(e.rowCount)||1)),cols=Math.max(1,Math.min(50,Number(e.columnCount)||1)),rowGap=Number(e.rowSpacing)||0,colGap=Number(e.columnSpacing)||0;
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+     const arrayOffset=compose(combined,{a:1,b:0,c:0,d:1,tx:combined.a*(c*colGap)+combined.c*(r*rowGap),ty:combined.b*(c*colGap)+combined.d*(r*rowGap)});
+     walk(block.entities,arrayOffset,depth+1,path.concat(String(name)),e.layer||inheritedLayer||"0");
+    }
+    continue;
+   }
+   const det=m.a*m.d-m.b*m.c,scaleX=Math.hypot(m.a,m.b),scaleY=Math.hypot(m.c,m.d),nonUniform=Math.abs(scaleX-scaleY)>1e-6||Math.abs(m.a*m.c+m.b*m.d)>1e-6;
+   const layer=(!e.layer||e.layer==="0")?(inheritedLayer||e.layer||"0"):e.layer;
+   if(nonUniform&&["ARC","CIRCLE","ELLIPSE"].includes(type)){
+    const pts=cadEntityPoints(e).map(p=>point(p,m));
+    if(pts.length>1)expanded.push({type:"LWPOLYLINE",layer,vertices:pts.map(p=>({x:p.x,y:p.y})),shape:type==="CIRCLE"||!!e.closed});
+    stats.expandedEntities++;continue;
+   }
+   const clone=JSON.parse(JSON.stringify(e));clone.layer=layer;
+   const vectorKeys=new Set(["majorAxis","majorAxisEndPoint","normal","extrusionDirection"]);
+   const visit=(obj,key)=>{
+    if(!obj||typeof obj!=="object")return;
+    if(Array.isArray(obj)){obj.forEach(v=>visit(v,key));return;}
+    if(Number.isFinite(obj.x)&&Number.isFinite(obj.y)){
+     const q=vectorKeys.has(key)?{x:m.a*obj.x+m.c*obj.y,y:m.b*obj.x+m.d*obj.y}:point(obj,m);
+     obj.x=q.x;obj.y=q.y;if(Number.isFinite(obj.z)&&Number.isFinite(q.z))obj.z=q.z;
+     return;
+    }
+    Object.keys(obj).forEach(k=>visit(obj[k],k));
+   };
+   Object.keys(clone).forEach(k=>visit(clone[k],k));
+   if(["ARC","CIRCLE"].includes(type)){clone.radius=(Number(e.radius)||0)*Math.sqrt(Math.abs(det));clone.startAngle=(Number(e.startAngle)||0)+Math.atan2(m.b,m.a)*180/Math.PI;clone.endAngle=(Number(e.endAngle)||0)+Math.atan2(m.b,m.a)*180/Math.PI;}
+   if(type==="ELLIPSE")clone.axisRatio=Number(e.axisRatio)||1;
+   expanded.push(clone);stats.expandedEntities++;
+  }
+ };
+ walk(source,identity,0,[],"0");
+ return {entities:expanded,stats};
+}
+function cadSetDocument(doc,dxfText,fileName){if(!doc||!Array.isArray(doc.entities)||!doc.entities.length)throw new Error("No supported drawing entities were found in this file.");const blockResult=cadExpandBlocks(doc);cadDocument={...doc,entities:blockResult.entities};cadDxfText=dxfText;cadFileName=fileName;const counts=new Map();cadDocument.entities.forEach(e=>{const layer=e.layer||"0";counts.set(layer,(counts.get(layer)||0)+1)});cadLayers=[...counts.entries()].map(([name,count])=>({name,count,role:cadLayerRole(name)})).sort((a,b)=>a.name.localeCompare(b.name));el("cadMappingWrap").classList.remove("cad-hidden");cadShowLayers();const b=cadBounds(doc.entities);el("cadStatus").textContent="Loaded "+fileName+" · "+cadDocument.entities.length+" geometry entities · "+cadLayers.length+" layers · "+blockResult.stats.insertRefs+" block references expanded"+(blockResult.stats.unresolved?" · "+blockResult.stats.unresolved+" unresolved references":"")+(blockResult.stats.cycles?" · "+blockResult.stats.cycles+" cyclic references skipped":"")+(b?" · drawing span "+b.width.toFixed(2)+" × "+b.height.toFixed(2)+" drawing units":"")+". Review the layer mapping before generating 3D.";el("modelStatus").textContent="Architectural plan loaded";}
 async function cadLoadFile(file){const ext=file.name.toLowerCase().split(".").pop();if(!["dwg","dxf"].includes(ext)){toast("Choose a DWG or DXF file");return;}if(file.size>100*1024*1024){toast("This import currently supports files up to 100 MB");return;}const status=el("cadStatus"),input=el("cadFile");input.disabled=true;status.textContent="Reading "+file.name+" locally…";try{let dxfText;if(ext==="dwg"){status.textContent="Loading the in-browser DWG converter (first use may take longer)…";const lib=await import("https://cdn.jsdelivr.net/npm/dwgdxf@2.0.1/+esm");await lib.init({wasmBase:lib.CDN_WASM_BASE});status.textContent="Converting DWG to DXF in your browser…";const bytes=new Uint8Array(await file.arrayBuffer()),converted=await lib.convertDwgToDxf(bytes);dxfText=new TextDecoder().decode(converted);}else dxfText=await file.text();status.textContent="Analysing drawing entities and layers…";const mod=await import("https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/+esm");let doc;if(mod.DxfParser){const parser=new mod.DxfParser();doc=parser.parseSync(dxfText);}else if(typeof mod.default==="function"){doc=mod.default(dxfText);}else throw new Error("The DXF parser module did not expose a supported parser.");cadSetDocument(doc,dxfText,file.name);toast("Architectural floor plan loaded");}catch(err){console.error("CAD import failed",err);status.textContent="Could not import this drawing: "+(err?.message||String(err))+". Try saving the DWG as AutoCAD 2018 DXF and uploading that file.";toast("Floor-plan import failed");}finally{input.disabled=false;input.value="";}}
 function cadMakeSample(){const ents=[],line=(layer,x1,y1,x2,y2)=>ents.push({type:"LINE",layer,startPoint:{x:x1,y:y1,z:0},endPoint:{x:x2,y:y2,z:0}}),rect=(layer,x,y,w,h)=>ents.push({type:"LWPOLYLINE",layer,shape:true,vertices:[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}]});line("A-WALL-EXT",0,0,5,0);line("A-WALL-EXT",7,0,16,0);line("A-WALL-EXT",16,0,16,12);line("A-WALL-EXT",16,12,0,12);line("A-WALL-EXT",0,12,0,0);line("A-WALL-INT",6,0,6,12);line("A-WALL-INT",0,6,6,6);line("A-WALL-INT",6,8,16,8);rect("S-COLUMN",.25,.25,.35,.35);rect("S-COLUMN",15.4,.25,.35,.35);rect("S-COLUMN",.25,11.4,.35,.35);rect("S-COLUMN",15.4,11.4,.35,.35);line("A-DOOR",5,0,7,0);line("A-WINDOW",4,12,8,12);line("A-STAIR",12,8.5,15,8.5);line("A-STAIR",12,9.2,15,9.2);line("A-ELEV",10,9,11.5,9);line("A-ELEV",11.5,9,11.5,11);cadSetDocument({entities:ents},"","sample-architectural-floor-plan.dxf");el("cadStatus").textContent="Sample architectural plan loaded · 16 m × 12 m · 7 layers. Change the layer mappings or generate the sample 3D model.";toast("Sample floor plan ready");}
 function cadUnitScale(){const unit=el("cadUnits").value;if(unit==="mm")return .001;if(unit==="cm")return .01;if(unit==="m")return 1;if(unit==="inch")return .0254;if(unit==="foot")return .3048;const u=Number(cadDocument?.header?.$INSUNITS||0),known={1:.0254,2:.3048,4:.001,5:.01,6:1};if(known[u])return known[u];const b=cadBounds(cadDocument?.entities||[]),span=Math.max(b?.width||0,b?.height||0);return span > 1000 ? 0.001 : span > 100 ? 0.01 : 1;}
