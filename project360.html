@@ -131,6 +131,7 @@ function toast(s){const t=document.getElementById('toast');t.textContent=s;t.cla
 function material(color,rough=.65){return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:.05})}
 function cube(w,h,d,x,y,z,m){const g=new THREE.BoxGeometry(w,h,d);const o=new THREE.Mesh(g,m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);parts.push(o);return o}
 function clearGenerated(){parts.forEach(o=>{scene.remove(o);o.geometry?.dispose();o.material?.dispose()});parts=[]}
+function disposeImportedModel(root){if(!root)return;scene.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m){for(const value of Object.values(m)){if(value&&value.isTexture)value.dispose()}m.dispose()}})}})}
 function fitBounds(box){const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),max=Math.max(size.x,size.y,size.z)||1;const dist=max/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))*1.55;camera.position.copy(center).add(new THREE.Vector3(dist*.85,dist*.62,dist));camera.near=Math.max(.01,max/10000);camera.far=Math.max(100,max*100);camera.updateProjectionMatrix();controls.target.copy(center);controls.update();grid.position.y=box.min.y}
 function fitObject(obj){fitBounds(new THREE.Box3().setFromObject(obj))}
 function fitParts(){const box=new THREE.Box3();parts.forEach(o=>{o.updateWorldMatrix(true,false);box.union(new THREE.Box3().setFromObject(o))});if(!box.isEmpty())fitBounds(box)}
@@ -176,7 +177,7 @@ function interpretPrompt(text){
  };
 }
 function makeBuilding(){
- if(customModel){scene.remove(model);model=null;customModel=false}
+ if(customModel){disposeImportedModel(model);model=null;customModel=false}
  clearGenerated();
  const brief=detailsInput.value||'';
  const parsed=interpretPrompt(brief);
@@ -252,13 +253,13 @@ document.getElementById('createBtn').onclick=async()=>{
  btn.disabled=true;btn.textContent='Understanding your description…';setWizardStep(3);
  try{
   currentDesign=null;designHistory=[];
-  const brief=detailsInput.value||'';
-  let aiChanges={},aiReply='';
-  if(brief.trim()&&window.DocuWorksAI?.askDesign){
+  const brief=detailsInput.value||'',use=useSettingsInput.checked;
+  let aiChanges={},aiReply='',aiFallbackMessage='';
+  if(brief.trim()&&!use&&window.DocuWorksAI?.askDesign){
    try{const answer=await window.DocuWorksAI.askDesign(brief,{},'create');aiChanges=answer?.changes||{};aiReply=answer?.reply||'';}
-   catch(err){document.getElementById('changeFeedback').textContent='AI unavailable; creating from details recognized in your description. '+(err.message||String(err));}
+   catch(err){aiFallbackMessage='AI unavailable; created from the details recognized locally. '+(err.message||String(err));}
   }
-  const parsed=interpretPrompt(brief),use=useSettingsInput.checked;
+  const parsed=interpretPrompt(brief);
   currentDesign={
    width:use?(+bWidthInput.value||20):(aiChanges.width??parsed.width??20),
    depth:use?(+bDepthInput.value||15):(aiChanges.depth??parsed.depth??15),
@@ -272,6 +273,7 @@ document.getElementById('createBtn').onclick=async()=>{
   };
   makeBuilding();setWizardStep(4);
   if(aiReply)document.getElementById('changeFeedback').textContent=aiReply+' The 3D concept is visible. You can now request changes in the assistant or change box.';
+  else if(aiFallbackMessage)document.getElementById('changeFeedback').textContent=aiFallbackMessage+' You can continue with supported changes; advanced interpretation needs the AI service.';
  }catch(err){console.error(err);toast('Could not create 3D model: '+(err.message||'unknown error'));window.showProject360Error('Could not create the model: '+(err.message||'unknown error'));}
  finally{btn.disabled=false;btn.textContent=original;}
 };
@@ -395,7 +397,7 @@ nameInput.addEventListener('input',e=>document.getElementById('projectTitle').te
 function loadExisting(file){
  const ext=file.name.toLowerCase().split('.').pop();
  if(!['obj','glb','gltf'].includes(ext)){toast('Choose a GLB, self-contained GLTF or OBJ file');return}
- if(model){scene.remove(model);model=null}
+ if(model){disposeImportedModel(model);model=null}
  clearGenerated();currentDesign=null;designHistory=[];customModel=true;
  document.getElementById('emptyView').style.display='none';document.getElementById('modelStatus').textContent='Loading…';
  document.getElementById('modelFileInfo').textContent='Loading '+file.name+'…';
