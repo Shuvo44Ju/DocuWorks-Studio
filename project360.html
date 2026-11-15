@@ -178,7 +178,7 @@ function makeBuilding(){
  const parsed=interpretPrompt(brief);
  const use=useSettingsInput.checked;
  const base=currentDesign||{width:use?+bWidthInput.value||20:parsed.width||20,depth:use?+bDepthInput.value||15:parsed.depth||15,floors:use?+floorsInput.value||3:parsed.floors||3,floorHeight:use?+floorHInput.value||3.2:parsed.floorHeight||3.2,windows:use?+windowsInput.value||5:parsed.windows??5,doorWidth:use?+doorWInput.value||2.4:parsed.doorWidth||2.4,style:use?styleInput.value:parsed.style,staircases:use?Math.max(0,Math.min(3,+staircasesInput.value||0)):(parsed.staircases??0),elevators:use?Math.max(0,Math.min(4,+elevatorsInput.value||0)):(parsed.elevators??0)};
- currentDesign={...base};
+ currentDesign={...base,staircases:Math.max(0,Math.min(3,Math.round(Number(base.staircases)||0))),elevators:Math.max(0,Math.min(4,Math.round(Number(base.elevators)||0)))};
  const W=Math.max(3,currentDesign.width||20),D=Math.max(3,currentDesign.depth||15),F=Math.max(1,Math.min(60,currentDesign.floors||3)),H=Math.max(2,Math.min(8,currentDesign.floorHeight||3.2)),N=Math.max(0,Math.min(20,currentDesign.windows??5)),DW=Math.min(W*.5,Math.max(1,currentDesign.doorWidth||2.4));
  const total=F*H;
  const s=currentDesign.style||'modern', wall=s==='industrial'?0x7d8793:s==='clean'?0xe8edf2:s==='simple'?0xd7dbe0:0xdfe6ee;
@@ -340,6 +340,13 @@ document.getElementById('applyChangeBtn').onclick=async()=>{
 };
 window.DocuWorksProject360={async run(instruction){
  const message=String(instruction||'').trim();if(!message)throw new Error('Tell me what you want to create or change.');
+ const asksForExplanation=/^(?:what|how|why|when|where|who|can i|can you|could you|would you|tell me|explain|help me understand)\b/i.test(message)||/\?$/.test(message);
+ const requestsEdit=/\b(?:add|remove|delete|change|make|set|increase|decrease|reduce|widen|wider|narrow|taller|shorter|include|install|create|build|design|generate|replace|turn it into|convert it into)\b/i.test(message);
+ if(asksForExplanation&&!requestsEdit&&window.DocuWorksAI?.ask){
+  const context=JSON.stringify({currentDesign,importedModel:!!customModel});
+  const answer=await window.DocuWorksAI.ask(message,[],context);
+  return answer?.reply||'I could not prepare an explanation.';
+ }
  if(customModel&&!currentDesign)throw new Error('Imported 3D files can currently be viewed and exported, but natural-language editing is available only for buildings created inside Project 360.');
  if(!currentDesign){
   detailsInput.value=message;
@@ -349,7 +356,7 @@ window.DocuWorksProject360={async run(instruction){
    aiChanges=answer?.changes||{};aiReply=answer?.reply||'';
   }catch(err){
    const parsed=interpretPrompt(message);
-   currentDesign={width:parsed.width||20,depth:parsed.depth||15,floors:parsed.floors||3,floorHeight:parsed.floorHeight||3.2,windows:parsed.windows??5,doorWidth:2.4,style:parsed.style||'modern',staircases:/\b(staircase|stairs?)\b/i.test(message)?1:0,elevators:Number((message.match(/\b(\d+)\s*(?:elevators?|lifts?)\b/i)||[])[1]||(/\b(elevator|lift)\b/i.test(message)?1:0))};
+   currentDesign={width:parsed.width||20,depth:parsed.depth||15,floors:parsed.floors||3,floorHeight:parsed.floorHeight||3.2,windows:parsed.windows??5,doorWidth:parsed.doorWidth??2.4,style:parsed.style||'modern',staircases:parsed.staircases??0,elevators:parsed.elevators??0};
    makeBuilding();
    return 'Created a basic concept using details recognized locally. AI interpretation is unavailable: '+(err.message||String(err));
   }
@@ -357,8 +364,8 @@ window.DocuWorksProject360={async run(instruction){
   currentDesign={
    width:aiChanges.width??parsed.width??20,depth:aiChanges.depth??parsed.depth??15,
    floors:aiChanges.floors??parsed.floors??3,floorHeight:aiChanges.floorHeight??parsed.floorHeight??3.2,
-   windows:aiChanges.windows??parsed.windows??5,doorWidth:aiChanges.doorWidth??2.4,
-   style:aiChanges.style??parsed.style??'modern',staircases:aiChanges.staircases??(/\b(staircase|stairs?)\b/i.test(message)?1:0),elevators:aiChanges.elevators??Number((message.match(/\b(\d+)\s*(?:elevators?|lifts?)\b/i)||[])[1]||(/\b(elevator|lift)\b/i.test(message)?1:0))
+   windows:aiChanges.windows??parsed.windows??5,doorWidth:aiChanges.doorWidth??parsed.doorWidth??2.4,
+   style:aiChanges.style??parsed.style??'modern',staircases:aiChanges.staircases??parsed.staircases??0,elevators:aiChanges.elevators??parsed.elevators??0
   };
   makeBuilding();
   document.getElementById('changeFeedback').textContent=(aiReply||'AI interpreted your building description.')+' The generated concept is visible in the viewer.';
