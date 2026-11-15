@@ -131,18 +131,18 @@ function interpretPrompt(text){
  const t=String(text||'').toLowerCase();
  let floors=null,levelMatch=null;
  const patterns=[
-  /\b(?:lvl|level|storey|story|floor)\s*(?:no\.?\s*)?(\d+)\b/i,
-  /\b(\d+)\s*(?:levels?|storeys?|stories|floors?)\b/i,
+  /\b(?:lvl|level|storey|story|floor)[\s-]*(?:no\.?[\s-]*)?(\d+)\b/i,
+  /\b(\d+)[\s-]*(?:levels?|storeys?|stories|floors?|lvls?)\b/i,
   /\b(\d+)\s*(?:f|fl)\b/i
  ];
  for(const re of patterns){const m=t.match(re);if(m){floors=Number(m[1]);levelMatch=m[0];break}}
  if(floors===null){
-  const g=t.match(/\bg\s*\+\s*(\d+)\b/i);
-  if(g){floors=Number(g[1])+1;levelMatch=g[0]+' (ground + upper levels)'}
- }
- if(floors===null){
   const b=t.match(/\bb(\d+)\s*\+\s*g\s*\+\s*(\d+)\b/i);
   if(b){floors=Number(b[1])+Number(b[2])+1;levelMatch=b[0]+' (basements + ground + upper levels)'}
+ }
+ if(floors===null){
+  const g=t.match(/\bg\s*\+\s*(\d+)\b/i);
+  if(g){floors=Number(g[1])+1;levelMatch=g[0]+' (ground + upper levels)'}
  }
  const dim=t.match(/\b(\d+(?:\.\d+)?)\s*(?:m|meter|metre)?\s*[x×]\s*(\d+(?:\.\d+)?)\s*(?:m|meter|metre)\b/i)
   ||t.match(/\b(?:width|wide)\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*m\b[\s\S]{0,50}?\b(?:depth|deep)\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*m\b/i);
