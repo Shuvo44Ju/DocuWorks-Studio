@@ -579,7 +579,7 @@ function cadBuild3D(){
  const wallMat=material(0xd6dee8),columnMat=material(0x64748b),slabMat=material(0xb9c5d5),glassMat=new THREE.MeshStandardMaterial({color:0x69b9df,roughness:.18,metalness:.05,transparent:true,opacity:.48}),frameMat=material(0x526b86),stairMat=material(0x9aa9bc),beamMat=material(0x71849b);
  const created=[],wallSegments=[],openingSegments=[];
  const all=cadDocument.entities||[];
- const pointSegments=(role)=>all.filter(e=>cadEntityRole(e)===role).flatMap(e=>{const pts=cadEntityPoints(e);const out=[];for(let k=1;k<pts.length;k++)out.push([pts[k-1],pts[k]]);if((e.closed||e.shape)&&pts.length>2)out.push([pts[pts.length-1],pts[0]]);return out;});
+ const pointSegments=(role)=>all.filter(e=>cadEntityRole(e)===role).flatMap(e=>{if(role==="Doors"&&String(e.type).toUpperCase()==="ARC"){const c=e.center||e.centerPoint||{},pts=cadEntityPoints(e);return pts.length?[[{x:c.x||0,y:c.y||0},pts[pts.length-1]]]:[];}const pts=cadEntityPoints(e);const out=[];for(let k=1;k<pts.length;k++)out.push([pts[k-1],pts[k]]);if((e.closed||e.shape)&&pts.length>2)out.push([pts[pts.length-1],pts[0]]);return out;});
  ["Doors","Windows"].forEach(role=>pointSegments(role).forEach(seg=>openingSegments.push({role,a:seg[0],b:seg[1]})));
  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const project=(p,a,ux,uy)=>({t:(p.x-a.x)*ux+(p.y-a.y)*uy,off:Math.abs((p.x-a.x)*uy-(p.y-a.y)*ux)});
@@ -597,11 +597,11 @@ function cadBuild3D(){
    if(cursor<len){const p={x:a.x+ux*cursor,y:a.y+uy*cursor};addWallPiece(p,b,0,height);}
  });
  // Columns: closed outlines are extruded as individual structural piers.
- all.forEach(e=>{if((roles.get(e.layer||"0")||"Ignore")!=="Columns")return;const pts=cadEntityPoints(e);if(pts.length<3)return;const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),w=(Math.max(...xs)-Math.min(...xs))*scale,d=(Math.max(...ys)-Math.min(...ys))*scale;if(w<.08||d<.08||w>5||d>5)return;addBox(w,height,d,(Math.min(...xs)+Math.max(...xs))/2*scale,height/2,-(Math.min(...ys)+Math.max(...ys))/2*scale,columnMat);});
+ all.forEach(e=>{if(cadEntityRole(e)!=="Columns")return;const pts=cadEntityPoints(e);if(pts.length<3)return;const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),w=(Math.max(...xs)-Math.min(...xs))*scale,d=(Math.max(...ys)-Math.min(...ys))*scale;if(w<.08||d<.08||w>5||d>5)return;addBox(w,height,d,(Math.min(...xs)+Math.max(...xs))/2*scale,height/2,-(Math.min(...ys)+Math.max(...ys))/2*scale,columnMat);});
  // Closed room/floor outlines become separate floor plates, retaining the room geometry.
  all.forEach(e=>{const role=cadEntityRole(e);if(!["Rooms","Floors"].includes(role)||!(e.closed||e.shape))return;const pts=cadEntityPoints(e);if(pts.length<3)return;const shape=new THREE.Shape();shape.moveTo(pts[0].x*scale,-pts[0].y*scale);pts.slice(1).forEach(p=>shape.lineTo(p.x*scale,-p.y*scale));shape.closePath();const geo=new THREE.ShapeGeometry(shape);const mesh=new THREE.Mesh(geo,slabMat);mesh.rotation.x=-Math.PI/2;mesh.position.y=-slab/2;mesh.receiveShadow=true;scene.add(mesh);parts.push(mesh);created.push(mesh);});
  // If no room/floor boundary is supplied, add a footprint slab from the drawing extents.
- if(!all.some(e=>["Rooms","Floors"].includes(cadEntityRole(e))&&(e.closed||e.shape||String(e.type).toUpperCase()==="CIRCLE"))){const b=cadBounds(all);if(b){addBox(b.width*scale,slab,b.height*scale,(b.minX+b.maxX)*.5*scale,-slab/2,-(b.minY+b.maxY)*.5*scale,slabMat);}}
+ if(!all.some(e=>["Rooms","Floors"].includes(cadEntityRole(e))&&(e.closed||e.shape))){const b=cadBounds(all);if(b){addBox(b.width*scale,slab,b.height*scale,(b.minX+b.maxX)*.5*scale,-slab/2,-(b.minY+b.maxY)*.5*scale,slabMat);}}
  // Beam lines become horizontal structural members at the top of the wall level.
  pointSegments("Beams").forEach(([a,b])=>{const dx=(b.x-a.x)*scale,dy=(b.y-a.y)*scale,len=Math.hypot(dx,dy);if(len>.1&&len<500)addBox(len,.3,.3,(a.x+b.x)*.5*scale,height-.15,-(a.y+b.y)*.5*scale,beamMat,Math.atan2(dy,dx));});
  // Stairs and lift layers are reconstructed from their plan extents, with stair treads and a lift core.
