@@ -118,7 +118,6 @@ const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;cont
 scene.add(new THREE.HemisphereLight(0xffffff,0x8793a5,2.2));
 const key=new THREE.DirectionalLight(0xffffff,3);key.position.set(20,30,20);scene.add(key);
 const fill=new THREE.DirectionalLight(0xdce8ff,1.3);fill.position.set(-20,15,-15);scene.add(fill);
-l
 let currentDesign=null,designHistory=[];
 const grid=new THREE.GridHelper(100,50,0xcbd4df,0xe1e6ed);scene.add(grid);
 
@@ -258,6 +257,32 @@ document.getElementById('applyChangeBtn').onclick=async()=>{
  }catch(err){feedback.textContent='AI could not update the drawing: '+(err.message||String(err));}
  finally{btn.disabled=false;btn.textContent='Apply change';}
 };
+window.DocuWorksProject360={async run(instruction){
+ const message=String(instruction||'').trim();if(!message)throw new Error('Tell me what you want to create or change.');
+ if(!currentDesign){
+  detailsInput.value=message;
+  document.getElementById('createBtn').click();
+  if(!currentDesign)throw new Error('The 3D model could not be created. Check the viewer message.');
+  return 'Created the 3D model from your instruction. The result is now visible in the viewer.';
+ }
+ const answer=await window.DocuWorksAI.askDesign(message,currentDesign);
+ const next={...currentDesign},changed=[];
+ for(const key of ['width','depth','floors','floorHeight','windows','doorWidth','style']){
+  const value=answer?.changes?.[key];
+  if(value!==null&&value!==undefined){next[key]=value;changed.push(key);}
+ }
+ if(!changed.length)throw new Error(answer?.reply||'I understood the request, but this model cannot apply that change yet.');
+ next.floors=Math.max(1,Math.min(60,Math.round(Number(next.floors)||3)));
+ next.width=Math.max(3,Math.min(200,Number(next.width)||20));
+ next.depth=Math.max(3,Math.min(200,Number(next.depth)||15));
+ next.floorHeight=Math.max(2,Math.min(8,Number(next.floorHeight)||3.2));
+ next.windows=Math.max(0,Math.min(20,Math.round(Number(next.windows)||0)));
+ next.doorWidth=Math.max(1,Math.min(10,Number(next.doorWidth)||2.4));
+ designHistory.push({...currentDesign});currentDesign=next;makeBuilding();
+ document.getElementById('changeFeedback').textContent=(answer.reply||'Applied your change.')+' Updated: '+changed.join(', ');
+ document.getElementById('undoChangeBtn').disabled=false;
+ return (answer.reply||'Your design has been updated.')+' The updated drawing is now visible in the 3D viewer.';
+}};
 document.getElementById('undoChangeBtn').onclick=()=>{if(!designHistory.length)return;currentDesign=designHistory.pop();makeBuilding();document.getElementById('changeFeedback').textContent='Last change undone.';document.getElementById('undoChangeBtn').disabled=!designHistory.length;};
 nameInput.addEventListener('input',e=>document.getElementById('projectTitle').textContent=e.target.value||'Project 360° Viewer');
 
