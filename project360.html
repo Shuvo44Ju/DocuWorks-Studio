@@ -318,9 +318,20 @@ function makeBuilding(){
   return{x:W/2+clearance+half,z:along,rotation:0};
  }
  function elementLayout(list,index,count,kind){
-  const configured=(Array.isArray(list)?list:[]).find(p=>Number(p?.index)===index);
+  const positions=Array.isArray(list)?list:[];
+  const configured=positions.find(p=>Number(p?.index)===index);
+  if(configured){
+   const peers=positions.filter(p=>p?.side===configured.side&&Math.abs((Number(p.offset)||0)-(Number(configured.offset)||0))<.001);
+   if(peers.length>1){
+    const sideLength=(configured.side==='front'||configured.side==='back')?W:D;
+    const gap=kind==='staircase'?towerD+.45:2.65;
+    const peerIndex=peers.findIndex(p=>Number(p.index)===index);
+    return {...configured,offset:(Number(configured.offset)||0)+(peerIndex-(peers.length-1)/2)*(gap/sideLength)};
+   }
+   return configured;
+  }
   const defaultOffset=kind==='elevator'?(-.22+(index-(count+1)/2)*.22):((index-(count+1)/2)*.34);
-  return configured||{side:'right',offset:defaultOffset};
+  return {side:'right',offset:defaultOffset};
  }
  for(let c=0;c<stairCount;c++){
   const layout=elementLayout(currentDesign.staircasePositions,c+1,stairCount,'staircase');
