@@ -70,7 +70,8 @@ function styleBodyRow(ws, row, lastCol, isReview) {
   }
 }
 function sectionRow(ws, row, title, lastCol) {
-  ws.mergeCells('A' + row + ':C' + row);
+  const lastLetter = lastCol === 5 ? 'E' : 'C';
+  ws.mergeCells('A' + row + ':' + lastLetter + row);
   const cell = ws.getCell(row, 1);
   cell.value = title;
   cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF222222' } };
@@ -107,7 +108,7 @@ function writeStandardBody(ws, startRow, model) {
           item.loc ? 'Source: ' + item.loc : '',
           item.minConf != null ? 'Minimum OCR confidence: ' + item.minConf + '%' : '',
           item.raw ? 'OCR source text: ' + item.raw : ''
-        ].filter(Boolean).join('\\n');
+        ].filter(Boolean).join('\n');
       }
       row++;
     }
