@@ -196,20 +196,66 @@ function makeBuilding(){
  const trim=s==='industrial'?0x3f4650:s==='clean'?0x2458d3:s==='simple'?0x596879:0x263b58;
  const glass=s==='industrial'?0x8fa7b9:0x78b8d8;
  const floorMat=material(wall),trimMat=material(trim),glassMat=material(glass,.2),roofMat=material(trim);
- for(let f=0;f<F;f++){const y=f*H+H/2;cube(W,H,D,0,y,0,floorMat);cube(W+.05,.08,D+.05,0,f*H,0,trimMat)}
- cube(.16,total+.1,D+.1,-W/2-.08,total/2,0,trimMat);cube(.16,total+.1,D+.1,W/2+.08,total/2,0,trimMat);
- cube(W+.2,.25,D+.2,0,total+.13,0,roofMat);
- for(let f=0;f<F;f++){
-  const y=f*H+H*.57;
-  for(let i=0;i<N;i++){
-   const x=-W/2+(i+1)*W/(N+1);
-   const windowWidth=Math.max(.08,Math.min(1.8,W/(N+1)*.65));
-   cube(windowWidth,H*.42,.08,x,y,-D/2-.045,glassMat);
-   cube(windowWidth,H*.42,.08,x,y,D/2+.045,glassMat);
+ // Build the envelope as separate wall sections, so openings are real gaps rather than painted-on panels.
+ const wallMat=material(wall),floorSlabMat=material(0xc9d0d9),partitionMat=material(s==='industrial'?0x9aa3ad:0xd1d9e3);
+ const wallT=.18,glassPaneMat=new THREE.MeshPhysicalMaterial({color:glass,roughness:.16,metalness:.05,transparent:true,opacity:.48});
+ function buildWall(axis,fixed,len,yBase,height,openings,thickness,mat,addGlass=false){
+  const xs=[-len/2,len/2];
+  openings.forEach(o=>{xs.push(Math.max(-len/2,o.center-o.width/2),Math.min(len/2,o.center+o.width/2))});
+  const ys=[0,height];
+  openings.forEach(o=>{ys.push(Math.max(0,o.bottom),Math.min(height,o.bottom+o.height))});
+  const ux=[...new Set(xs.map(v=>+v.toFixed(4)))].sort((a,b)=>a-b);
+  const uy=[...new Set(ys.map(v=>+v.toFixed(4)))].sort((a,b)=>a-b);
+  for(let a=0;a<ux.length-1;a++)for(let b=0;b<uy.length-1;b++){
+   const x0=ux[a],x1=ux[a+1],y0=uy[b],y1=uy[b+1],mx=(x0+x1)/2,my=(y0+y1)/2;
+   const isOpening=openings.some(o=>Math.abs(mx-o.center)<o.width/2-.0001&&my>o.bottom+.0001&&my<o.bottom+o.height-.0001);
+   if(isOpening||x1-x0<.025||y1-y0<.025)continue;
+   const along=x1-x0,up=y1-y0;
+   if(axis==='x')cube(along,up,thickness,(x0+x1)/2,yBase+(y0+y1)/2,fixed,mat);
+   else cube(thickness,up,along,fixed,yBase+(y0+y1)/2,(x0+x1)/2,mat);
+  }
+  if(addGlass)openings.filter(o=>o.kind==='window').forEach(o=>{
+   const paneW=Math.max(.1,o.width-.10),paneH=Math.max(.1,o.height-.10);
+   if(axis==='x')cube(paneW,paneH,.045,o.center,yBase+o.bottom+o.height/2,fixed,glassPaneMat);
+   else cube(.045,paneH,paneW,fixed,yBase+o.bottom+o.height/2,o.center,glassPaneMat);
+  });
+ }
+ const windowW=Math.min(1.8,Math.max(.75,W/(N+1)*.62));
+ const windowH=Math.min(1.35,H*.48),windowBottom=Math.min(1.05,H*.22);
+ for(let level=0;level<F;level++){
+  const baseY=level*H;
+  cube(W,.18,D,0,baseY+.09,0,floorSlabMat);
+  const front=[],back=[],left=[],right=[];
+  for(let n=0;n<N;n++){
+   const x=-W/2+(n+1)*W/(N+1);
+   if(!(level===0&&Math.abs(x)<DW/2+windowW*.58)){
+    front.push({kind:'window',center:x,width:windowW,bottom:windowBottom,height:windowH});
+    back.push({kind:'window',center:x,width:windowW,bottom:windowBottom,height:windowH});
+   }
+  }
+  const sideN=Math.round(N*.7),sideW=Math.min(1.8,Math.max(.7,D/(sideN+1)*.62));
+  for(let n=0;n<sideN;n++){
+   const z=-D/2+(n+1)*D/(sideN+1);
+   left.push({kind:'window',center:z,width:sideW,bottom:windowBottom,height:windowH});
+   right.push({kind:'window',center:z,width:sideW,bottom:windowBottom,height:windowH});
+  }
+  if(level===0)front.push({kind:'door',center:0,width:DW,bottom:0,height:Math.min(H*.82,2.35)});
+  const wallHeight=H-.18;
+  buildWall('x',-D/2, W,baseY+.18,wallHeight,front,wallT,wallMat,true);
+  buildWall('x', D/2, W,baseY+.18,wallHeight,back,wallT,wallMat,true);
+  buildWall('z',-W/2,D,baseY+.18,wallHeight,left,wallT,wallMat,true);
+  buildWall('z', W/2,D,baseY+.18,wallHeight,right,wallT,wallMat,true);
+  // Simple conceptual internal room divisions with door-sized openings.
+  if(W>8&&D>8){
+   const partH=wallHeight*.88,doorOpening={kind:'door',center:0,width:1.05,bottom:0,height:Math.min(2.1,partH*.82)};
+   buildWall('x',0,W*.88,baseY+.18,partH,[doorOpening],.12,partitionMat,false);
+   buildWall('z',W*.12,D*.88,baseY+.18,partH,[doorOpening],.12,partitionMat,false);
   }
  }
- const sideN=Math.round(N*.7);
- for(let f=0;f<F;f++){const y=f*H+H*.57;for(let i=0;i<sideN;i++){const z=-D/2+(i+1)*D/(sideN+1);const sideWindowDepth=Math.max(.08,Math.min(1.8,D/(sideN+1)*.65));cube(.08,H*.42,sideWindowDepth,-W/2-.045,y,z,glassMat);cube(.08,H*.42,sideWindowDepth,W/2+.045,y,z,glassMat)}}
+ cube(W+.12,.22,D+.12,0,total+.11,0,roofMat);
+ const doorMat=material(0x344b66);
+ cube(Math.max(.4,DW-.12),Math.min(2.15,H*.78),.07,0,Math.min(1.08,H*.39),-D/2-.105,doorMat);
+ cube(Math.min(W*.55,DW+2.2),.16,2.0,0,.18,-D/2-.85,trimMat);
  // Visible conceptual external circulation elements (separate from opaque massing blocks).
  const stairCount=Math.max(0,Math.min(3,Math.round(Number(currentDesign.staircases)||0)));
  const liftCount=Math.max(0,Math.min(4,Math.round(Number(currentDesign.elevators)||0)));
