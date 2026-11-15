@@ -157,8 +157,8 @@ function interpretPrompt(text){
  }
  const dim=t.match(/\b(\d+(?:\.\d+)?)\s*(?:m|meter|metre)?\s*[x×]\s*(\d+(?:\.\d+)?)\s*(?:m|meter|metre)\b/i)
   ||t.match(/\b(?:width|wide)\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*m\b[\s\S]{0,50}?\b(?:depth|deep)\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*m\b/i);
- const floorHeight=t.match(/\b(?:floor\s*height|floor-to-floor|storey\s*height)\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*m\b/i);
- const doorWidth=t.match(/\b(?:entrance|door)\s*width\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*m\b/i);
+ const floorHeight=t.match(/\b(?:floor\s*height|floor-to-floor|storey\s*height)\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*m\b/i)||t.match(/\b(\d+(?:\.\d+)?)\s*m\s*(?:floor\s*height|floor-to-floor|storey\s*height)\b/i);
+ const doorWidth=t.match(/\b(?:entrance|door)\s*width\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*m\b/i)||t.match(/\b(\d+(?:\.\d+)?)\s*m\s*(?:entrance|door)\s*width\b/i);
  const height=t.match(/\b(?:building\s*)?height\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*m\b/i);
  const windows=t.match(/\b(\d+)\s*(?:windows?)\s*(?:per|on each)\s*(?:side|floor)\b/i);
  let style='modern';
@@ -169,7 +169,7 @@ function interpretPrompt(text){
  return {
   floors:floors===null?null:Math.max(1,Math.min(60,Math.round(floors))),
   levelMatch, width:dim?Number(dim[1]):null, depth:dim?Number(dim[2]):null,
-  floorHeight:floorHeight?Number(floorHeight[1]):(height&&floors?Number(height[1])/floors:null), doorWidth:doorWidth?Number(doorWidth[1]):null,
+  floorHeight:floorHeight?Number(floorHeight[1]||floorHeight[2]):(height&&floors?Number(height[1])/floors:null), doorWidth:doorWidth?Number(doorWidth[1]||doorWidth[2]):null,
   windows:windows?Number(windows[1]):null, style,
   staircases: /\b(?:stairs?|staircases?)\b/i.test(t) ? (/\b(?:no|without|zero|remove|delete|exclude|omit)\s+(?:any\s+)?(?:external\s+)?(?:stairs?|staircases?)\b/i.test(t) ? 0 : ((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:stairs?|staircases?)\b/i)||[])[1]!==undefined ? numberInWords((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:stairs?|staircases?)\b/i)||[])[1]) : 1)) : 0,
   elevators: /\b(?:elevators?|lifts?)\b/i.test(t) ? (/\b(?:no|without|zero|remove|delete|exclude|omit)\s+(?:any\s+)?(?:external\s+)?(?:elevators?|lifts?)\b/i.test(t) ? 0 : ((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:elevators?|lifts?)\b/i)||[])[1]!==undefined ? numberInWords((t.match(/\b(zero|one|two|three|four|five|\d+)\s*(?:external\s+)?(?:elevators?|lifts?)\b/i)||[])[1]) : 1)) : 0
@@ -282,10 +282,10 @@ function understandChange(raw){
  else if((m=t.match(/(?:make|change|set)\D{0,20}(\d+)\s*(?:floors?|levels?|storeys?)/i))){d.floors=+m[1];changed.push('floors');}
  else if((m=t.match(/(?:add|increase)\s+(\d+)\s+floors?/i))){d.floors=(d.floors||3)+ +m[1];changed.push('floors');}
  else if((m=t.match(/(?:remove|reduce|decrease)\s+(\d+)\s+floors?/i))){d.floors=(d.floors||3)- +m[1];changed.push('floors');}
- if((m=t.match(/(?:width|wide)\D{0,16}(\d+(?:\.\d+)?)\s*m|(\d+(?:\.\d+)?)\s*m\s*(?:wide|width)/i))){d.width=+(m[1]||m[2]);changed.push('width');}
+ if((m=t.match(/(?<!door\s)(?<!entrance\s)(?:width|wide)\D{0,16}(\d+(?:\.\d+)?)\s*m|(\d+(?:\.\d+)?)\s*m\s*(?:wide|width)/i))){d.width=+(m[1]||m[2]);changed.push('width');}
  if((m=t.match(/(?:depth|deep)\D{0,16}(\d+(?:\.\d+)?)\s*m|(\d+(?:\.\d+)?)\s*m\s*(?:deep|depth)/i))){d.depth=+(m[1]||m[2]);changed.push('depth');}
- if((m=t.match(/(?:floor height|floor-to-floor height)\D{0,16}(\d+(?:\.\d+)?)\s*m/i))){d.floorHeight=+m[1];changed.push('floor height');}
- if((m=t.match(/(?:entrance|door)\s*width\D{0,16}(\d+(?:\.\d+)?)\s*m/i))){d.doorWidth=+m[1];changed.push('door width');}
+ if((m=t.match(/(?:floor height|floor-to-floor height)\D{0,16}(\d+(?:\.\d+)?)\s*m|(\d+(?:\.\d+)?)\s*m\s*(?:floor height|floor-to-floor height)/i))){d.floorHeight=+(m[1]||m[2]);changed.push('floor height');}
+ if((m=t.match(/(?:entrance|door)\s*width\D{0,16}(\d+(?:\.\d+)?)\s*m|(\d+(?:\.\d+)?)\s*m\s*(?:entrance|door)\s*width/i))){d.doorWidth=+(m[1]||m[2]);changed.push('door width');}
  if((m=t.match(/(\d+)\s+windows?\s+(?:per|on each)\s+(?:side|floor)/i))){d.windows=+m[1];changed.push('windows');}
  if(/more windows|add windows/i.test(t)&&!changed.includes('windows')){d.windows=Math.min(20,(d.windows??5)+2);changed.push('windows');}
  if(/fewer windows|less windows|reduce windows/i.test(t)){d.windows=Math.max(0,(d.windows??5)-2);changed.push('windows');}
