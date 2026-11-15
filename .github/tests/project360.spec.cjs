@@ -105,7 +105,7 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
   await expect(page.locator("#viewerError")).not.toHaveClass(/show/);
   await expect(page.locator("#cadRoomList .cad-room-row")).not.toHaveCount(0);
   await expect(page.locator("#cadRoomList")).toContainText("OFFICE");
-  await page.locator("#cadRoomList .cad-room-row").first().click();
+  await page.locator("#cadRoomList .cad-room-row").filter({ hasText: "OFFICE" }).click();
   await expect(page.locator("#editModeStatus")).toContainText("Room ·");
   await expect(page.locator("#editMoveBtn")).toHaveClass(/active/);
   await page.locator("#editRotateBtn").click();
