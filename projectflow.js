@@ -1,0 +1,245 @@
+/* ProjectFlow — browser-local Excel to project planner */
+'use strict';
+(function(){
+const $=id=>document.getElementById(id);
+const STORE='docuworks-projectflow-v1';
+const fields=[
+ {key:'name',label:'Task / equipment name',aliases:['task','task name','activity','activity name','equipment','equipment name','item','item name','description','work package','work item','scope','deliverable','particulars','project activity','name'],required:true},
+ {key:'id',label:'Task ID / reference',aliases:['task id','activity id','id','serial','sl','sl no','sl no.','item no','item code','reference','ref no','cer no','pr no','po no']},
+ {key:'project',label:'Project / package',aliases:['project','project name','package','work package','category','discipline','department','lot','group']},
+ {key:'owner',label:'Responsible person',aliases:['responsible','responsible person','person responsible','owner','assigned to','assignee','in charge','focal person','focal','user','department','team']},
+ {key:'supplier',label:'Supplier / contractor',aliases:['supplier','vendor','contractor','manufacturer','company','firm','bidder']},
+ {key:'start',label:'Planned start date',aliases:['start','start date','planned start','planned start date','schedule start','commencement','commencement date','baseline start']},
+ {key:'finish',label:'Planned finish / delivery date',aliases:['finish','finish date','end date','due date','planned finish','planned finish date','expected date','expected delivery','expected delivery date','delivery date','target date','completion date','deadline','required date']},
+ {key:'duration',label:'Duration (days)',aliases:['duration','duration days','days','working days','period']},
+ {key:'progress',label:'Progress (%)',aliases:['progress','progress %','% complete','percent complete','percentage complete','completion percent','completion percentage','physical progress']},
+ {key:'status',label:'Current status',aliases:['status','current status','progress status','stage','current stage','work status','remarks status']},
+ {key:'predecessor',label:'Predecessor / dependency',aliases:['predecessor','predecessors','dependency','dependencies','depends on','linked task','previous activity','predecessor id']},
+ {key:'priority',label:'Priority',aliases:['priority','importance','criticality']},
+ {key:'baselineStart',label:'Baseline start',aliases:['baseline start','baseline start date','original start','planned start baseline']},
+ {key:'baselineFinish',label:'Baseline finish',aliases:['baseline finish','baseline finish date','original finish','original completion','baseline end']},
+ {key:'actualStart',label:'Actual start',aliases:['actual start','actual start date','started on','actual commencement']},
+ {key:'actualFinish',label:'Actual finish',aliases:['actual finish','actual finish date','actual completion','completed on','actual delivery']},
+ {key:'notes',label:'Remarks / current update',aliases:['remarks','remark','comments','comment','notes','update','latest update','current update','observation','issue','description details']},
+ {key:'milestone',label:'Milestone',aliases:['milestone','key milestone','is milestone']}
+];
+let tasks=[],projectName='Untitled project',sourceFile='',pending=null,view='overview',zoom='week',toastTimer=null,lastWarnings=[],selectedIds=new Set(),criticalIds=new Set(),dateRange=null;
+const today=()=>{const d=new Date();d.setHours(0,0,0,0);return d};
+const iso=d=>{if(!d)return '';const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
+const fromISO=s=>s?new Date(s+'T00:00:00'):null;
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s==null?'':s).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9%]+/g,' ').trim().replace(/\s+/g,' ');
+const uid=()=>('t'+Date.now().toString(36)+Math.random().toString(36).slice(2,7));
+function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3100)}
+function save(){try{localStorage.setItem(STORE,JSON.stringify({tasks:tasks,projectName:projectName,sourceFile:sourceFile,updated:Date.now()}))}catch(e){toast('Browser storage is full. Export a backup workbook.')}}
+function loadSaved(){try{const x=JSON.parse(localStorage.getItem(STORE)||'null');if(x&&Array.isArray(x.tasks)){tasks=x.tasks;projectName=x.projectName||'Untitled project';sourceFile=x.sourceFile||''}}catch(e){}}
+function parseDate(v){
+ if(v===null||v===undefined||v==='')return '';
+ if(v instanceof Date&&!isNaN(v))return iso(v);
+ if(typeof v==='number'&&v>15000&&v<90000){const d=new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000);return iso(d)}
+ const s=String(v).trim();if(!s)return '';
+ let m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);if(m){const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));return isNaN(d)?'':iso(d)}
+ m=s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/);
+ if(m){let a=Number(m[1]),b=Number(m[2]),y=Number(m[3]);if(y<100)y+=y<50?2000:1900;let day=a,month=b;if(a<=12&&b>12){month=a;day=b}const d=new Date(y,month-1,day);if(d.getFullYear()===y&&d.getMonth()===month-1&&d.getDate()===day)return iso(d)}
+ const parsed=new Date(s);return isNaN(parsed)?'':iso(parsed);
+}
+function numberValue(v){if(v===null||v===undefined||v==='')return null;if(typeof v==='number')return v;const s=String(v).replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);return s?Number(s[0]):null}
+function normalizeStatus(raw,progress){
+ const s=norm(raw);
+ if(/complete|completed|done|closed|delivered|installed|commissioned|finished|released/.test(s))return 'Completed';
+ if(/hold|suspend|blocked|pending approval/.test(s))return 'On hold';
+ if(/cancel|dropped|terminated/.test(s))return 'Cancelled';
+ if(/review|clarif|awaiting|waiting|pending|not received|not submitted/.test(s))return 'Needs review';
+ if(/progress|ongoing|working|started|under process|processing|procurement|manufactur|shipment|transit|installation|testing|evaluation/.test(s))return 'In progress';
+ if(/not started|not yet|not initiate|new|planned|to be started/.test(s))return 'Not started';
+ if(progress===100)return 'Completed';if(progress!==null&&progress>0)return 'In progress';return 'Not started';
+}
+function normalizeProgress(v,status){
+ let n=numberValue(v);if(n!==null){if(n>0&&n<=1&&String(v).includes('%')===false&&n<1)n*=100;return Math.max(0,Math.min(100,n))}
+ if(status==='Completed')return 100;if(status==='Not started'||status==='Cancelled')return 0;return null;
+}
+function autoMap(headers){
+ const out={};fields.forEach(f=>{let best=-1,bestScore=0;headers.forEach((h,i)=>{const n=norm(h);let score=0;if(f.aliases.map(norm).includes(n))score=100;else if(n&&f.aliases.some(a=>{const q=norm(a);return q.length>3&&(n.includes(q)||q.includes(n))}))score=38;if(f.key==='finish'&&/actual/.test(n))score-=50;if(f.key==='owner'&&/department/.test(n))score-=5;if(score>bestScore){bestScore=score;best=i}});if(best>=0&&bestScore>=35)out[f.key]=String(best)});
+ if(out.start===out.baselineStart)delete out.start;if(out.finish===out.baselineFinish)delete out.finish;
+ return out
+}
+function detectHeader(matrix){
+ let best=0,bestScore=-1;
+ for(let i=0;i<Math.min(matrix.length,30);i++){const row=matrix[i]||[];const h=row.map(v=>String(v??'').trim());const n=h.map(norm);let score=0;fields.forEach(f=>{if(f.aliases.some(a=>n.includes(norm(a))))score+=f.key==='name'?8:2});score+=h.filter(x=>x).length*.12;if(score>bestScore){bestScore=score;best=i}}
+ return best;
+}
+function parseCSV(text){
+ const rows=[];let row=[],cell='',q=false;for(let i=0;i<text.length;i++){const c=text[i];if(q){if(c==='"'&&text[i+1]==='"'){cell+='"';i++}else if(c==='"')q=false;else cell+=c}else if(c==='"')q=true;else if(c===','){row.push(cell);cell=''}else if(c==='\n'){row.push(cell.replace(/\r$/,''));rows.push(row);row=[];cell=''}else cell+=c}if(cell.length||row.length){row.push(cell.replace(/\r$/,''));rows.push(row)}return rows;
+}
+function fileToWorkbook(file){
+ return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>{try{let wb;if(/\.csv$/i.test(file.name)){wb={SheetNames:['CSV'],Sheets:{CSV:{__rows:parseCSV(e.target.result)}}}}else{if(!window.XLSX)throw new Error('The Excel reader did not load. Check your internet connection and refresh this page.');wb=XLSX.read(e.target.result,{type:'array',cellDates:true})}resolve(wb)}catch(err){reject(err)}};reader.onerror=()=>reject(new Error('Could not read this workbook.'));if(/\.csv$/i.test(file.name))reader.readAsText(file);else reader.readAsArrayBuffer(file)})
+}
+function sheetMatrix(wb,name){const sh=wb.Sheets[name];if(sh.__rows)return sh.__rows;if(!window.XLSX)throw new Error('Excel reader unavailable.');return XLSX.utils.sheet_to_json(sh,{header:1,defval:'',raw:true})}
+function openImport(file,mode){
+ fileToWorkbook(file).then(wb=>{const names=wb.SheetNames||['CSV'];if(!names.length)throw new Error('No worksheets found.');pending={file:file,wb:wb,sheets:names,mode:mode||'replace',matrix:[],headers:[],headerIndex:0,mapping:{}};$('sheetSelect').innerHTML=names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');loadPendingSheet();$('importFileDescription').textContent=file.name+' · Map your spreadsheet columns to project fields before import.';$('mergeRadioWrap').style.display=tasks.length?'flex':'none';$('mergeHint').textContent=tasks.length?'Replace the current project or merge changes into existing tasks.':'This will create a new project from the selected worksheet.';document.querySelector('input[name="importMode"][value="'+(mode||'replace')+'"]').checked=true;$('importOverlay').hidden=false}).catch(e=>toast(e.message||'Could not open workbook.'));
+}
+function loadPendingSheet(){
+ if(!pending)return;const name=$('sheetSelect').value||pending.sheets[0];pending.matrix=sheetMatrix(pending.wb,name);const idx=detectHeader(pending.matrix);pending.headerIndex=idx;const options=pending.matrix.slice(0,Math.min(25,pending.matrix.length)).map((r,i)=>'<option value="'+i+'" '+(i===idx?'selected':'')+'>Row '+(i+1)+': '+esc((r||[]).slice(0,4).filter(Boolean).join(' · ').slice(0,65)||'(blank)')+'</option>').join('');$('headerRowSelect').innerHTML=options;applyHeader();
+}
+function applyHeader(){
+ if(!pending)return;pending.headerIndex=Number($('headerRowSelect').value||0);pending.headers=(pending.matrix[pending.headerIndex]||[]).map((v,i)=>String(v==null||v===''?'Column '+(i+1):v).trim());pending.mapping=autoMap(pending.headers);renderMapping();renderImportPreview();
+ const count=Math.max(0,pending.matrix.length-pending.headerIndex-1);$('importRowCount').textContent=count+' rows below header';
+}
+function renderMapping(){
+ $('mappingRows').innerHTML=fields.map(f=>{const options='<option value="">— Not mapped —</option>'+pending.headers.map((h,i)=>'<option value="'+i+'" '+(pending.mapping[f.key]===String(i)?'selected':'')+'>'+esc(h)+'</option>').join('');return '<div class="pf-map-row"><label>'+esc(f.label)+(f.required?' <em>*</em>':'')+'</label><select data-map="'+f.key+'">'+options+'</select></div>'}).join('');
+ $('mappingRows').querySelectorAll('select').forEach(s=>s.addEventListener('change',()=>{pending.mapping[s.dataset.map]=s.value;renderImportPreview()}));
+}
+function renderImportPreview(){
+ const headers=pending.headers,ix=pending.mapping;const chosen=fields.filter(f=>ix[f.key]!==undefined&&ix[f.key]!=='');const rows=pending.matrix.slice(pending.headerIndex+1).filter(r=>r&&r.some(v=>v!==''&&v!==null&&v!==undefined)).slice(0,5);
+ $('importPreview').innerHTML='<thead><tr>'+chosen.slice(0,6).map(f=>'<th>'+esc(f.label)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+chosen.slice(0,6).map(f=>'<td>'+esc(r[Number(ix[f.key])]??'')+'</td>').join('')+'</tr>').join('')+'</tbody>';
+}
+function readMappedRows(){
+ const ix=pending.mapping,rows=pending.matrix.slice(pending.headerIndex+1),list=[],warnings=[];const col=k=>ix[k]===undefined||ix[k]===''?null:Number(ix[k]);
+ rows.forEach((r,index)=>{
+  if(!r||!r.some(v=>v!==''&&v!==null&&v!==undefined))return;
+  const get=k=>{const i=col(k);return i===null?'':r[i]??''};
+  const name=String(get('name')).trim();if(!name)return;
+  const progressRaw=get('progress'),rawStatus=get('status'),progress=normalizeProgress(progressRaw,normalizeStatus(rawStatus,null));
+  const status=normalizeStatus(rawStatus,progress);
+  const start=parseDate(get('start')),finish=parseDate(get('finish'));
+  const durRaw=numberValue(get('duration'));let duration=durRaw!==null?Math.max(0,Math.round(durRaw)):((start&&finish)?Math.max(1,Math.round((fromISO(finish)-fromISO(start))/86400000)+1):null);
+  let end=finish,begin=start;if(begin&&!end&&duration!==null&&duration>0){const d=fromISO(begin);d.setDate(d.getDate()+duration-1);end=iso(d)}if(end&&!begin&&duration!==null&&duration>0){const d=fromISO(end);d.setDate(d.getDate()-duration+1);begin=iso(d)}
+  const id=String(get('id')).trim();
+  list.push({id:uid(),externalId:id,name:name,project:String(get('project')).trim(),owner:String(get('owner')).trim(),supplier:String(get('supplier')).trim(),start:begin,finish:end,duration:duration,progress:progress,status:status,predecessor:String(get('predecessor')).trim(),priority:String(get('priority')||'Normal').trim(),baselineStart:parseDate(get('baselineStart')),baselineFinish:parseDate(get('baselineFinish')),actualStart:parseDate(get('actualStart')),actualFinish:parseDate(get('actualFinish')),notes:String(get('notes')).trim(),milestone:/yes|true|milestone|1/i.test(String(get('milestone'))),sourceRow:index+pending.headerIndex+2});
+ });
+ if(!col('name'))warnings.push('No task / equipment column was mapped. Choose the correct column before importing.');
+ if(list.length===0)warnings.push('No usable task rows were found. Check the header row and task-name mapping.');
+ const missingDates=list.filter(t=>!t.start||!t.finish).length;if(missingDates)warnings.push(missingDates+' task(s) do not have both planned dates. Their dates have been left blank rather than guessed.');
+ return {list:list,warnings:warnings};
+}
+function taskKey(t){return (t.externalId?'id:'+norm(t.externalId):'name:'+norm(t.name)+'|'+norm(t.project))}
+function mergeTasks(incoming){
+ const old=new Map(tasks.map(t=>[taskKey(t),t]));let added=0,updated=0;
+ incoming.forEach(n=>{const key=taskKey(n),o=old.get(key);if(!o){tasks.push(n);added++;return}
+ const preserve=['id'];Object.keys(n).forEach(k=>{if(!preserve.includes(k)&&n[k]!==''&&n[k]!==null&&n[k]!==undefined)o[k]=n[k]});updated++});
+ return {added:added,updated:updated};
+}
+function commitImport(){
+ const result=readMappedRows();if(!result.list.length){toast(result.warnings[0]||'No tasks found.');return}
+ const mode=document.querySelector('input[name="importMode"]:checked')?.value||'replace';
+ let msg='';if(mode==='merge'&&tasks.length){const r=mergeTasks(result.list);msg=r.added+' new, '+r.updated+' updated'}else{tasks=result.list;msg=tasks.length+' tasks imported'}
+ sourceFile=pending.file.name;const base=sourceFile.replace(/\.[^.]+$/,'');if(!projectName||projectName==='Untitled project')projectName=base;
+ lastWarnings=result.warnings;$('projectName').value=projectName;$('sourceFilePill').textContent=sourceFile;
+ $('importOverlay').hidden=true;pending=null;save();showWorkspace();renderAll();toast(msg+' · Project ready');
+}
+function showWorkspace(){$('emptyState').hidden=true;$('projectWorkspace').hidden=false}
+function statusClass(s){return norm(s).replace(/\s+/g,'-')}
+function statusCounts(){const c={'Not started':0,'In progress':0,'On hold':0,'Completed':0,'Cancelled':0,'Needs review':0};tasks.forEach(t=>c[t.status]=(c[t.status]||0)+1);return c}
+function durationDays(t){if(t.duration!==null&&t.duration!==undefined&&t.duration!=='')return Math.max(0,Number(t.duration));if(t.start&&t.finish)return Math.max(1,Math.round((fromISO(t.finish)-fromISO(t.start))/86400000)+1);return 1}
+function isOverdue(t){return !!(t.finish&&fromISO(t.finish)<today()&&t.status!=='Completed'&&t.status!=='Cancelled')}
+function computeCritical(){
+ const byKey=new Map();tasks.forEach(t=>{byKey.set(norm(t.name),t);if(t.externalId)byKey.set(norm(t.externalId),t);byKey.set(norm(t.id),t)});
+ const predMap=new Map();tasks.forEach(t=>{const refs=String(t.predecessor||'').split(/[;,|]+/).map(norm).filter(Boolean);predMap.set(t.id,refs.map(r=>byKey.get(r)).filter(Boolean).map(p=>p.id).filter(id=>id!==t.id))});
+ const memo=new Map(),vis=new Set(),cycle=new Set();
+ function longest(id){if(memo.has(id))return memo.get(id);if(vis.has(id)){cycle.add(id);return {score:durationDays(tasks.find(t=>t.id===id)),path:[id]}}vis.add(id);const preds=predMap.get(id)||[];let best={score:0,path:[]};preds.forEach(pid=>{const p=longest(pid);if(p.score>best.score)best=p});vis.delete(id);const result={score:best.score+durationDays(tasks.find(t=>t.id===id)),path:best.path.concat(id)};memo.set(id,result);return result}
+ let best={score:0,path:[]};tasks.forEach(t=>{const x=longest(t.id);if(x.score>best.score)best=x});criticalIds=new Set(best.path);
+ return {path:best.path,score:best.score,cycles:cycle.size,dependencies:[...predMap.values()].reduce((n,a)=>n+a.length,0)};
+}
+function getStats(){
+ const c=statusCounts(),valid=tasks.filter(t=>t.progress!==null&&t.progress!==undefined),weight=valid.reduce((s,t)=>s+durationDays(t),0),done=valid.reduce((s,t)=>s+durationDays(t)*t.progress,0);const progress=weight?Math.round(done/weight):null;const overdue=tasks.filter(isOverdue).length;const missing=tasks.filter(t=>!t.start||!t.finish).length;const owners=new Set(tasks.map(t=>t.owner).filter(Boolean)).size;const dated=tasks.filter(t=>t.start&&t.finish);const next=dated.filter(t=>fromISO(t.finish)>=today()&&t.status!=='Completed'&&t.status!=='Cancelled').sort((a,b)=>a.start.localeCompare(b.start));return {c:c,progress:progress,overdue:overdue,missing:missing,owners:owners,dated:dated,next:next,critical:tasks.filter(t=>criticalIds.has(t.id)).length,completed:c.Completed};
+}
+function kpi(label,value,sub,icon,cls){return '<div class="pf-kpi '+(cls||'')+'"><div class="pf-kpi-top"><span>'+label+'</span><span class="pf-kpi-icon">'+icon+'</span></div><strong>'+value+'</strong><small>'+sub+'</small></div>'}
+function renderOverview(){
+ const s=getStats();$('kpiGrid').innerHTML=kpi('Total activities',tasks.length,'Imported and added tasks','▤','')+kpi('Overall progress',s.progress===null?'—':s.progress+'%',s.progress===null?'Progress not provided in source':'Duration-weighted completion','◔','green')+kpi('Completed',s.completed,'Activities marked complete','✓','green')+kpi('Overdue',s.overdue,'Past finish date and not complete','!','red')+kpi('Critical activities',s.critical,'Calculated from dependency chain','⌁','purple');
+ $('overallProgress').textContent=s.progress===null?'—':s.progress+'%';$('progressDonut').style.background='conic-gradient(#16866a '+(s.progress||0)+'%,#eaf0f5 0)';
+ const legend=[['Completed',s.c.Completed,'#16866a'],['In progress',s.c['In progress'],'#4d79d6'],['Not started',s.c['Not started'],'#aab6c6'],['On hold / review',s.c['On hold']+s.c['Needs review'],'#e8ad43']];
+ $('progressLegend').innerHTML=legend.map(x=>'<div class="pf-legend-row"><span><i class="pf-legend-dot" style="background:'+x[2]+'"></i>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('');
+ $('healthList').innerHTML='<div class="pf-health-row"><span>Overdue activities</span><b class="'+(s.overdue?'red':'green')+'">'+s.overdue+'</b></div><div class="pf-health-row"><span>Missing planned dates</span><b>' +s.missing+'</b></div><div class="pf-health-row"><span>Activities with dates</span><b>'+s.dated.length+' / '+tasks.length+'</b></div><div class="pf-health-row"><span>Responsible people</span><b>'+s.owners+'</b></div><div class="pf-health-row"><span>Dependency links</span><b>'+computeCritical().dependencies+'</b></div>';
+ $('upcomingList').innerHTML=s.next.slice(0,5).map(t=>'<div class="pf-compact-row"><span class="pf-compact-name">'+esc(t.name)+'</span><span class="pf-compact-meta">'+esc(t.owner||'Unassigned')+'</span><span class="pf-compact-meta">'+esc(t.finish)+'</span></div>').join('')||'<div class="pf-table-empty">No upcoming dated activities found.</div>';
+ const statuses=[['Completed',s.c.Completed,'#16866a'],['In progress',s.c['In progress'],'#4d79d6'],['Not started',s.c['Not started'],'#aab6c6'],['On hold',s.c['On hold'],'#e8ad43'],['Needs review',s.c['Needs review'],'#9272d4'],['Cancelled',s.c.Cancelled,'#bdc5d0']];
+ $('statusChart').innerHTML=statuses.map(x=>'<div class="pf-status-line"><span>'+x[0]+'</span><div class="pf-status-track"><div class="pf-status-fill" style="width:'+(tasks.length?x[1]/tasks.length*100:0)+'%;background:'+x[2]+'"></div></div><b>'+x[1]+'</b></div>').join('');
+ const owners=ownerStats().slice(0,5);$('ownerSummary').innerHTML=owners.map(o=>'<div class="pf-owner-row"><span class="pf-avatar">'+esc(initials(o.name))+'</span><div><b>'+esc(o.name)+'</b><small>'+o.total+' tasks · '+o.overdue+' overdue</small></div><strong>'+o.total+'</strong></div>').join('')||'<div class="pf-table-empty">Responsible people are not mapped yet.</div>';
+ renderMiniGantt();$('importNotes').hidden=!lastWarnings.length;$('importNotes').innerHTML=lastWarnings.map(x=>'• '+esc(x)).join('<br>');
+}
+function ownerStats(){const map=new Map();tasks.forEach(t=>{const n=t.owner||'Unassigned';if(!map.has(n))map.set(n,{name:n,total:0,overdue:0,complete:0,progress:0,progressCount:0,tasks:[]});const o=map.get(n);o.total++;o.overdue+=isOverdue(t)?1:0;o.complete+=t.status==='Completed'?1:0;if(t.progress!==null){o.progress+=t.progress;o.progressCount++}o.tasks.push(t)});return [...map.values()].sort((a,b)=>b.overdue-a.overdue||b.total-a.total)}
+function initials(s){return String(s||'?').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()}
+function renderMiniGantt(){const a=tasks.filter(t=>t.start&&t.finish).slice(0,6);if(!a.length){$('overviewGantt').innerHTML='<div class="pf-table-empty">Add or import planned start and finish dates to see your schedule here.</div>';return}const min=Math.min(...a.map(t=>fromISO(t.start).getTime())),max=Math.max(...a.map(t=>fromISO(t.finish).getTime())),span=Math.max(1,max-min+86400000);$('overviewGantt').innerHTML=a.map(t=>{const left=(fromISO(t.start).getTime()-min)/span*100,w=Math.max(2,(fromISO(t.finish).getTime()-fromISO(t.start).getTime()+86400000)/span*100);return '<div class="pf-mini-gantt-row"><span class="pf-mini-gantt-label">'+esc(t.name)+'</span><div class="pf-mini-gantt-track"><i class="pf-mini-gantt-bar" style="left:'+left+'%;width:'+w+'%"></i></div></div>'}).join('')}
+function setView(next){view=next;document.querySelectorAll('.pf-nav[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===next));['overview','gantt','tasks','resources','critical','report'].forEach(v=>{$(v+'View').hidden=(v!==next)});const meta={overview:['PROJECT CONTROL CENTER','Project overview','A live view of your schedule, delivery and execution status.'],gantt:['SCHEDULE MANAGEMENT','Gantt chart','Plan, compare and monitor activity dates across the project timeline.'],tasks:['ACTIVITY REGISTER','Task list','Edit execution details, progress, dates and dependencies.'],resources:['RESOURCE MANAGEMENT','Resources','Review responsibility, workload and overdue activities.'],critical:['SCHEDULE ANALYSIS','Critical path','Identify the dependency chain that controls the project finish.'],report:['MANAGEMENT REPORT','Project status report','A management-ready summary of the current project position.']}[next];$('viewEyebrow').textContent=meta[0];$('viewTitle').textContent=meta[1];$('viewSubtitle').textContent=meta[2];if(next==='overview')renderOverview();if(next==='gantt')renderGantt();if(next==='tasks')renderTasks();if(next==='resources')renderResources();if(next==='critical')renderCritical();if(next==='report')renderReport();window.scrollTo({top:0,behavior:'smooth'})}
+function renderAll(){showWorkspace();$('projectName').value=projectName;setView(view)}
+function filteredTasks(filter,query){return tasks.filter(t=>{if(filter==='overdue'&&!isOverdue(t))return false;if(filter==='critical'&&!criticalIds.has(t.id))return false;if(filter==='nodates'&&(t.start&&t.finish))return false;if(query&&!norm([t.name,t.owner,t.supplier,t.externalId,t.project,t.notes].join(' ')).includes(norm(query)))return false;return true})}
+function dateRangeFor(list){const valid=list.filter(t=>t.start&&t.finish);if(!valid.length)return null;let lo=Math.min(...valid.map(t=>fromISO(t.start).getTime())),hi=Math.max(...valid.map(t=>fromISO(t.finish).getTime()));const now=today().getTime();if(now<lo)lo=now;if(now>hi)hi=now;const pad=zoom==='month'?35:zoom==='week'?10:3;lo-=pad*86400000;hi+=pad*86400000;return {start:new Date(lo),end:new Date(hi),days:Math.ceil((hi-lo)/86400000)+1}}
+function renderGantt(){
+ computeCritical();const list=filteredTasks($('ganttFilter').value,$('ganttSearch').value);$('ganttTaskCount').textContent=list.length;const range=dateRangeFor(list);const labels=$('ganttLabels'),track=$('ganttTrack');labels.innerHTML='';track.innerHTML='';
+ if(!range){$('ganttScroll').style.minHeight='120px';track.style.width='100%';track.innerHTML='<div class="pf-gantt-head"></div><div class="pf-gantt-empty">No planned dates found. Edit a task and add start / finish dates to build the Gantt chart.</div>';list.forEach(t=>labels.insertAdjacentHTML('beforeend','<div class="pf-gantt-label-row" data-edit="'+t.id+'"><span class="pf-gantt-name">'+esc(t.name)+'</span><small>—</small></div>'));return}
+ const width=zoom==='day'?29:zoom==='week'?13:4.2;const total=Math.max(range.days*width,700);track.style.width=total+'px';const head=document.createElement('div');head.className='pf-gantt-head';head.style.width=total+'px';
+ let cur=new Date(range.start.getFullYear(),range.start.getMonth(),1);while(cur<=range.end){const start=Math.max(0,(new Date(cur.getFullYear(),cur.getMonth(),1)-range.start)/86400000),next=new Date(cur.getFullYear(),cur.getMonth()+1,1),end=Math.min(range.days,(next-range.start)/86400000);const el=document.createElement('div');el.className='pf-gantt-month';el.style.left=start*width+'px';el.style.width=Math.max(1,(end-start)*width)+'px';el.textContent=cur.toLocaleDateString(undefined,{month:'short',year:'numeric'});head.appendChild(el);cur=next}
+ const step=zoom==='day'?1:zoom==='week'?7:30;for(let d=0;d<range.days;d+=step){const el=document.createElement('div');el.className='pf-gantt-day';el.style.left=d*width+'px';el.style.width=Math.min(step,range.days-d)*width+'px';const dt=new Date(range.start.getTime()+d*86400000);el.textContent=zoom==='day'?dt.getDate():zoom==='week'?'W'+Math.ceil((dt.getDate()+new Date(dt.getFullYear(),dt.getMonth(),1).getDay())/7):dt.getDate()===1?dt.toLocaleDateString(undefined,{month:'short'}):'';head.appendChild(el)}
+ track.appendChild(head);list.forEach(t=>{labels.insertAdjacentHTML('beforeend','<div class="pf-gantt-label-row" data-edit="'+t.id+'"><span class="pf-gantt-name" title="'+esc(t.name)+'">'+esc(t.name)+'</span><small>'+esc(t.owner||'—')+'</small></div>');const row=document.createElement('div');row.className='pf-gantt-row';row.style.width=total+'px';if(t.start&&t.finish){const start=(fromISO(t.start)-range.start)/86400000;const dur=Math.max(1,(fromISO(t.finish)-fromISO(t.start))/86400000+1);const bar=document.createElement('div');bar.className='pf-gantt-bar'+(criticalIds.has(t.id)?' critical':'')+(isOverdue(t)?' overdue':'')+(t.milestone?' milestone':'');bar.style.left=(start*width)+'px';bar.style.width=(dur*width)+'px';bar.title=t.name+' · '+t.start+' to '+t.finish+' · '+(t.progress===null?'Progress not set':t.progress+'%');if(!t.milestone){if(t.progress!==null){const p=document.createElement('div');p.className='pf-gantt-progress';p.style.width=t.progress+'%';bar.appendChild(p)}if(dur*width>95){const label=document.createElement('span');label.className='pf-bar-label';label.textContent=t.name;bar.appendChild(label)}}bar.addEventListener('click',()=>editTask(t.id));row.appendChild(bar)}else{const no=document.createElement('span');no.className='pf-gantt-empty';no.textContent='Dates not set';row.appendChild(no)}track.appendChild(row)});
+ const todayX=(today()-range.start)/86400000*width;if(todayX>=0&&todayX<=total){const line=document.createElement('div');line.className='pf-today-line';line.style.left=todayX+'px';head.appendChild(line)}
+ $('ganttScroll').style.minHeight=(65+list.length*47)+'px';dateRange=range;
+}
+function renderTasks(){
+ const query=$('taskSearch').value,filter=$('taskStatusFilter').value;const list=tasks.filter(t=>(filter==='all'||t.status===filter)&&(!query||norm([t.name,t.owner,t.supplier,t.externalId,t.project,t.notes].join(' ')).includes(norm(query))));$('taskCountLabel').textContent=list.length+' of '+tasks.length+' tasks';$('taskTableEmpty').hidden=list.length!==0;$('taskTableBody').innerHTML=list.map(t=>'<tr data-edit="'+t.id+'"><td><input type="checkbox" class="task-check" data-check="'+t.id+'" '+(selectedIds.has(t.id)?'checked':'')+'></td><td><div class="pf-task-title">'+esc(t.name)+'</div><div class="pf-task-sub">'+esc(t.externalId||t.project||'')+(criticalIds.has(t.id)?' · <span class="pf-critical-tag">CRITICAL</span>':'')+'</div></td><td>'+esc(t.owner||'—')+'</td><td>'+esc(t.start||'—')+'</td><td>'+esc(t.finish||'—')+'</td><td>'+ (t.duration??durationDays(t)||'—')+'</td><td><div class="pf-inline-progress"><i><b style="width:'+(t.progress||0)+'%"></b></i>'+(t.progress===null?'—':t.progress+'%')+'</div></td><td><span class="pf-status-pill '+statusClass(t.status)+'">'+esc(t.status)+'</span></td><td>'+(isOverdue(t)?'<span class="pf-critical-tag">OVERDUE</span>':'›')+'</td></tr>').join('');
+ $('taskTableBody').querySelectorAll('tr[data-edit]').forEach(tr=>tr.addEventListener('click',e=>{if(e.target.closest('input'))return;editTask(tr.dataset.edit)}));$('taskTableBody').querySelectorAll('[data-check]').forEach(ch=>ch.addEventListener('change',()=>{if(ch.checked)selectedIds.add(ch.dataset.check);else selectedIds.delete(ch.dataset.check);$('deleteSelectedBtn').disabled=!selectedIds.size}));$('deleteSelectedBtn').disabled=!selectedIds.size;$('dataWarnings').textContent=tasks.filter(t=>!t.start||!t.finish).length+' tasks missing one or more planned dates';
+}
+function renderResources(){
+ const os=ownerStats();const selected=$('resourceFilter').value;const filt=os.filter(o=>selected==='all'||o.name===selected);$('resourceFilter').innerHTML='<option value="all">All resources</option>'+os.map(o=>'<option value="'+esc(o.name)+'">'+esc(o.name)+'</option>').join('');$('resourceFilter').value=selected;
+ $('resourceGrid').innerHTML=filt.map(o=>{const p=o.progressCount?Math.round(o.progress/o.progressCount):null;return '<article class="pf-resource-card"><div class="pf-resource-top"><span class="pf-avatar">'+esc(initials(o.name))+'</span><div><b>'+esc(o.name)+'</b><small>'+o.total+' assigned activities</small></div></div><div class="pf-resource-metrics"><div><strong>'+o.total+'</strong><span>Total tasks</span></div><div><strong>'+o.complete+'</strong><span>Completed</span></div><div><strong class="'+(o.overdue?'':'')+'">'+o.overdue+'</strong><span>Overdue</span></div></div><div class="pf-resource-bar"><i style="width:'+(p||0)+'%"></i></div><div class="pf-resource-tasks">'+esc(o.tasks.slice(0,5).map(t=>t.name).join(' · '))+(o.tasks.length>5?' · +'+(o.tasks.length-5)+' more':'')+'</div></article>'}).join('')||'<div class="pf-table-empty">No responsible persons were identified.</div>';
+}
+function renderCritical(){
+ const r=computeCritical(),list=tasks.filter(t=>criticalIds.has(t.id));$('criticalCount').textContent=list.length+' critical activities';$('criticalMessage').classList.toggle('has-data',r.dependencies>0);$('criticalMessage').textContent=r.dependencies?'Longest linked activity chain: '+r.score+' day(s), '+r.dependencies+' dependency link(s). Critical path is calculated from entered predecessors and task durations.':'No dependency chain has been detected yet. Add predecessor links to tasks to calculate the critical path.'+(r.cycles?' A circular dependency was detected. Review links.':'');
+ $('criticalTableBody').innerHTML=list.map(t=>'<tr data-edit="'+t.id+'"><td><b>'+esc(t.name)+'</b></td><td>'+esc(t.predecessor||'—')+'</td><td>'+durationDays(t)+' d</td><td>'+esc(t.finish||'—')+'</td><td>'+esc(t.owner||'—')+'</td><td><span class="pf-status-pill '+statusClass(t.status)+'">'+esc(t.status)+'</span></td></tr>').join('')||'<tr><td colspan="6">No critical tasks to display.</td></tr>';document.querySelectorAll('#criticalTableBody tr[data-edit]').forEach(tr=>tr.addEventListener('click',()=>editTask(tr.dataset.edit)));
+}
+function renderReport(){
+ const s=getStats(),over=tasks.filter(isOverdue),missing=tasks.filter(t=>!t.start||!t.finish),crit=tasks.filter(t=>criticalIds.has(t.id));$('reportContent').innerHTML='<div class="pf-report-summary"><div class="pf-report-box"><strong>'+tasks.length+'</strong><small>Total activities</small></div><div class="pf-report-box"><strong>'+(s.progress===null?'—':s.progress+'%')+'</strong><small>Overall progress</small></div><div class="pf-report-box"><strong>'+over.length+'</strong><small>Overdue activities</small></div><div class="pf-report-box"><strong>'+s.completed+'</strong><small>Completed activities</small></div></div><section class="pf-report-section"><h3>Executive summary</h3><p>The project currently contains '+tasks.length+' recorded activities. '+s.completed+' are completed, '+s.c['In progress']+' are in progress, '+s.c['Not started']+' have not started, and '+over.length+' are overdue based on the planned finish date. '+(s.progress===null?'The source workbook does not provide usable progress values for a weighted overall progress calculation.':'Duration-weighted overall progress is '+s.progress+'%.')+'</p><p>'+missing.length+' activities are missing planned dates. '+crit.length+' activities are on the calculated critical chain. '+s.owners+' responsible person(s) are identified.</p></section><section class="pf-report-section"><h3>Overdue activities</h3>'+reportTable(over)+'</section><section class="pf-report-section"><h3>Critical activities</h3>'+reportTable(crit)+'</section><section class="pf-report-section"><h3>Data quality observations</h3><ul><li>'+missing.length+' activities require planned start and finish dates.</li><li>'+tasks.filter(t=>!t.owner).length+' activities do not have a responsible person assigned.</li><li>'+tasks.filter(t=>!t.predecessor).length+' activities do not have a dependency link entered.</li><li>Baseline variance is available only for activities that include baseline dates.</li></ul></section>';
+}
+function reportTable(list){if(!list.length)return '<p>None identified.</p>';return '<table class="pf-report-table"><thead><tr><th>Activity</th><th>Owner</th><th>Finish</th><th>Progress</th><th>Status</th></tr></thead><tbody>'+list.slice(0,40).map(t=>'<tr><td>'+esc(t.name)+'</td><td>'+esc(t.owner||'—')+'</td><td>'+esc(t.finish||'—')+'</td><td>'+(t.progress===null?'—':t.progress+'%')+'</td><td>'+esc(t.status)+'</td></tr>').join('')+'</tbody></table>'}
+function openTaskForm(t){
+ $('taskOverlay').hidden=false;$('taskModalTitle').textContent=t?'Edit activity':'Add activity';$('editTaskId').value=t?t.id:'';$('editName').value=t?.name||'';$('editOwner').value=t?.owner||'';$('editSupplier').value=t?.supplier||'';$('editStart').value=t?.start||'';$('editFinish').value=t?.finish||'';$('editDuration').value=t?.duration??'';$('editProgress').value=t?.progress??'';$('editStatus').value=t?.status||'Not started';$('editPriority').value=t?.priority||'Normal';$('editPredecessor').value=t?.predecessor||'';$('editMilestone').value=t?.milestone?'yes':'no';$('editBaselineStart').value=t?.baselineStart||'';$('editBaselineFinish').value=t?.baselineFinish||'';$('editActualStart').value=t?.actualStart||'';$('editActualFinish').value=t?.actualFinish||'';$('editNotes').value=t?.notes||'';$('deleteTaskBtn').style.display=t?'inline-flex':'none';
+ $('ownerOptions').innerHTML=[...new Set(tasks.map(x=>x.owner).filter(Boolean))].map(x=>'<option value="'+esc(x)+'"></option>').join('');
+}
+function editTask(id){openTaskForm(tasks.find(t=>t.id===id))}
+function closeTask(){$('taskOverlay').hidden=true}
+function saveTask(e){
+ e.preventDefault();const id=$('editTaskId').value;const start=$('editStart').value,finish=$('editFinish').value;let duration=numberValue($('editDuration').value);if(duration===null&&start&&finish)duration=Math.max(1,Math.round((fromISO(finish)-fromISO(start))/86400000)+1);let progress=$('editProgress').value===''?null:Number($('editProgress').value);const status=normalizeStatus($('editStatus').value,progress);if(status==='Completed'&&progress===null)progress=100;
+ const item={name:$('editName').value.trim(),owner:$('editOwner').value.trim(),supplier:$('editSupplier').value.trim(),start:start,finish:finish,duration:duration,progress:progress,status:status,priority:$('editPriority').value,predecessor:$('editPredecessor').value.trim(),milestone:$('editMilestone').value==='yes',baselineStart:$('editBaselineStart').value,baselineFinish:$('editBaselineFinish').value,actualStart:$('editActualStart').value,actualFinish:$('editActualFinish').value,notes:$('editNotes').value.trim()};
+ if(!item.name){toast('Enter a task or equipment name.');return}if(start&&finish&&fromISO(finish)<fromISO(start)){toast('Finish date cannot be before start date.');return}
+ if(id){const old=tasks.find(t=>t.id===id);if(old)Object.assign(old,item)}else tasks.push(Object.assign({id:uid(),externalId:'',project:'',sourceRow:null},item));
+ $('taskOverlay').hidden=true;save();computeCritical();renderAll();toast(id?'Task updated':'Task added');
+}
+function deleteTask(id){tasks=tasks.filter(t=>t.id!==id);selectedIds.delete(id);save();closeTask();computeCritical();renderAll();toast('Task deleted')}
+function deleteSelected(){if(!selectedIds.size)return;const count=selectedIds.size;tasks=tasks.filter(t=>!selectedIds.has(t.id));selectedIds.clear();save();renderAll();toast(count+' task(s) deleted')}
+function xmlEscape(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function mspDate(s){return s?s+'T08:00:00':'2000-01-01T08:00:00'}
+function exportXML(){
+ if(!tasks.length){toast('Import or add tasks before exporting.');return}
+ const idByKey=new Map();tasks.forEach((t,i)=>{idByKey.set(norm(t.name),i+1);if(t.externalId)idByKey.set(norm(t.externalId),i+1)});
+ const lines=['<?xml version="1.0" encoding="UTF-8"?>','<Project xmlns="http://schemas.microsoft.com/project">','<SaveVersion>14</SaveVersion>','<Name>'+xmlEscape(projectName)+'</Name>','<Title>'+xmlEscape(projectName)+'</Title>','<ScheduleFromStart>1</ScheduleFromStart>','<DefaultStartTime>08:00:00</DefaultStartTime>','<DefaultFinishTime>17:00:00</DefaultFinishTime>','<MinutesPerDay>480</MinutesPerDay>','<MinutesPerWeek>2400</MinutesPerWeek>','<DaysPerMonth>20</DaysPerMonth>','<Tasks>'];
+ tasks.forEach((t,i)=>{let dur=durationDays(t);const durIso='PT'+Math.max(0,dur*8)+'H0M0S';const percent=t.progress===null?0:t.progress;lines.push('<Task><UID>'+(i+1)+'</UID><ID>'+(i+1)+'</ID><Name>'+xmlEscape(t.name)+'</Name><Type>1</Type><IsNull>0</IsNull><CreateDate>'+mspDate(iso(today()))+'</CreateDate><WBS>'+(i+1)+'</WBS><OutlineNumber>'+(i+1)+'</OutlineNumber><Start>'+mspDate(t.start)+'</Start><Finish>'+mspDate(t.finish)+'</Finish><Duration>'+durIso+'</Duration><DurationFormat>7</DurationFormat><Work>PT'+Math.max(0,dur*8)+'H0M0S</Work><PercentComplete>'+percent+'</PercentComplete><Milestone>'+(t.milestone?'1':'0')+'</Milestone><Notes>'+xmlEscape((t.owner?'Responsible: '+t.owner+'\n':'')+(t.supplier?'Supplier: '+t.supplier+'\n':'')+(t.status?'Status: '+t.status+'\n':'')+(t.notes||''))+'</Notes>');
+ const refs=String(t.predecessor||'').split(/[;,|]+/).map(norm).filter(Boolean);refs.forEach(ref=>{const pred=idByKey.get(ref);if(pred&&pred!==i+1)lines.push('<PredecessorLink><PredecessorUID>'+pred+'</PredecessorUID><Type>1</Type><CrossProject>0</CrossProject><LinkLag>0</LinkLag><LagFormat>7</LagFormat></PredecessorLink>')});lines.push('</Task>')});
+ lines.push('</Tasks></Project>');download(new Blob([lines.join('')],{type:'application/xml;charset=utf-8'}),safeName(projectName)+'-ProjectFlow.xml');toast('Microsoft Project XML exported');
+}
+function safeName(s){return String(s||'Project').replace(/[^a-z0-9-_]+/gi,'_').replace(/^_+|_+$/g,'')||'Project'}
+function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200)}
+function exportCSV(){const cols=['Task ID','Task / Equipment','Project','Responsible','Supplier','Start','Finish','Duration (days)','Progress (%)','Status','Predecessor','Priority','Baseline Start','Baseline Finish','Actual Start','Actual Finish','Milestone','Remarks'];const rows=tasks.map(t=>[t.externalId||t.id,t.name,t.project,t.owner,t.supplier,t.start,t.finish,t.duration,t.progress,t.status,t.predecessor,t.priority,t.baselineStart,t.baselineFinish,t.actualStart,t.actualFinish,t.milestone?'Yes':'No',t.notes]);const csv=[cols,...rows].map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');download(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),safeName(projectName)+'-Tasks.csv')}
+function exportXLSX(){
+ if(!window.XLSX){toast('Excel export library is unavailable.');return}const rows=tasks.map((t,i)=>({'Task ID':t.externalId||i+1,'Task / Equipment':t.name,'Project':t.project,'Responsible':t.owner,'Supplier':t.supplier,'Start':t.start,'Finish':t.finish,'Duration (days)':t.duration,'Progress (%)':t.progress,'Status':t.status,'Predecessor':t.predecessor,'Priority':t.priority,'Baseline Start':t.baselineStart,'Baseline Finish':t.baselineFinish,'Actual Start':t.actualStart,'Actual Finish':t.actualFinish,'Milestone':t.milestone?'Yes':'No','Remarks':t.notes}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Tasks');const stats=[{'Metric':'Project','Value':projectName},{'Metric':'Total tasks','Value':tasks.length},{'Metric':'Completed','Value':statusCounts().Completed},{'Metric':'Overdue','Value':tasks.filter(isOverdue).length},{'Metric':'Overall progress','Value':getStats().progress}];XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(stats),'Summary');XLSX.writeFile(wb,safeName(projectName)+'-ProjectFlow.xlsx');toast('Project workbook exported')}
+function exportAction(kind){$('exportMenu').classList.remove('open');if(kind==='xml')exportXML();if(kind==='csv')exportCSV();if(kind==='xlsx')exportXLSX();if(kind==='print'){setView('report');setTimeout(()=>window.print(),150)}}
+function sampleProject(){
+ projectName='Laboratory Equipment Upgrade';sourceFile='Sample project data';const base=new Date(today());base.setDate(base.getDate()-24);const date=n=>{const d=new Date(base);d.setDate(d.getDate()+n);return iso(d)};tasks=[
+ {id:uid(),externalId:'PR-01',name:'Finalize technical specification',project:'Procurement',owner:'Engineering',supplier:'',start:date(-14),finish:date(-7),duration:8,progress:100,status:'Completed',predecessor:'',priority:'High',baselineStart:date(-14),baselineFinish:date(-7),actualStart:date(-14),actualFinish:date(-8),milestone:false,notes:'Technical scope approved.'},
+ {id:uid(),externalId:'PR-02',name:'Complete purchase requisition',project:'Procurement',owner:'Procurement',supplier:'',start:date(-6),finish:date(1),duration:8,progress:70,status:'In progress',predecessor:'PR-01',priority:'High',baselineStart:date(-6),baselineFinish:date(1),actualStart:date(-5),actualFinish:'',milestone:false,notes:'Budget confirmation in progress.'},
+ {id:uid(),externalId:'PO-01',name:'Issue purchase order',project:'Procurement',owner:'Procurement',supplier:'ABC Scientific',start:date(2),finish:date(5),duration:4,progress:0,status:'Not started',predecessor:'PR-02',priority:'High',baselineStart:date(2),baselineFinish:date(5),actualStart:'',actualFinish:'',milestone:true,notes:'Pending requisition completion.'},
+ {id:uid(),externalId:'DL-01',name:'Manufacturing and delivery',project:'Delivery',owner:'Supplier',supplier:'ABC Scientific',start:date(6),finish:date(36),duration:31,progress:0,status:'Not started',predecessor:'PO-01',priority:'Critical',baselineStart:date(6),baselineFinish:date(36),actualStart:'',actualFinish:'',milestone:false,notes:'Lead time as per supplier offer.'},
+ {id:uid(),externalId:'IN-01',name:'Installation and commissioning',project:'Installation',owner:'Engineering',supplier:'ABC Scientific',start:date(37),finish:date(43),duration:7,progress:0,status:'Not started',predecessor:'DL-01',priority:'Normal',baselineStart:date(37),baselineFinish:date(43),actualStart:'',actualFinish:'',milestone:false,notes:''},
+ {id:uid(),externalId:'QA-01',name:'Performance testing and handover',project:'Commissioning',owner:'Quality Assurance',supplier:'',start:date(44),finish:date(49),duration:6,progress:0,status:'Not started',predecessor:'IN-01',priority:'High',baselineStart:date(44),baselineFinish:date(49),actualStart:'',actualFinish:'',milestone:true,notes:''}
+ ];lastWarnings=['Sample records are illustrative. Import your real workbook to replace this sample schedule.'];$('sourceFilePill').textContent=sourceFile;$('projectName').value=projectName;save();renderAll();toast('Sample project loaded. Explore the Gantt and task editor.')}
+function wire(){
+ $('importBtn').onclick=()=>{$('fileInput').dataset.mode='replace';$('fileInput').click()};$('updateBtn').onclick=()=>{$('fileInput').dataset.mode='merge';$('fileInput').click()};$('emptyImportBtn').onclick=()=>$('importBtn').click();$('fileInput').onchange=e=>{const f=e.target.files[0];if(f)openImport(f,e.target.dataset.mode||'replace');e.target.value=''};
+ $('sheetSelect').onchange=loadPendingSheet;$('headerRowSelect').onchange=applyHeader;$('closeImport').onclick=$('cancelImport').onclick=()=>$('importOverlay').hidden=true;$('confirmImport').onclick=commitImport;
+ document.querySelectorAll('.pf-nav[data-view]').forEach(b=>b.onclick=()=>setView(b.dataset.view));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>setView(b.dataset.go));$('newTaskSide').onclick=$('addTaskBtn').onclick=()=>openTaskForm(null);$('sampleBtn').onclick=sampleProject;
+ $('exportMenuBtn').onclick=()=>$('exportMenu').classList.toggle('open');document.querySelectorAll('[data-export]').forEach(b=>b.onclick=()=>exportAction(b.dataset.export));document.addEventListener('click',e=>{if(!e.target.closest('.pf-export-wrap'))$('exportMenu').classList.remove('open')});
+ $('projectName').onchange=()=>{projectName=$('projectName').value.trim()||'Untitled project';$('projectName').value=projectName;save()};
+ $('closeTask').onclick=$('cancelTask').onclick=closeTask;$('taskForm').onsubmit=saveTask;$('deleteTaskBtn').onclick=()=>{const id=$('editTaskId').value;if(id&&confirm('Delete this task from the project?'))deleteTask(id)};
+ $('taskSearch').oninput=renderTasks;$('taskStatusFilter').onchange=renderTasks;$('deleteSelectedBtn').onclick=deleteSelected;$('selectAllTasks').onchange=e=>{document.querySelectorAll('[data-check]').forEach(c=>{c.checked=e.target.checked;if(e.target.checked)selectedIds.add(c.dataset.check);else selectedIds.delete(c.dataset.check)});$('deleteSelectedBtn').disabled=!selectedIds.size};
+ $('ganttSearch').oninput=renderGantt;$('ganttFilter').onchange=renderGantt;$('zoomSelect').onchange=e=>{zoom=e.target.value;renderGantt()};$('todayBtn').onclick=()=>{const r=dateRange;if(r){const x=(today()-r.start)/86400000*(zoom==='day'?29:zoom==='week'?13:4.2);$('ganttScroll').scrollLeft=Math.max(0,x-180)}};
+ $('resourceFilter').onchange=renderResources;$('reportBtn').onclick=()=>setView('report');$('printReportBtn').onclick=()=>window.print();$('taskTableBody').addEventListener('click',e=>{const row=e.target.closest('tr[data-edit]');if(row&&!e.target.closest('input'))editTask(row.dataset.edit)});
+ $('taskOverlay').addEventListener('click',e=>{if(e.target===$('taskOverlay'))closeTask()});$('importOverlay').addEventListener('click',e=>{if(e.target===$('importOverlay'))$('importOverlay').hidden=true});
+}
+loadSaved();wire();if(tasks.length){$('sourceFilePill').textContent=sourceFile||'Saved project';$('projectName').value=projectName;showWorkspace();computeCritical();renderAll()}
+})();
