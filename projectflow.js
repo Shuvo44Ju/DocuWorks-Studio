@@ -296,8 +296,9 @@ function readTasks(){
   if(start&&!finish&&duration!==null&&duration>0)finish=addDuration(start,duration,durationInfo.working);
   if(finish&&!start&&duration!==null&&duration>0){start=subtractDuration(finish,duration,durationInfo.working);if(start)warnings.derivedStarts++}
   // A deadline without a duration is shown as a one-day milestone; no missing span is invented.
-  if(finish&&!start&&duration===null){start=finish;duration=1;warnings.milestones++}
-  if(start&&!finish&&duration===null){finish=start;duration=1;warnings.milestones++}
+  let isMilestone=false;
+  if(finish&&!start&&duration===null){start=finish;duration=1;warnings.milestones++;isMilestone=true}
+  if(start&&!finish&&duration===null){finish=start;duration=1;warnings.milestones++;isMilestone=true}
   if(duration===null&&start&&finish)duration=isoToDay(finish)-isoToDay(start)+1;
   if(!start||!finish)warnings.missingDates++;
   const rawProgress=read('progress'),n=numberValue(rawProgress);
@@ -311,7 +312,7 @@ function readTasks(){
   list.push({
    name:name,group:groups.join(' / '),vendor:taskVendor,status:status,
    indent:indent,start:start,finish:finish,duration:duration,progress:progress,
-   sourceRow:rowIndex+1,isMilestone:warnings.milestones>0&&duration===1&&start===finish
+   sourceRow:rowIndex+1,isMilestone:isMilestone
   });
  }
  return {list:list,warnings:warnings};
