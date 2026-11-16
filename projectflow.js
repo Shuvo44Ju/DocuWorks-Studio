@@ -32,9 +32,23 @@ function dayToISO(day){
 function fromISO(value){return Number.isFinite(isoToDay(value))?new Date(isoToDay(value)*86400000):null}
 function addDuration(date,days,workingDays){
  if(!date||!days||days<1)return '';
- let day=isoToDay(date),remaining=Math.ceil(days)-1,guard=0;
+ let day=isoToDay(date),guard=0;
+ if(workingDays){while([0,6].includes(new Date(day*86400000).getUTCDay())&&guard++<10000)day++}
+ let remaining=Math.ceil(days)-1;
  while(remaining>0&&guard++<10000){
   day++;
+  const weekday=new Date(day*86400000).getUTCDay();
+  if(!workingDays||(weekday!==0&&weekday!==6))remaining--;
+ }
+ return dayToISO(day);
+}
+function subtractDuration(date,days,workingDays){
+ if(!date||!days||days<1)return '';
+ let day=isoToDay(date),guard=0;
+ if(workingDays){while([0,6].includes(new Date(day*86400000).getUTCDay())&&guard++<10000)day--}
+ let remaining=Math.ceil(days)-1;
+ while(remaining>0&&guard++<10000){
+  day--;
   const weekday=new Date(day*86400000).getUTCDay();
   if(!workingDays||(weekday!==0&&weekday!==6))remaining--;
  }
@@ -250,11 +264,7 @@ function readTasks(){
   if(rawFinish!==''&&!finish)warnings.invalidDates++;
   if(start&&finish&&isoToDay(finish)<isoToDay(start)){start='';finish='';warnings.invalidDates++}
   if(start&&!finish&&duration!==null&&duration>0)finish=addDuration(start,duration,durationInfo.working);
-  if(finish&&!start&&duration!==null&&duration>0){
-   let day=isoToDay(finish),remaining=Math.max(1,Math.ceil(duration))-1,guard=0;
-   while(remaining>0&&guard++<10000){day--;const weekday=new Date(day*86400000).getUTCDay();if(!durationInfo.working||(weekday!==0&&weekday!==6))remaining--}
-   start=dayToISO(day);
-  }
+  if(finish&&!start&&duration!==null&&duration>0)start=subtractDuration(finish,duration,durationInfo.working);
   if(duration===null&&start&&finish)duration=isoToDay(finish)-isoToDay(start)+1;
   if(!start||!finish)warnings.missingDates++;
   const rawProgress=read('progress'),n=numberValue(rawProgress);
