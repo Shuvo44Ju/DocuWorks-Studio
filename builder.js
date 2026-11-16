@@ -146,9 +146,6 @@ function writeSoftwareBody(ws, startRow, model) {
 }
 function createWorkbook(model) {
   if (!root.ExcelJS || !root.ExcelJS.Workbook) throw new Error('ExcelJS is not available.');
-  if (!String(model.equipmentName || '').trim() || !String(model.ursNumber || '').trim()) {
-    throw new Error('Equipment Name and URS No. are required. Enter the missing value from the URS before creating the CS file.');
-  }
   const workbook = new root.ExcelJS.Workbook();
   const software = String(model.layout || '').toLowerCase() === 'software';
   const lastCol = software ? 5 : 3;
@@ -196,10 +193,8 @@ function createWorkbook(model) {
 function getFilename(model) {
   const equipment = safeFilenamePart(model.equipmentName);
   const urs = safeFilenamePart(model.ursNumber);
-  if (!equipment || !urs) {
-    throw new Error('The output filename requires the Equipment Name and URS No. from the URS or the manual metadata field.');
-  }
-  return 'CS_' + equipment + '_' + urs + '.xlsx';
+  const parts = [equipment, urs].filter(Boolean);
+  return 'CS_' + (parts.length ? parts.join('_') : 'Output') + '.xlsx';
 }
 root.CSBuilder = { createWorkbook, getFilename, cleanSheetName, makeBanner };
 if (typeof module !== 'undefined') module.exports = root.CSBuilder;
