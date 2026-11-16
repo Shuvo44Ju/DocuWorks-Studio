@@ -4,27 +4,27 @@
 const $=id=>document.getElementById(id);
 const STORE='docuworks-projectflow-v1';
 const fields=[
- {key:'name',label:'Task / equipment name',aliases:['task','task name','activity','activity name','equipment','equipment name','item','item name','description','work item','scope','deliverable','particulars','project activity','name'],required:true},
- {key:'id',label:'Unique task ID',aliases:['task id','activity id','id','serial','sl','sl no','sl no.','item no','item code']},
- {key:'reference',label:'PR / PO / CS reference',aliases:['pr no','po no','cer no','cs no','requisition no','purchase requisition','purchase order no','pr reference','po reference','reference number','ref no','reference']},
- {key:'project',label:'Project / package',aliases:['project','project name','package','work package','category','discipline','department','lot','group']},
- {key:'owner',label:'Responsible person',aliases:['responsible','responsible person','person responsible','owner','assigned to','assignee','in charge','focal person','focal','user','department','team']},
- {key:'supplier',label:'Supplier / contractor',aliases:['supplier','vendor','contractor','manufacturer','company','firm','bidder']},
- {key:'start',label:'Planned start date',aliases:['start','start date','planned start','planned start date','schedule start','commencement','commencement date']},
- {key:'finish',label:'Planned finish / delivery date',aliases:['finish','finish date','end date','due date','planned finish','planned finish date','expected date','expected delivery','expected delivery date','delivery date','target date','completion date','deadline','required date']},
- {key:'duration',label:'Duration (days)',aliases:['duration','duration days','days','working days','period']},
- {key:'progress',label:'Progress (%)',aliases:['progress','progress %','% complete','percent complete','percentage complete','completion percent','completion percentage','physical progress']},
- {key:'status',label:'Current status',aliases:['status','current status','progress status','stage','current stage','work status','remarks status']},
- {key:'predecessor',label:'Predecessor / dependency',aliases:['predecessor','predecessors','dependency','dependencies','depends on','linked task','previous activity','predecessor id']},
- {key:'priority',label:'Priority',aliases:['priority','importance','criticality']},
- {key:'baselineStart',label:'Baseline start',aliases:['baseline start','baseline start date','original start','planned start baseline']},
- {key:'baselineFinish',label:'Baseline finish',aliases:['baseline finish','baseline finish date','original finish','original completion','baseline end']},
- {key:'actualStart',label:'Actual start',aliases:['actual start','actual start date','started on','actual commencement']},
- {key:'actualFinish',label:'Actual finish',aliases:['actual finish','actual finish date','actual completion','completed on','actual delivery']},
- {key:'notes',label:'Remarks / current update',aliases:['remarks','remark','comments','comment','notes','update','latest update','current update','observation','issue','description details']},
- {key:'milestone',label:'Milestone',aliases:['milestone','key milestone','is milestone']}
+ {key:'name',label:'Task / equipment name',aliases:['task','task name','task title','activity','activity name','activity title','name of activity','equipment','equipment name','equipment details','equipment description','item','item name','item description','item details','description','description of activity','work description','work item','work item details','scope','scope of work','deliverable','particulars','particulars of work','project activity','task / activity','activity / task','activity description','work package activity','name of work','job description','supply description'],required:true},
+ {key:'id',label:'Unique task ID',aliases:['task id','task number','task no','task no.','activity id','activity number','activity no','activity no.','id','serial','serial number','sl','sl no','sl no.','item no','item number','item code','activity code','task code','wbs id','wbs code','sequence','sequence no']},
+ {key:'reference',label:'PR / PO / CS reference',aliases:['pr no','pr number','po no','po number','cer no','cer number','cs no','cs number','requisition no','purchase requisition','purchase requisition no','purchase order no','purchase order number','pr reference','po reference','reference number','ref no','reference','contract no','contract number','work order no']},
+ {key:'project',label:'Project / package / department',aliases:['project','project name','project title','package','package name','project package','work package','category','discipline','department','division','lot','lot name','group','project component','workstream']},
+ {key:'owner',label:'Responsible person / team',aliases:['responsible','responsible person','person responsible','responsible officer','responsible department','owner','assigned to','assigned person','assignee','in charge','person in charge','focal person','focal','project manager','supervisor','team lead','pic','implementing agency','executing agency','section in charge']},
+ {key:'supplier',label:'Supplier / contractor',aliases:['supplier','supplier name','vendor','vendor name','contractor','contractor name','manufacturer','manufacturer name','company','firm','bidder','service provider','consultant']},
+ {key:'start',label:'Planned start date',aliases:['start','start date','planned start','planned start date','schedule start','scheduled start','scheduled start date','commencement','commencement date','date of commencement','starting date','mobilization date','mobilisation date','work start date','target start date','baseline start date planned']},
+ {key:'finish',label:'Planned finish / delivery date',aliases:['finish','finish date','end date','due date','planned finish','planned finish date','planned end date','schedule finish','scheduled finish','scheduled finish date','expected date','expected delivery','expected delivery date','delivery date','target date','target completion','target completion date','completion date','completion deadline','deadline','required date','handover date','contractual completion date']},
+ {key:'duration',label:'Duration (days)',aliases:['duration','duration days','duration in days','calendar days','working days','business days','period','period required','time required','time duration','lead time','implementation period','execution period','contract period','duration (days)','total duration','no of days','number of days']},
+ {key:'progress',label:'Progress (%)',aliases:['progress','progress %','% progress','% complete','percent complete','percentage complete','completion percent','completion percentage','completion rate','physical progress','physical progress %','work progress','project progress','actual progress','percentage progress']},
+ {key:'status',label:'Current status',aliases:['status','current status','progress status','stage','current stage','work status','procurement status','implementation status','execution status','activity status','task status','delivery status']},
+ {key:'predecessor',label:'Predecessor / dependency',aliases:['predecessor','predecessors','predecessor id','predecessor task','predecessor activity','dependency','dependencies','depends on','dependent on','linked task','previous activity','previous task','preceding activity','dependency id','linked to','relation']},
+ {key:'priority',label:'Priority',aliases:['priority','importance','criticality','risk level']},
+ {key:'baselineStart',label:'Baseline start',aliases:['baseline start','baseline start date','original start','original start date','planned start baseline','approved start date','initial planned start']},
+ {key:'baselineFinish',label:'Baseline finish',aliases:['baseline finish','baseline finish date','original finish','original completion','original completion date','baseline end','approved finish date','initial planned finish']},
+ {key:'actualStart',label:'Actual start',aliases:['actual start','actual start date','started on','actual commencement','actual commencement date','actual starting date']},
+ {key:'actualFinish',label:'Actual finish',aliases:['actual finish','actual finish date','actual end date','actual completion','actual completion date','completed on','actual delivery date']},
+ {key:'notes',label:'Remarks / current update',aliases:['remarks','remark','comments','comment','notes','latest update','current update','observation','issue','issues','constraint','constraints','action required','follow up','follow up action','details','description details','progress update']},
+ {key:'milestone',label:'Milestone',aliases:['milestone','key milestone','is milestone','milestone flag','milestone yes no']}
 ];
-let tasks=[],projectName='Untitled project',sourceFile='',pending=null,view='overview',zoom='week',toastTimer=null,lastWarnings=[],selectedIds=new Set(),criticalIds=new Set(),dateRange=null;
+let tasks=[],projectName='Untitled project',sourceFile='',pending=null,view='overview',zoom='week',toastTimer=null,lastWarnings=[],selectedIds=new Set(),criticalIds=new Set(),dateRange=null,dependencyMap=new Map(),dependencyDiagnostics={unknown:0,cycles:0,count:0};
 const today=()=>{const d=new Date();d.setHours(0,0,0,0);return d};
 const iso=d=>{if(!d)return '';const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 const fromISO=s=>s?new Date(s+'T00:00:00'):null;
@@ -34,15 +34,64 @@ const uid=()=>('t'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3100)}
 function save(){try{localStorage.setItem(STORE,JSON.stringify({tasks:tasks,projectName:projectName,sourceFile:sourceFile,updated:Date.now()}))}catch(e){toast('Browser storage is full. Export a backup workbook.')}}
 function loadSaved(){try{const x=JSON.parse(localStorage.getItem(STORE)||'null');if(x&&Array.isArray(x.tasks)){tasks=x.tasks;projectName=x.projectName||'Untitled project';sourceFile=x.sourceFile||''}}catch(e){}}
-function parseDate(v){
+function isoFromParts(y,m,d){
+ const x=new Date(Date.UTC(Number(y),Number(m)-1,Number(d)));
+ if(x.getUTCFullYear()!==Number(y)||x.getUTCMonth()!==Number(m)-1||x.getUTCDate()!==Number(d))return '';
+ return String(y).padStart(4,'0')+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+}
+function parseDate(v,order,date1904){
  if(v===null||v===undefined||v==='')return '';
- if(v instanceof Date&&!isNaN(v))return iso(v);
- if(typeof v==='number'&&v>15000&&v<90000){const d=new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000);return iso(d)}
- const s=String(v).trim();if(!s)return '';
- let m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);if(m){const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));return isNaN(d)?'':iso(d)}
- m=s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/);
- if(m){let a=Number(m[1]),b=Number(m[2]),y=Number(m[3]);if(y<100)y+=y<50?2000:1900;let day=a,month=b;if(a<=12&&b>12){month=a;day=b}const d=new Date(y,month-1,day);if(d.getFullYear()===y&&d.getMonth()===month-1&&d.getDate()===day)return iso(d)}
- const parsed=new Date(s);return isNaN(parsed)?'':iso(parsed);
+ if(v instanceof Date&&!isNaN(v))return isoFromParts(v.getUTCFullYear(),v.getUTCMonth()+1,v.getUTCDate());
+ if(typeof v==='number'&&isFinite(v)&&v>=1&&v<=2958465){
+  const base=date1904?Date.UTC(1904,0,1):Date.UTC(1899,11,30);
+  const d=new Date(base+Math.floor(v)*86400000);
+  return isoFromParts(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());
+ }
+ const s=String(v).replace(/^\uFEFF/,'').trim();if(!s)return '';
+ let m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\D|$)/);
+ if(m)return isoFromParts(Number(m[1]),Number(m[2]),Number(m[3]));
+ m=s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})(?:\D|$)/);
+ if(m){
+  let a=Number(m[1]),b=Number(m[2]),y=Number(m[3]);if(y<100)y+=y<50?2000:1900;
+  let day,month;
+  if(a>12){day=a;month=b}else if(b>12){month=a;day=b}else if(String(order||'DMY').toUpperCase()==='MDY'){month=a;day=b}else{day=a;month=b}
+  return isoFromParts(y,month,day);
+ }
+ const months={jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,sep:9,sept:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
+ m=s.match(/^(\d{1,2})[\s,./-]+([a-z]{3,})[\s,./-]+(\d{2,4})/i);
+ if(m&&months[m[2].toLowerCase()]){let y=Number(m[3]);if(y<100)y+=y<50?2000:1900;return isoFromParts(y,months[m[2].toLowerCase()],Number(m[1]))}
+ m=s.match(/^([a-z]{3,})[\s,./-]+(\d{1,2})[\s,./-]+(\d{2,4})/i);
+ if(m&&months[m[1].toLowerCase()]){let y=Number(m[3]);if(y<100)y+=y<50?2000:1900;return isoFromParts(y,months[m[1].toLowerCase()],Number(m[2]))}
+ const parsed=new Date(s);if(!isNaN(parsed))return isoFromParts(parsed.getFullYear(),parsed.getMonth()+1,parsed.getDate());
+ return '';
+}
+function dayNumber(value){
+ const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+ return m?Math.floor(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3]))/86400000):NaN;
+}
+function dayToISO(n){
+ const d=new Date(Number(n)*86400000);return isoFromParts(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());
+}
+function daySpan(a,b){return dayNumber(b)-dayNumber(a)}
+function shiftDurationDate(date,days,workdays,reverse){
+ if(!date||!days||days<=0)return date||'';
+ const d=fromISO(date),dir=reverse?-1:1;let left=Math.max(0,Math.ceil(days)-1),guard=0;
+ while(left>0&&guard++<20000){d.setDate(d.getDate()+dir);if(!workdays||(d.getDay()!==0&&d.getDay()!==6))left--}
+ return iso(d);
+}
+function parseDuration(value,header){
+ const raw=String(value==null?'':value).trim();if(!raw)return {days:null,workdays:/working|business/i.test(String(header||'')),text:'',invalid:false};
+ const h=String(header||'');const workdays=/working|business/i.test(h+' '+raw);
+ const range=raw.match(/(\d+(?:\.\d+)?)\s*(?:-|to|–)\s*(\d+(?:\.\d+)?)/i);
+ if(range)return {days:null,workdays:workdays,text:raw,invalid:true};
+ const n=numberValue(raw);if(n===null)return {days:null,workdays:workdays,text:raw,invalid:true};
+ const u=norm(raw+' '+h);
+ let factor=1;
+ if(/\b(week|weeks|wk|wks)\b/.test(u))factor=7;
+ else if(/\b(month|months|mo)\b/.test(u))factor=30;
+ else if(/\b(year|years|yr)\b/.test(u))factor=365;
+ else if(/\b(hour|hours|hr|hrs)\b/.test(u))return {days:null,workdays:workdays,text:raw,invalid:true};
+ return {days:Math.max(0,n*factor),workdays:workdays,text:raw,invalid:false};
 }
 function numberValue(v){if(v===null||v===undefined||v==='')return null;if(typeof v==='number')return v;const s=String(v).replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);return s?Number(s[0]):null}
 function normalizeStatus(raw,progress){
@@ -60,59 +109,225 @@ function normalizeProgress(v,status){
  let n=numberValue(v);if(n!==null){if(n>0&&n<=1&&String(v).includes('%')===false)n*=100;return Math.max(0,Math.min(100,n))}
  if(status==='Completed')return 100;if(status==='Not started'||status==='Cancelled')return 0;return null;
 }
+function fieldScore(field,header){
+ const n=norm(header);if(!n)return 0;let score=0;
+ for(const alias of field.aliases){
+  const q=norm(alias);if(!q)continue;
+  if(n===q)score=Math.max(score,145+(field.key==='name'?12:0));
+  else if(n.includes(q))score=Math.max(score,76+Math.min(12,q.length/3));
+  else if(q.includes(n)&&n.length>=5)score=Math.max(score,48+Math.min(8,n.length/4));
+  else{
+   const a=q.split(' ').filter(Boolean),b=new Set(n.split(' ')),hits=a.filter(w=>b.has(w)).length;
+   if(a.length>=2&&hits===a.length)score=Math.max(score,66);
+   else if(a.length>=2&&hits>=2)score=Math.max(score,35+hits*5);
+  }
+ }
+ if((field.key==='start'||field.key==='finish')&&/baseline|actual|original|revised|forecast/.test(n))score-=105;
+ if(field.key==='baselineStart'||field.key==='baselineFinish'){if(!/baseline|original|approved|initial/.test(n))score-=80}
+ if(field.key==='actualStart'||field.key==='actualFinish'){if(!/actual/.test(n))score-=85}
+ if(field.key==='owner'&&/project|package|lot/.test(n))score-=50;
+ if(field.key==='project'&&/responsible|assigned|officer|person|owner/.test(n))score-=55;
+ if(field.key==='name'&&/remarks|comments|update|status/.test(n))score-=65;
+ if(field.key==='notes'&&/^(task|activity|equipment|item)\b/.test(n))score-=55;
+ return score;
+}
 function autoMap(headers){
- const out={};fields.forEach(f=>{let best=-1,bestScore=0;headers.forEach((h,i)=>{const n=norm(h);let score=0;if(f.aliases.map(norm).includes(n))score=100;else if(n&&f.aliases.some(a=>{const q=norm(a);return q.length>3&&(n.includes(q)||q.includes(n))}))score=38;if(f.key==='finish'&&/actual/.test(n))score-=50;if(f.key==='owner'&&/department/.test(n))score-=5;if(score>bestScore){bestScore=score;best=i}});if(best>=0&&bestScore>=35)out[f.key]=String(best)});
- if(out.start===out.baselineStart)delete out.start;if(out.finish===out.baselineFinish)delete out.finish;
- return out
+ const candidates=[];
+ fields.forEach((f,fi)=>headers.forEach((h,ci)=>{const score=fieldScore(f,h);if(score>=55)candidates.push({key:f.key,fi:fi,ci:ci,score:score})}));
+ candidates.sort((a,b)=>b.score-a.score||a.fi-b.fi||a.ci-b.ci);
+ const out={},used=new Set();
+ candidates.forEach(c=>{if(out[c.key]===undefined&&!used.has(c.ci)){out[c.key]=String(c.ci);used.add(c.ci)}});
+ return out;
+}
+function buildHeaderLabels(matrix,index){
+ const current=(matrix[index]||[]).map(v=>String(v==null?'':v).trim());
+ const parent=(index>0?(matrix[index-1]||[]):[]).map(v=>String(v==null?'':v).trim());
+ const merges=(pending&&pending.merges)||[];
+ merges.forEach(m=>{
+  if(m.s&&m.e&&m.s.r===index-1&&m.e.r===index-1&&m.e.c>m.s.c){
+   const value=parent[m.s.c]||'';
+   for(let c=m.s.c;c<=m.e.c;c++)parent[c]=value;
+  }
+ });
+ const parentCount=parent.filter(Boolean).length;
+ const grouped=parentCount>=2&&current.some((v,i)=>v&&parent[i]&&norm(v)!==norm(parent[i]));
+ const len=Math.max(current.length,parent.length);
+ return Array.from({length:len},(_,i)=>{
+  const child=current[i]||'',top=grouped?parent[i]||'':'';
+  const value=(top&&child)?top+' — '+child:(child||top);
+  return value||'Column '+(i+1);
+ });
 }
 function detectHeader(matrix){
- let best=0,bestScore=-1;
- for(let i=0;i<Math.min(matrix.length,30);i++){const row=matrix[i]||[];const h=row.map(v=>String(v??'').trim());const n=h.map(norm);let score=0;fields.forEach(f=>{if(f.aliases.some(a=>n.includes(norm(a))))score+=f.key==='name'?8:2});score+=h.filter(x=>x).length*.12;if(score>bestScore){bestScore=score;best=i}}
+ let best=0,bestScore=-Infinity;
+ for(let i=0;i<Math.min(matrix.length,60);i++){
+  const headers=buildHeaderLabels(matrix,i),mapping=autoMap(headers),mapped=Object.keys(mapping).length;
+  const nameCol=mapping.name===undefined?-1:Number(mapping.name);
+  const nameSamples=nameCol<0?0:matrix.slice(i+1,i+9).filter(r=>r&&String(r[nameCol]??'').trim()).length;
+  const nonEmpty=(matrix[i]||[]).filter(v=>String(v??'').trim()).length;
+  const dateFields=['start','finish','baselineStart','baselineFinish','actualStart','actualFinish'].filter(k=>mapping[k]!==undefined).length;
+  const score=(nameCol>=0?22:0)+mapped*3.2+dateFields*2.5+Math.min(nameSamples,6)*1.4+nonEmpty*.12;
+  if(score>bestScore){bestScore=score;best=i}
+ }
  return best;
 }
 function parseCSV(text){
- const rows=[];let row=[],cell='',q=false;for(let i=0;i<text.length;i++){const c=text[i];if(q){if(c==='"'&&text[i+1]==='"'){cell+='"';i++}else if(c==='"')q=false;else cell+=c}else if(c==='"')q=true;else if(c===','){row.push(cell);cell=''}else if(c==='\n'){row.push(cell.replace(/\r$/,''));rows.push(row);row=[];cell=''}else cell+=c}if(cell.length||row.length){row.push(cell.replace(/\r$/,''));rows.push(row)}return rows;
+ const clean=String(text||'').replace(/^\uFEFF/,'');
+ const first=clean.split(/\r?\n/).find(x=>x.trim())||'';
+ const delimiters=[',',';','\t'];let delimiter=',',best=-1;
+ delimiters.forEach(d=>{let count=0,quoted=false;for(let i=0;i<first.length;i++){if(first[i]==='"'){if(quoted&&first[i+1]==='"'){i++}else quoted=!quoted}else if(!quoted&&first[i]===d)count++}if(count>best){best=count;delimiter=d}});
+ const rows=[];let row=[],cell='',quoted=false;
+ for(let i=0;i<clean.length;i++){
+  const c=clean[i];
+  if(quoted){if(c==='"'&&clean[i+1]==='"'){cell+='"';i++}else if(c==='"')quoted=false;else cell+=c}
+  else if(c==='"')quoted=true;
+  else if(c===delimiter){row.push(cell);cell=''}
+  else if(c==='\n'){row.push(cell.replace(/\r$/,''));rows.push(row);row=[];cell=''}
+  else cell+=c;
+ }
+ if(cell.length||row.length){row.push(cell.replace(/\r$/,''));rows.push(row)}
+ return rows;
 }
 function fileToWorkbook(file){
  return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>{try{let wb;if(/\.csv$/i.test(file.name)){wb={SheetNames:['CSV'],Sheets:{CSV:{__rows:parseCSV(e.target.result)}}}}else{if(!window.XLSX)throw new Error('The Excel reader did not load. Check your internet connection and refresh this page.');wb=XLSX.read(e.target.result,{type:'array',cellDates:true})}resolve(wb)}catch(err){reject(err)}};reader.onerror=()=>reject(new Error('Could not read this workbook.'));if(/\.csv$/i.test(file.name))reader.readAsText(file);else reader.readAsArrayBuffer(file)})
 }
-function sheetMatrix(wb,name){const sh=wb.Sheets[name];if(sh.__rows)return sh.__rows;if(!window.XLSX)throw new Error('Excel reader unavailable.');return XLSX.utils.sheet_to_json(sh,{header:1,defval:'',raw:true})}
+function sheetMatrix(wb,name){
+ const sh=wb.Sheets[name];if(sh.__rows)return sh.__rows;
+ if(!window.XLSX)throw new Error('Excel reader unavailable.');
+ return XLSX.utils.sheet_to_json(sh,{header:1,defval:'',raw:true,blankrows:true});
+}
 function openImport(file,mode){
- fileToWorkbook(file).then(wb=>{const names=wb.SheetNames||['CSV'];if(!names.length)throw new Error('No worksheets found.');pending={file:file,wb:wb,sheets:names,mode:mode||'replace',matrix:[],headers:[],headerIndex:0,mapping:{}};$('sheetSelect').innerHTML=names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');loadPendingSheet();$('importFileDescription').textContent=file.name+' · Map your spreadsheet columns to project fields before import.';$('mergeRadioWrap').style.display=tasks.length?'flex':'none';$('mergeHint').textContent=tasks.length?'Replace the current project or merge changes into existing tasks.':'This will create a new project from the selected worksheet.';document.querySelector('input[name="importMode"][value="'+(mode||'replace')+'"]').checked=true;$('importOverlay').hidden=false}).catch(e=>toast(e.message||'Could not open workbook.'));
+ fileToWorkbook(file).then(wb=>{
+  const names=wb.SheetNames||['CSV'];if(!names.length)throw new Error('No worksheets found.');
+  const date1904=!!(wb.Workbook&&wb.Workbook.WBProps&&wb.Workbook.WBProps.date1904);
+  pending={file:file,wb:wb,sheets:names,mode:mode||'replace',matrix:[],headers:[],headerIndex:0,mapping:{},merges:[],date1904:date1904};
+  $('sheetSelect').innerHTML=names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
+  loadPendingSheet();
+  $('importFileDescription').textContent=file.name+' · Review the detected fields and date format before importing.';
+  $('mergeRadioWrap').style.display=tasks.length?'flex':'none';
+  $('mergeHint').textContent=tasks.length?'Replace the current project or merge changes into existing tasks.':'This will create a new project from the selected worksheet.';
+  document.querySelector('input[name="importMode"][value="'+(mode||'replace')+'"]').checked=true;
+  $('importOverlay').hidden=false;
+ }).catch(e=>toast(e.message||'Could not open workbook.'));
 }
 function loadPendingSheet(){
- if(!pending)return;const name=$('sheetSelect').value||pending.sheets[0];pending.matrix=sheetMatrix(pending.wb,name);const idx=detectHeader(pending.matrix);pending.headerIndex=idx;const options=pending.matrix.slice(0,Math.min(25,pending.matrix.length)).map((r,i)=>'<option value="'+i+'" '+(i===idx?'selected':'')+'>Row '+(i+1)+': '+esc((r||[]).slice(0,4).filter(Boolean).join(' · ').slice(0,65)||'(blank)')+'</option>').join('');$('headerRowSelect').innerHTML=options;applyHeader();
+ if(!pending)return;
+ const name=$('sheetSelect').value||pending.sheets[0],sheet=pending.wb.Sheets[name];
+ pending.merges=(sheet&&sheet['!merges'])||[];
+ pending.matrix=sheetMatrix(pending.wb,name);
+ const idx=detectHeader(pending.matrix);pending.headerIndex=idx;
+ const count=Math.min(60,pending.matrix.length);
+ const options=pending.matrix.slice(0,count).map((r,i)=>'<option value="'+i+'" '+(i===idx?'selected':'')+'>Row '+(i+1)+': '+esc((r||[]).slice(0,5).filter(Boolean).join(' · ').slice(0,90)||'(blank)')+'</option>').join('');
+ $('headerRowSelect').innerHTML=options;applyHeader();
 }
 function applyHeader(){
- if(!pending)return;pending.headerIndex=Number($('headerRowSelect').value||0);pending.headers=(pending.matrix[pending.headerIndex]||[]).map((v,i)=>String(v==null||v===''?'Column '+(i+1):v).trim());pending.mapping=autoMap(pending.headers);renderMapping();renderImportPreview();
- const count=Math.max(0,pending.matrix.length-pending.headerIndex-1);$('importRowCount').textContent=count+' rows below header';
+ if(!pending)return;
+ pending.headerIndex=Number($('headerRowSelect').value||0);
+ pending.headers=buildHeaderLabels(pending.matrix,pending.headerIndex);
+ pending.mapping=autoMap(pending.headers);renderMapping();renderImportPreview();
+ const count=Math.max(0,pending.matrix.length-pending.headerIndex-1);
+ $('importRowCount').textContent=count+' source rows below header';
 }
 function renderMapping(){
- $('mappingRows').innerHTML=fields.map(f=>{const options='<option value="">— Not mapped —</option>'+pending.headers.map((h,i)=>'<option value="'+i+'" '+(pending.mapping[f.key]===String(i)?'selected':'')+'>'+esc(h)+'</option>').join('');return '<div class="pf-map-row"><label>'+esc(f.label)+(f.required?' <em>*</em>':'')+'</label><select data-map="'+f.key+'">'+options+'</select></div>'}).join('');
- $('mappingRows').querySelectorAll('select').forEach(s=>s.addEventListener('change',()=>{pending.mapping[s.dataset.map]=s.value;renderImportPreview()}));
+ $('mappingRows').innerHTML=fields.map(f=>{
+  const options='<option value="">— Not mapped —</option>'+pending.headers.map((h,i)=>'<option value="'+i+'" '+(pending.mapping[f.key]===String(i)?'selected':'')+'>'+esc(h)+' · Col '+(i+1)+'</option>').join('');
+  return '<div class="pf-map-row"><label>'+esc(f.label)+(f.required?' <em>*</em>':'')+'</label><select data-map="'+f.key+'">'+options+'</select></div>';
+ }).join('');
+ $('mappingRows').querySelectorAll('select').forEach(sel=>sel.addEventListener('change',()=>{
+  const key=sel.dataset.map,value=sel.value;
+  if(value){
+   const conflict=Object.keys(pending.mapping).find(k=>k!==key&&pending.mapping[k]===value);
+   if(conflict){pending.mapping[conflict]='';toast('That column was already assigned to '+(fields.find(f=>f.key===conflict)?.label||conflict)+'. The duplicate mapping was cleared.')}
+  }
+  pending.mapping[key]=value;renderMapping();renderImportPreview();
+ }));
+}
+function mappedCell(rowIndex,colIndex){
+ const row=pending.matrix[rowIndex]||[];let value=row[colIndex];
+ if(value!==''&&value!==null&&value!==undefined)return value;
+ for(const m of pending.merges||[]){
+  if(m.s&&m.e&&m.s.r<rowIndex&&m.e.r>=rowIndex&&m.s.c<=colIndex&&m.e.c>=colIndex){
+   const anchor=(pending.matrix[m.s.r]||[])[m.s.c];if(anchor!==''&&anchor!==null&&anchor!==undefined)return anchor;
+  }
+ }
+ return value;
 }
 function renderImportPreview(){
- const headers=pending.headers,ix=pending.mapping;const chosen=fields.filter(f=>ix[f.key]!==undefined&&ix[f.key]!=='');const rows=pending.matrix.slice(pending.headerIndex+1).filter(r=>r&&r.some(v=>v!==''&&v!==null&&v!==undefined)).slice(0,5);
- $('importPreview').innerHTML='<thead><tr>'+chosen.slice(0,6).map(f=>'<th>'+esc(f.label)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+chosen.slice(0,6).map(f=>'<td>'+esc(r[Number(ix[f.key])]??'')+'</td>').join('')+'</tr>').join('')+'</tbody>';
+ if(!pending)return;
+ const ix=pending.mapping,chosen=fields.filter(f=>ix[f.key]!==undefined&&ix[f.key]!=='');
+ const result=readMappedRows(),previewRows=result.list.length?result.list.slice(0,5).map(t=>t.sourceRow-1):pending.matrix.slice(pending.headerIndex+1).map((r,i)=>pending.headerIndex+1+i).filter(i=>(pending.matrix[i]||[]).some(v=>v!==''&&v!==null&&v!==undefined)).slice(0,5);
+ const shown=chosen.slice(0,10);
+ $('importPreview').innerHTML='<thead><tr>'+shown.map(f=>'<th>'+esc(f.label)+'</th>').join('')+'</tr></thead><tbody>'+previewRows.map(ri=>'<tr>'+shown.map(f=>'<td>'+esc(mappedCell(ri,Number(ix[f.key]))??'')+'</td>').join('')+'</tr>').join('')+'</tbody>';
+ $('importRowCount').textContent=result.list.length+' task rows detected · '+result.stats.rowsScanned+' source rows scanned';
+ const mapped=Object.keys(ix).filter(k=>ix[k]!==''&&ix[k]!==undefined).length;
+ const lines=[''+mapped+' of '+fields.length+' project fields mapped automatically',result.stats.missingDates+' task(s) without complete planned dates'];
+ if(result.stats.invalidDates)lines.push(result.stats.invalidDates+' date value(s) could not be interpreted');
+ if(result.stats.reversedDates)lines.push(result.stats.reversedDates+' row(s) have finish dates before start dates');
+ if(result.stats.invalidDurations)lines.push(result.stats.invalidDurations+' duration value(s) need review');
+ if(!ix.name)lines.unshift('Task name column is not mapped — select it before importing');
+ if(result.warnings.length)lines.push(result.warnings[0]);
+ $('importQuality').innerHTML='<strong>'+(ix.name?'Import check':'Mapping required')+'</strong><span>'+lines.map(esc).join(' · ')+'</span>';
+ $('importQuality').classList.toggle('warning',!ix.name||result.stats.invalidDates>0||result.stats.reversedDates>0);
 }
 function readMappedRows(){
- const ix=pending.mapping,rows=pending.matrix.slice(pending.headerIndex+1),list=[],warnings=[];const col=k=>ix[k]===undefined||ix[k]===''?null:Number(ix[k]);
- rows.forEach((r,index)=>{
+ const ix=pending.mapping,rows=pending.matrix.slice(pending.headerIndex+1),list=[],warnings=[];
+ const col=k=>ix[k]===undefined||ix[k]===''?null:Number(ix[k]);
+ const get=(rowIndex,k)=>{const c=col(k);return c===null?'':mappedCell(rowIndex,c)??''};
+ const dateOrder=$('dateOrder')?.value||'DMY',date1904=!!pending.date1904;
+ const stats={rowsScanned:0,skippedRows:0,missingDates:0,invalidDates:0,reversedDates:0,invalidDurations:0,ambiguousDates:0,duplicates:0};
+ const idSeen=new Set(),nameSeen=new Set();
+ rows.forEach((r,offset)=>{
+  const rowIndex=pending.headerIndex+1+offset;
   if(!r||!r.some(v=>v!==''&&v!==null&&v!==undefined))return;
-  const get=k=>{const i=col(k);return i===null?'':r[i]??''};
-  const name=String(get('name')).trim();if(!name)return;
-  const progressRaw=get('progress'),rawStatus=get('status'),progress=normalizeProgress(progressRaw,normalizeStatus(rawStatus,null));
+  stats.rowsScanned++;
+  const name=String(get(rowIndex,'name')).trim();
+  if(!name){stats.skippedRows++;return}
+  if(/^(grand\s+)?(sub\s*)?total(?:\s+items?)?$|^project\s+summary$|^overall\s+progress$/i.test(name)){stats.skippedRows++;return}
+  const progressRaw=get(rowIndex,'progress'),rawStatus=get(rowIndex,'status');
+  const progress=normalizeProgress(progressRaw,normalizeStatus(rawStatus,null));
   const status=normalizeStatus(rawStatus,progress);
-  const start=parseDate(get('start')),finish=parseDate(get('finish'));
-  const durRaw=numberValue(get('duration'));let duration=durRaw!==null?Math.max(0,Math.round(durRaw)):((start&&finish)?Math.max(1,Math.round((fromISO(finish)-fromISO(start))/86400000)+1):null);
-  let end=finish,begin=start;if(begin&&!end&&duration!==null&&duration>0){const d=fromISO(begin);d.setDate(d.getDate()+duration-1);end=iso(d)}if(end&&!begin&&duration!==null&&duration>0){const d=fromISO(end);d.setDate(d.getDate()-duration+1);begin=iso(d)}
-  const id=String(get('id')).trim();
-  list.push({id:uid(),externalId:id,reference:String(get('reference')).trim(),name:name,project:String(get('project')).trim(),owner:String(get('owner')).trim(),supplier:String(get('supplier')).trim(),start:begin,finish:end,duration:duration,progress:progress,status:status,predecessor:String(get('predecessor')).trim(),priority:String(get('priority')||'Normal').trim(),baselineStart:parseDate(get('baselineStart')),baselineFinish:parseDate(get('baselineFinish')),actualStart:parseDate(get('actualStart')),actualFinish:parseDate(get('actualFinish')),notes:String(get('notes')).trim(),milestone:/yes|true|milestone|1/i.test(String(get('milestone'))),sourceRow:index+pending.headerIndex+2});
+  const rawStart=get(rowIndex,'start'),rawFinish=get(rowIndex,'finish');
+  let start=parseDate(rawStart,dateOrder,date1904),finish=parseDate(rawFinish,dateOrder,date1904);
+  const durationHeader=col('duration')===null?'':pending.headers[col('duration')];
+  const durationMeta=parseDuration(get(rowIndex,'duration'),durationHeader);
+  let duration=durationMeta.days;
+  if(durationMeta.invalid)stats.invalidDurations++;
+  if(rawStart!==''&&!start)stats.invalidDates++;
+  if(rawFinish!==''&&!finish)stats.invalidDates++;
+  if(start&&finish&&daySpan(start,finish)<0){stats.reversedDates++;start='';finish=''}
+  if(start&&!finish&&duration!==null&&duration>0)finish=shiftDurationDate(start,duration,durationMeta.workdays,false);
+  if(finish&&!start&&duration!==null&&duration>0)start=shiftDurationDate(finish,duration,durationMeta.workdays,true);
+  if(duration===null&&start&&finish)duration=daySpan(start,finish)+1;
+  if(!start||!finish)stats.missingDates++;
+  const actualStart=parseDate(get(rowIndex,'actualStart'),dateOrder,date1904);
+  const actualFinish=parseDate(get(rowIndex,'actualFinish'),dateOrder,date1904);
+  const baselineStart=parseDate(get(rowIndex,'baselineStart'),dateOrder,date1904);
+  const baselineFinish=parseDate(get(rowIndex,'baselineFinish'),dateOrder,date1904);
+  const id=String(get(rowIndex,'id')).trim();
+  const duplicateKey=id?'id:'+norm(id):'name:'+norm(name)+'|'+norm(get(rowIndex,'project'));
+  if(idSeen.has(duplicateKey)||nameSeen.has('name:'+norm(name)+'|'+norm(get(rowIndex,'project'))))stats.duplicates++;
+  idSeen.add(duplicateKey);nameSeen.add('name:'+norm(name)+'|'+norm(get(rowIndex,'project')));
+  const milestoneRaw=String(get(rowIndex,'milestone')).trim();
+  const sourceRow=rowIndex+1;
+  list.push({
+   id:uid(),externalId:id,reference:String(get(rowIndex,'reference')).trim(),name:name,
+   project:String(get(rowIndex,'project')).trim(),owner:String(get(rowIndex,'owner')).trim(),supplier:String(get(rowIndex,'supplier')).trim(),
+   start:start,finish:finish,duration:duration,sourceDurationText:durationMeta.text,progress:progress,status:status,
+   predecessor:String(get(rowIndex,'predecessor')).trim(),priority:String(get(rowIndex,'priority')||'Normal').trim(),
+   baselineStart:baselineStart,baselineFinish:baselineFinish,actualStart:actualStart,actualFinish:actualFinish,
+   notes:String(get(rowIndex,'notes')).trim(),milestone:/^(yes|y|true|milestone|1|x|✓)$/i.test(milestoneRaw),
+   sourceRow:sourceRow,importRaw:{start:String(rawStart??''),finish:String(rawFinish??''),duration:String(get(rowIndex,'duration')??'')}
+  });
  });
- if(!col('name'))warnings.push('No task / equipment column was mapped. Choose the correct column before importing.');
- if(list.length===0)warnings.push('No usable task rows were found. Check the header row and task-name mapping.');
- const missingDates=list.filter(t=>!t.start||!t.finish).length;if(missingDates)warnings.push(missingDates+' task(s) do not have both planned dates. Their dates have been left blank rather than guessed.');
- return {list:list,warnings:warnings};
+ if(col('name')===null)warnings.push('No task / activity name column is mapped.');
+ if(!list.length)warnings.push('No usable task rows were found. Check the header row and task-name mapping.');
+ if(stats.missingDates)warnings.push(stats.missingDates+' task(s) have incomplete planned dates. Missing dates are not invented.');
+ if(stats.invalidDates)warnings.push(stats.invalidDates+' date value(s) could not be interpreted; review the source cells and date format.');
+ if(stats.reversedDates)warnings.push(stats.reversedDates+' task(s) have finish dates earlier than start dates. Their planned dates were cleared.');
+ if(stats.invalidDurations)warnings.push(stats.invalidDurations+' duration value(s) contain ranges or unsupported units; they were not converted into guessed dates.');
+ if(stats.duplicates)warnings.push(stats.duplicates+' possible duplicate task rows were found; all were retained for review.');
+ stats.missingDates=list.filter(t=>!t.start||!t.finish).length;
+ return {list:list,warnings:warnings,stats:stats};
 }
 function taskKey(t){return (t.externalId?'id:'+norm(t.externalId):'name:'+norm(t.name)+'|'+norm(t.project))}
 function mergeTasks(incoming){
