@@ -6,6 +6,52 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "../..");
 const CSBuilder = require(path.join(root, "builder.js"));
 const converter = fs.readFileSync(path.join(root, "cs.html"), "utf8");
+const CSFileReader = require(path.join(root, "file-reader.js"));
+
+test("URS file reader falls back to FileReader when arrayBuffer throws", async () => {
+  const originalFileReader = global.FileReader;
+  const file = new Blob(["URS fallback content"]);
+  file.arrayBuffer = async () => { throw new DOMException("file provider temporarily unavailable", "NotFoundError"); };
+  global.FileReader = class {
+    readAsArrayBuffer(blob) {
+      Blob.prototype.arrayBuffer.call(blob).then(buffer => {
+        this.result = buffer;
+        this.onload();
+      }, error => {
+        this.error = error;
+        this.onerror();
+      });
+    }
+  };
+  try {
+    const bytes = await CSFileReader.readBytes(file);
+    assert.equal(new TextDecoder().decode(bytes), "URS fallback content");
+  } finally {
+    if (originalFileReader === undefined) delete global.FileReader;
+    else global.FileReader = originalFileReader;
+  }
+});
+
+test("URS file reader falls back to a stream if other browser readers fail", async () => {
+  const originalFileReader = global.FileReader;
+  const file = new Blob(["stream fallback content"]);
+  file.arrayBuffer = async () => { throw new DOMException("not found", "NotFoundError"); };
+  global.FileReader = undefined;
+  try {
+    const bytes = await CSFileReader.readBytes(file);
+    assert.equal(new TextDecoder().decode(bytes), "stream fallback content");
+  } finally {
+    if (originalFileReader === undefined) delete global.FileReader;
+    else global.FileReader = originalFileReader;
+  }
+});
+
+test("converter allows retrying the same file after a temporary read failure", () => {
+  assert.match(converter, /CSFileReader\\.readBytes\\(original\\)/);
+  assert.match(converter, /input\\.value=''/);
+  assert.doesNotMatch(converter, /copy it to a local folder \\(such as Desktop\\)/i);
+});
+
 const builderSource = fs.readFileSync(path.join(root, "builder.js"), "utf8");
 
 test("missing Equipment Name and URS No. do not block converter workflow", () => {
