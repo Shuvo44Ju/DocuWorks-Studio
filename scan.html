@@ -249,7 +249,15 @@ function filt(base,type,bgc){
         const edgeGuard=clamp((edge-5)/30,0,1);
         const paperTarget=255*(1-Math.pow(1-v,2.35));
         const paperBlend=.88*(1-edgeGuard)*(1-inkGuard)*(1-colorInk*.88);
-        const targetL=clamp(cleanL+(paperTarget-cleanL)*paperBlend,0,255);
+        let targetL=clamp(cleanL+(paperTarget-cleanL)*paperBlend,0,255);
+        // Darken neutral printed ink separately from the paper correction.
+        // The background-relative mask catches faded grey text, while the
+        // chroma guard keeps colored stamps and annotations from turning muddy.
+        const neutralInk=1-colorInk*.94;
+        const inkDensity=clamp((.96-ratio)/.62,0,1)*neutralInk;
+        const edgeInk=clamp((localMean-rawL-1)/22,0,1);
+        const inkDarken=(9+17*edgeInk)*inkDensity;
+        targetL=clamp(targetL-inkDarken,0,255);
         const colorMix=colorInk*.86,delta=targetL-cleanL;
         r=clamp((nr+delta)*(1-colorMix)+r*colorMix,0,255);
         gg=clamp((ng+delta)*(1-colorMix)+gg*colorMix,0,255);
@@ -304,12 +312,14 @@ function filt(base,type,bgc){
 
         // Recover faint neutral ink with a smooth tone curve and local contrast cue.
         // The local cue is deliberately capped so paper folds remain natural.
-        const inkAmount=clamp((.985-v)/.46,0,1)*neutralWeight;
-        const inkTarget=255*Math.pow(v,1.42);
-        // Emphasize small neutral ink strokes only when their local edge is clear.
-        // The bounded boost improves faint characters without creating hard halos.
-        const localInkBoost=clamp((localMean-rawL-2)/15,0,1)*14*clamp((localDiff-4)/14,0,1)*neutralWeight;
-        const tone=clamp(corrected+(inkTarget-255*v)*inkAmount*.90-localInkBoost,0,255);
+        const inkAmount=clamp((.995-v)/.50,0,1)*neutralWeight;
+        const inkTarget=255*Math.pow(v,1.68);
+        // A background-relative ink mask gives faded neutral letters more weight.
+        const inkDensity=clamp((.96-rawL/Math.max(bg,90))/.62,0,1)*neutralWeight;
+        const edgeInk=clamp((localMean-rawL-1)/22,0,1);
+        const localInkBoost=clamp((localMean-rawL-1)/15,0,1)*22*clamp((localDiff-3)/12,0,1)*neutralWeight;
+        const inkDarken=(8+15*edgeInk)*inkDensity;
+        const tone=clamp(corrected+(inkTarget-255*v)*inkAmount*1.05-localInkBoost-inkDarken,0,255);
 
         // Recombine the adjusted luminance with the original chroma.
         let dr=r-.299*r-.587*gg-.114*b;
@@ -331,8 +341,8 @@ function filt(base,type,bgc){
     }
   }
   x.putImageData(id,0,0);
-  if(type==='pro')return sharpenMagicText(o,.42);
-  return type==='magic'?sharpenMagicText(o,.28):sharpenText(o,.48);
+  if(type==='pro')return sharpenMagicText(o,.54);
+  return type==='magic'?sharpenMagicText(o,.38):sharpenText(o,.48);
 }
 function rot(c,r){if(!r)return c;const s=r%180,o=mk(s?c.height:c.width,s?c.width:c.height),x=o.getContext('2d');x.translate(o.width/2,o.height/2);x.rotate(r*Math.PI/180);x.drawImage(c,-c.width/2,-c.height/2);return o}
 function thumb(c){const k=260/Math.max(c.width,c.height),t=mk(Math.max(1,c.width*k|0),Math.max(1,c.height*k|0));t.getContext('2d').drawImage(c,0,0,t.width,t.height);return t.toDataURL('image/jpeg',.7)}
