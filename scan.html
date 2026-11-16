@@ -216,18 +216,18 @@ function filt(base,type,bgc){
         const l=rawL+(localMean-rawL)*noiseMix;
         // Correct shadowed paper toward a natural off-white reference, not pure white.
         // Colored marks are excluded from this luminance correction.
-        const pageTarget=Math.max(bg,246);
+        const pageTarget=Math.max(bg,253);
         const mapped=l*pageTarget/Math.max(bg,110);
-        const normalized=clamp(l+(mapped-l)*.90*neutralWeight,0,250);
+        const normalized=clamp(l+(mapped-l)*.98*neutralWeight,0,255);
         const v=normalized/255;
 
         // Coarse, percentile-based background estimation removes uneven lighting
         // without forcing the entire sheet to pure white.
-        const paperTarget=1-Math.pow(1-v,1.30);
+        const paperTarget=1-Math.pow(1-v,1.65);
         const edge=Math.max(Math.abs(right-left),Math.abs(down-up),localDiff);
-        const edgeWeight=1-clamp((edge-18)/45,0,1);
-        const paperAmount=clamp((v-.40)/.25,0,1);
-        const corrected=255*(v+(paperTarget-v)*paperAmount*.24*neutralWeight*edgeWeight);
+        const edgeWeight=1-clamp((edge-16)/38,0,1);
+        const paperAmount=clamp((v-.34)/.22,0,1);
+        const corrected=255*(v+(paperTarget-v)*paperAmount*.48*neutralWeight*edgeWeight);
 
         // Recover faint neutral ink with a smooth tone curve and local contrast cue.
         // The local cue is deliberately capped so paper folds remain natural.
