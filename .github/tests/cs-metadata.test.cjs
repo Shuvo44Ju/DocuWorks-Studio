@@ -47,9 +47,9 @@ test("URS file reader falls back to a stream if other browser readers fail", asy
 });
 
 test("converter allows retrying the same file after a temporary read failure", () => {
-  assert.match(converter, /CSFileReader\\.readBytes\\(original\\)/);
-  assert.match(converter, /input\\.value=''/);
-  assert.doesNotMatch(converter, /copy it to a local folder \\(such as Desktop\\)/i);
+  assert.match(converter, /CSFileReader\.readBytes\(original\)/);
+  assert.match(converter, /input\.value=''/);
+  assert.doesNotMatch(converter, /copy it to a local folder \(such as Desktop\)/i);
 });
 
 const builderSource = fs.readFileSync(path.join(root, "builder.js"), "utf8");
