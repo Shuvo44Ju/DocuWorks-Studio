@@ -103,7 +103,7 @@ function normalizeStatus(raw,progress){
  if(/review|clarif|awaiting|waiting|pending|not received|not submitted/.test(s))return 'Needs review';
  if(/progress|ongoing|working|started|under process|processing|procurement|manufactur|shipment|transit|installation|testing|evaluation|issued|ordered/.test(s))return 'In progress';
  if(/not started|not yet|not initiate|new|planned|to be started/.test(s))return 'Not started';
- if(progress===100)return 'Completed';if(progress!==null&&progress>0)return 'In progress';return 'Not started';
+ if(progress===100)return 'Completed';if(progress!==null&&progress>0)return 'In progress';if(progress===0)return 'Not started';return 'Needs review';
 }
 function normalizeProgress(v,status){
  let n=numberValue(v);if(n!==null){if(n>0&&n<=1&&String(v).includes('%')===false)n*=100;return Math.max(0,Math.min(100,n))}
@@ -199,7 +199,7 @@ function sheetMatrix(wb,name){
 function openImport(file,mode){
  fileToWorkbook(file).then(wb=>{
   const names=wb.SheetNames||['CSV'];if(!names.length)throw new Error('No worksheets found.');
-  const date1904=!!(wb.Workbook&&wb.Workbook.WBProps&&wb.Workbook.WBProps.date1904);
+  const date1904=(wb.Workbook&&wb.Workbook.WBProps&&[true,1,'1'].includes(wb.Workbook.WBProps.date1904))||false;
   pending={file:file,wb:wb,sheets:names,mode:mode||'replace',matrix:[],headers:[],headerIndex:0,mapping:{},merges:[],date1904:date1904};
   $('sheetSelect').innerHTML=names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
   loadPendingSheet();
@@ -348,17 +348,54 @@ function commitImport(){
 function showWorkspace(){$('emptyState').hidden=true;$('projectWorkspace').hidden=false}
 function statusClass(s){return norm(s).replace(/\s+/g,'-')}
 function statusCounts(){const c={'Not started':0,'In progress':0,'On hold':0,'Completed':0,'Cancelled':0,'Needs review':0};tasks.forEach(t=>c[t.status]=(c[t.status]||0)+1);return c}
-function durationDays(t){if(t.duration!==null&&t.duration!==undefined&&t.duration!=='')return Math.max(0,Number(t.duration));if(t.start&&t.finish)return Math.max(1,Math.round((fromISO(t.finish)-fromISO(t.start))/86400000)+1);return null}
+function scheduleStart(t){return t.start||t.actualStart||''}
+function scheduleFinish(t){return t.finish||t.actualFinish||''}
+function durationDays(t){
+ if(t.duration!==null&&t.duration!==undefined&&t.duration!=='')return Math.max(0,Number(t.duration));
+ const a=scheduleStart(t),b=scheduleFinish(t);if(a&&b)return Math.max(1,daySpan(a,b)+1);return null;
+}
 function varianceDays(t){const base=t.baselineFinish,actual=t.actualFinish||t.finish;if(!base||!actual)return null;return Math.round((fromISO(actual)-fromISO(base))/86400000)}
 function isOverdue(t){return !!(t.finish&&fromISO(t.finish)<today()&&t.status!=='Completed'&&t.status!=='Cancelled')}
 function computeCritical(){
- const byKey=new Map(),refCounts=new Map();tasks.forEach(t=>{byKey.set(norm(t.name),t);if(t.externalId)byKey.set(norm(t.externalId),t);byKey.set(norm(t.id),t);if(t.reference)refCounts.set(norm(t.reference),(refCounts.get(norm(t.reference))||0)+1)});tasks.forEach(t=>{if(t.reference&&refCounts.get(norm(t.reference))===1)byKey.set(norm(t.reference),t)});
- const predMap=new Map();tasks.forEach(t=>{const refs=String(t.predecessor||'').split(/[;,|]+/).map(norm).filter(Boolean);predMap.set(t.id,refs.map(r=>byKey.get(r)).filter(Boolean).map(p=>p.id).filter(id=>id!==t.id))});
- const dependencyCount=[...predMap.values()].reduce((n,a)=>n+a.length,0);if(!dependencyCount){criticalIds=new Set();return {path:[],score:0,cycles:0,dependencies:0}}
- const memo=new Map(),vis=new Set(),cycle=new Set();
- function longest(id){if(memo.has(id))return memo.get(id);if(vis.has(id)){cycle.add(id);return {score:(durationDays(tasks.find(t=>t.id===id))||0),path:[id]}}vis.add(id);const preds=predMap.get(id)||[];let best={score:0,path:[]};preds.forEach(pid=>{const p=longest(pid);if(p.score>best.score)best=p});vis.delete(id);const result={score:best.score+(durationDays(tasks.find(t=>t.id===id))||0),path:best.path.concat(id)};memo.set(id,result);return result}
- let best={score:0,path:[]};tasks.forEach(t=>{const x=longest(t.id);if(x.score>best.score)best=x});criticalIds=new Set(best.path);
- return {path:best.path,score:best.score,cycles:cycle.size,dependencies:dependencyCount,unknownDurations:best.path.filter(id=>durationDays(tasks.find(t=>t.id===id))===null).length};
+ const keys=new Map();
+ function addKey(value,task){
+  const key=norm(value);if(!key)return;
+  if(!keys.has(key))keys.set(key,[]);
+  const list=keys.get(key);if(!list.some(x=>x.id===task.id))list.push(task);
+ }
+ tasks.forEach(t=>{addKey(t.name,t);addKey(t.externalId,t);addKey(t.id,t);if(t.sourceRow!==undefined)addKey(String(t.sourceRow),t)});
+ const predMap=new Map();let unknown=0;
+ tasks.forEach(t=>{
+  const raw=String(t.predecessor||'').trim(),tokens=[];
+  if(raw){if(keys.has(norm(raw)))tokens.push(raw);else raw.split(/[;,|\n]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>tokens.push(x))}
+  const ids=new Set();
+  tokens.forEach(token=>{
+   const cleaned=token.replace(/^#/,'').replace(/\s*(?:FS|SS|FF|SF)(?:\s*[+-]\s*\d+(?:\.\d+)?\s*(?:d|days?)?)?$/i,'').trim();
+   const matches=keys.get(norm(cleaned))||[];
+   if(matches.length===1&&matches[0].id!==t.id)ids.add(matches[0].id);
+   else if(matches.length!==1)unknown++;
+  });
+  predMap.set(t.id,[...ids]);
+ });
+ dependencyMap=predMap;
+ const dependencyCount=[...predMap.values()].reduce((n,a)=>n+a.length,0);
+ if(!dependencyCount){criticalIds=new Set();dependencyDiagnostics={unknown:unknown,cycles:0,count:0};return {path:[],score:0,cycles:0,dependencies:0,unknown:unknown}}
+ const taskById=new Map(tasks.map(t=>[t.id,t])),memo=new Map(),visiting=new Set(),cycle=new Set();
+ function longest(id){
+  if(memo.has(id))return memo.get(id);
+  if(visiting.has(id)){cycle.add(id);return {score:0,path:[]}}
+  visiting.add(id);let best={score:0,path:[]};
+  (predMap.get(id)||[]).forEach(pid=>{const p=longest(pid);if(p.score>best.score)best=p});
+  visiting.delete(id);
+  const own=durationDays(taskById.get(id));
+  const result={score:best.score+(own===null?0:own),path:best.path.concat(id)};
+  memo.set(id,result);return result;
+ }
+ let best={score:0,path:[]};
+ tasks.forEach(t=>{const candidate=longest(t.id);if(candidate.score>best.score)best=candidate});
+ criticalIds=new Set(best.path);
+ dependencyDiagnostics={unknown:unknown,cycles:cycle.size,count:dependencyCount};
+ return {path:best.path,score:best.score,cycles:cycle.size,dependencies:dependencyCount,unknown:unknown,unknownDurations:best.path.filter(id=>durationDays(taskById.get(id))===null).length};
 }
 function getStats(){
  const c=statusCounts(),valid=tasks.filter(t=>t.progress!==null&&t.progress!==undefined),weight=valid.reduce((s,t)=>s+(durationDays(t)||1),0),done=valid.reduce((s,t)=>s+(durationDays(t)||1)*t.progress,0);const progress=weight?Math.round(done/weight):null;const overdue=tasks.filter(isOverdue).length;const missing=tasks.filter(t=>!t.start||!t.finish).length;const owners=new Set(tasks.map(t=>t.owner).filter(Boolean)).size;const dated=tasks.filter(t=>t.start&&t.finish);const next=dated.filter(t=>fromISO(t.finish)>=today()&&t.status!=='Completed'&&t.status!=='Cancelled').sort((a,b)=>a.start.localeCompare(b.start));return {c:c,progress:progress,overdue:overdue,missing:missing,owners:owners,dated:dated,next:next,critical:tasks.filter(t=>criticalIds.has(t.id)).length,completed:c.Completed};
@@ -381,23 +418,136 @@ function initials(s){return String(s||'?').split(/\s+/).slice(0,2).map(x=>x[0]||
 function renderMiniGantt(){const a=tasks.filter(t=>t.start&&t.finish).slice(0,6);if(!a.length){$('overviewGantt').innerHTML='<div class="pf-table-empty">Add or import planned start and finish dates to see your schedule here.</div>';return}const min=Math.min(...a.map(t=>fromISO(t.start).getTime())),max=Math.max(...a.map(t=>fromISO(t.finish).getTime())),span=Math.max(1,max-min+86400000);$('overviewGantt').innerHTML=a.map(t=>{const left=(fromISO(t.start).getTime()-min)/span*100,w=Math.max(2,(fromISO(t.finish).getTime()-fromISO(t.start).getTime()+86400000)/span*100);return '<div class="pf-mini-gantt-row"><span class="pf-mini-gantt-label">'+esc(t.name)+'</span><div class="pf-mini-gantt-track"><i class="pf-mini-gantt-bar" style="left:'+left+'%;width:'+w+'%"></i></div></div>'}).join('')}
 function setView(next){view=next;document.querySelectorAll('.pf-nav[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===next));['overview','gantt','tasks','resources','critical','report'].forEach(v=>{$(v+'View').hidden=(v!==next)});const meta={overview:['PROJECT CONTROL CENTER','Project overview','A live view of your schedule, delivery and execution status.'],gantt:['SCHEDULE MANAGEMENT','Gantt chart','Plan, compare and monitor activity dates across the project timeline.'],tasks:['ACTIVITY REGISTER','Task list','Edit execution details, progress, dates and dependencies.'],resources:['RESOURCE MANAGEMENT','Resources','Review responsibility, workload and overdue activities.'],critical:['SCHEDULE ANALYSIS','Critical path','Identify the dependency chain that controls the project finish.'],report:['MANAGEMENT REPORT','Project status report','A management-ready summary of the current project position.']}[next];$('viewEyebrow').textContent=meta[0];$('viewTitle').textContent=meta[1];$('viewSubtitle').textContent=meta[2];if(next==='overview')renderOverview();if(next==='gantt')renderGantt();if(next==='tasks')renderTasks();if(next==='resources')renderResources();if(next==='critical')renderCritical();if(next==='report')renderReport();window.scrollTo({top:0,behavior:'smooth'})}
 function renderAll(){showWorkspace();$('projectName').value=projectName;setView(view)}
-function filteredTasks(filter,query){return tasks.filter(t=>{if(filter==='overdue'&&!isOverdue(t))return false;if(filter==='critical'&&!criticalIds.has(t.id))return false;if(filter==='nodates'&&(t.start&&t.finish))return false;if(query&&!norm([t.name,t.owner,t.supplier,t.externalId,t.reference,t.project,t.notes].join(' ')).includes(norm(query)))return false;return true})}
-function dateRangeFor(list){const values=[];list.forEach(t=>[t.start,t.finish,t.baselineStart,t.baselineFinish].filter(Boolean).forEach(d=>values.push(fromISO(d).getTime())));if(!values.length)return null;let lo=Math.min(...values),hi=Math.max(...values);const now=today().getTime();if(now<lo)lo=now;if(now>hi)hi=now;list.forEach(t=>{if(t.baselineStart)lo=Math.min(lo,fromISO(t.baselineStart).getTime());if(t.baselineFinish)hi=Math.max(hi,fromISO(t.baselineFinish).getTime())});const pad=zoom==='month'?35:zoom==='week'?10:3;lo-=pad*86400000;hi+=pad*86400000;return {start:new Date(lo),end:new Date(hi),days:Math.ceil((hi-lo)/86400000)+1}}
+function filteredTasks(filter,query){
+ return tasks.filter(t=>{
+  if(filter==='overdue'&&!isOverdue(t))return false;
+  if(filter==='critical'&&!criticalIds.has(t.id))return false;
+  if(filter==='nodates'&&(scheduleStart(t)&&scheduleFinish(t)))return false;
+  if(query&&!norm([t.name,t.owner,t.supplier,t.externalId,t.reference,t.project,t.notes].join(' ')).includes(norm(query)))return false;
+  return true;
+ });
+}
+function dateRangeFor(list){
+ const values=[];
+ list.forEach(t=>[t.start,t.finish,t.baselineStart,t.baselineFinish,t.actualStart,t.actualFinish].filter(Boolean).forEach(d=>{const n=dayNumber(d);if(isFinite(n))values.push(n)}));
+ if(!values.length)return null;
+ let lo=Math.min(...values),hi=Math.max(...values);
+ const pad=zoom==='month'?35:zoom==='week'?10:3;lo-=pad;hi+=pad;
+ return {start:fromISO(dayToISO(lo)),end:fromISO(dayToISO(hi)),days:hi-lo+1};
+}
 function renderGantt(){
- computeCritical();const list=filteredTasks($('ganttFilter').value,$('ganttSearch').value);$('ganttTaskCount').textContent=list.length;const range=dateRangeFor(list);const labels=$('ganttLabels'),track=$('ganttTrack');labels.innerHTML='';track.innerHTML='';
- if(!range){$('ganttScroll').style.minHeight='120px';track.style.width='100%';track.innerHTML='<div class="pf-gantt-head"></div><div class="pf-gantt-empty">No planned dates found. Edit a task and add start / finish dates to build the Gantt chart.</div>';list.forEach(t=>labels.insertAdjacentHTML('beforeend','<div class="pf-gantt-label-row" data-edit="'+t.id+'"><span class="pf-gantt-name">'+esc(t.name)+'</span><small>—</small></div>'));return}
- const width=zoom==='day'?29:zoom==='week'?13:4.2;const total=Math.max(range.days*width,700);track.style.width=total+'px';const head=document.createElement('div');head.className='pf-gantt-head';head.style.width=total+'px';
- let cur=new Date(range.start.getFullYear(),range.start.getMonth(),1);while(cur<=range.end){const start=Math.max(0,(new Date(cur.getFullYear(),cur.getMonth(),1)-range.start)/86400000),next=new Date(cur.getFullYear(),cur.getMonth()+1,1),end=Math.min(range.days,(next-range.start)/86400000);const el=document.createElement('div');el.className='pf-gantt-month';el.style.left=start*width+'px';el.style.width=Math.max(1,(end-start)*width)+'px';el.textContent=cur.toLocaleDateString(undefined,{month:'short',year:'numeric'});head.appendChild(el);cur=next}
- const step=zoom==='day'?1:zoom==='week'?7:30;for(let d=0;d<range.days;d+=step){const el=document.createElement('div');el.className='pf-gantt-day';el.style.left=d*width+'px';el.style.width=Math.min(step,range.days-d)*width+'px';const dt=new Date(range.start.getTime()+d*86400000);el.textContent=zoom==='day'?dt.getDate():zoom==='week'?'W'+Math.ceil((dt.getDate()+new Date(dt.getFullYear(),dt.getMonth(),1).getDay())/7):dt.getDate()===1?dt.toLocaleDateString(undefined,{month:'short'}):'';head.appendChild(el)}
- track.appendChild(head);list.forEach(t=>{labels.insertAdjacentHTML('beforeend','<div class="pf-gantt-label-row" data-edit="'+t.id+'"><span class="pf-gantt-name" title="'+esc(t.name)+'">'+esc(t.name)+'</span><small>'+esc(t.owner||'—')+'</small></div>');const row=document.createElement('div');row.className='pf-gantt-row';row.style.width=total+'px';row.style.backgroundSize=(step*width)+'px 100%';if(t.baselineStart&&t.baselineFinish){const b=document.createElement('div');b.className='pf-gantt-baseline';b.style.left=((fromISO(t.baselineStart)-range.start)/86400000*width)+'px';b.style.width=(Math.max(1,(fromISO(t.baselineFinish)-fromISO(t.baselineStart))/86400000+1)*width)+'px';b.title='Baseline: '+t.baselineStart+' to '+t.baselineFinish;row.appendChild(b)}if(t.start&&t.finish){const start=(fromISO(t.start)-range.start)/86400000;const dur=Math.max(1,(fromISO(t.finish)-fromISO(t.start))/86400000+1);const bar=document.createElement('div');bar.className='pf-gantt-bar'+(criticalIds.has(t.id)?' critical':'')+(isOverdue(t)?' overdue':'')+(t.milestone?' milestone':'');bar.style.left=(start*width)+'px';bar.style.width=(dur*width)+'px';bar.title=t.name+' · '+t.start+' to '+t.finish+' · '+(t.progress===null?'Progress not set':t.progress+'%');if(!t.milestone){if(t.progress!==null){const p=document.createElement('div');p.className='pf-gantt-progress';p.style.width=t.progress+'%';bar.appendChild(p)}if(dur*width>95){const label=document.createElement('span');label.className='pf-bar-label';label.textContent=t.name;bar.appendChild(label)}}if(!t.milestone){const handle=document.createElement('span');handle.className='pf-gantt-resize-handle';handle.title='Drag to change duration';bar.appendChild(handle)}
- let drag=null,suppressClick=false;
- bar.addEventListener('pointerdown',e=>{if(e.button!==0&&e.pointerType==='mouse')return;e.preventDefault();e.stopPropagation();drag={pointerId:e.pointerId,x:e.clientX,start:t.start,finish:t.finish,duration:dur,resize:!t.milestone&&(e.target.classList.contains('pf-gantt-resize-handle')||e.offsetX>=bar.clientWidth-9),moved:false};try{bar.setPointerCapture(e.pointerId)}catch(err){}});
- bar.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.pointerId)return;const dx=e.clientX-drag.x;if(Math.abs(dx)>3)drag.moved=true;if(drag.moved){if(drag.resize)bar.style.width=Math.max(width,drag.duration*width+dx)+'px';else bar.style.transform='translateX('+dx+'px)'}});
- bar.addEventListener('pointerup',e=>{if(!drag||e.pointerId!==drag.pointerId)return;const d=drag;drag=null;if(!d.moved)return;const shift=Math.round((e.clientX-d.x)/width);if(shift===0){bar.style.transform='';bar.style.width=(dur*width)+'px';suppressClick=true;return}const a=fromISO(d.start),b=fromISO(d.finish);if(d.resize){const days=Math.max(1,d.duration+shift);b.setTime(a.getTime()+(days-1)*86400000);t.finish=iso(b);t.duration=days}else{a.setDate(a.getDate()+shift);b.setDate(b.getDate()+shift);t.start=iso(a);t.finish=iso(b)}suppressClick=true;save();renderAll();toast(d.resize?'Task duration updated':'Task dates moved')});
- bar.addEventListener('pointercancel',()=>{drag=null;bar.style.transform='';bar.style.width=(dur*width)+'px'});
- bar.addEventListener('click',e=>{if(suppressClick){suppressClick=false;e.preventDefault();e.stopPropagation();return}editTask(t.id)});row.appendChild(bar)}else{const no=document.createElement('span');no.className='pf-gantt-empty';no.textContent='Dates not set';row.appendChild(no)}track.appendChild(row)});
- const todayX=(today()-range.start)/86400000*width;if(todayX>=0&&todayX<=total){const line=document.createElement('div');line.className='pf-today-line';line.style.left=todayX+'px';track.appendChild(line)}
- $('ganttScroll').style.minHeight=(65+list.length*47)+'px';dateRange=range;
+ computeCritical();
+ const list=filteredTasks($('ganttFilter').value,$('ganttSearch').value);
+ $('ganttTaskCount').textContent=list.length;
+ const range=dateRangeFor(list),labels=$('ganttLabels'),track=$('ganttTrack');
+ labels.innerHTML='';track.innerHTML='';
+ if(!range){
+  $('ganttScroll').style.minHeight='120px';track.style.width='100%';track.style.height='120px';
+  track.innerHTML='<div class="pf-gantt-head"></div><div class="pf-gantt-empty">No usable planned, baseline or actual dates found. Add valid dates to build the timeline.</div>';
+  list.forEach(t=>labels.insertAdjacentHTML('beforeend','<div class="pf-gantt-label-row" data-edit="'+t.id+'"><span class="pf-gantt-name">'+esc(t.name)+'</span><small>Dates incomplete</small></div>'));
+  return;
+ }
+ const startISO=iso(range.start),width=zoom==='day'?29:zoom==='week'?13:4.2;
+ const total=Math.max(range.days*width,700),height=65+list.length*47;
+ track.style.width=total+'px';track.style.height=height+'px';
+ const head=document.createElement('div');head.className='pf-gantt-head';head.style.width=total+'px';
+ let cur=new Date(range.start.getFullYear(),range.start.getMonth(),1);
+ while(cur<=range.end){
+  const curISO=iso(cur),next=new Date(cur.getFullYear(),cur.getMonth()+1,1),nextISO=iso(next);
+  const x=Math.max(0,daySpan(startISO,curISO)),end=Math.min(range.days,daySpan(startISO,nextISO));
+  const el=document.createElement('div');el.className='pf-gantt-month';el.style.left=x*width+'px';el.style.width=Math.max(1,(end-x)*width)+'px';
+  el.textContent=cur.toLocaleDateString(undefined,{month:'short',year:'numeric'});head.appendChild(el);cur=next;
+ }
+ const step=zoom==='day'?1:zoom==='week'?7:30;
+ for(let d=0;d<range.days;d+=step){
+  const el=document.createElement('div');el.className='pf-gantt-day';el.style.left=d*width+'px';el.style.width=Math.min(step,range.days-d)*width+'px';
+  const dt=new Date(range.start.getFullYear(),range.start.getMonth(),range.start.getDate()+d);
+  el.textContent=zoom==='day'?dt.getDate():zoom==='week'?'W'+Math.ceil((dt.getDate()+new Date(dt.getFullYear(),dt.getMonth(),1).getDay())/7):dt.getDate()===1?dt.toLocaleDateString(undefined,{month:'short'}):'';
+  head.appendChild(el);
+ }
+ track.appendChild(head);
+ const rowIndex=new Map();list.forEach((t,i)=>rowIndex.set(t.id,i));
+ list.forEach((t,i)=>{
+  labels.insertAdjacentHTML('beforeend','<div class="pf-gantt-label-row" data-edit="'+t.id+'"><span class="pf-gantt-name" title="'+esc(t.name)+'">'+esc(t.name)+'</span><small>'+esc(t.owner||'—')+'</small></div>');
+  const row=document.createElement('div');row.className='pf-gantt-row';row.style.width=total+'px';row.style.backgroundSize=(step*width)+'px 100%';
+  if(t.baselineStart&&t.baselineFinish&&daySpan(t.baselineStart,t.baselineFinish)>=0){
+   const b=document.createElement('div');b.className='pf-gantt-baseline';
+   b.style.left=(daySpan(startISO,t.baselineStart)*width)+'px';b.style.width=((daySpan(t.baselineStart,t.baselineFinish)+1)*width)+'px';
+   b.title='Baseline: '+t.baselineStart+' to '+t.baselineFinish;row.appendChild(b);
+  }
+  const hasPlan=!!(t.start&&t.finish&&daySpan(t.start,t.finish)>=0);
+  const hasActual=!!(t.actualStart&&t.actualFinish&&daySpan(t.actualStart,t.actualFinish)>=0);
+  const plotStart=hasPlan?t.start:(hasActual?t.actualStart:'');
+  const plotFinish=hasPlan?t.finish:(hasActual?t.actualFinish:'');
+  if(plotStart&&plotFinish){
+   const left=daySpan(startISO,plotStart),dur=Math.max(1,daySpan(plotStart,plotFinish)+1);
+   const bar=document.createElement('div');
+   bar.className='pf-gantt-bar'+(criticalIds.has(t.id)?' critical':'')+(isOverdue(t)?' overdue':'')+(t.milestone?' milestone':'')+(!hasPlan&&hasActual?' actual-only':'');
+   bar.style.left=(left*width)+'px';bar.style.width=(dur*width)+'px';
+   bar.title=t.name+' · '+(hasPlan?'Planned: ':'Actual: ')+plotStart+' to '+plotFinish+' · '+(t.progress===null?'Progress not set':t.progress+'%')+(t.sourceDurationText?' · Source duration: '+t.sourceDurationText:'');
+   if(!t.milestone){
+    if(t.progress!==null){const p=document.createElement('div');p.className='pf-gantt-progress';p.style.width=t.progress+'%';bar.appendChild(p)}
+    if(dur*width>95){const label=document.createElement('span');label.className='pf-bar-label';label.textContent=t.name;bar.appendChild(label)}
+    const handle=document.createElement('span');handle.className='pf-gantt-resize-handle';handle.title='Drag to change duration';bar.appendChild(handle);
+   }
+   let drag=null,suppressClick=false;
+   bar.addEventListener('pointerdown',e=>{
+    if(e.button!==0&&e.pointerType==='mouse')return;e.preventDefault();e.stopPropagation();
+    drag={pointerId:e.pointerId,x:e.clientX,start:plotStart,finish:plotFinish,duration:dur,resize:!t.milestone&&(e.target.classList.contains('pf-gantt-resize-handle')||e.offsetX>=bar.clientWidth-9),moved:false};
+    try{bar.setPointerCapture(e.pointerId)}catch(err){}
+   });
+   bar.addEventListener('pointermove',e=>{
+    if(!drag||e.pointerId!==drag.pointerId)return;const dx=e.clientX-drag.x;if(Math.abs(dx)>3)drag.moved=true;
+    if(drag.moved){if(drag.resize)bar.style.width=Math.max(width,drag.duration*width+dx)+'px';else bar.style.transform='translateX('+dx+'px)'}
+   });
+   bar.addEventListener('pointerup',e=>{
+    if(!drag||e.pointerId!==drag.pointerId)return;const d=drag;drag=null;if(!d.moved)return;
+    const shift=Math.round((e.clientX-d.x)/width);
+    if(shift===0){bar.style.transform='';bar.style.width=(dur*width)+'px';suppressClick=true;return}
+    const a=fromISO(d.start),b=fromISO(d.finish);
+    if(d.resize){const days=Math.max(1,d.duration+shift);b.setDate(a.getDate()+days-1);t.finish=iso(b);t.duration=days}
+    else{a.setDate(a.getDate()+shift);b.setDate(b.getDate()+shift);if(hasPlan){t.start=iso(a);t.finish=iso(b)}else{t.actualStart=iso(a);t.actualFinish=iso(b)}}
+    suppressClick=true;save();renderAll();toast(d.resize?'Task duration updated':'Task dates moved');
+   });
+   bar.addEventListener('pointercancel',()=>{drag=null;bar.style.transform='';bar.style.width=(dur*width)+'px'});
+   bar.addEventListener('click',e=>{if(suppressClick){suppressClick=false;e.preventDefault();e.stopPropagation();return}editTask(t.id)});
+   row.appendChild(bar);
+  }else{
+   const no=document.createElement('span');no.className='pf-gantt-empty';no.textContent=(t.start||t.finish||t.actualStart||t.actualFinish)?'Incomplete dates':'Dates not supplied';row.appendChild(no);
+  }
+  if(hasPlan&&hasActual){
+   const actual=document.createElement('div');actual.className='pf-gantt-actual';
+   actual.style.left=(daySpan(startISO,t.actualStart)*width)+'px';actual.style.width=((daySpan(t.actualStart,t.actualFinish)+1)*width)+'px';
+   actual.title='Actual: '+t.actualStart+' to '+t.actualFinish;row.appendChild(actual);
+  }else if(hasPlan&&(t.actualStart||t.actualFinish)){
+   const mark=document.createElement('div');mark.className='pf-gantt-actual-marker';
+   mark.style.left=(daySpan(startISO,t.actualStart||t.actualFinish)*width)+'px';mark.title=(t.actualStart?'Actual start: '+t.actualStart:'Actual finish: '+t.actualFinish);row.appendChild(mark);
+  }
+  track.appendChild(row);
+ });
+ const svgNS='http://www.w3.org/2000/svg',svg=document.createElementNS(svgNS,'svg');
+ svg.setAttribute('class','pf-gantt-dependencies');svg.setAttribute('width',String(total));svg.setAttribute('height',String(list.length*47));
+ const defs=document.createElementNS(svgNS,'defs'),marker=document.createElementNS(svgNS,'marker');
+ marker.setAttribute('id','pf-gantt-arrow');marker.setAttribute('markerWidth','7');marker.setAttribute('markerHeight','7');marker.setAttribute('refX','6');marker.setAttribute('refY','3');marker.setAttribute('orient','auto');marker.setAttribute('markerUnits','strokeWidth');
+ const arrow=document.createElementNS(svgNS,'path');arrow.setAttribute('d','M0,0 L6,3 L0,6 Z');arrow.setAttribute('fill','#91a0b4');marker.appendChild(arrow);defs.appendChild(marker);svg.appendChild(defs);
+ list.forEach(t=>{
+  const toIndex=rowIndex.get(t.id);(dependencyMap.get(t.id)||[]).forEach(pid=>{
+   if(!rowIndex.has(pid))return;const pred=tasks.find(x=>x.id===pid);if(!pred)return;
+   const predFinish=scheduleFinish(pred),taskStart=scheduleStart(t);if(!predFinish||!taskStart)return;
+   const x1=(daySpan(startISO,predFinish)+1)*width,x2=daySpan(startISO,taskStart)*width;
+   const y1=rowIndex.get(pid)*47+23,y2=toIndex*47+23;
+   const path=document.createElementNS(svgNS,'path');
+   const bend=Math.max(12,Math.min(36,Math.abs(x2-x1)*.35));
+   const d=x2>=x1?'M '+x1+' '+y1+' C '+(x1+bend)+' '+y1+', '+(x2-bend)+' '+y2+', '+x2+' '+y2:'M '+x1+' '+y1+' C '+(x1+bend)+' '+y1+', '+(x2-bend)+' '+y2+', '+x2+' '+y2;
+   path.setAttribute('d',d);path.setAttribute('fill','none');path.setAttribute('stroke','#91a0b4');path.setAttribute('stroke-width','1.4');path.setAttribute('marker-end','url(#pf-gantt-arrow)');
+   if(dayNumber(taskStart)<=dayNumber(predFinish)){path.setAttribute('stroke','#d18a48');path.setAttribute('stroke-dasharray','4 3')}
+   const title=document.createElementNS(svgNS,'title');title.textContent='Dependency: '+pred.name+' → '+t.name+(dayNumber(taskStart)<=dayNumber(predFinish)?' · Dates overlap / out of sequence':'');path.appendChild(title);svg.appendChild(path);
+  });
+ });
+ if(dependencyMap.size)track.appendChild(svg);
+ const todayX=daySpan(startISO,iso(today()))*width;
+ if(todayX>=0&&todayX<=total){const line=document.createElement('div');line.className='pf-today-line';line.style.left=todayX+'px';track.appendChild(line)}
+ $('ganttScroll').style.minHeight=height+'px';dateRange=range;
 }
 function renderTasks(){
  computeCritical();const query=$('taskSearch').value,filter=$('taskStatusFilter').value;const list=tasks.filter(t=>(filter==='all'||t.status===filter)&&(!query||norm([t.name,t.owner,t.supplier,t.externalId,t.reference,t.project,t.notes].join(' ')).includes(norm(query))));$('taskCountLabel').textContent=list.length+' of '+tasks.length+' tasks';$('taskTableEmpty').hidden=list.length!==0;$('taskTableBody').innerHTML=list.map(t=>'<tr data-edit="'+t.id+'"><td><input type="checkbox" class="task-check" data-check="'+t.id+'" '+(selectedIds.has(t.id)?'checked':'')+'></td><td><div class="pf-task-title">'+esc(t.name)+'</div><div class="pf-task-sub">'+esc([t.externalId,t.reference,t.project].filter(Boolean).join(' · '))+(criticalIds.has(t.id)?' · <span class="pf-critical-tag">CRITICAL</span>':'')+'</div></td><td>'+esc(t.owner||'—')+'</td><td>'+esc(t.start||'—')+'</td><td>'+esc(t.finish||'—')+'</td><td>'+(varianceDays(t)===null?'—':(varianceDays(t)>0?'+':'')+varianceDays(t)+' d')+'</td><td>'+ ((t.duration??durationDays(t))||'—')+'</td><td><div class="pf-inline-progress"><i><b style="width:'+(t.progress||0)+'%"></b></i>'+(t.progress===null?'—':t.progress+'%')+'</div></td><td><span class="pf-status-pill '+statusClass(t.status)+'">'+esc(t.status)+'</span></td><td>'+(isOverdue(t)?'<span class="pf-critical-tag">OVERDUE</span>':'›')+'</td></tr>').join('');
@@ -457,7 +607,7 @@ function sampleProject(){
  ];lastWarnings=['Sample records are illustrative. Import your real workbook to replace this sample schedule.'];$('sourceFilePill').textContent=sourceFile;$('projectName').value=projectName;save();renderAll();toast('Sample project loaded. Explore the Gantt and task editor.')}
 function wire(){
  $('importBtn').onclick=()=>{$('fileInput').dataset.mode='replace';$('fileInput').click()};$('updateBtn').onclick=()=>{$('fileInput').dataset.mode='merge';$('fileInput').click()};$('emptyImportBtn').onclick=()=>$('importBtn').click();$('fileInput').onchange=e=>{const f=e.target.files[0];if(f)openImport(f,e.target.dataset.mode||'replace');e.target.value=''};
- $('sheetSelect').onchange=loadPendingSheet;$('headerRowSelect').onchange=applyHeader;$('closeImport').onclick=$('cancelImport').onclick=()=>$('importOverlay').hidden=true;$('confirmImport').onclick=commitImport;
+ $('sheetSelect').onchange=loadPendingSheet;$('headerRowSelect').onchange=applyHeader;$('dateOrder').onchange=renderImportPreview;$('closeImport').onclick=$('cancelImport').onclick=()=>$('importOverlay').hidden=true;$('confirmImport').onclick=commitImport;
  document.querySelectorAll('.pf-nav[data-view]').forEach(b=>b.onclick=()=>setView(b.dataset.view));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>setView(b.dataset.go));$('newTaskSide').onclick=$('addTaskBtn').onclick=()=>openTaskForm(null);$('sampleBtn').onclick=sampleProject;
  $('exportMenuBtn').onclick=()=>$('exportMenu').classList.toggle('open');document.querySelectorAll('[data-export]').forEach(b=>b.onclick=()=>exportAction(b.dataset.export));document.addEventListener('click',e=>{if(!e.target.closest('.pf-export-wrap'))$('exportMenu').classList.remove('open')});
  $('projectName').onchange=()=>{projectName=$('projectName').value.trim()||'Untitled project';$('projectName').value=projectName;save()};
