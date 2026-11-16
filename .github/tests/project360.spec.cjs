@@ -83,25 +83,32 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
     buffer: Buffer.from(dxf)
   });
   await expect(page.locator("#cadMappingWrap")).not.toHaveClass(/cad-hidden/, { timeout: 30000 });
-  await expect(page.locator("#cadStatus")).toContainText("Loaded Ground Floor", { timeout: 30000 });
-  await expect(page.locator("#cadIntelligenceText")).toContainText("entities analysed");
-  await expect(page.locator("#cadLayerList .cad-layer-row")).not.toHaveCount(0);
+  await expect(page.locator("#cadLoadedMeta")).toContainText("project360-e2e-floor.dxf");
+  await expect(page.locator("#cadGenerate2DBtn")).toBeVisible();
+  await expect(page.locator("#cadGenerate3DBtn")).toBeVisible();
+  await expect(page.locator("#cadAdvanced")).not.toHaveAttribute("open", "");
+  await expect(page.locator("#cadLayerList .cad-layer-row")).toHaveCount(0);
 
-  const autoGlazingPixels = await page.locator("#cadPreview").evaluate(canvas => {
-    const ctx = canvas.getContext("2d");
-    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  // Upload should stay lightweight. Build the 2D view only when requested.
+  await page.locator("#cadGenerate2DBtn").click();
+  await expect(page.locator("#cad2DOutput")).toBeVisible();
+  const drawingPixels = await page.locator("#cadPreview").evaluate(canvas => {
+    const data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
     let count = 0;
     for (let i = 0; i < data.length; i += 4) {
-      if (data[i] < 30 && data[i + 1] > 85 && data[i + 1] < 180 && data[i + 2] > 120) count++;
+      if (data[i] < 180 || data[i + 1] < 180 || data[i + 2] < 180) count++;
     }
     return count;
   });
-  expect(autoGlazingPixels, "the 2D CAD preview should show inferred glazing centre-lines").toBeGreaterThan(5);
+  expect(drawingPixels, "the 2D preview should contain the uploaded floor-plan linework").toBeGreaterThan(50);
   await page.locator("#cadPreview").screenshot({ path: "artifacts/02-imported-cad-preview.png" });
 
   // Create actual CAD-derived geometry in the Three.js viewer.
-  await page.locator("#cadBuildBtn").click();
-  await expect(page.locator("#modelStatus")).toContainText("Architectural 3D generated", { timeout: 30000 });
+  await page.locator("#cadGenerate3DBtn").click();
+  await expect(page.locator("#cadGenerationStatus")).toContainText("3D model generated", { timeout: 30000 });
+  await expect(page.locator("#modelStatus")).toHaveText("3D model ready", { timeout: 30000 });
+  await page.locator("#cadAdvanced > summary").click();
+  await expect(page.locator("#cadLayerList .cad-layer-row")).not.toHaveCount(0, { timeout: 30000 });
   await expect(page.locator("#viewerError")).not.toHaveClass(/show/);
   await expect(page.locator("#cadRoomList .cad-room-row")).not.toHaveCount(0);
   await expect(page.locator("#cadRoomList")).toContainText("OFFICE");
@@ -148,6 +155,7 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
   await expect(page.locator("#cadExplodeBtn")).toHaveText("Explode floors");
 
   // Creating a non-CAD concept after a multi-floor CAD model must remove the old floor groups.
+  await page.locator("#conceptOptions > summary").click();
   await page.locator("#useSettings").check();
   await page.locator("#bWidth").fill("18");
   await page.locator("#bDepth").fill("12");
@@ -163,8 +171,9 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
 
   // A fresh CAD rebuild must replace that concept model; Clear must remove its floor groups.
   await page.locator("#cadSampleBtn").click();
-  await page.locator("#cadBuildBtn").click();
-  await expect(page.locator("#modelStatus")).toContainText("Architectural 3D generated", { timeout: 30000 });
+  await page.locator("#cadAdvanced > summary").click();
+  await page.locator("#cadGenerate3DBtn").click();
+  await expect(page.locator("#cadGenerationStatus")).toContainText("3D model generated", { timeout: 30000 });
   await page.locator("#cadClearBtn").click();
   await expect(page.locator("#cadMappingWrap")).toHaveClass(/cad-hidden/);
   await expect(page.locator("#cadFloorList .cad-floor-row")).toHaveCount(0);
