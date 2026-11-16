@@ -146,6 +146,7 @@ test("Project 360 renders CAD previews and rebuilds the 3D viewer cleanly", asyn
 
   // Exercise multi-floor generation, explode/stack, and then switch model types.
   await page.locator("#cadSampleUpperBtn").click();
+  await page.locator("#cadAdvanced > summary").click();
   await expect(page.locator("#cadFloorList .cad-floor-row")).toHaveCount(2);
   await page.locator("#cadBuildMultiBtn").click();
   await expect(page.locator("#modelStatus")).toContainText("Multi-floor building generated · 2 of 2 levels", { timeout: 30000 });
