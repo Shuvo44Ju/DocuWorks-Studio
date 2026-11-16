@@ -69,7 +69,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-<script src="./core.js?v=cs-partial-scan-block-columns-20261112-v3"></script><script src="./builder.js?v=cs-optional-urs-metadata-20261116-v1"></script><script src="./ai-config.js?v=cloudflare-endpoint-20261112"></script>
+<script src="./file-reader.js?v=resilient-urs-file-read-20261116-v1"></script><script src="./core.js?v=cs-partial-scan-block-columns-20261112-v3"></script><script src="./builder.js?v=cs-optional-urs-metadata-20261116-v1"></script><script src="./ai-config.js?v=cloudflare-endpoint-20261112"></script>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -104,14 +104,21 @@ async function choose(selectedFile){
  // File reference before the user presses Convert, causing a delayed NotFoundError.
  let bytes;
  try{
-  if(typeof original.arrayBuffer!=='function')throw new Error('This browser did not provide readable file data.');
-  bytes=await original.arrayBuffer();
+  if(typeof CSFileReader!=='undefined'&&typeof CSFileReader.readBytes==='function'){
+   bytes=await CSFileReader.readBytes(original);
+  }else if(typeof original.arrayBuffer==='function'){
+   bytes=await original.arrayBuffer();
+  }else{
+   throw new Error('This browser did not provide a readable file interface.');
+  }
  }catch(readError){
-  console.error('Could not snapshot selected URS file:',readError);
-  error('The browser could not read the original file. Please copy it to a local folder (such as Desktop) and select it again. Details: '+(readError.message||readError));
+  console.error('Could not snapshot selected URS file with browser read fallbacks:',readError);
+  // Clear the input so selecting the same file again fires a fresh change event.
+  input.value='';
+  error('The browser could not access this file. Please select it again using Browse or drag it into the upload area. You do not need to move it to another folder. Details: '+(readError.message||readError));
   return;
  }
- if(!bytes||bytes.byteLength===0){error('The selected file contains no readable data. Please copy the original file to a local folder and select it again.');return}
+ if(!bytes||bytes.byteLength===0){input.value='';error('The selected file appears to be empty. Please select the document again.');return}
  if(bytes.byteLength>50*1024*1024){error('File exceeds 50 MB.');return}
  // Store a new in-memory File, not the original temporary file handle.
  let f;
