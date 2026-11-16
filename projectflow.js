@@ -239,42 +239,112 @@ async function exportExcel(){
  const btn=$('export');btn.disabled=true;btn.textContent='Preparing…';
  try{
   const XLSX=await loadLibrary();
-  const rows=[['PROJECT GANTT CHART'],['Source: '+sourceFile.name+' | Worksheet: '+data.sheet],['Group','Task','Vendor','Start','Finish','Duration (days)','Status','Start date basis','Source row']];
-  data.tasks.forEach(t=>rows.push([t.group,t.name,t.vendor,t.start||'',t.end||'',t.duration??'',t.status,t.basis==='calculated'?'Calculated from finish + duration':t.basis,t.sourceRow]));
-  const range=data.tasks.filter(t=>t.start&&t.end);
-  if(range.length){
-   const min=Math.min(...range.map(t=>isoDay(t.start))),max=Math.max(...range.map(t=>isoDay(t.end)));
-   rows[2].push(...Array.from({length:max-min+1},(_,i)=>iso(min+i)));
-   data.tasks.forEach((t,i)=>{
-    const row=rows[i+3];
-    row.push(...Array.from({length:max-min+1},(_,j)=>t.start&&t.end&&j+min>=isoDay(t.start)&&j+min<=isoDay(t.end)?'■':''));
+  const activities=data.tasks.filter(t=>!t.group);
+  const dated=data.tasks.filter(t=>t.start&&t.end);
+  if(!dated.length)throw new Error('No scheduled dates are available to export.');
+  const min=Math.min(...dated.map(t=>isoDay(t.start)));
+  const max=Math.max(...dated.map(t=>isoDay(t.end)));
+  const firstWeek=min-(new Date(min*DAY).getUTCDay()+6)%7;
+  const weeks=[];
+  for(let d=firstWeek;d<=max;d+=7)weeks.push(d);
+  const lastCol=5+weeks.length;
+  const colName=n=>{let x='';for(n++;n;n=Math.floor((n-1)/26))x=String.fromCharCode(65+(n-1)%26)+x;return x};
+  const gantt=[];
+  gantt[0]=['PROJECT GANTT'];
+  gantt[1]=['Project schedule | '+(data.title||sourceFile.name)+' | Source worksheet: '+(data.sheet||'')];
+  gantt[3]=['TOTAL ACTIVITIES',activities.length,'COMPLETED',activities.filter(t=>t.done).length,'IN PROGRESS',activities.filter(t=>t.active).length,'OVERDUE',activities.filter(t=>!t.done&&t.end&&isoDay(t.end)<dayUTC(new Date().getFullYear(),new Date().getMonth()+1,new Date().getDate())).length];
+  gantt[5]=['TASK / WORK PACKAGE','VENDOR / RESPONSIBLE','START DATE','FINISH DATE','DURATION (DAYS)','STATUS'];
+  weeks.forEach((d,i)=>gantt[5].push(iso(d)));
+  data.tasks.forEach(t=>{
+   const row=[t.name,t.vendor||'',t.start||'',t.end||'',t.duration??'',t.group?(t.start?'Summary':'Group'):state(t)];
+   weeks.forEach(d=>{
+    const taskStart=t.start?isoDay(t.start):null,taskEnd=t.end?isoDay(t.end):null;
+    row.push(taskStart!==null&&taskEnd!==null&&d<=taskEnd&&d+6>=taskStart?' ': '');
    });
-  }
-  const gantt=XLSX.utils.aoa_to_sheet(rows);
-  const taskRows=[['Task','Vendor','Start date','Finish date','Duration (days)','Source status','Source row'],...data.tasks.filter(t=>!t.group).map(t=>[t.name,t.vendor,t.start||'',t.end||'',t.duration??'',t.status||'',t.sourceRow||''])];
-  const taskSheet=XLSX.utils.aoa_to_sheet(taskRows);
-  const navy={fill:{fgColor:{rgb:'1F3864'}},font:{bold:true,color:{rgb:'FFFFFF'},name:'Arial',sz:10},alignment:{vertical:'center',wrapText:true}};
-  const thin={style:'thin',color:{rgb:'D9E1F2'}};
-  [gantt,taskSheet].forEach((ws,idx)=>{
-   const ref=ws['!ref'];if(!ref)return;
-   const rg=XLSX.utils.decode_range(ref),headerRow=idx?0:2;
-   for(let c=0;c<=rg.e.c;c++){const cell=ws[XLSX.utils.encode_cell({r:headerRow,c})];if(cell)cell.s=navy}
-   for(let r=headerRow+1;r<=rg.e.r;r++)for(let c=0;c<=rg.e.c;c++){
-    const cell=ws[XLSX.utils.encode_cell({r,c})];if(!cell)continue;
-    cell.s={font:{name:'Arial',sz:10,color:{rgb:'263238'}},alignment:{vertical:'center',wrapText:c<3},border:{bottom:thin}};
-    if(r%2===0)cell.s.fill={fgColor:{rgb:'F5F7FA'}};
-   }
-   ws['!freeze']=idx?{xSplit:0,ySplit:1}:{xSplit:3,ySplit:3};
-   ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:headerRow,c:0},e:{r:rg.e.r,c:idx?6:Math.min(8,rg.e.c)}})};
-   ws['!rows']=Array.from({length:rg.e.r+1},(_,r)=>({hpt:r===headerRow?30:20}));
+   gantt.push(row);
   });
-  gantt['!cols']=[{wch:18},{wch:48},{wch:24},{wch:14},{wch:14},{wch:14},{wch:17},{wch:24},{wch:12},...Array(Math.max(0,(gantt['!ref']?XLSX.utils.decode_range(gantt['!ref']).e.c:8)-8)).fill({wch:12})];
-  taskSheet['!cols']=[{wch:48},{wch:28},{wch:15},{wch:15},{wch:17},{wch:22},{wch:12}];
+  const ws=XLSX.utils.aoa_to_sheet(gantt);
+  const navy='17365D',blue='4472C4',lightBlue='D9EAF7',pale='F3F6FA',grey='E7EBF0',white='FFFFFF',dark='243447',line='D6DEE8';
+  const style=(fill,fontColor,bold,align,wrap)=>({fill:{patternType:'solid',fgColor:{rgb:fill}},font:{name:'Arial',sz:10,bold:!!bold,color:{rgb:fontColor}},alignment:{vertical:'center',horizontal:align||'left',wrapText:!!wrap},border:{bottom:{style:'thin',color:{rgb:line}}}});
+  const put=(r,c,v,st,type,fmt)=>{const a=XLSX.utils.encode_cell({r,c});ws[a]={t:type||'s',v,s:st};if(fmt)ws[a].z=fmt;};
+  const last=lastCol;
+  for(let c=0;c<=last;c++){
+   put(0,c,c===0?'PROJECT GANTT':'',style(navy,white,true,'left'));
+   put(1,c,c===0?gantt[1][0]:'',style('EAF0F7',dark,false,'left'));
+  }
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:last}},{s:{r:1,c:0},e:{r:1,c:last}}];
+  const kpis=[['TOTAL ACTIVITIES',activities.length],['COMPLETED',activities.filter(t=>t.done).length],['IN PROGRESS',activities.filter(t=>state(t)==='In progress').length],['OVERDUE',activities.filter(t=>state(t)==='Overdue').length]];
+  kpis.forEach((k,i)=>{const c=i*2;put(3,c,k[0],style(blue,white,true,'center'));put(3,c+1,k[1],style('F2F6FC',dark,true,'center'));});
+  for(let c=0;c<6;c++)put(5,c,gantt[5][c],style(navy,white,true,'center',true));
+  weeks.forEach((d,i)=>{
+   const c=6+i,month=new Date(d*DAY).toLocaleDateString('en-GB',{month:'long',year:'numeric',timeZone:'UTC'});
+   put(5,c,month,style(navy,white,true,'center'));
+   put(6,c,d+25569,style('DCE6F1',dark,true,'center'), 'n','dd-mmm');
+  });
+  for(let c=0;c<6;c++)put(6,c,['TASK / WORK PACKAGE','VENDOR / RESPONSIBLE','START DATE','FINISH DATE','DURATION (DAYS)','STATUS'][c],style('DCE6F1',dark,true,'center',true));
+  const merges=ws['!merges'];
+  let monthStart=0,monthKey='';
+  weeks.forEach((d,i)=>{
+   const key=new Date(d*DAY).toLocaleDateString('en-CA',{month:'numeric',year:'numeric',timeZone:'UTC'});
+   if(!monthKey){monthKey=key;monthStart=i;}
+   if(key!==monthKey||i===weeks.length-1){
+    const end=key!==monthKey?i-1:i;
+    if(end>monthStart)merges.push({s:{r:5,c:6+monthStart},e:{r:5,c:6+end}});
+    monthStart=i;monthKey=key;
+   }
+  });
+  const today=dayUTC(new Date().getFullYear(),new Date().getMonth()+1,new Date().getDate());
+  data.tasks.forEach((t,i)=>{
+   const r=7+i,group=!!t.group,st=group?style('E8EDF3',navy,true):style(i%2?'FFFFFF':pale,dark,false);
+   const vals=[t.name,t.vendor||'',t.start||'',t.end||'',t.duration??'',group?(t.start?'Summary':'Group'):state(t)];
+   vals.forEach((v,c)=>{
+    const dateCol=c===2||c===3;
+    const serial=dateCol&&v?isoDay(v)+25569:null;
+    put(r,c,dateCol&&v?serial:v,st,dateCol&&v?'n':undefined,dateCol&&v?'dd-mmm-yyyy':undefined);
+   });
+   weeks.forEach((d,j)=>{
+    const c=6+j,taskStart=t.start?isoDay(t.start):null,taskEnd=t.end?isoDay(t.end):null;
+    let fill=group?'D9E2F3':(state(t)==='Done'?'70AD47':state(t)==='Overdue'?'C00000':state(t)==='In progress'?'4472C4':'A5B9D5');
+    const active=taskStart!==null&&taskEnd!==null&&d<=taskEnd&&d+6>=taskStart;
+    const stl=active?style(fill,white,true,'center'):style(i%2?'FFFFFF':pale,dark,false,'center');
+    put(r,c,active?'':'',stl);
+   });
+  });
+  const monthCols=weeks.length;
+  ws['!cols']=[{wch:42},{wch:25},{wch:15},{wch:15},{wch:16},{wch:16},...Array(monthCols).fill({wch:11})];
+  ws['!rows']=[{hpt:30},{hpt:22},{hpt:8},{hpt:24},{hpt:8},{hpt:26},{hpt:22},...data.tasks.map(t=>({hpt:t.group?23:21}))];
+  ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:6,c:0},e:{r:6+data.tasks.length,c:5}})};
+  ws['!freeze']={xSplit:6,ySplit:7};
+  ws['!margins']={left:0.25,right:0.25,top:0.5,bottom:0.5,header:0.2,footer:0.2};
+  ws['!pageSetup']={orientation:'landscape',paperSize:9,fitToWidth:1,fitToHeight:0,scale:75};
+  ws['!printOptions']={horizontalCentered:false,verticalCentered:false};
+  const register=[['PROJECT ACTIVITY REGISTER'],['Project: '+(data.title||sourceFile.name)+' | Source worksheet: '+(data.sheet||'')],['No.','Work package / activity','Vendor / responsible','Start date','Finish date','Duration (days)','Status','Date basis','Source row']];
+  activities.forEach((t,i)=>register.push([i+1,t.name,t.vendor||'',t.start||'',t.end||'',t.duration??'',state(t),t.basis==='calculated'?'Calculated from finish + duration':(t.basis||'Source'),t.sourceRow||'']));
+  const reg=XLSX.utils.aoa_to_sheet(register);
+  const rr=XLSX.utils.decode_range(reg['!ref']);
+  for(let c=0;c<=rr.e.c;c++){
+   const cell=reg[XLSX.utils.encode_cell({r:0,c})];if(cell)cell.s=style(navy,white,true);
+   const head=reg[XLSX.utils.encode_cell({r:2,c})];if(head)head.s=style(blue,white,true,'center',true);
+  }
+  reg['!merges']=[{s:{r:0,c:0},e:{r:0,c:8}},{s:{r:1,c:0},e:{r:1,c:8}}];
+  for(let r=1;r<=rr.e.r;r++)for(let c=0;c<=rr.e.c;c++){
+   const cell=reg[XLSX.utils.encode_cell({r,c})];if(!cell)continue;
+   if(r===0||r===2)continue;
+   cell.s=style(r%2?'F3F6FA':'FFFFFF',dark,r===1,c===0?'center':'left',c===1||c===2);
+   if((c===3||c===4)&&r>=3&&cell.v){cell.t='n';cell.v=isoDay(cell.v)+25569;cell.z='dd-mmm-yyyy';}
+   if(c===6&&r>=3){const v=cell.v;const colors={Done:'70AD47','In progress':'4472C4',Overdue:'C00000',Planned:'A5B9D5'};cell.s=style(colors[v]||'E8EDF3',colors[v]?'FFFFFF':dark,true,'center');}
+  }
+  reg['!cols']=[{wch:8},{wch:48},{wch:28},{wch:16},{wch:16},{wch:17},{wch:17},{wch:34},{wch:12}];
+  reg['!rows']=[{hpt:30},{hpt:22},{hpt:28},...activities.map(()=>({hpt:22}))];
+  reg['!autofilter']={ref:'A3:I'+(3+activities.length)};
+  reg['!freeze']={xSplit:2,ySplit:3};
+  reg['!margins']={left:0.25,right:0.25,top:0.5,bottom:0.5,header:0.2,footer:0.2};
+  reg['!pageSetup']={orientation:'landscape',paperSize:9,fitToWidth:1,fitToHeight:0};
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,gantt,'Gantt Chart');
-  XLSX.utils.book_append_sheet(wb,taskSheet,'Task Data');
-  XLSX.writeFile(wb,(sourceFile.name.replace(/\\.[^.]+$/,'')||'Project')+'_Gantt.xlsx',{bookType:'xlsx',cellStyles:true});
-  $('info').textContent='Gantt Excel exported successfully.';
+  XLSX.utils.book_append_sheet(wb,ws,'Gantt Chart');
+  XLSX.utils.book_append_sheet(wb,reg,'Activity Register');
+  XLSX.writeFile(wb,(sourceFile.name.replace(/\.[^.]+$/,'')||'Project')+'_Professional_Gantt.xlsx',{bookType:'xlsx',cellStyles:true});
+  $('info').textContent='Professional Gantt workbook exported successfully.';
  }catch(e){$('info').textContent='Export failed: '+e.message}
  finally{btn.disabled=false;btn.textContent='↓ Export Excel'}
 }
