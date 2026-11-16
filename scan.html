@@ -237,7 +237,7 @@ function filt(base,type,bgc){
   // A compact luminance map lets Magic distinguish soft paper shading from
   // the sharp edges of printed letters and coloured marks.
   let lumMap=null;
-  if(type==='magic'||type==='pro'){
+  if(type==='magic'||type==='pro'||type==='color'){
     lumMap=new Uint8Array(W*H);
     for(let p=0,j=0;p<d.length;p+=4,j++)lumMap[j]=.299*d[p]+.587*d[p+1]+.114*d[p+2];
   }
@@ -247,7 +247,7 @@ function filt(base,type,bgc){
       const fx=clamp(xx/B-.5,0,gw-1),x0=fx|0,x1=Math.min(gw-1,x0+1),tx=fx-x0;
       const bg=(lumBg[y0*gw+x0]*(1-tx)+lumBg[y0*gw+x1]*tx)*(1-ty)+(lumBg[y1*gw+x0]*(1-tx)+lumBg[y1*gw+x1]*tx)*ty;
       let bgR=255,bgG=255,bgB=255;
-      if(type==='pro'){
+      if(type==='pro'||type==='color'){
         bgR=(bgRGrid[y0*gw+x0]*(1-tx)+bgRGrid[y0*gw+x1]*tx)*(1-ty)+(bgRGrid[y1*gw+x0]*(1-tx)+bgRGrid[y1*gw+x1]*tx)*ty;
         bgG=(bgGGrid[y0*gw+x0]*(1-tx)+bgGGrid[y0*gw+x1]*tx)*(1-ty)+(bgGGrid[y1*gw+x0]*(1-tx)+bgGGrid[y1*gw+x1]*tx)*ty;
         bgB=(bgBGrid[y0*gw+x0]*(1-tx)+bgBGrid[y0*gw+x1]*tx)*(1-ty)+(bgBGrid[y1*gw+x0]*(1-tx)+bgBGrid[y1*gw+x1]*tx)*ty;
@@ -484,7 +484,7 @@ async function autoDetectPage(pg){
   if(button){button.disabled=true;button.textContent='Detecting…'}
   try{
     const q=await detect(pg.src);
-    if(ed.pg!==pg||ed.mode!=='crop')return;
+    if(ed.pg!==pg||ed.mode!=='crop'||pg.manualQuad)return;
     if(q){
       pg.quad=q;draw();
       if(hint)hint.textContent='Page found · adjust corners if needed';
@@ -540,14 +540,14 @@ function draw(){
 }
 ec.ondblclick=e=>{if(ed.mode!=='filter')return;e.preventDefault();ed.zoom=(ed.zoom||1)>1?1:2;draw();const st=$('#stage');st.scrollTop=0;st.scrollLeft=0};
 const pt=e=>{const r=ec.getBoundingClientRect();return[(e.clientX-r.left)*ec.width/r.width,(e.clientY-r.top)*ec.height/r.height]};
-ec.onpointerdown=e=>{if(ed.mode!=='crop')return;const p=pt(e);let b=-1,bd=48*ec.width/ec.getBoundingClientRect().width;
+ec.onpointerdown=e=>{if(ed.mode!=='crop')return;ed.pg.manualQuad=true;const p=pt(e);let b=-1,bd=48*ec.width/ec.getBoundingClientRect().width;
   ed.pg.quad.forEach((q,i)=>{const d=Math.hypot(q[0]*ed.sc-p[0],q[1]*ed.sc-p[1]);if(d<bd){bd=d;b=i}});ed.drag=b;if(b>=0)ec.setPointerCapture(e.pointerId)};
 ec.onpointermove=e=>{if(ed.drag<0)return;const p=pt(e),s=ed.pg.src;ed.pg.quad[ed.drag]=[clamp(p[0]/ed.sc,0,s.width),clamp(p[1]/ed.sc,0,s.height)];draw()};
 ec.onpointerup=()=>{ed.drag=-1};
 $('#eTools').onclick=async e=>{
   const b=e.target.closest('button');if(!b)return;const pg=ed.pg;
   if(b.id==='tAuto'){autoDetectPage(pg)}
-  else if(b.id==='tFull'){pg.quad=[[0,0],[pg.src.width,0],[pg.src.width,pg.src.height],[0,pg.src.height]];draw()}
+  else if(b.id==='tFull'){pg.manualQuad=true;pg.quad=[[0,0],[pg.src.width,0],[pg.src.width,pg.src.height],[0,pg.src.height]];draw()}
   else if(b.id==='tRot'){pg.rot=(pg.rot+90)%360;renderAdjustedPg(pg);draw()}
   else if(b.id==='tCrop'){pg.filtered=null;ed.mode='crop';ui();draw()}
   else if(b.dataset.f){pg.filter=b.dataset.f;renderPg(pg);ui();draw()}
