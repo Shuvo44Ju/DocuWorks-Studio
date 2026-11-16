@@ -420,7 +420,7 @@ function renderChart(){
  timeline.appendChild(head);
  tasks.forEach(task=>{
   const label=document.createElement('div');label.className='task-label';
-  const meta=[task.group,task.vendor?'Vendor: '+task.vendor:'',task.start&&task.finish?task.start+' → '+task.finish:'Dates not supplied',task.status].filter(Boolean).join(' · ');
+  const meta=[task.group,task.vendor?'Vendor: '+task.vendor:'',task.start&&task.finish?task.start+' → '+task.finish:'Dates not supplied',task.startBasis,task.status].filter(Boolean).join(' · ');
   label.innerHTML='<strong title="'+esc(task.name)+'">'+esc(task.name)+'</strong><small title="'+esc(meta)+'">'+esc(meta)+'</small>';labels.appendChild(label);
   const row=document.createElement('div');row.className='gantt-row';row.style.width=total+'px';row.style.backgroundSize=(step*px)+'px 100%';
   if(task.start&&task.finish&&isoToDay(task.finish)>=isoToDay(task.start)){
