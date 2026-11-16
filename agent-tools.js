@@ -52,13 +52,15 @@
       }
     } else if (page === 'scan') {
       const button = d.getElementById('bPdf');
-      if (button && !button.disabled) tools.push('scan_export_pdf');
+      const pageGrid = d.getElementById('grid');
+      if (button && !button.disabled && pageGrid && pageGrid.children && pageGrid.children.length > 0) tools.push('scan_export_pdf');
     } else if (page === 'pdf') {
       const button = d.getElementById('go');
       if (button && !button.disabled) tools.push('optimize_pdfs');
     } else if (page === 'priceReduction') {
       const button = d.getElementById('export');
-      if (button && !button.disabled) tools.push('export_cleaned_pdf');
+      const editor = d.getElementById('editor');
+      if (button && !button.disabled && editor && visible(editor)) tools.push('export_cleaned_pdf');
     }
     return tools;
   }
@@ -151,7 +153,8 @@
 
       case 'scan_export_pdf': {
         const button = byId('bPdf');
-        if (!button || button.disabled) throw new Error('The scanner PDF action is not ready.');
+        const pageGrid = byId('grid');
+        if (!button || button.disabled || !pageGrid || !pageGrid.children || pageGrid.children.length === 0) throw new Error('Add at least one scanned page before creating a PDF.');
         button.click();
         return { started: true, message: 'The scanner PDF action was opened. Complete any page-selection step shown by the scanner.' };
       }
@@ -165,7 +168,8 @@
 
       case 'export_cleaned_pdf': {
         const button = byId('export');
-        if (!button || button.disabled) throw new Error('The cleaned PDF is not ready to export.');
+        const editor = byId('editor');
+        if (!button || button.disabled || !editor || !visible(editor)) throw new Error('Open a PDF in the editing workspace before exporting it.');
         button.click();
         return { started: true, message: 'The existing cleaned-PDF export action was started.' };
       }
