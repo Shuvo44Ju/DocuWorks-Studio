@@ -116,9 +116,10 @@ function readMappedRows(){
 }
 function taskKey(t){return (t.externalId?'id:'+norm(t.externalId):'name:'+norm(t.name)+'|'+norm(t.project))}
 function mergeTasks(incoming){
- const old=new Map(tasks.map(t=>[taskKey(t),t]));let added=0,updated=0;
- incoming.forEach(n=>{const key=taskKey(n),o=old.get(key);if(!o){tasks.push(n);added++;return}
- const preserve=['id'];Object.keys(n).forEach(k=>{if(!preserve.includes(k)&&n[k]!==''&&n[k]!==null&&n[k]!==undefined)o[k]=n[k]});updated++});
+ const old=new Map();const addKeys=t=>{if(t.externalId)old.set('id:'+norm(t.externalId),t);old.set('name:'+norm(t.name)+'|'+norm(t.project),t)};
+ tasks.forEach(addKeys);let added=0,updated=0;
+ incoming.forEach(n=>{const key='name:'+norm(n.name)+'|'+norm(n.project),o=(n.externalId?old.get('id:'+norm(n.externalId)):null)||old.get(key);if(!o){tasks.push(n);addKeys(n);added++;return}
+ const preserve=['id'];Object.keys(n).forEach(k=>{if(!preserve.includes(k)&&n[k]!==''&&n[k]!==null&&n[k]!==undefined)o[k]=n[k]});addKeys(o);updated++});
  return {added:added,updated:updated};
 }
 function commitImport(){
@@ -218,7 +219,7 @@ function xmlEscape(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&
 function mspDate(s){return s?s+'T08:00:00':''}
 function exportXML(){
  if(!tasks.length){toast('Import or add tasks before exporting.');return}
- const idByKey=new Map();tasks.forEach((t,i)=>{idByKey.set(norm(t.name),i+1);if(t.externalId)idByKey.set(norm(t.externalId),i+1)});
+ const idByKey=new Map(),refCounts=new Map();tasks.forEach((t,i)=>{idByKey.set(norm(t.name),i+1);if(t.externalId)idByKey.set(norm(t.externalId),i+1);if(t.reference)refCounts.set(norm(t.reference),(refCounts.get(norm(t.reference))||0)+1)});tasks.forEach((t,i)=>{if(t.reference&&refCounts.get(norm(t.reference))===1)idByKey.set(norm(t.reference),i+1)});
  const lines=['<?xml version="1.0" encoding="UTF-8"?>','<Project xmlns="http://schemas.microsoft.com/project">','<SaveVersion>14</SaveVersion>','<Name>'+xmlEscape(projectName)+'</Name>','<Title>'+xmlEscape(projectName)+'</Title>','<ScheduleFromStart>1</ScheduleFromStart>','<DefaultStartTime>08:00:00</DefaultStartTime>','<DefaultFinishTime>17:00:00</DefaultFinishTime>','<MinutesPerDay>480</MinutesPerDay>','<MinutesPerWeek>2400</MinutesPerWeek>','<DaysPerMonth>20</DaysPerMonth>','<Tasks>'];
  tasks.forEach((t,i)=>{let dur=(t.duration!==null&&t.duration!==undefined&&t.duration!==''?Number(t.duration):(t.start&&t.finish?durationDays(t):0));const durIso='PT'+Math.max(0,dur*8)+'H0M0S';const percent=t.progress===null?0:t.progress;lines.push('<Task><UID>'+(i+1)+'</UID><ID>'+(i+1)+'</ID><Name>'+xmlEscape(t.name)+'</Name><Type>1</Type><IsNull>0</IsNull><CreateDate>'+mspDate(iso(today()))+'</CreateDate><WBS>'+(i+1)+'</WBS><OutlineNumber>'+(i+1)+'</OutlineNumber>'+(t.start?'<Start>'+mspDate(t.start)+'</Start>':'')+(t.finish?'<Finish>'+mspDate(t.finish)+'</Finish>':'')+(t.baselineStart?'<BaselineStart>'+mspDate(t.baselineStart)+'</BaselineStart>':'')+(t.baselineFinish?'<BaselineFinish>'+mspDate(t.baselineFinish)+'</BaselineFinish>':'')+(t.actualStart?'<ActualStart>'+mspDate(t.actualStart)+'</ActualStart>':'')+(t.actualFinish?'<ActualFinish>'+mspDate(t.actualFinish)+'</ActualFinish>':'')+'<Duration>'+durIso+'</Duration><DurationFormat>7</DurationFormat><Work>PT'+Math.max(0,dur*8)+'H0M0S</Work><PercentComplete>'+percent+'</PercentComplete><Milestone>'+(t.milestone?'1':'0')+'</Milestone><Notes>'+xmlEscape((t.owner?'Responsible: '+t.owner+'\n':'')+(t.reference?'Reference: '+t.reference+'\n':'')+(t.supplier?'Supplier: '+t.supplier+'\n':'')+(t.status?'Status: '+t.status+'\n':'')+(t.notes||''))+'</Notes>');
  const refs=String(t.predecessor||'').split(/[;,|]+/).map(norm).filter(Boolean);refs.forEach(ref=>{const pred=idByKey.get(ref);if(pred&&pred!==i+1)lines.push('<PredecessorLink><PredecessorUID>'+pred+'</PredecessorUID><Type>1</Type><CrossProject>0</CrossProject><LinkLag>0</LinkLag><LagFormat>7</LagFormat></PredecessorLink>')});lines.push('</Task>')});
