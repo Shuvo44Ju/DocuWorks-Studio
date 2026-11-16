@@ -162,7 +162,7 @@ function parseSheet(rows,sheetName,fileName){
 async function loadLibrary(){
  if(window.XLSX)return window.XLSX;
  return new Promise((resolve,reject)=>{
-  const s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';s.onload=()=>resolve(window.XLSX);s.onerror=()=>reject(new Error('Excel reader could not be loaded.'));document.head.appendChild(s);
+  const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';s.onload=()=>resolve(window.XLSX);s.onerror=()=>reject(new Error('Excel reader could not be loaded.'));document.head.appendChild(s);
  });
 }
 async function readFile(file){
@@ -254,10 +254,30 @@ async function exportExcel(){
     row.push(...Array.from({length:max-min+1},(_,j)=>t.start&&t.end&&j+min>=isoDay(t.start)&&j+min<=isoDay(t.end)?'■':''));
    });
   }
+  const gantt=XLSX.utils.aoa_to_sheet(rows);
+  const taskRows=[['Task','Vendor','Start date','Finish date','Duration (days)','Source status','Source row'],...data.tasks.filter(t=>!t.group).map(t=>[t.name,t.vendor,t.start||'',t.end||'',t.duration??'',t.status||'',t.sourceRow||''])];
+  const taskSheet=XLSX.utils.aoa_to_sheet(taskRows);
+  const navy={fill:{fgColor:{rgb:'1F3864'}},font:{bold:true,color:{rgb:'FFFFFF'},name:'Arial',sz:10},alignment:{vertical:'center',wrapText:true}};
+  const thin={style:'thin',color:{rgb:'D9E1F2'}};
+  [gantt,taskSheet].forEach((ws,idx)=>{
+   const ref=ws['!ref'];if(!ref)return;
+   const rg=XLSX.utils.decode_range(ref),headerRow=idx?0:2;
+   for(let c=0;c<=rg.e.c;c++){const cell=ws[XLSX.utils.encode_cell({r:headerRow,c})];if(cell)cell.s=navy}
+   for(let r=headerRow+1;r<=rg.e.r;r++)for(let c=0;c<=rg.e.c;c++){
+    const cell=ws[XLSX.utils.encode_cell({r,c})];if(!cell)continue;
+    cell.s={font:{name:'Arial',sz:10,color:{rgb:'263238'}},alignment:{vertical:'center',wrapText:c<3},border:{bottom:thin}};
+    if(r%2===0)cell.s.fill={fgColor:{rgb:'F5F7FA'}};
+   }
+   ws['!freeze']=idx?{xSplit:0,ySplit:1}:{xSplit:3,ySplit:3};
+   ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:headerRow,c:0},e:{r:rg.e.r,c:idx?6:Math.min(8,rg.e.c)}})};
+   ws['!rows']=Array.from({length:rg.e.r+1},(_,r)=>({hpt:r===headerRow?30:20}));
+  });
+  gantt['!cols']=[{wch:18},{wch:48},{wch:24},{wch:14},{wch:14},{wch:14},{wch:17},{wch:24},{wch:12},...Array(Math.max(0,(gantt['!ref']?XLSX.utils.decode_range(gantt['!ref']).e.c:8)-8)).fill({wch:12})];
+  taskSheet['!cols']=[{wch:48},{wch:28},{wch:15},{wch:15},{wch:17},{wch:22},{wch:12}];
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Gantt Chart');
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(data.tasks.map(t=>[t.name,t.vendor,t.start,t.end,t.duration,t.status,t.sourceRow])), 'Task Data');
-  XLSX.writeFile(wb,(sourceFile.name.replace(/\.[^.]+$/,'')||'Project')+'_Gantt.xlsx');
+  XLSX.utils.book_append_sheet(wb,gantt,'Gantt Chart');
+  XLSX.utils.book_append_sheet(wb,taskSheet,'Task Data');
+  XLSX.writeFile(wb,(sourceFile.name.replace(/\\.[^.]+$/,'')||'Project')+'_Gantt.xlsx',{bookType:'xlsx',cellStyles:true});
   $('info').textContent='Gantt Excel exported successfully.';
  }catch(e){$('info').textContent='Export failed: '+e.message}
  finally{btn.disabled=false;btn.textContent='↓ Export Excel'}
