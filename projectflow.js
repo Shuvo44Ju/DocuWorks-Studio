@@ -62,7 +62,7 @@ function parseDate(value,order,date1904){
   const base=date1904?Date.UTC(1904,0,1):Date.UTC(1899,11,serial<60?31:30);
   const d=new Date(base+serial*86400000);return isoParts(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());
  }
- const text=String(value).trim();if(!text)return '';
+ const text=String(value).trim().replace(/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?:day)?[,\\s]+/i,'');if(!text)return '';
  let m=text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\D|$)/);
  if(m)return isoParts(m[1],m[2],m[3]);
  m=text.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})(?:\D|$)/);
@@ -246,32 +246,73 @@ function readTasks(){
  const date1904=!!(workbook.Workbook&&workbook.Workbook.WBProps&&[true,1,'1'].includes(workbook.Workbook.WBProps.date1904));
  const order=$('dateOrder').value||'DMY';
  const fieldColumn=key=>mapping[key]===undefined||mapping[key]===''?null:Number(mapping[key]);
- const list=[],warnings={invalidDates:0,missingDates:0,invalidDurations:0,skipped:0};
+ const vendorColumn=headers.findIndex(h=>norm(h)==='vendor');
+ const statusColumn=headers.findIndex(h=>norm(h)==='status');
+ const remainingColumn=headers.findIndex(h=>norm(h)==='remaining days');
+ const groupedLayout=vendorColumn>=0&&headers.some(h=>norm(h)==='tasks')&&headers.some(h=>norm(h)==='deadline');
+ const list=[],warnings={invalidDates:0,missingDates:0,invalidDurations:0,skipped:0,derivedStarts:0,milestones:0,groups:0};
+ const groupStack=[];
  const rowCount=sourceMatrix.length;
  for(let rowIndex=headerRow+1;rowIndex<rowCount;rowIndex++){
   const row=sourceMatrix[rowIndex]||[];
   if(!row.some(v=>v!==''&&v!==null&&v!==undefined))continue;
   const read=key=>{const col=fieldColumn(key);return col===null?'':getCell(rowIndex,col,key)};
-  const name=String(read('task')).trim();
+  const rawName=String(read('task')??''),name=rawName.trim();
   if(!name||/^(grand\s+)?total$|^overall summary$/i.test(name)){warnings.skipped++;continue}
+  const indent=(rawName.match(/^\s*/)||[''])[0].length;
   const rawStart=read('start'),rawFinish=read('finish');
   let start=parseDate(rawStart,order,date1904),finish=parseDate(rawFinish,order,date1904);
+  const rawDuration=read('duration');
   const durationHeader=fieldColumn('duration')===null?'':headers[fieldColumn('duration')];
-  const durationInfo=parseDuration(read('duration'),durationHeader);
+  const durationInfo=parseDuration(rawDuration,durationHeader);
   let duration=durationInfo.days;
-  if(durationInfo.days===null&&read('duration')!=='')warnings.invalidDurations++;
+  if(durationInfo.days===null&&rawDuration!=='')warnings.invalidDurations++;
   if(rawStart!==''&&!start)warnings.invalidDates++;
   if(rawFinish!==''&&!finish)warnings.invalidDates++;
+  const rawVendor=vendorColumn>=0?getCell(rowIndex,vendorColumn,'vendor'):'';
+  const vendor=String(rawVendor??'').trim();
+  let rawStatus=statusColumn>=0?getCell(rowIndex,statusColumn,'status'):'';
+  // In this workbook, some status entries are stored in the "Remaining Days" column.
+  // Numeric/formula values in that column are deliberately ignored.
+  if((rawStatus===null||rawStatus===undefined||rawStatus==='')&&remainingColumn>=0){
+   const candidate=getCell(rowIndex,remainingColumn,'remaining');
+   if(typeof candidate==='string'&&candidate.trim()&&numberValue(candidate)===null&&!parseDate(candidate,order,date1904))rawStatus=candidate;
+  }
+  const status=String(rawStatus??'').trim();
+  const hasSchedule=!!(start||finish||duration!==null);
+  const isGroup=groupedLayout&&!!vendor&&!hasSchedule&&!status;
+  if(isGroup){
+   for(let i=groupStack.length-1;i>=0;i--)if(groupStack[i].indent>=indent)groupStack.splice(i,1);
+   groupStack.push({indent:indent,name:name,vendor:vendor});warnings.groups++;
+   continue;
+  }
+  // A top-level equipment/phase heading with no dates, duration or status is a label, not a schedulable activity.
+  if(groupedLayout&&indent===0&&!hasSchedule&&!status&&!vendor){
+   for(let i=groupStack.length-1;i>=0;i--)if(groupStack[i].indent>=indent)groupStack.splice(i,1);
+   warnings.skipped++;continue;
+  }
+  for(let i=groupStack.length-1;i>=0;i--)if(groupStack[i].indent>=indent)groupStack.splice(i,1);
   if(start&&finish&&isoToDay(finish)<isoToDay(start)){start='';finish='';warnings.invalidDates++}
   if(start&&!finish&&duration!==null&&duration>0)finish=addDuration(start,duration,durationInfo.working);
-  if(finish&&!start&&duration!==null&&duration>0)start=subtractDuration(finish,duration,durationInfo.working);
+  if(finish&&!start&&duration!==null&&duration>0){start=subtractDuration(finish,duration,durationInfo.working);if(start)warnings.derivedStarts++}
+  // A deadline without a duration is shown as a one-day milestone; no missing span is invented.
+  if(finish&&!start&&duration===null){start=finish;duration=1;warnings.milestones++}
+  if(start&&!finish&&duration===null){finish=start;duration=1;warnings.milestones++}
   if(duration===null&&start&&finish)duration=isoToDay(finish)-isoToDay(start)+1;
   if(!start||!finish)warnings.missingDates++;
   const rawProgress=read('progress'),n=numberValue(rawProgress);
   let progress=n;
   if(progress!==null&&progress>0&&progress<=1&&!String(rawProgress).includes('%'))progress*=100;
   if(progress!==null)progress=Math.max(0,Math.min(100,progress));
-  list.push({name:name,start:start,finish:finish,duration:duration,progress:progress,sourceRow:rowIndex+1});
+  if(progress===null&&/^(done|complete|completed|finished|closed)$/i.test(status))progress=100;
+  const groups=groupStack.map(g=>g.name);
+  const groupVendors=groupStack.map(g=>g.vendor).filter(Boolean);
+  const taskVendor=groupVendors.length?groupVendors[groupVendors.length-1]:(groupedLayout?'':'');
+  list.push({
+   name:name,group:groups.join(' / '),vendor:taskVendor,status:status,
+   indent:indent,start:start,finish:finish,duration:duration,progress:progress,
+   sourceRow:rowIndex+1,isMilestone:warnings.milestones>0&&duration===1&&start===finish
+  });
  }
  return {list:list,warnings:warnings};
 }
@@ -374,12 +415,13 @@ function renderChart(){
  timeline.appendChild(head);
  tasks.forEach(task=>{
   const label=document.createElement('div');label.className='task-label';
-  label.innerHTML='<strong title="'+esc(task.name)+'">'+esc(task.name)+'</strong><small>'+esc((task.start||'—')+'  →  '+(task.finish||'—')+(task.duration!==null?' · '+task.duration+' days':''))+'</small>';labels.appendChild(label);
+  const meta=[task.group,task.vendor?'Vendor: '+task.vendor:'',task.start&&task.finish?task.start+' → '+task.finish:'Dates not supplied',task.status].filter(Boolean).join(' · ');
+  label.innerHTML='<strong title="'+esc(task.name)+'">'+esc(task.name)+'</strong><small title="'+esc(meta)+'">'+esc(meta)+'</small>';labels.appendChild(label);
   const row=document.createElement('div');row.className='gantt-row';row.style.width=total+'px';row.style.backgroundSize=(step*px)+'px 100%';
   if(task.start&&task.finish&&isoToDay(task.finish)>=isoToDay(task.start)){
    const left=(isoToDay(task.start)-range.start)*px,width=(isoToDay(task.finish)-isoToDay(task.start)+1)*px;
    const bar=document.createElement('div');bar.className='gantt-bar';bar.style.left=left+'px';bar.style.width=Math.max(4,width)+'px';
-   bar.title=task.name+' · '+task.start+' to '+task.finish+(task.progress===null?'':' · '+task.progress+'% complete');
+   bar.title=[task.group,task.name,task.vendor?'Vendor: '+task.vendor:'',task.start+' to '+task.finish,task.status,task.progress===null?'':task.progress+'% complete','Source row '+task.sourceRow].filter(Boolean).join(' · ');
    if(task.progress!==null){const progress=document.createElement('div');progress.className='gantt-progress';progress.style.width=task.progress+'%';bar.appendChild(progress)}
    if(width>100){const name=document.createElement('span');name.textContent=task.name;bar.appendChild(name)}
    row.appendChild(bar);
@@ -396,8 +438,8 @@ function addExcelRowsFromSource(ws){
 }
 function buildExportTasksRows(){
  return [
-  ['Task / Activity','Start date','Finish date','Duration (days)','Progress (%)','Source row'],
-  ...tasks.map(t=>[t.name,t.start||'',t.finish||'',t.duration===null?'':t.duration,t.progress===null?'':t.progress,t.sourceRow])
+  ['Equipment / Group','Task / Activity','Vendor','Start date','Finish date','Duration (days)','Progress (%)','Status','Source row'],
+  ...tasks.map(t=>[t.group||'',t.name,t.vendor||'',t.start||'',t.finish||'',t.duration===null?'':t.duration,t.progress===null?'':t.progress,t.status||'',t.sourceRow])
  ];
 }
 async function exportExcel(){
@@ -409,52 +451,52 @@ async function exportExcel(){
   const ws=wb.addWorksheet('Gantt Chart');
   const range=getRange();
   const startDay=range?range.start:null,endDay=range?range.end:null,dayCount=range?range.days:0;
-  const lastColumn=6+dayCount;
-  ws.mergeCells(1,1,1,Math.max(6,lastColumn));
+  const fixedColumnCount=9,timelineColumn=10,lastColumn=fixedColumnCount+dayCount;
+  ws.mergeCells(1,1,1,Math.max(fixedColumnCount,lastColumn));
   ws.getCell(1,1).value='PROJECT GANTT CHART';
   ws.getCell(1,1).font={name:'Aptos Display',size:16,bold:true,color:{argb:'FFFFFFFF'}};
   ws.getCell(1,1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF24456D'}};
   ws.getRow(1).height=29;
-  ws.mergeCells(2,1,2,Math.max(6,lastColumn));
+  ws.mergeCells(2,1,2,Math.max(fixedColumnCount,lastColumn));
   ws.getCell(2,1).value='Source: '+sourceFile+'  |  Worksheet: '+$('sheetSelect').value+'  |  Generated: '+new Date().toLocaleString();
   ws.getCell(2,1).font={italic:true,size:9,color:{argb:'FF667891'}};
-  const fixedHeaders=['No.','Task / Activity','Start date','Finish date','Duration (days)','Progress (%)'];
+  const fixedHeaders=['No.','Equipment / Group','Task / Activity','Vendor','Start date','Finish date','Duration (days)','Progress (%)','Status'];
   const headerRowValues=fixedHeaders.slice();
   if(range){for(let day=startDay;day<=endDay;day++)headerRowValues.push(new Date(day*86400000))}
   const header=ws.addRow(headerRowValues);header.height=34;
   header.eachCell(cell=>{cell.font={bold:true,color:{argb:'FFFFFFFF'},size:9};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF385D8A'}};cell.alignment={vertical:'middle',horizontal:'center',wrapText:true};cell.border={bottom:{style:'thin',color:{argb:'FFCFD8E5'}}}});
-  if(range){for(let c=7;c<=lastColumn;c++)ws.getCell(3,c).numFmt='dd-mmm'}
+  if(range){for(let c=timelineColumn;c<=lastColumn;c++)ws.getCell(3,c).numFmt='dd-mmm'}
   tasks.forEach((task,index)=>{
-   const rowValues=[index+1,task.name,task.start?new Date(isoToDay(task.start)*86400000):'',task.finish?new Date(isoToDay(task.finish)*86400000):'',task.duration===null?'':task.duration,task.progress===null?'':task.progress];
+   const rowValues=[index+1,task.group||'',task.name,task.vendor||'',task.start?new Date(isoToDay(task.start)*86400000):'',task.finish?new Date(isoToDay(task.finish)*86400000):'',task.duration===null?'':task.duration,task.progress===null?'':task.progress,task.status||''];
    if(range){for(let day=startDay;day<=endDay;day++)rowValues.push('')}
    const row=ws.addRow(rowValues);row.height=21;
    row.getCell(1).alignment={horizontal:'center',vertical:'middle'};
    row.getCell(2).alignment={vertical:'middle'};
-   [3,4].forEach(col=>{row.getCell(col).numFmt='dd-mmm-yyyy';row.getCell(col).alignment={horizontal:'center',vertical:'middle'}});
-   row.getCell(5).alignment={horizontal:'center',vertical:'middle'};
-   row.getCell(6).alignment={horizontal:'center',vertical:'middle'};
+   [5,6].forEach(col=>{row.getCell(col).numFmt='dd-mmm-yyyy';row.getCell(col).alignment={horizontal:'center',vertical:'middle'}});
+   row.getCell(7).alignment={horizontal:'center',vertical:'middle'};
+   row.getCell(8).alignment={horizontal:'center',vertical:'middle'};
    row.eachCell({includeEmpty:true},cell=>{cell.border={bottom:{style:'hair',color:{argb:'FFE7ECF2'}}}});
    if(range&&task.start&&task.finish){
     const first=Math.max(startDay,isoToDay(task.start)),last=Math.min(endDay,isoToDay(task.finish));
     if(last>=first){
      const span=last-first+1,done=task.progress===null?0:Math.round(span*task.progress/100);
      for(let day=first;day<=last;day++){
-      const cell=row.getCell(7+day-startDay);
+      const cell=row.getCell(timelineColumn+day-startDay);
       cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:day-first<done?'FF2CA27E':'FF6687D6'}};
       cell.alignment={horizontal:'center',vertical:'middle'};
      }
     }
    }
   });
-  ws.columns[0].width=6;ws.columns[1].width=34;ws.columns[2].width=14;ws.columns[3].width=14;ws.columns[4].width=15;ws.columns[5].width=13;
-  if(range){for(let c=7;c<=lastColumn;c++)ws.getColumn(c).width=4.2}
-  ws.views=[{state:'frozen',xSplit:6,ySplit:3,topLeftCell:'G4',showGridLines:false}];
-  ws.autoFilter={from:{row:3,column:1},to:{row:3+tasks.length,column:6}};
+  ws.columns[0].width=6;ws.columns[1].width=29;ws.columns[2].width=34;ws.columns[3].width=22;ws.columns[4].width=14;ws.columns[5].width=14;ws.columns[6].width=15;ws.columns[7].width=13;ws.columns[8].width=27;
+  if(range){for(let c=timelineColumn;c<=lastColumn;c++)ws.getColumn(c).width=4.2}
+  ws.views=[{state:'frozen',xSplit:fixedColumnCount,ySplit:3,topLeftCell:'J4',showGridLines:false}];
+  ws.autoFilter={from:{row:3,column:1},to:{row:3+tasks.length,column:fixedColumnCount}};
   const data=wb.addWorksheet('Task Data');
   data.addRows(buildExportTasksRows());
   data.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};
   data.getRow(1).eachCell(cell=>{cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF385D8A'}};cell.alignment={vertical:'middle'}});
-  data.columns=[{width:38},{width:15},{width:15},{width:16},{width:14},{width:13}];
+  data.columns=[{width:29},{width:36},{width:24},{width:15},{width:15},{width:16},{width:14},{width:28},{width:13}];
   data.views=[{state:'frozen',ySplit:1,showGridLines:false}];
   const original=wb.addWorksheet('Original Data');addExcelRowsFromSource(original);
   const buffer=await wb.xlsx.writeBuffer();
@@ -463,15 +505,15 @@ async function exportExcel(){
  }catch(error){
   try{
    if(!window.XLSX)await loadXLSX();
-   const range=getRange(),rows=[['PROJECT GANTT CHART'],['Source: '+sourceFile+' | Worksheet: '+$('sheetSelect').value],['No.','Task / Activity','Start date','Finish date','Duration (days)','Progress (%)']];
+   const range=getRange(),rows=[['PROJECT GANTT CHART'],['Source: '+sourceFile+' | Worksheet: '+$('sheetSelect').value],['No.','Equipment / Group','Task / Activity','Vendor','Start date','Finish date','Duration (days)','Progress (%)','Status']];
    if(range){for(let d=range.start;d<=range.end;d++)rows[2].push(dayToISO(d))}
    tasks.forEach((t,i)=>{
-    const row=[i+1,t.name,t.start,t.finish,t.duration===null?'':t.duration,t.progress===null?'':t.progress];
+    const row=[i+1,t.group||'',t.name,t.vendor||'',t.start,t.finish,t.duration===null?'':t.duration,t.progress===null?'':t.progress,t.status||''];
     if(range){for(let d=range.start;d<=range.end;d++)row.push(t.start&&t.finish&&d>=isoToDay(t.start)&&d<=isoToDay(t.finish)?'■':'')}
     rows.push(row);
    });
    const book=XLSX.utils.book_new(),sheet=XLSX.utils.aoa_to_sheet(rows);
-   sheet['!cols']=[{wch:6},{wch:36},{wch:14},{wch:14},{wch:16},{wch:13}];
+   sheet['!cols']=[{wch:6},{wch:29},{wch:36},{wch:24},{wch:14},{wch:14},{wch:16},{wch:13},{wch:28}];
    XLSX.utils.book_append_sheet(book,sheet,'Gantt Chart');
    XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet(buildExportTasksRows()),'Task Data');
    if(sourceMatrix.length)XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet(sourceMatrix),'Original Data');
