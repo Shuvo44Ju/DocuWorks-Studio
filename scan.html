@@ -36,7 +36,8 @@ footer{display:flex;gap:8px;padding:10px;background:var(--n);justify-content:cen
 .adjust-label{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:3px}
 .adjust-value{color:#5eead4;font-variant-numeric:tabular-nums;font-weight:700}
 .adjust-control input{display:block;width:100%;height:20px;margin:0;accent-color:#2dd4bf;cursor:pointer}
-#eTools{display:flex;gap:8px;padding:10px;background:var(--n);overflow:auto;justify-content:center}
+.detect-hint{align-self:center;color:#aebfd3;font-size:11px;white-space:nowrap;padding:0 4px}
+#eTools{display:flex;gap:8px;padding:10px;background:var(--n);overflow:auto;justify-content:center;align-items:center;flex-wrap:wrap}
 @media(max-width:520px){.adjust-controls{gap:9px}.adjust-control{font-size:10px}.adjust-head{margin-bottom:5px}}
 .chip.on{background:var(--t);color:#06231f;font-weight:700}
 dialog{border:0;border-radius:14px;padding:16px;width:min(560px,92vw);background:#fff;color:#14243d}
@@ -120,12 +121,12 @@ function loadCV(){return window.cvP||(window.cvP=new Promise((ok,no)=>{const s=d
 const order=p=>{const s=p.map(q=>q[0]+q[1]),d=p.map(q=>q[0]-q[1]);return[p[s.indexOf(Math.min(...s))],p[d.indexOf(Math.max(...d))],p[s.indexOf(Math.max(...s))],p[d.indexOf(Math.min(...d))]]};
 async function detect(src){
   try{
-    const cv=await loadCV(),k=500/Math.max(src.width,src.height),w=Math.round(src.width*k),h=Math.round(src.height*k),t=mk(w,h);
+    const cv=await loadCV(),k=Math.min(1,600/Math.max(src.width,src.height)),w=Math.max(1,Math.round(src.width*k)),h=Math.max(1,Math.round(src.height*k)),t=mk(w,h);
     t.getContext('2d').drawImage(src,0,0,w,h);
     const m=cv.imread(t),g=new cv.Mat(),e=new cv.Mat(),cs=new cv.MatVector(),hi=new cv.Mat(),ke=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(5,5));
     cv.cvtColor(m,g,cv.COLOR_RGBA2GRAY);cv.GaussianBlur(g,g,new cv.Size(5,5),0);cv.Canny(g,e,60,160);cv.dilate(e,e,ke);
     cv.findContours(e,cs,hi,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE);
-    let best=null,ba=w*h*0.15;
+    let best=null,ba=w*h*0.10;
     for(let i=0;i<cs.size();i++){
       const c=cs.get(i),a=cv.contourArea(c);
       if(a>ba){const ap=new cv.Mat();cv.approxPolyDP(c,ap,0.02*cv.arcLength(c,true),true);
@@ -276,6 +277,22 @@ function filt(base,type,bgc){
         r=clamp((nr+delta)*(1-colorMix)+r*colorMix,0,255);
         gg=clamp((ng+delta)*(1-colorMix)+gg*colorMix,0,255);
         b=clamp((nb+delta)*(1-colorMix)+b*colorMix,0,255);
+      }else if(type==='color'){
+        // Scanner-style color correction: neutralize the paper's color cast
+        // while protecting colored stamps, signatures and text edges.
+        const rawL=lumMap[y*W+xx],left=lumMap[y*W+Math.max(0,xx-1)],right=lumMap[y*W+Math.min(W-1,xx+1)];
+        const up=lumMap[Math.max(0,y-1)*W+xx],down=lumMap[Math.min(H-1,y+1)*W+xx];
+        const edge=Math.max(Math.abs(rawL-left),Math.abs(rawL-right),Math.abs(rawL-up),Math.abs(rawL-down));
+        const pixelChroma=Math.max(r,gg,b)-Math.min(r,gg,b);
+        const bgChroma=Math.max(bgR,bgG,bgB)-Math.min(bgR,bgG,bgB);
+        const colorInk=clamp((pixelChroma-bgChroma-8)/36,0,1);
+        const pageRatio=rawL/Math.max(bg,90);
+        const paperMask=clamp((pageRatio-.46)/.42,0,1)*(1-clamp((edge-5)/28,0,1))*(1-colorInk*.92);
+        const blend=.72*paperMask;
+        const nr=clamp(r*255/Math.max(bgR,90),0,255);
+        const ng=clamp(gg*255/Math.max(bgG,90),0,255);
+        const nb=clamp(b*255/Math.max(bgB,90),0,255);
+        r=r+(nr-r)*blend;gg=gg+(ng-gg)*blend;b=b+(nb-b)*blend;
       }else if(type==='magic'){
         // Magic works on luminance while carrying the original chroma through
         // the pipeline. This keeps stamps, signatures and colored annotations recognizable.
@@ -459,14 +476,35 @@ dropZone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preve
 dropZone.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();dropZone.classList.remove('over');if(e.dataTransfer?.files?.length)queueFiles(e.dataTransfer.files)});
 
 /* ---------- editor ---------- */
+async function autoDetectPage(pg){
+  if(pg.detecting)return;
+  pg.detecting=true;
+  const hint=$('#detectHint'),button=$('#tAuto');
+  if(hint)hint.textContent='Detecting page edges…';
+  if(button){button.disabled=true;button.textContent='Detecting…'}
+  try{
+    const q=await detect(pg.src);
+    if(ed.pg!==pg||ed.mode!=='crop')return;
+    if(q){
+      pg.quad=q;draw();
+      if(hint)hint.textContent='Page found · adjust corners if needed';
+    }else if(hint)hint.textContent='Page not found · adjust corners manually';
+  }catch(err){
+    if(ed.pg===pg&&hint)hint.textContent='Auto detection unavailable · adjust corners manually';
+  }finally{
+    pg.detecting=false;
+    if(ed.pg===pg&&ed.mode==='crop'){
+      const b=$('#tAuto');if(b){b.disabled=false;b.textContent='↻ Detect again'}
+    }
+  }
+}
 function openEd(pg,isNew,mode){
   pg.adjustments={brightness:0,shadows:0,highlights:0,contrast:0,paper:0,sharpness:0,...(pg.adjustments||{})};
   ed={pg,isNew,mode,drag:-1,sc:1,zoom:1};show('edit');
   if(mode==='crop'&&!pg.quad)pg.quad=inset(pg.src);
   if(mode==='filter'){pg.filtered=filt(pg.base,pg.filter,pg.bgc);renderAdjustedPg(pg)}
   ui();draw();
-  // Do not launch OpenCV automatically on every import. It is available from
-  // the explicit Auto detect button, so importing remains immediate and light.
+  if(mode==='crop')autoDetectPage(pg);
 }
 function updateAdjustmentControls(pg){
   for(const key of ['brightness','shadows','highlights','contrast','paper','sharpness']){
@@ -480,8 +518,8 @@ function ui(){
   $('#eTitle').textContent=crop?'Adjust corners':'Choose filter';$('#eNext').textContent=crop?'Next ›':'Done ✓';
   $('#adjustPanel').classList.toggle('visible',!crop);
   if(!crop)updateAdjustmentControls(pg);
-  $('#eTools').innerHTML=crop?'<button id="tAuto">✨ Auto detect</button><button id="tFull">⛶ Full image</button>'
-   :['orig:Original','magic:Magic','pro:Magic Pro','bw:B&W','gray:Gray'].map(s=>{const[k,l]=s.split(':');return`<button class="chip${pg.filter===k?' on':''}" data-f="${k}">${l}</button>`}).join('')+'<button id="tRot">↻ Rotate</button><button id="tCrop">✂ Re-crop</button>';
+  $('#eTools').innerHTML=crop?'<button id="tAuto">↻ Detect again</button><button id="tFull">⛶ Full image</button><span class="detect-hint" id="detectHint" role="status">Detecting page edges…</span>'
+   :['orig:Original','color:Color','magic:Magic','pro:Magic Pro','bw:B&W','gray:Grayscale'].map(s=>{const[k,l]=s.split(':');return`<button class="chip${pg.filter===k?' on':''}" data-f="${k}">${l}</button>`}).join('')+'<button id="tRot">↻ Rotate</button><button id="tCrop">✂ Re-crop</button>';
 }
 function draw(){
   const pg=ed.pg,st=$('#stage'),W=st.clientWidth-16,H=st.clientHeight-16,x=ec.getContext('2d');
@@ -508,7 +546,7 @@ ec.onpointermove=e=>{if(ed.drag<0)return;const p=pt(e),s=ed.pg.src;ed.pg.quad[ed
 ec.onpointerup=()=>{ed.drag=-1};
 $('#eTools').onclick=async e=>{
   const b=e.target.closest('button');if(!b)return;const pg=ed.pg;
-  if(b.id==='tAuto'){b.textContent='Detecting…';const q=await detect(pg.src);b.textContent='✨ Auto detect';if(q){pg.quad=q;draw()}else alert('Could not find the page edges. Drag the corners by hand.')}
+  if(b.id==='tAuto'){autoDetectPage(pg)}
   else if(b.id==='tFull'){pg.quad=[[0,0],[pg.src.width,0],[pg.src.width,pg.src.height],[0,pg.src.height]];draw()}
   else if(b.id==='tRot'){pg.rot=(pg.rot+90)%360;renderAdjustedPg(pg);draw()}
   else if(b.id==='tCrop'){pg.filtered=null;ed.mode='crop';ui();draw()}
@@ -539,7 +577,7 @@ function exportPdfPages(selectedPages){
   selectedPages.forEach(p=>{
     const o=p.out.width>p.out.height?'l':'p',W=o==='p'?210:297,H=o==='p'?297:210,k=Math.min(W/p.out.width,H/p.out.height),w=p.out.width*k,h=p.out.height*k;
     if(!doc)doc=new jspdf.jsPDF({orientation:o,unit:'mm',format:'a4',compress:true});else doc.addPage('a4',o);
-    doc.addImage(p.out.toDataURL('image/jpeg',.88),'JPEG',(W-w)/2,(H-h)/2,w,h);
+    doc.addImage(p.out.toDataURL('image/jpeg',.94),'JPEG',(W-w)/2,(H-h)/2,w,h);
   });
   doc.save(($('#fn').value||'Scan')+'.pdf');
 }
