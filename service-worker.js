@@ -1,4 +1,4 @@
-const CACHE_NAME='docuworks-studio-v39-simple-gantt';
+const CACHE_NAME='docuworks-studio-v40-dhamrai-gantt';
 const CORE=['./','./index.html','./scan.html','./cs.html','./ink-saver.html','./style.css','./app.js','./manifest.json','./icon.svg','./scanner-pro.css','./scanner-pro.js','./projectflow.html','./projectflow.css','./projectflow.js','./ai-assistant.js','./agent-tools.js',];
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE_NAME);await Promise.all(CORE.map(async path=>{try{const response=await fetch(path,{cache:'no-store'});if(response.ok)await cache.put(path,response)}catch(e){console.warn('DocuWorks cache skipped:',path,e)}}));await self.skipWaiting()})())});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>(k.startsWith('ink-saver-paperscan-')||k.startsWith('docuworks-studio-v'))&&k!==CACHE_NAME).map(k=>caches.delete(k)));await self.clients.claim()})())});
