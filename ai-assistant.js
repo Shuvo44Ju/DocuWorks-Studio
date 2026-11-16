@@ -44,16 +44,17 @@ async function callAI(payload) {
   if (!response.ok) throw new Error(data?.error || "AI request failed ("+response.status+").");
   return data;
 }
-async function runAgent(message, history=[], context="", ui={}) {
+async function runAgent(message, history=[], context=null, ui={}) {
   const transcript = Array.isArray(history) ? history : [];
   if (message) { const last=transcript[transcript.length-1]; if (!(last?.role==="user" && last.content===message)) transcript.push({role:"user",content:String(message).slice(0,6000)}); }
-  const availableTools = window.DocuWorksAgentTools?.getAvailableTools(AI_TOOL) || ["inspect_current_tool","open_docuworks_tool"];
+  const allTools = window.DocuWorksAgentTools?.getAvailableTools(AI_TOOL) || ["inspect_current_tool","open_docuworks_tool"];
+  const availableTools = context === "" ? allTools.filter(name=>name!=="inspect_current_tool") : allTools;
   if (!transcript.some(item => item.role === "user")) throw new Error("Write a message before starting the agent.");
   for (let turn=0; turn<5; turn++) {
     if (typeof ui.onStatus === "function") ui.onStatus(turn===0 ? "Understanding your request…" : "Checking the result and deciding the next step…");
     const result = await callAI({
       tool:AI_TOOL, mode:"agent", history:transcript.slice(-18),
-      context:context || toolContext(), availableTools
+      context:context === null ? toolContext() : String(context), availableTools
     });
     const calls = Array.isArray(result.toolCalls) ? result.toolCalls : [];
     if (!calls.length) {
@@ -140,7 +141,7 @@ function mountAssistant() {
   launcher.id = "dw-ai-launcher"; launcher.type = "button"; launcher.textContent = "✦ Ask DocuWorks AI";
   const panel = document.createElement("section");
   panel.id = "dw-ai-panel"; panel.setAttribute("aria-label",AI_LABEL);
-  panel.innerHTML = `<div id="dw-ai-head"><div>✦</div><div><strong>${AI_LABEL}</strong><small>Explain naturally. Ask follow-up questions.</small></div><button id="dw-ai-close" aria-label="Close">×</button></div><div id="dw-ai-messages"><div class="dw-ai-msg bot">Hello! Tell me what you want to do. You can write naturally—no special commands needed.</div></div><div id="dw-ai-controls"><label id="dw-ai-context"><input id="dw-ai-include" type="checkbox" checked> Include current tool details in my message</label><div id="dw-ai-inputrow"><textarea id="dw-ai-input" placeholder="Describe what you need…" rows="2"></textarea><button id="dw-ai-send" type="button">Send</button></div><div id="dw-ai-foot">AI runs through the DocuWorks server. Provider free-use limits may apply. Review sensitive details before including them.</div></div>`;
+  panel.innerHTML = `<div id="dw-ai-head"><div>✦</div><div><strong>${AI_LABEL}</strong><small>Tell me what to do. I can inspect and use supported actions here.</small></div><button id="dw-ai-close" aria-label="Close">×</button></div><div id="dw-ai-messages"><div class="dw-ai-msg bot">Hello! Tell me what you want to do. You can write naturally—no special commands needed.</div></div><div id="dw-ai-controls"><label id="dw-ai-context"><input id="dw-ai-include" type="checkbox" checked> Share current page details with AI</label><div id="dw-ai-inputrow"><textarea id="dw-ai-input" placeholder="Describe what you need…" rows="2"></textarea><button id="dw-ai-send" type="button">Send</button></div><div id="dw-ai-foot">AI runs through the DocuWorks server. Your approval is required before document processing or export actions. Provider usage limits may apply.</div></div>`;
   document.body.append(launcher,panel);
   const messages = panel.querySelector("#dw-ai-messages"), input=panel.querySelector("#dw-ai-input"), send=panel.querySelector("#dw-ai-send");
   const history=[];
