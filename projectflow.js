@@ -62,7 +62,7 @@ function parseDate(value,order,date1904){
   const base=date1904?Date.UTC(1904,0,1):Date.UTC(1899,11,serial<60?31:30);
   const d=new Date(base+serial*86400000);return isoParts(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());
  }
- const text=String(value).trim().replace(/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?:day)?[,\\s]+/i,'');if(!text)return '';
+ const text=String(value).trim().replace(/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?:day)?[,\s]+/i,'');if(!text)return '';
  let m=text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\D|$)/);
  if(m)return isoParts(m[1],m[2],m[3]);
  m=text.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})(?:\D|$)/);
