@@ -344,6 +344,48 @@ function filt(base,type,bgc){
   if(type==='pro')return sharpenMagicText(o,.54);
   return type==='magic'?sharpenMagicText(o,.38):sharpenText(o,.48);
 }
+function cleanDocument(base,bgc){
+  const W=base.width,H=base.height,src=base.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H),d=src.data;
+  const out=new Uint8ClampedArray(d),lum=new Uint8Array(W*H);
+  for(let i=0,j=0;i<d.length;i+=4,j++)lum[j]=.299*d[i]+.587*d[i+1]+.114*d[i+2];
+  const {g:bgLum,gw,gh,B}=bgc;
+  // Correct slow illumination and shadows while protecting dark ink.
+  for(let y=0;y<H;y++){
+    const fy=clamp(y/B-.5,0,gh-1),y0=fy|0,y1=Math.min(gh-1,y0+1),ty=fy-y0;
+    for(let x=0;x<W;x++){
+      const fx=clamp(x/B-.5,0,gw-1),x0=fx|0,x1=Math.min(gw-1,x0+1),tx=fx-x0;
+      const bg=(bgLum[y0*gw+x0]*(1-tx)+bgLum[y0*gw+x1]*tx)*(1-ty)+(bgLum[y1*gw+x0]*(1-tx)+bgLum[y1*gw+x1]*tx)*ty;
+      const j=y*W+x,i=j*4,L=lum[j],ratio=L/Math.max(bg,90);
+      const paperMask=clamp((ratio-.48)/.40,0,1);
+      const corrected=clamp(L+(255-L)*.72*paperMask,0,255);
+      const inkGuard=clamp((.84-ratio)/.30,0,1);
+      const lift=(corrected-L)*(1-inkGuard);
+      out[i]=clamp(d[i]+lift,0,255);out[i+1]=clamp(d[i+1]+lift,0,255);out[i+2]=clamp(d[i+2]+lift,0,255);
+    }
+  }
+  // Remove isolated low-chroma dust specks without touching connected strokes.
+  const cleaned=new Uint8ClampedArray(out);
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+    const j=y*W+x,i=j*4,L=.299*out[i]+.587*out[i+1]+.114*out[i+2];
+    const chroma=Math.max(out[i],out[i+1],out[i+2])-Math.min(out[i],out[i+1],out[i+2]);
+    if(L>150||chroma>34)continue;
+    let bright=0,localMin=255;
+    for(let yy=-1;yy<=1;yy++)for(let xx=-1;xx<=1;xx++)if(xx||yy){
+      const ni=((y+yy)*W+x+xx)*4,nl=.299*out[ni]+.587*out[ni+1]+.114*out[ni+2];
+      if(nl>190)bright++;localMin=Math.min(localMin,nl);
+    }
+    if(bright>=6 && L<localMin-18){
+      let sr=0,sg=0,sb=0,n=0;
+      for(let yy=-1;yy<=1;yy++)for(let xx=-1;xx<=1;xx++)if(xx||yy){
+        const ni=((y+yy)*W+x+xx)*4,nl=.299*out[ni]+.587*out[ni+1]+.114*out[ni+2];
+        if(nl>190){sr+=out[ni];sg+=out[ni+1];sb+=out[ni+2];n++}
+      }
+      if(n){cleaned[i]=sr/n;cleaned[i+1]=sg/n;cleaned[i+2]=sb/n;}
+    }
+  }
+  const o=mk(W,H);o.getContext('2d').putImageData(new ImageData(cleaned,W,H),0,0);
+  return sharpenMagicText(o,.34);
+}
 function rot(c,r){if(!r)return c;const s=r%180,o=mk(s?c.height:c.width,s?c.width:c.height),x=o.getContext('2d');x.translate(o.width/2,o.height/2);x.rotate(r*Math.PI/180);x.drawImage(c,-c.width/2,-c.height/2);return o}
 function thumb(c){const k=260/Math.max(c.width,c.height),t=mk(Math.max(1,c.width*k|0),Math.max(1,c.height*k|0));t.getContext('2d').drawImage(c,0,0,t.width,t.height);return t.toDataURL('image/jpeg',.7)}
 function adjustTone(source,settings={}){
@@ -376,7 +418,7 @@ function renderAdjustedPg(p){
   const source=p.filtered||filt(p.base,p.filter,p.bgc);
   p.out=rot(adjustTone(source,p.adjustments),p.rot);p.th=thumb(p.out);
 }
-function renderPg(p){p.filtered=filt(p.base,p.filter,p.bgc);renderAdjustedPg(p)}
+function renderPg(p){p.filtered=p.filter==='clean'?cleanDocument(p.base,p.bgc):filt(p.base,p.filter,p.bgc);renderAdjustedPg(p)}
 
 /* ---------- gallery ---------- */
 function grid(){
@@ -467,7 +509,7 @@ function openEd(pg,isNew,mode){
   pg.adjustments={brightness:0,shadows:0,highlights:0,contrast:0,paper:0,sharpness:0,...(pg.adjustments||{})};
   ed={pg,isNew,mode,drag:-1,sc:1,zoom:1};show('edit');
   if(mode==='crop'&&!pg.quad)pg.quad=inset(pg.src);
-  if(mode==='filter'){pg.filtered=filt(pg.base,pg.filter,pg.bgc);renderAdjustedPg(pg)}
+  if(mode==='filter'){pg.filtered=pg.filter==='clean'?cleanDocument(pg.base,pg.bgc):filt(pg.base,pg.filter,pg.bgc);renderAdjustedPg(pg)}
   ui();draw();
 }
 function updateAdjustmentControls(pg){
@@ -483,7 +525,7 @@ function ui(){
   $('#adjustPanel').classList.toggle('visible',!crop);
   if(!crop)updateAdjustmentControls(pg);
   $('#eTools').innerHTML=crop?'<button id="tFull">⛶ Full image</button>'
-   :['orig:Original','color:Color','magic:Magic','pro:Magic Pro','bw:B&W','gray:Grayscale'].map(s=>{const[k,l]=s.split(':');return`<button class="chip${pg.filter===k?' on':''}" data-f="${k}">${l}</button>`}).join('')+'<button id="tRot">↻ Rotate</button><button id="tCrop">✂ Re-crop</button>';
+   :['orig:Original','color:Color','clean:Clean','magic:Magic','pro:Magic Pro','bw:B&W','gray:Grayscale'].map(s=>{const[k,l]=s.split(':');return`<button class="chip${pg.filter===k?' on':''}" data-f="${k}">${l}</button>`}).join('')+'<button id="tRot">↻ Rotate</button><button id="tCrop">✂ Re-crop</button>';
 }
 function draw(){
   const pg=ed.pg,st=$('#stage'),W=st.clientWidth-16,H=st.clientHeight-16,x=ec.getContext('2d');
@@ -540,7 +582,9 @@ function exportPdfPages(selectedPages){
   selectedPages.forEach(p=>{
     const o=p.out.width>p.out.height?'l':'p',W=o==='p'?210:297,H=o==='p'?297:210,k=Math.min(W/p.out.width,H/p.out.height),w=p.out.width*k,h=p.out.height*k;
     if(!doc)doc=new jspdf.jsPDF({orientation:o,unit:'mm',format:'a4',compress:true});else doc.addPage('a4',o);
-    // Text-oriented profiles use lossless PNG to preserve fine character edges and avoid JPEG ringing.\n    // Original/Color remain JPEG because photographs and colored pages benefit from smaller files.\n    const lossless=['bw','gray','magic','pro'].includes(p.filter);\n    if(lossless)doc.addImage(p.out.toDataURL('image/png'),'PNG',(W-w)/2,(H-h)/2,w,h);\n    else doc.addImage(p.out.toDataURL('image/jpeg',.96),'JPEG',(W-w)/2,(H-h)/2,w,h);
+    // Text-oriented profiles use lossless PNG to preserve fine character edges and avoid JPEG ringing.\n    // Original/Color remain JPEG because photographs and colored pages benefit from smaller files.\n    const lossless=['bw','gray','clean','magic','pro'].includes(p.filter);
+    if(lossless)doc.addImage(p.out.toDataURL('image/png'),'PNG',(W-w)/2,(H-h)/2,w,h);
+    else doc.addImage(p.out.toDataURL('image/jpeg',.96),'JPEG',(W-w)/2,(H-h)/2,w,h);
   });
   doc.save(($('#fn').value||'Scan')+'.pdf');
 }
