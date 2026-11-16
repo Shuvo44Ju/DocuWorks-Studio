@@ -188,8 +188,42 @@ function parseCSV(text){
  if(cell.length||row.length){row.push(cell.replace(/\r$/,''));rows.push(row)}
  return rows;
 }
+let xlsxLoadPromise=null;
+function loadXLSX(){
+ if(window.XLSX)return Promise.resolve(window.XLSX);
+ if(xlsxLoadPromise)return xlsxLoadPromise;
+ const urls=[
+  'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'
+ ];
+ xlsxLoadPromise=new Promise((resolve,reject)=>{
+  let index=0;
+  function next(){
+   if(window.XLSX){resolve(window.XLSX);return}
+   if(index>=urls.length){reject(new Error('The Excel reader could not load from the available sources. Check your connection and retry.'));return}
+   const script=document.createElement('script');script.src=urls[index++];script.async=true;
+   script.onload=()=>window.XLSX?resolve(window.XLSX):next();
+   script.onerror=next;document.head.appendChild(script);
+  }
+  next();
+ }).catch(e=>{xlsxLoadPromise=null;throw e});
+ return xlsxLoadPromise;
+}
 function fileToWorkbook(file){
- return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>{try{let wb;if(/\.csv$/i.test(file.name)){wb={SheetNames:['CSV'],Sheets:{CSV:{__rows:parseCSV(e.target.result)}}}}else{if(!window.XLSX)throw new Error('The Excel reader did not load. Check your internet connection and refresh this page.');wb=XLSX.read(e.target.result,{type:'array',cellDates:true})}resolve(wb)}catch(err){reject(err)}};reader.onerror=()=>reject(new Error('Could not read this workbook.'));if(/\.csv$/i.test(file.name))reader.readAsText(file);else reader.readAsArrayBuffer(file)})
+ return new Promise((resolve,reject)=>{
+  const reader=new FileReader();
+  reader.onload=async e=>{
+   try{
+    if(/\.csv$/i.test(file.name)){resolve({SheetNames:['CSV'],Sheets:{CSV:{__rows:parseCSV(e.target.result)}}});return}
+    if(!window.XLSX)await loadXLSX();
+    const wb=XLSX.read(e.target.result,{type:'array',cellDates:true,cellNF:true});
+    resolve(wb);
+   }catch(err){reject(err)}
+  };
+  reader.onerror=()=>reject(new Error('Could not read this workbook.'));
+  if(/\.csv$/i.test(file.name))reader.readAsText(file,'UTF-8');else reader.readAsArrayBuffer(file);
+ });
 }
 function sheetMatrix(wb,name){
  const sh=wb.Sheets[name];if(sh.__rows)return sh.__rows;
@@ -415,7 +449,16 @@ function renderOverview(){
 }
 function ownerStats(){const map=new Map();tasks.forEach(t=>{const n=t.owner||'Unassigned';if(!map.has(n))map.set(n,{name:n,total:0,overdue:0,complete:0,progress:0,progressCount:0,tasks:[]});const o=map.get(n);o.total++;o.overdue+=isOverdue(t)?1:0;o.complete+=t.status==='Completed'?1:0;if(t.progress!==null){o.progress+=t.progress;o.progressCount++}o.tasks.push(t)});return [...map.values()].sort((a,b)=>b.overdue-a.overdue||b.total-a.total)}
 function initials(s){return String(s||'?').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()}
-function renderMiniGantt(){const a=tasks.filter(t=>t.start&&t.finish).slice(0,6);if(!a.length){$('overviewGantt').innerHTML='<div class="pf-table-empty">Add or import planned start and finish dates to see your schedule here.</div>';return}const min=Math.min(...a.map(t=>fromISO(t.start).getTime())),max=Math.max(...a.map(t=>fromISO(t.finish).getTime())),span=Math.max(1,max-min+86400000);$('overviewGantt').innerHTML=a.map(t=>{const left=(fromISO(t.start).getTime()-min)/span*100,w=Math.max(2,(fromISO(t.finish).getTime()-fromISO(t.start).getTime()+86400000)/span*100);return '<div class="pf-mini-gantt-row"><span class="pf-mini-gantt-label">'+esc(t.name)+'</span><div class="pf-mini-gantt-track"><i class="pf-mini-gantt-bar" style="left:'+left+'%;width:'+w+'%"></i></div></div>'}).join('')}
+function renderMiniGantt(){
+ const a=tasks.filter(t=>scheduleStart(t)&&scheduleFinish(t)).slice(0,6);
+ if(!a.length){$('overviewGantt').innerHTML='<div class="pf-table-empty">Add or import complete planned or actual dates to see your schedule here.</div>';return}
+ const min=Math.min(...a.map(t=>dayNumber(scheduleStart(t)))),max=Math.max(...a.map(t=>dayNumber(scheduleFinish(t)))),span=Math.max(1,max-min+1);
+ $('overviewGantt').innerHTML=a.map(t=>{
+  const left=(dayNumber(scheduleStart(t))-min)/span*100,w=Math.max(2,(dayNumber(scheduleFinish(t))-dayNumber(scheduleStart(t))+1)/span*100);
+  const label=(t.start&&t.finish)?'Planned':'Actual';
+  return '<div class="pf-mini-gantt-row"><span class="pf-mini-gantt-label" title="'+esc(t.name)+'">'+esc(t.name)+' · '+label+'</span><div class="pf-mini-gantt-track"><i class="pf-mini-gantt-bar" style="left:'+left+'%;width:'+w+'%"></i></div></div>';
+ }).join('');
+}
 function setView(next){view=next;document.querySelectorAll('.pf-nav[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===next));['overview','gantt','tasks','resources','critical','report'].forEach(v=>{$(v+'View').hidden=(v!==next)});const meta={overview:['PROJECT CONTROL CENTER','Project overview','A live view of your schedule, delivery and execution status.'],gantt:['SCHEDULE MANAGEMENT','Gantt chart','Plan, compare and monitor activity dates across the project timeline.'],tasks:['ACTIVITY REGISTER','Task list','Edit execution details, progress, dates and dependencies.'],resources:['RESOURCE MANAGEMENT','Resources','Review responsibility, workload and overdue activities.'],critical:['SCHEDULE ANALYSIS','Critical path','Identify the dependency chain that controls the project finish.'],report:['MANAGEMENT REPORT','Project status report','A management-ready summary of the current project position.']}[next];$('viewEyebrow').textContent=meta[0];$('viewTitle').textContent=meta[1];$('viewSubtitle').textContent=meta[2];if(next==='overview')renderOverview();if(next==='gantt')renderGantt();if(next==='tasks')renderTasks();if(next==='resources')renderResources();if(next==='critical')renderCritical();if(next==='report')renderReport();window.scrollTo({top:0,behavior:'smooth'})}
 function renderAll(){showWorkspace();$('projectName').value=projectName;setView(view)}
 function filteredTasks(filter,query){
@@ -544,7 +587,7 @@ function renderGantt(){
    const title=document.createElementNS(svgNS,'title');title.textContent='Dependency: '+pred.name+' → '+t.name+(dayNumber(taskStart)<=dayNumber(predFinish)?' · Dates overlap / out of sequence':'');path.appendChild(title);svg.appendChild(path);
   });
  });
- if(dependencyMap.size)track.appendChild(svg);
+ if(dependencyDiagnostics.count)track.appendChild(svg);
  const todayX=daySpan(startISO,iso(today()))*width;
  if(todayX>=0&&todayX<=total){const line=document.createElement('div');line.className='pf-today-line';line.style.left=todayX+'px';track.appendChild(line)}
  $('ganttScroll').style.minHeight=height+'px';dateRange=range;
@@ -558,8 +601,22 @@ function renderResources(){
  $('resourceGrid').innerHTML=filt.map(o=>{const p=o.progressCount?Math.round(o.progress/o.progressCount):null;return '<article class="pf-resource-card"><div class="pf-resource-top"><span class="pf-avatar">'+esc(initials(o.name))+'</span><div><b>'+esc(o.name)+'</b><small>'+o.total+' assigned activities</small></div></div><div class="pf-resource-metrics"><div><strong>'+o.total+'</strong><span>Total tasks</span></div><div><strong>'+o.complete+'</strong><span>Completed</span></div><div><strong class="'+(o.overdue?'':'')+'">'+o.overdue+'</strong><span>Overdue</span></div></div><div class="pf-resource-bar"><i style="width:'+(p||0)+'%"></i></div><div class="pf-resource-tasks">'+esc(o.tasks.slice(0,5).map(t=>t.name).join(' · '))+(o.tasks.length>5?' · +'+(o.tasks.length-5)+' more':'')+'</div></article>'}).join('')||'<div class="pf-table-empty">No responsible persons were identified.</div>';
 }
 function renderCritical(){
- const r=computeCritical(),list=tasks.filter(t=>criticalIds.has(t.id));$('criticalCount').textContent=list.length+' critical activities';$('criticalMessage').classList.toggle('has-data',r.dependencies>0);$('criticalMessage').textContent=r.dependencies?'Longest linked activity chain: '+r.score+' known day(s), '+r.dependencies+' dependency link(s). '+(r.unknownDurations?r.unknownDurations+' critical task(s) have no entered duration; the day total is incomplete. ':'')+'Critical path is calculated from resolved predecessor links.':'No dependency chain has been detected yet. Add predecessor links to tasks to calculate the critical path.'+(r.cycles?' A circular dependency was detected. Review links.':'');
- $('criticalTableBody').innerHTML=list.map(t=>'<tr data-edit="'+t.id+'"><td><b>'+esc(t.name)+'</b></td><td>'+esc(t.predecessor||'—')+'</td><td>'+durationDays(t)+' d</td><td>'+esc(t.finish||'—')+'</td><td>'+esc(t.owner||'—')+'</td><td><span class="pf-status-pill '+statusClass(t.status)+'">'+esc(t.status)+'</span></td></tr>').join('')||'<tr><td colspan="6">No critical tasks to display.</td></tr>';document.querySelectorAll('#criticalTableBody tr[data-edit]').forEach(tr=>tr.addEventListener('click',()=>editTask(tr.dataset.edit)));
+ const r=computeCritical(),list=tasks.filter(t=>criticalIds.has(t.id));
+ $('criticalCount').textContent=list.length+' critical activities';
+ $('criticalMessage').classList.toggle('has-data',r.dependencies>0||r.unknown>0||r.cycles>0);
+ let message='';
+ if(r.dependencies){
+  message='Longest linked activity chain: '+r.score+' known day(s), '+r.dependencies+' resolved dependency link(s). ';
+  if(r.unknownDurations)message+=r.unknownDurations+' critical task(s) have no usable duration; the total is incomplete. ';
+  message+='Critical path is calculated from resolved predecessor IDs or unique task names.';
+ }else{
+  message='No complete dependency chain has been resolved yet.';
+ }
+ if(r.unknown)message+=' '+r.unknown+' predecessor reference(s) could not be matched uniquely. Check that predecessor values match a task ID or a unique task name.';
+ if(r.cycles)message+=' A circular dependency was detected. Review the links before relying on the critical path.';
+ $('criticalMessage').textContent=message;
+ $('criticalTableBody').innerHTML=list.map(t=>'<tr data-edit="'+t.id+'"><td><b>'+esc(t.name)+'</b></td><td>'+esc(t.predecessor||'—')+'</td><td>'+(durationDays(t)===null?'—':durationDays(t)+' d')+'</td><td>'+esc(scheduleFinish(t)||'—')+'</td><td>'+esc(t.owner||'—')+'</td><td><span class="pf-status-pill '+statusClass(t.status)+'">'+esc(t.status)+'</span></td></tr>').join('')||'<tr><td colspan="6">No critical tasks to display.</td></tr>';
+ document.querySelectorAll('#criticalTableBody tr[data-edit]').forEach(tr=>tr.addEventListener('click',()=>editTask(tr.dataset.edit)));
 }
 function renderReport(){
  computeCritical();const s=getStats(),over=tasks.filter(isOverdue),missing=tasks.filter(t=>!t.start||!t.finish),crit=tasks.filter(t=>criticalIds.has(t.id));$('reportContent').innerHTML='<div class="pf-report-summary"><div class="pf-report-box"><strong>'+tasks.length+'</strong><small>Total activities</small></div><div class="pf-report-box"><strong>'+(s.progress===null?'—':s.progress+'%')+'</strong><small>Overall progress</small></div><div class="pf-report-box"><strong>'+over.length+'</strong><small>Overdue activities</small></div><div class="pf-report-box"><strong>'+s.completed+'</strong><small>Completed activities</small></div></div><section class="pf-report-section"><h3>Executive summary</h3><p>The project currently contains '+tasks.length+' recorded activities. '+s.completed+' are completed, '+s.c['In progress']+' are in progress, '+s.c['Not started']+' have not started, and '+over.length+' are overdue based on the planned finish date. '+(s.progress===null?'The source workbook does not provide usable progress values for a weighted overall progress calculation.':'Duration-weighted overall progress is '+s.progress+'%.')+'</p><p>'+missing.length+' activities are missing planned dates. '+crit.length+' activities are on the calculated critical chain. '+s.owners+' responsible person(s) are identified.</p></section><section class="pf-report-section"><h3>Overdue activities</h3>'+reportTable(over)+'</section><section class="pf-report-section"><h3>Critical activities</h3>'+reportTable(crit)+'</section><section class="pf-report-section"><h3>Data quality observations</h3><ul><li>'+missing.length+' activities require planned start and finish dates.</li><li>'+tasks.filter(t=>!t.owner).length+' activities do not have a responsible person assigned.</li><li>'+tasks.filter(t=>!t.predecessor).length+' activities do not have a dependency link entered.</li><li>Baseline variance is available only for activities that include baseline dates.</li></ul></section>';
