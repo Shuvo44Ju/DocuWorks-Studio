@@ -293,12 +293,13 @@ function readTasks(){
   }
   for(let i=groupStack.length-1;i>=0;i--)if(groupStack[i].indent>=indent)groupStack.splice(i,1);
   if(start&&finish&&isoToDay(finish)<isoToDay(start)){start='';finish='';warnings.invalidDates++}
-  if(start&&!finish&&duration!==null&&duration>0)finish=addDuration(start,duration,durationInfo.working);
-  if(finish&&!start&&duration!==null&&duration>0){start=subtractDuration(finish,duration,durationInfo.working);if(start)warnings.derivedStarts++}
+  let startBasis=start?'Source start date':'Not provided',isMilestone=false;
+  if(start&&finish)startBasis='Source dates';
+  if(start&&!finish&&duration!==null&&duration>0){finish=addDuration(start,duration,durationInfo.working);if(finish)startBasis='Source start + duration'}
+  if(finish&&!start&&duration!==null&&duration>0){start=subtractDuration(finish,duration,durationInfo.working);if(start){warnings.derivedStarts++;startBasis='Derived from deadline + duration'}}
   // A deadline without a duration is shown as a one-day milestone; no missing span is invented.
-  let isMilestone=false;
-  if(finish&&!start&&duration===null){start=finish;duration=1;warnings.milestones++;isMilestone=true}
-  if(start&&!finish&&duration===null){finish=start;duration=1;warnings.milestones++;isMilestone=true}
+  if(finish&&!start&&duration===null){start=finish;duration=1;warnings.milestones++;isMilestone=true;startBasis='Deadline-only milestone'}
+  if(start&&!finish&&duration===null){finish=start;duration=1;warnings.milestones++;isMilestone=true;startBasis='Start-only milestone'}
   if(duration===null&&start&&finish)duration=isoToDay(finish)-isoToDay(start)+1;
   if(!start||!finish)warnings.missingDates++;
   const rawProgress=read('progress'),n=numberValue(rawProgress);
@@ -312,6 +313,7 @@ function readTasks(){
   list.push({
    name:name,group:groups.join(' / '),vendor:taskVendor,status:status,
    indent:indent,start:start,finish:finish,duration:duration,progress:progress,
+   startBasis:startBasis,sourceStart:rawStart,sourceFinish:rawFinish,
    sourceRow:rowIndex+1,isMilestone:isMilestone
   });
  }
@@ -331,7 +333,9 @@ function updatePreview(){
  if(!taskCol)notes.push('Choose the task-name column.');
  if(!startCol&&!finishCol)notes.push('Choose at least one date column: start date or finish date.');
  if((!startCol||!finishCol)&&!durationCol)notes.push('Map both start and finish dates, or add a duration column to calculate the missing date.');
- if(result.warnings.missingDates)notes.push(result.warnings.missingDates+' task(s) do not have a complete date range.');
+ if(result.warnings.derivedStarts)notes.push(result.warnings.derivedStarts+' start date(s) calculated from deadline and duration.');
+ if(result.warnings.milestones)notes.push(result.warnings.milestones+' deadline-only row(s) shown as milestones.');
+ if(result.warnings.missingDates)notes.push(result.warnings.missingDates+' activity rows have no complete dates.');
  if(result.warnings.invalidDates)notes.push(result.warnings.invalidDates+' date value(s) could not be read.');
  if(result.warnings.invalidDurations)notes.push(result.warnings.invalidDurations+' duration value(s) could not be converted.');
  if(!notes.length)notes.push('The detected task names and dates look ready.');
@@ -367,8 +371,8 @@ function buildChart(){
   if(a.start)return -1;if(b.start)return 1;return a.sourceRow-b.sourceRow;
  });
  $('chartTitle').textContent=sourceName||'Gantt chart';
- $('chartSubtitle').textContent=sourceFile+' · '+$('sheetSelect').value+' · '+tasks.length+' activities';
- $('chartSummary').textContent=tasks.length+' activities · '+tasks.filter(t=>t.start&&t.finish).length+' scheduled';
+ $('chartSubtitle').textContent=sourceFile+' · '+$('sheetSelect').value+' · Start dates derived from duration and deadline when the source start is blank';
+ $('chartSummary').textContent=tasks.length+' activities · '+tasks.filter(t=>t.start&&t.finish).length+' scheduled · '+tasks.filter(t=>t.isMilestone).length+' milestones';
  const missing=tasks.filter(t=>!t.start||!t.finish).length;
  $('missingDates').textContent=missing?missing+' activities have incomplete dates':'All activities have dates';
  $('importPanel').hidden=true;$('chartPanel').hidden=false;$('chartPanel').scrollIntoView({behavior:'smooth',block:'start'});
@@ -389,7 +393,7 @@ function renderChart(){
  if(!range){
   timeline.style.width='700px';timeline.style.height=(64+count*46)+'px';timeline.appendChild(head);
   tasks.forEach(t=>{
-   const label=document.createElement('div');label.className='task-label';label.innerHTML='<strong>'+esc(t.name)+'</strong><small>No complete dates</small>';labels.appendChild(label);
+   const label=document.createElement('div');label.className='task-label';const meta=[t.group,t.vendor?'Vendor: '+t.vendor:'',t.status].filter(Boolean).join(' · ');label.innerHTML='<strong>'+esc(t.name)+'</strong><small>'+esc(meta||'No dates supplied')+'</small>';labels.appendChild(label);
    const row=document.createElement('div');row.className='gantt-row';row.style.width='700px';const no=document.createElement('span');no.className='no-date';no.textContent='Dates not available';row.appendChild(no);timeline.appendChild(row);
   });
   return;
@@ -421,9 +425,9 @@ function renderChart(){
   const row=document.createElement('div');row.className='gantt-row';row.style.width=total+'px';row.style.backgroundSize=(step*px)+'px 100%';
   if(task.start&&task.finish&&isoToDay(task.finish)>=isoToDay(task.start)){
    const left=(isoToDay(task.start)-range.start)*px,width=(isoToDay(task.finish)-isoToDay(task.start)+1)*px;
-   const bar=document.createElement('div');bar.className='gantt-bar';bar.style.left=left+'px';bar.style.width=Math.max(4,width)+'px';
-   bar.title=[task.group,task.name,task.vendor?'Vendor: '+task.vendor:'',task.start+' to '+task.finish,task.status,task.progress===null?'':task.progress+'% complete','Source row '+task.sourceRow].filter(Boolean).join(' · ');
-   if(task.progress!==null){const progress=document.createElement('div');progress.className='gantt-progress';progress.style.width=task.progress+'%';bar.appendChild(progress)}
+   const bar=document.createElement('div');bar.className='gantt-bar'+(task.isMilestone?' gantt-milestone':'');bar.style.left=left+'px';bar.style.width=task.isMilestone?'12px':Math.max(4,width)+'px';
+   bar.title=[task.group,task.name,task.vendor?'Vendor: '+task.vendor:'',task.start+' to '+task.finish,task.startBasis,task.status,task.progress===null?'':task.progress+'% complete','Source row '+task.sourceRow].filter(Boolean).join(' · ');
+   if(task.progress!==null&&!task.isMilestone){const progress=document.createElement('div');progress.className='gantt-progress';progress.style.width=task.progress+'%';bar.appendChild(progress)}
    if(width>100){const name=document.createElement('span');name.textContent=task.name;bar.appendChild(name)}
    row.appendChild(bar);
   }else{const no=document.createElement('span');no.className='no-date';no.textContent='No complete schedule';row.appendChild(no)}
@@ -439,8 +443,8 @@ function addExcelRowsFromSource(ws){
 }
 function buildExportTasksRows(){
  return [
-  ['Equipment / Group','Task / Activity','Vendor','Start date','Finish date','Duration (days)','Progress (%)','Status','Source row'],
-  ...tasks.map(t=>[t.group||'',t.name,t.vendor||'',t.start||'',t.finish||'',t.duration===null?'':t.duration,t.progress===null?'':t.progress,t.status||'',t.sourceRow])
+  ['Equipment / Group','Task / Activity','Vendor','Start date','Finish date','Duration (days)','Progress (%)','Status','Start date basis','Source row'],
+  ...tasks.map(t=>[t.group||'',t.name,t.vendor||'',t.start||'',t.finish||'',t.duration===null?'':t.duration,t.progress===null?'':t.progress,t.status||'',t.startBasis||'',t.sourceRow])
  ];
 }
 async function exportExcel(){
@@ -452,7 +456,7 @@ async function exportExcel(){
   const ws=wb.addWorksheet('Gantt Chart');
   const range=getRange();
   const startDay=range?range.start:null,endDay=range?range.end:null,dayCount=range?range.days:0;
-  const fixedColumnCount=9,timelineColumn=10,lastColumn=fixedColumnCount+dayCount;
+  const fixedColumnCount=11,timelineColumn=12,lastColumn=fixedColumnCount+dayCount;
   ws.mergeCells(1,1,1,Math.max(fixedColumnCount,lastColumn));
   ws.getCell(1,1).value='PROJECT GANTT CHART';
   ws.getCell(1,1).font={name:'Aptos Display',size:16,bold:true,color:{argb:'FFFFFFFF'}};
@@ -461,14 +465,14 @@ async function exportExcel(){
   ws.mergeCells(2,1,2,Math.max(fixedColumnCount,lastColumn));
   ws.getCell(2,1).value='Source: '+sourceFile+'  |  Worksheet: '+$('sheetSelect').value+'  |  Generated: '+new Date().toLocaleString();
   ws.getCell(2,1).font={italic:true,size:9,color:{argb:'FF667891'}};
-  const fixedHeaders=['No.','Equipment / Group','Task / Activity','Vendor','Start date','Finish date','Duration (days)','Progress (%)','Status'];
+  const fixedHeaders=['No.','Equipment / Group','Task / Activity','Vendor','Start date','Finish date','Duration (days)','Progress (%)','Status','Start date basis','Source row'];
   const headerRowValues=fixedHeaders.slice();
   if(range){for(let day=startDay;day<=endDay;day++)headerRowValues.push(new Date(day*86400000))}
   const header=ws.addRow(headerRowValues);header.height=34;
   header.eachCell(cell=>{cell.font={bold:true,color:{argb:'FFFFFFFF'},size:9};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF385D8A'}};cell.alignment={vertical:'middle',horizontal:'center',wrapText:true};cell.border={bottom:{style:'thin',color:{argb:'FFCFD8E5'}}}});
   if(range){for(let c=timelineColumn;c<=lastColumn;c++)ws.getCell(3,c).numFmt='dd-mmm'}
   tasks.forEach((task,index)=>{
-   const rowValues=[index+1,task.group||'',task.name,task.vendor||'',task.start?new Date(isoToDay(task.start)*86400000):'',task.finish?new Date(isoToDay(task.finish)*86400000):'',task.duration===null?'':task.duration,task.progress===null?'':task.progress,task.status||''];
+   const rowValues=[index+1,task.group||'',task.name,task.vendor||'',task.start?new Date(isoToDay(task.start)*86400000):'',task.finish?new Date(isoToDay(task.finish)*86400000):'',task.duration===null?'':task.duration,task.progress===null?'':task.progress,task.status||'',task.startBasis||'',task.sourceRow];
    if(range){for(let day=startDay;day<=endDay;day++)rowValues.push('')}
    const row=ws.addRow(rowValues);row.height=21;
    row.getCell(1).alignment={horizontal:'center',vertical:'middle'};
@@ -491,13 +495,13 @@ async function exportExcel(){
   });
   ws.columns[0].width=6;ws.columns[1].width=29;ws.columns[2].width=34;ws.columns[3].width=22;ws.columns[4].width=14;ws.columns[5].width=14;ws.columns[6].width=15;ws.columns[7].width=13;ws.columns[8].width=27;
   if(range){for(let c=timelineColumn;c<=lastColumn;c++)ws.getColumn(c).width=4.2}
-  ws.views=[{state:'frozen',xSplit:fixedColumnCount,ySplit:3,topLeftCell:'J4',showGridLines:false}];
+  ws.views=[{state:'frozen',xSplit:fixedColumnCount,ySplit:3,topLeftCell:'L4',showGridLines:false}];
   ws.autoFilter={from:{row:3,column:1},to:{row:3+tasks.length,column:fixedColumnCount}};
   const data=wb.addWorksheet('Task Data');
   data.addRows(buildExportTasksRows());
   data.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};
   data.getRow(1).eachCell(cell=>{cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF385D8A'}};cell.alignment={vertical:'middle'}});
-  data.columns=[{width:29},{width:36},{width:24},{width:15},{width:15},{width:16},{width:14},{width:28},{width:13}];
+  data.columns=[{width:29},{width:36},{width:24},{width:15},{width:15},{width:16},{width:14},{width:28},{width:29},{width:13}];
   data.views=[{state:'frozen',ySplit:1,showGridLines:false}];
   const original=wb.addWorksheet('Original Data');addExcelRowsFromSource(original);
   const buffer=await wb.xlsx.writeBuffer();
@@ -506,15 +510,15 @@ async function exportExcel(){
  }catch(error){
   try{
    if(!window.XLSX)await loadXLSX();
-   const range=getRange(),rows=[['PROJECT GANTT CHART'],['Source: '+sourceFile+' | Worksheet: '+$('sheetSelect').value],['No.','Equipment / Group','Task / Activity','Vendor','Start date','Finish date','Duration (days)','Progress (%)','Status']];
+   const range=getRange(),rows=[['PROJECT GANTT CHART'],['Source: '+sourceFile+' | Worksheet: '+$('sheetSelect').value],['No.','Equipment / Group','Task / Activity','Vendor','Start date','Finish date','Duration (days)','Progress (%)','Status','Start date basis','Source row']];
    if(range){for(let d=range.start;d<=range.end;d++)rows[2].push(dayToISO(d))}
    tasks.forEach((t,i)=>{
-    const row=[i+1,t.group||'',t.name,t.vendor||'',t.start,t.finish,t.duration===null?'':t.duration,t.progress===null?'':t.progress,t.status||''];
+    const row=[i+1,t.group||'',t.name,t.vendor||'',t.start,t.finish,t.duration===null?'':t.duration,t.progress===null?'':t.progress,t.status||'',t.startBasis||'',t.sourceRow];
     if(range){for(let d=range.start;d<=range.end;d++)row.push(t.start&&t.finish&&d>=isoToDay(t.start)&&d<=isoToDay(t.finish)?'■':'')}
     rows.push(row);
    });
    const book=XLSX.utils.book_new(),sheet=XLSX.utils.aoa_to_sheet(rows);
-   sheet['!cols']=[{wch:6},{wch:29},{wch:36},{wch:24},{wch:14},{wch:14},{wch:16},{wch:13},{wch:28}];
+   sheet['!cols']=[{wch:6},{wch:29},{wch:36},{wch:24},{wch:14},{wch:14},{wch:16},{wch:13},{wch:28},{wch:29},{wch:12}];
    XLSX.utils.book_append_sheet(book,sheet,'Gantt Chart');
    XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet(buildExportTasksRows()),'Task Data');
    if(sourceMatrix.length)XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet(sourceMatrix),'Original Data');
