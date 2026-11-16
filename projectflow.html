@@ -4,123 +4,63 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#f7f9fc">
-<title>ProjectFlow | DocuWorks Studio</title>
+<title>ProjectFlow | Excel to Gantt | DocuWorks Studio</title>
 <link rel="stylesheet" href="./projectflow.css">
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
-<header class="pf-topbar">
-  <a class="pf-brand" href="./index.html"><span class="pf-brandmark">↗</span><span>DocuWorks <b>Studio</b><small>PROJECTFLOW</small></span></a>
-  <div class="pf-projectname"><span class="pf-dot"></span><input id="projectName" value="Untitled project" aria-label="Project name"></div>
-  <div class="pf-topactions">
-    <button class="pf-btn pf-btn-light" id="updateBtn">↻ Update from Excel</button>
-    <button class="pf-btn pf-btn-primary" id="importBtn">＋ Import Excel</button>
-    <div class="pf-export-wrap"><button class="pf-btn pf-btn-light" id="exportMenuBtn">Export ▾</button><div class="pf-export-menu" id="exportMenu"><button data-export="xlsx">Excel workbook (.xlsx)</button><button data-export="xml">Microsoft Project XML (.xml)</button><button data-export="csv">Task list (.csv)</button><button data-export="print-gantt">Print Gantt chart / PDF</button><button data-export="print">Print status report / PDF</button></div></div>
-  </div>
+<header class="topbar">
+  <a class="brand" href="./index.html"><span class="brand-mark">↗</span><span>DocuWorks <b>Studio</b><small>PROJECTFLOW</small></span></a>
+  <div class="header-title">Excel to Gantt chart</div>
+  <a class="back-link" href="./index.html">← Studio home</a>
 </header>
-<div class="pf-shell">
-  <aside class="pf-sidebar">
-    <div class="pf-side-label">PROJECT WORKSPACE</div>
-    <button class="pf-nav active" data-view="overview"><span>▦</span> Overview</button>
-    <button class="pf-nav" data-view="gantt"><span>▤</span> Gantt chart</button>
-    <button class="pf-nav" data-view="tasks"><span>☷</span> Task list</button>
-    <button class="pf-nav" data-view="resources"><span>♙</span> Resources</button>
-    <button class="pf-nav" data-view="critical"><span>⌁</span> Critical path</button>
-    <div class="pf-side-divider"></div>
-    <div class="pf-side-label">PROJECT TOOLS</div>
-    <button class="pf-nav" id="newTaskSide"><span>＋</span> Add task</button>
-    <button class="pf-nav" id="reportBtn"><span>▧</span> Project report</button>
-    <div class="pf-sidebar-bottom"><div class="pf-local-mark">✓</div><div><b>Private by design</b><small>Your workbook is processed in this browser. It is not uploaded to a server.</small></div></div>
-  </aside>
-  <main class="pf-main">
-    <div class="pf-empty" id="emptyState">
-      <div class="pf-empty-graphic"><div class="pf-file-icon">XLS</div><div class="pf-arrow">→</div><div class="pf-gantt-icon"><i></i><i></i><i></i><i></i></div></div>
-      <div class="pf-eyebrow">EXCEL TO PROJECT PLANNER</div>
-      <h1>Turn your project status Excel into a live project plan.</h1>
-      <p>Upload your CS or project-status workbook. ProjectFlow reads the columns, lets you confirm the mapping, and builds an editable task register and Gantt timeline.</p>
-      <div class="pf-empty-actions"><button class="pf-btn pf-btn-primary pf-btn-large" id="emptyImportBtn">Choose Excel workbook</button><button class="pf-btn pf-btn-light pf-btn-large" id="sampleBtn">Explore with sample project</button></div>
-      <div class="pf-supported">Supports .xlsx, .xls and .csv · Multiple sheets · Smart column recognition · Microsoft Project XML export</div>
-      <div class="pf-feature-strip"><span>✓ Smart import</span><span>✓ Editable schedule</span><span>✓ Dependencies</span><span>✓ Baseline tracking</span></div>
+<main class="workspace">
+  <section class="panel import-panel" id="importPanel">
+    <div class="eyebrow">SIMPLE EXCEL SCHEDULE VIEWER</div>
+    <h1>Turn your Excel schedule into a Gantt chart.</h1>
+    <p class="intro">Upload your project Excel file. ProjectFlow will read the task names and dates, then build the timeline for you.</p>
+    <label class="dropzone" for="fileInput" id="dropzone">
+      <span class="file-icon">XLS</span>
+      <span class="drop-title" id="dropTitle">Choose your Excel file</span>
+      <span class="drop-subtitle" id="dropSubtitle">Drag and drop here, or click to browse · .xlsx, .xls, .csv</span>
+      <input id="fileInput" type="file" accept=".xlsx,.xls,.csv">
+    </label>
+    <div class="import-settings" id="importSettings" hidden>
+      <div class="section-heading">
+        <div><h2>Check the detected columns</h2><p id="fileInfo">Your workbook is ready to review.</p></div>
+        <span class="detected-tag" id="rowCount">0 tasks detected</span>
+      </div>
+      <div class="settings-grid">
+        <label>Worksheet<select id="sheetSelect"></select></label>
+        <label>Header row<select id="headerSelect"></select></label>
+        <label>Date format<select id="dateOrder"><option value="DMY">DD/MM/YYYY</option><option value="MDY">MM/DD/YYYY</option></select></label>
+      </div>
+      <div class="mapping-grid">
+        <label>Task / activity name <em>Required</em><select id="taskColumn"></select></label>
+        <label>Start date <em>Required</em><select id="startColumn"></select></label>
+        <label>Finish date <em>Required*</em><select id="finishColumn"></select></label>
+        <label>Duration <em>Optional</em><select id="durationColumn"></select></label>
+        <label>Progress (%) <em>Optional</em><select id="progressColumn"></select></label>
+      </div>
+      <div class="quality-line" id="qualityLine">Select the columns used in your spreadsheet.</div>
+      <div class="preview-wrap"><div class="preview-heading">Data preview <span>First five task rows</span></div><div class="preview-scroll"><table id="previewTable"></table></div></div>
+      <div class="settings-actions"><button class="btn btn-primary" id="buildButton" disabled>Build Gantt chart →</button></div>
     </div>
-    <section id="projectWorkspace" hidden>
-      <div class="pf-pagehead"><div><div class="pf-eyebrow" id="viewEyebrow">PROJECT CONTROL CENTER</div><h1 id="viewTitle">Project overview</h1><p id="viewSubtitle">A live view of your schedule, delivery and execution status.</p></div><div class="pf-head-actions"><span class="pf-file-pill" id="sourceFilePill">No workbook loaded</span><button class="pf-btn pf-btn-light" id="addTaskBtn">＋ Add task</button></div></div>
-      <div id="overviewView" class="pf-view">
-        <div class="pf-kpis" id="kpiGrid"></div>
-        <div class="pf-dashboard-grid">
-          <article class="pf-card pf-progress-card"><div class="pf-card-head"><div><h3>Overall progress</h3><p>Duration-weighted task completion</p></div><span class="pf-mini-tag">LIVE</span></div><div class="pf-progress-body"><div class="pf-donut" id="progressDonut"><div><strong id="overallProgress">0%</strong><small>complete</small></div></div><div class="pf-progress-legend" id="progressLegend"></div></div></article>
-          <article class="pf-card"><div class="pf-card-head"><div><h3>Schedule health</h3><p>Planned dates compared with today</p></div></div><div class="pf-health-list" id="healthList"></div></article>
-          <article class="pf-card pf-wide"><div class="pf-card-head"><div><h3>Upcoming milestones & activities</h3><p>Next scheduled tasks requiring attention</p></div><button class="pf-text-btn" data-go="gantt">Open timeline →</button></div><div id="upcomingList" class="pf-compact-list"></div></article>
-          <article class="pf-card"><div class="pf-card-head"><div><h3>Work by status</h3><p>Current task distribution</p></div></div><div id="statusChart" class="pf-status-chart"></div></article>
-          <article class="pf-card"><div class="pf-card-head"><div><h3>Responsible people</h3><p>Task ownership overview</p></div><button class="pf-text-btn" data-go="resources">View all →</button></div><div id="ownerSummary" class="pf-owner-list"></div></article>
-        </div>
-        <article class="pf-card pf-gantt-preview"><div class="pf-card-head"><div><h3>Schedule snapshot</h3><p>First activities on your timeline</p></div><button class="pf-text-btn" data-go="gantt">Full Gantt chart →</button></div><div id="overviewGantt" class="pf-gantt-mini"></div></article>
-        <div id="importNotes" class="pf-import-notes" hidden></div>
-      </div>
-      <div id="ganttView" class="pf-view" hidden>
-        <div class="pf-toolbar"><div class="pf-filter-group"><input class="pf-search" id="ganttSearch" placeholder="Search activities..." type="search"><select id="ganttFilter" class="pf-select"><option value="all">All activities</option><option value="overdue">Overdue</option><option value="critical">Critical path</option><option value="nodates">Missing dates</option></select></div><div class="pf-toolbar-right"><label class="pf-zoom-label">Scale</label><select id="zoomSelect" class="pf-select"><option value="day">Days</option><option value="week" selected>Weeks</option><option value="month">Months</option></select><button class="pf-btn pf-btn-light" id="todayBtn">Today</button></div></div>
-        <div class="pf-gantt-shell"><div class="pf-gantt-labels"><div class="pf-gantt-label-head">ACTIVITY <span id="ganttTaskCount">0</span></div><div id="ganttLabels"></div></div><div class="pf-gantt-scroll" id="ganttScroll"><div class="pf-gantt-track" id="ganttTrack"></div></div></div>
-        <div class="pf-legend"><span><i class="legend-baseline"></i> Baseline</span><span><i class="legend-planned"></i> Planned</span><span><i class="legend-actual"></i> Actual</span><span><i class="legend-progress"></i> Completed portion</span><span><i class="legend-critical"></i> Critical path</span><span><i class="legend-dependency"></i> Dependency</span><span><i class="legend-milestone"></i> Milestone</span><span><i class="legend-today"></i> Today</span></div>
-      </div>
-      <div id="tasksView" class="pf-view" hidden>
-        <div class="pf-toolbar"><div class="pf-filter-group"><input class="pf-search" id="taskSearch" placeholder="Search task, owner, supplier, reference..." type="search"><select class="pf-select" id="taskStatusFilter"><option value="all">All statuses</option><option>Not started</option><option>In progress</option><option>On hold</option><option>Completed</option><option>Cancelled</option><option>Needs review</option></select></div><div class="pf-toolbar-right"><span class="pf-count-label" id="taskCountLabel"></span><button class="pf-btn pf-btn-light" id="deleteSelectedBtn" disabled>Delete selected</button></div></div>
-        <div class="pf-table-wrap"><table class="pf-task-table"><thead><tr><th><input type="checkbox" id="selectAllTasks" aria-label="Select all tasks"></th><th>Task / equipment</th><th>Responsible</th><th>Start</th><th>Finish / delivery</th><th>Finish variance</th><th>Duration</th><th>Progress</th><th>Status</th><th></th></tr></thead><tbody id="taskTableBody"></tbody></table><div class="pf-table-empty" id="taskTableEmpty" hidden>No tasks match these filters.</div></div>
-        <div class="pf-table-foot"><span>Click any task row to edit dates, status, dependencies and other details.</span><span id="dataWarnings"></span></div>
-      </div>
-      <div id="resourcesView" class="pf-view" hidden>
-        <div class="pf-resource-intro"><div><h2>Resource & responsibility view</h2><p>See task allocation and schedule exposure by responsible person.</p></div><select class="pf-select" id="resourceFilter"><option value="all">All resources</option></select></div>
-        <div id="resourceGrid" class="pf-resource-grid"></div>
-      </div>
-      <div id="criticalView" class="pf-view" hidden>
-        <div class="pf-critical-intro"><div><div class="pf-eyebrow">SCHEDULE ANALYSIS</div><h2>Critical path</h2><p>Activities that determine the current project finish, based on entered dependencies and durations.</p></div><div class="pf-critical-count" id="criticalCount">0 critical activities</div></div>
-        <div class="pf-alert" id="criticalMessage">No dependency chain has been detected yet. Add predecessor links to tasks to calculate the critical path.</div>
-        <div class="pf-table-wrap"><table class="pf-task-table"><thead><tr><th>Task</th><th>Predecessor</th><th>Duration</th><th>Finish</th><th>Responsible</th><th>Status</th></tr></thead><tbody id="criticalTableBody"></tbody></table></div>
-      </div>
-      <div id="reportView" class="pf-view" hidden>
-        <div class="pf-report-head"><div><div class="pf-eyebrow">MANAGEMENT REPORT</div><h2>Project status report</h2><p>Management-ready summary based on the imported workbook and current project updates.</p></div><button class="pf-btn pf-btn-primary" id="printReportBtn">Print report / PDF</button></div>
-        <div id="reportContent"></div>
-      </div>
-    </section>
-  </main>
-</div>
-<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden>
-<div class="pf-overlay" id="importOverlay" hidden>
-  <div class="pf-dialog pf-import-dialog">
-    <div class="pf-dialog-head"><div><div class="pf-eyebrow">SMART EXCEL IMPORT</div><h2>Review your workbook</h2><p id="importFileDescription">Choose a sheet and confirm which columns represent your project fields.</p></div><button class="pf-icon-close" id="closeImport">×</button></div>
-    <div class="pf-import-meta"><label>Worksheet <select id="sheetSelect" class="pf-select"></select></label><label>Header row <select id="headerRowSelect" class="pf-select"></select></label><label>Date format <select id="dateOrder" class="pf-select"><option value="DMY" selected>DD/MM/YYYY (Bangladesh)</option><option value="MDY">MM/DD/YYYY</option></select></label><div class="pf-import-count" id="importRowCount">0 rows detected</div></div>
-    <div class="pf-mapping-layout"><div class="pf-mapping-panel"><div class="pf-panel-title"><b>Column mapping</b><span>Auto-matched · Review before import</span></div><div id="mappingRows" class="pf-mapping-rows"></div></div><div class="pf-preview-panel"><div class="pf-panel-title"><b>Data preview</b><span>First 5 task records · up to 10 fields</span></div><div id="importQuality" class="pf-import-quality">Checking spreadsheet structure…</div><div class="pf-preview-scroll"><table id="importPreview" class="pf-preview-table"></table></div><div class="pf-map-help">Merged cells and grouped headers are recognised where possible. Review the date format and field mapping. Missing or unclear dates are left blank rather than invented.</div></div></div>
-    <div class="pf-import-footer"><div class="pf-merge-choice"><span id="mergeHint">Choose how this workbook should be applied.</span><label><input type="radio" name="importMode" value="replace" checked> Replace project</label><label id="mergeRadioWrap"><input type="radio" name="importMode" value="merge"> Merge updates</label></div><div class="pf-dialog-actions"><button class="pf-btn pf-btn-light" id="cancelImport">Cancel</button><button class="pf-btn pf-btn-primary" id="confirmImport">Build project →</button></div></div>
-  </div>
-</div>
-<div class="pf-overlay" id="taskOverlay" hidden>
-  <div class="pf-dialog pf-task-dialog">
-    <div class="pf-dialog-head"><div><div class="pf-eyebrow">TASK DETAILS</div><h2 id="taskModalTitle">Edit activity</h2><p>Update the schedule and execution details for this activity.</p></div><button class="pf-icon-close" id="closeTask">×</button></div>
-    <form id="taskForm">
-      <input type="hidden" id="editTaskId">
-      <div class="pf-form-grid">
-        <label class="pf-field pf-span-2">Task / equipment name<input id="editName" required></label>
-        <label class="pf-field">PR / PO / CS reference<input id="editReference" placeholder="Reference number"></label>
-        <label class="pf-field">Responsible person<input id="editOwner" list="ownerOptions"></label>
-        <label class="pf-field">Supplier / contractor<input id="editSupplier"></label>
-        <label class="pf-field">Planned start<input id="editStart" type="date"></label>
-        <label class="pf-field">Planned finish<input id="editFinish" type="date"></label>
-        <label class="pf-field">Duration (days)<input id="editDuration" type="number" min="0" step="1"></label>
-        <label class="pf-field">Progress (%)<input id="editProgress" type="number" min="0" max="100" step="1"></label>
-        <label class="pf-field">Status<select id="editStatus"><option>Not started</option><option>In progress</option><option>On hold</option><option>Completed</option><option>Cancelled</option><option>Needs review</option></select></label>
-        <label class="pf-field">Priority<select id="editPriority"><option>Normal</option><option>Low</option><option>High</option><option>Critical</option></select></label>
-        <label class="pf-field">Predecessor(s)<input id="editPredecessor" placeholder="Task ID or task name"></label>
-        <label class="pf-field">Milestone<select id="editMilestone"><option value="no">No</option><option value="yes">Yes</option></select></label>
-        <label class="pf-field">Baseline start<input id="editBaselineStart" type="date"></label>
-        <label class="pf-field">Baseline finish<input id="editBaselineFinish" type="date"></label>
-        <label class="pf-field">Actual start<input id="editActualStart" type="date"></label>
-        <label class="pf-field">Actual finish<input id="editActualFinish" type="date"></label>
-        <label class="pf-field pf-span-2">Remarks / current update<textarea id="editNotes" rows="3"></textarea></label>
-      </div>
-      <div class="pf-dialog-actions"><button type="button" class="pf-btn pf-btn-light" id="deleteTaskBtn">Delete task</button><span class="pf-dialog-spacer"></span><button type="button" class="pf-btn pf-btn-light" id="cancelTask">Cancel</button><button type="submit" class="pf-btn pf-btn-primary">Save task</button></div>
-    </form>
-    <datalist id="ownerOptions"></datalist>
-  </div>
-</div>
-<div class="pf-toast" id="toast"></div>
+  </section>
+
+  <section class="panel chart-panel" id="chartPanel" hidden>
+    <div class="chart-heading">
+      <div><div class="eyebrow">PROJECT TIMELINE</div><h1 id="chartTitle">Gantt chart</h1><p id="chartSubtitle">Activities from your Excel workbook.</p></div>
+      <div class="chart-actions"><button class="btn btn-light" id="changeFileButton">Choose another Excel</button><button class="btn btn-primary" id="exportButton">↓ Export Excel</button></div>
+    </div>
+    <div class="chart-toolbar"><span id="chartSummary">0 activities</span><label>Timeline scale<select id="scaleSelect"><option value="day">Days</option><option value="week" selected>Weeks</option><option value="month">Months</option></select></label></div>
+    <div class="gantt-shell">
+      <div class="task-column"><div class="task-column-head">TASK / ACTIVITY</div><div id="taskLabels"></div></div>
+      <div class="timeline-scroll" id="timelineScroll"><div class="timeline" id="timeline"></div></div>
+    </div>
+    <div class="chart-footer"><span><i class="legend-planned"></i> Planned schedule</span><span><i class="legend-progress"></i> Progress completed</span><span id="missingDates"></span></div>
+  </section>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</main>
 <script src="./projectflow.js"></script>
 </body>
 </html>
