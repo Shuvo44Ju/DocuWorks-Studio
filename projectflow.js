@@ -278,7 +278,7 @@ async function exportExcel(){
   kpis.forEach((k,i)=>{const c=i*2;put(3,c,k[0],style(blue,white,true,'center'));put(3,c+1,k[1],style('F2F6FC',dark,true,'center'));});
   const legendStyles=[style('F4F7FA',dark,true,'left'),style('E2F0D9','375623',true,'center'),style('DDEBF7','1F4E78',true,'center'),style('FCE4D6','9C0006',true,'center'),style('E8EEF7','44546A',true,'center'),style('D9E2F3',navy,true,'center')];
   for(let c=0;c<6;c++)put(4,c,gantt[4][c],legendStyles[c]);
-  for(let c=0;c<6;c++)put(6,c,['WORK PACKAGE / ACTIVITY','VENDOR / RESPONSIBLE','START DATE','FINISH DATE','DURATION (DAYS)','STATUS'][c],style('DCE6F1',dark,true,'center',true));
+  for(let c=0;c<6;c++)put(5,c,['WORK PACKAGE / ACTIVITY','VENDOR / RESPONSIBLE','START DATE','FINISH DATE','DURATION (DAYS)','STATUS'][c],style(navy,white,true,'center',true));
   weeks.forEach((d,i)=>{
    const c=6+i,month=new Date(d*DAY).toLocaleDateString('en-GB',{month:'long',year:'numeric',timeZone:'UTC'});
    put(5,c,month,style(navy,white,true,'center'));
@@ -316,7 +316,6 @@ async function exportExcel(){
   const monthCols=weeks.length;
   ws['!cols']=[{wch:44},{wch:27},{wch:16},{wch:16},{wch:17},{wch:17},...Array(monthCols).fill({wch:12})];
   ws['!rows']=[{hpt:34},{hpt:23},{hpt:8},{hpt:27},{hpt:24},{hpt:25},{hpt:28},...data.tasks.map(t=>({hpt:t.group?25:23}))];
-  ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:6,c:0},e:{r:6+data.tasks.length,c:5}})};
   ws['!sheetViews']=[{showGridLines:false}];
   ws['!tabColor']={rgb:'4472C4'};
   ws['!freeze']={xSplit:6,ySplit:7};
