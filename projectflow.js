@@ -180,6 +180,7 @@ function rowsOf(wb,name){
  return window.XLSX.utils.sheet_to_json(s,{header:1,defval:'',raw:true,blankrows:true});
 }
 function state(t){
+ if(t.group)return t.start?'Summary':'';
  if(t.done)return'Done';
  const today=dayUTC(new Date().getFullYear(),new Date().getMonth()+1,new Date().getDate());
  if(!t.end)return'No date';
