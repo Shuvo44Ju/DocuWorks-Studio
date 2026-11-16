@@ -8,6 +8,7 @@ on:
     paths:
       - agent-tools.js
       - ai-assistant.js
+      - service-worker.js
       - functions/api/assistant.js
       - project360.html
       - .github/tests/ai-agent.test.cjs
