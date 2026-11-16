@@ -42,7 +42,7 @@ function isoFromParts(y,m,d){
 function parseDate(v,order,date1904){
  if(v===null||v===undefined||v==='')return '';
  if(v instanceof Date&&!isNaN(v))return isoFromParts(v.getUTCFullYear(),v.getUTCMonth()+1,v.getUTCDate());
- if(typeof v==='number'&&isFinite(v)&&v>=1&&v<=2958465){
+ if(typeof v==='number'&&isFinite(v)&&v>=(date1904?0:1)&&v<=2958465){
   const base=date1904?Date.UTC(1904,0,1):Date.UTC(1899,11,30);
   const d=new Date(base+Math.floor(v)*86400000);
   return isoFromParts(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());
@@ -348,10 +348,10 @@ function commitImport(){
 function showWorkspace(){$('emptyState').hidden=true;$('projectWorkspace').hidden=false}
 function statusClass(s){return norm(s).replace(/\s+/g,'-')}
 function statusCounts(){const c={'Not started':0,'In progress':0,'On hold':0,'Completed':0,'Cancelled':0,'Needs review':0};tasks.forEach(t=>c[t.status]=(c[t.status]||0)+1);return c}
-function scheduleStart(t){return t.start||t.actualStart||''}
-function scheduleFinish(t){return t.finish||t.actualFinish||''}
+function scheduleStart(t){if(t.start&&t.finish)return t.start;if(t.actualStart&&t.actualFinish)return t.actualStart;return ''}
+function scheduleFinish(t){if(t.start&&t.finish)return t.finish;if(t.actualStart&&t.actualFinish)return t.actualFinish;return ''}
 function durationDays(t){
- if(t.duration!==null&&t.duration!==undefined&&t.duration!=='')return Math.max(0,Number(t.duration));
+ if(t.duration!==null&&t.duration!==undefined&&t.duration!==''){const n=Number(t.duration);if(isFinite(n))return Math.max(0,n)}
  const a=scheduleStart(t),b=scheduleFinish(t);if(a&&b)return Math.max(1,daySpan(a,b)+1);return null;
 }
 function varianceDays(t){const base=t.baselineFinish,actual=t.actualFinish||t.finish;if(!base||!actual)return null;return Math.round((fromISO(actual)-fromISO(base))/86400000)}
@@ -505,8 +505,8 @@ function renderGantt(){
     const shift=Math.round((e.clientX-d.x)/width);
     if(shift===0){bar.style.transform='';bar.style.width=(dur*width)+'px';suppressClick=true;return}
     const a=fromISO(d.start),b=fromISO(d.finish);
-    if(d.resize){const days=Math.max(1,d.duration+shift);b.setDate(a.getDate()+days-1);t.finish=iso(b);t.duration=days}
-    else{a.setDate(a.getDate()+shift);b.setDate(b.getDate()+shift);if(hasPlan){t.start=iso(a);t.finish=iso(b)}else{t.actualStart=iso(a);t.actualFinish=iso(b)}}
+    if(d.resize){const days=Math.max(1,d.duration+shift),newFinish=dayToISO(dayNumber(d.start)+days-1);if(hasPlan)t.finish=newFinish;else t.actualFinish=newFinish;t.duration=days}
+    else{const newStart=dayToISO(dayNumber(d.start)+shift),newFinish=dayToISO(dayNumber(d.finish)+shift);if(hasPlan){t.start=newStart;t.finish=newFinish}else{t.actualStart=newStart;t.actualFinish=newFinish}}
     suppressClick=true;save();renderAll();toast(d.resize?'Task duration updated':'Task dates moved');
    });
    bar.addEventListener('pointercancel',()=>{drag=null;bar.style.transform='';bar.style.width=(dur*width)+'px'});
@@ -613,7 +613,7 @@ function wire(){
  $('projectName').onchange=()=>{projectName=$('projectName').value.trim()||'Untitled project';$('projectName').value=projectName;save()};
  $('closeTask').onclick=$('cancelTask').onclick=closeTask;$('taskForm').onsubmit=saveTask;$('deleteTaskBtn').onclick=()=>{const id=$('editTaskId').value;if(id&&confirm('Delete this task from the project?'))deleteTask(id)};
  $('taskSearch').oninput=renderTasks;$('taskStatusFilter').onchange=renderTasks;$('deleteSelectedBtn').onclick=deleteSelected;$('selectAllTasks').onchange=e=>{document.querySelectorAll('[data-check]').forEach(c=>{c.checked=e.target.checked;if(e.target.checked)selectedIds.add(c.dataset.check);else selectedIds.delete(c.dataset.check)});$('deleteSelectedBtn').disabled=!selectedIds.size};
- $('ganttSearch').oninput=renderGantt;$('ganttFilter').onchange=renderGantt;$('zoomSelect').onchange=e=>{zoom=e.target.value;renderGantt()};$('todayBtn').onclick=()=>{const r=dateRange;if(r){const x=(today()-r.start)/86400000*(zoom==='day'?29:zoom==='week'?13:4.2);$('ganttScroll').scrollLeft=Math.max(0,x-180)}};
+ $('ganttSearch').oninput=renderGantt;$('ganttFilter').onchange=renderGantt;$('zoomSelect').onchange=e=>{zoom=e.target.value;renderGantt()};$('todayBtn').onclick=()=>{const r=dateRange;if(r){const x=daySpan(iso(r.start),iso(today()))*(zoom==='day'?29:zoom==='week'?13:4.2);$('ganttScroll').scrollLeft=Math.max(0,x-180)}};
  $('resourceFilter').onchange=renderResources;$('reportBtn').onclick=()=>setView('report');$('printReportBtn').onclick=()=>window.print();$('taskTableBody').addEventListener('click',e=>{const row=e.target.closest('tr[data-edit]');if(row&&!e.target.closest('input'))editTask(row.dataset.edit)});
  $('taskOverlay').addEventListener('click',e=>{if(e.target===$('taskOverlay'))closeTask()});$('importOverlay').addEventListener('click',e=>{if(e.target===$('importOverlay'))$('importOverlay').hidden=true});
 }
