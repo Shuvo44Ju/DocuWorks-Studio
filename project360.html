@@ -60,7 +60,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="grid">
 <section class="panel viewer">
 <div class="viewer-head"><h1 id="projectTitle">Project 360° Viewer</h1><span class="status" id="modelStatus">Ready to create</span></div>
-<div class="canvas-wrap" id="canvasWrap"><canvas id="three"></canvas><div class="render-overlay" id="renderOverlay" role="status" aria-live="polite"><div class="render-top"><span class="render-spinner"></span><div><div class="render-title" id="renderTitle">Creating your 360° video</div><div class="render-sub" id="renderSub">Recording the 3D view from every angle</div></div><span class="render-percent" id="renderPercent">0%</span></div><div class="render-track"><i id="viewerProgress"></i></div><div class="render-foot" id="renderFoot">Please keep this page open while recording.</div></div><div class="viewer-error" id="viewerError"><div><b>3D viewer could not start</b><span id="viewerErrorText">Please refresh the page and try again.</span><small>Check the error above. WebGL, browser support, or a failed 3D module may be responsible.</small></div></div><div class="empty-view" id="emptyView"><div><div class="big">◇</div><b>Your 3D project will appear here</b><br>Describe your project, set the building parameters, then click <b>Create 3D Project</b>.<br><br>After creation: drag to rotate · wheel to zoom · right-drag to pan</div></div></div>
+<div class="canvas-wrap" id="canvasWrap"><canvas id="three"></canvas><div class="render-overlay" id="renderOverlay" role="status" aria-live="polite"><div class="render-top"><span class="render-spinner"></span><div><div class="render-title" id="renderTitle">Creating your 360° video</div><div class="render-sub" id="renderSub">Recording the 3D view from every angle</div></div><span class="render-percent" id="renderPercent">0%</span></div><div class="render-track"><i id="viewerProgress"></i></div><div class="render-foot" id="renderFoot">Please keep this page open while recording.</div></div><div class="viewer-error" id="viewerError"><div><b>3D viewer could not start</b><span id="viewerErrorText">Please refresh the page and try again.</span><small>Check the error above. WebGL, browser support, or a failed 3D module may be responsible.</small></div></div><div class="empty-view" id="emptyView"><div><div class="big">◇</div><b>Your building preview will appear here</b><br>Upload your AutoCAD drawing, then choose Generate 2D Drawing or Generate 3D Model.</div></div></div>
 <div class="viewer-foot"><button class="ai-launch" id="askAiToggle" type="button" aria-label="AI assistant"><span>✦</span></button><div class="ai-popover" id="askAiPopover" role="dialog" aria-label="AI assistant"><div class="ai-popover-head"><span aria-hidden="true">✦</span><button class="ai-popover-close" id="askAiClose" type="button" aria-label="Close">✕</button></div><div class="note" style="margin:0">Describe a change and I’ll update the current 3D concept.</div><textarea class="field details" id="changePrompt" placeholder="e.g. Add 3 floors, move the stairs to the left, or change the facade."></textarea><div class="edit-actions"><button class="action main" id="applyChangeBtn">Preview change</button><button class="action" id="undoChangeBtn" disabled>Undo</button><button class="action" id="redoChangeBtn" disabled>Redo</button></div><div class="note" id="changeFeedback">You can keep refining your design.</div><div class="design-preview" id="designPreview"><strong>REVIEW YOUR DESIGN CHANGE</strong><p id="designPreviewText"></p><div class="design-preview-actions"><button class="action main" id="confirmDesignBtn" type="button">Apply to 3D model</button><button class="action" id="cancelDesignBtn" type="button">Cancel</button></div></div></div><div class="edit-toolbar" id="modelEditToolbar" aria-label="3D object editing tools"><span class="edit-status" id="editModeStatus">Double-click an object to select it</span><button class="iconbtn active" id="editSelectBtn" type="button">Select</button><button class="iconbtn" id="editMoveBtn" type="button">Move</button><button class="iconbtn" id="editRotateBtn" type="button">Rotate</button><button class="iconbtn" id="editScaleBtn" type="button">Resize</button><button class="iconbtn" id="editUndoBtn" type="button" disabled>Undo edit</button><button class="iconbtn" id="editRedoBtn" type="button" disabled>Redo edit</button><button class="iconbtn" id="editDeselectBtn" type="button">Deselect</button></div><div class="edit-numeric" id="editNumericPanel" style="display:none" aria-label="Selected object dimensions and position"><label>X position (m)<input id="editPosX" type="number" step="0.05"></label><label>Elevation Y (m)<input id="editPosY" type="number" step="0.05"></label><label>Z position (m)<input id="editPosZ" type="number" step="0.05"></label><label>Width (m)<input id="editSizeX" type="number" min="0.05" step="0.05"></label><label>Height (m)<input id="editSizeY" type="number" min="0.05" step="0.05"></label><label>Depth (m)<input id="editSizeZ" type="number" min="0.05" step="0.05"></label></div><div class="controls"><button class="iconbtn" id="resetBtn">Reset view</button><button class="iconbtn" id="rotateBtn">Auto rotate</button><button class="iconbtn" id="wireBtn">Wireframe</button><button class="iconbtn" id="cutawayBtn" title="Hide the front and right exterior walls to inspect the conceptual room partitions">Interior view</button></div><span>Use Interior view to inspect conceptual rooms · not construction drawings</span></div>
 </section>
 <aside class="right">
@@ -101,7 +101,6 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <h3>IMPORT IPL DHAMRAI VACCINE GROUND-FLOOR PLAN</h3>
 <div class="note" style="margin-top:0">Upload the original DWG or DXF ground-floor drawing. Conversion and analysis run locally in your browser; the drawing is not uploaded to a conversion server. The importer analyses architectural geometry as well as layer names. This drawing is the source of truth—do not create extra floors from it.</div>
 <label class="action main" style="display:block;text-align:center;margin-top:9px">Upload ground-floor DWG / DXF<input type="file" id="cadFile" accept=".dwg,.dxf" style="display:none"></label>
-<div class="cad-actions"><button class="action" id="cadSampleBtn" type="button">Load sample plan</button><button class="action" id="cadClearBtn" type="button">Clear plan</button></div>
 <div id="cadStatus" class="cad-status" aria-live="polite">Ready for the IPL Dhamrai Vaccine ground-floor DWG. Upload the drawing to analyse its actual geometry.</div>
 <div id="cadMappingWrap" class="cad-hidden">
 <div class="cad-ready-summary"><strong id="cadLoadedTitle">Drawing uploaded successfully</strong><span id="cadLoadedMeta">Choose one of the two outputs below.</span></div>
@@ -146,7 +145,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="note">Advanced geometry review may take extra time on large drawings. Use it only when the automatically generated 3D result needs correction. The output is a conceptual reconstruction, not a verified construction or BIM model.</div>
 </div>
 </details>
-</div></div></section>
+</div></section>
 <details class="secondary-options" id="exportOptions">
 <summary>Import / export tools (optional)</summary>
 <section class="panel box">
@@ -1227,7 +1226,7 @@ function cadRoomType(label){
 function cadBuildRoomRecords(entities,scale,providedWallSegments){
  const all=entities||[],bounds=cadBounds(all),extent=Math.max(bounds?.width||0,bounds?.height||0);
  const tolerance=Math.max(.012,Math.min(.12,Math.max(extent*.0008,(Number(el("cadWallThickness")?.value)||.2)*.36/Math.max(scale,.000001))));
- const wallSegments=all.filter(e=>cadEntityRole(e)==="Walls").flatMap(e=>{
+ const wallSegments=Array.isArray(providedWallSegments)?null:all.filter(e=>cadEntityRole(e)==="Walls").flatMap(e=>{
   const pts=cadEntityPoints(e),segments=[];for(let i=1;i<pts.length;i++)segments.push([pts[i-1],pts[i]]);
   if(cadEntityIsClosed(e)&&pts.length>2)segments.push([pts[pts.length-1],pts[0]]);return segments;
  });
@@ -1331,7 +1330,7 @@ function cadActivateFloor(index,snapshot=true,options={}){
  const f=cadFloors[index];cadDocument=f.document;cadDxfText=f.dxfText;cadFileName=f.fileName;cadLayers=f.layers;
  el("cadMappingWrap").classList.remove("cad-hidden");
  if(options.deferAnalysis){
-  cadDetectedRooms=[];cadAnalysisPrepared=false;cadAdvancedAnalysisReady=false;
+  cadDetectedRooms=[];cadAnalysisPrepared=false;cadAdvancedAnalysisReady=false;el("cadStatus").classList.add("cad-hidden");
   const advanced=el("cadAdvanced");if(advanced)advanced.open=false;
   el("cadLoadedTitle").textContent="Drawing uploaded successfully";
   el("cadLoadedMeta").textContent=f.fileName+" · "+cadDocument.entities.length.toLocaleString()+" drawing elements · "+cadLayers.length+" layers";
@@ -1365,7 +1364,7 @@ async function cadReadDrawing(file,statusTarget){
  if(!doc||!Array.isArray(doc.entities)||!doc.entities.length)throw new Error("No supported drawing entities were found in "+file.name+".");return {doc,dxfText};
 }
 async function cadLoadFile(file){
- const input=el("cadFile");input.disabled=true;
+ const input=el("cadFile");input.disabled=true;el("cadStatus").classList.remove("cad-hidden");
  try{const {doc,dxfText}=await cadReadDrawing(file,el("cadStatus"));cadSetDocument(doc,dxfText,file.name);toast("Floor plan loaded. You can now add the other levels.");}
  catch(err){console.error("CAD import failed",err);el("cadStatus").textContent="Could not import this drawing: "+(err?.message||String(err))+". Try saving the DWG as AutoCAD 2018 DXF and uploading that file.";toast("Floor-plan import failed");}
  finally{input.disabled=false;input.value="";}
