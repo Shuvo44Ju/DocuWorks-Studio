@@ -129,7 +129,8 @@ test("backend safely returns a requested tool call from a simulated Workers AI r
         async run(model, options) {
           assert.equal(model, "@cf/google/gemma-4-26b-a4b-it");
           assert.equal(options.tool_choice, "auto");
-          suppliedToolNames = options.tools.map(item => item.name);
+          assert.ok(options.tools.every(item => item.type === "function" && item.function.parameters));
+          suppliedToolNames = options.tools.map(item => item.function.name);
           return {choices:[{message:{
             content:"",
             tool_calls:[{id:"call-test-1",type:"function",function:{
@@ -169,7 +170,7 @@ test("backend discards model tool calls that are not enabled for the current pag
     env: {
       AI: {
         async run(model, options) {
-          calledNames = options.tools.map(item => item.name);
+          calledNames = options.tools.map(item => item.function.name);
           return {choices:[{message:{
             content:"That action is not available in this workspace.",
             tool_calls:[{id:"bad-call",type:"function",function:{
