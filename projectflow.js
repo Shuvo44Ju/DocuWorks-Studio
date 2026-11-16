@@ -340,7 +340,7 @@ function updatePreview(){
  if(result.warnings.invalidDurations)notes.push(result.warnings.invalidDurations+' duration value(s) could not be converted.');
  if(!notes.length)notes.push('The detected task names and dates look ready.');
  $('qualityLine').textContent=notes.join(' ');
- $('qualityLine').classList.toggle('warning',taskCol===undefined||startCol===undefined||(finishCol===undefined&&mapping.duration===undefined)||result.warnings.invalidDates>0);
+ $('qualityLine').classList.toggle('warning',taskCol===undefined||startCol===undefined||(finishCol===undefined&&mapping.duration===undefined)||result.warnings.invalidDates>0||result.warnings.missingDates>0);
  $('buildButton').disabled=!taskCol||(!startCol&&!finishCol)||((!startCol||!finishCol)&&!durationCol)||result.list.length===0;
 }
 function loadFile(file){
@@ -487,7 +487,8 @@ async function exportExcel(){
      const span=last-first+1,done=task.progress===null?0:Math.round(span*task.progress/100);
      for(let day=first;day<=last;day++){
       const cell=row.getCell(timelineColumn+day-startDay);
-      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:day-first<done?'FF2CA27E':'FF6687D6'}};
+      const fillColor=task.isMilestone?'FF8B6ED0':(day-first<done?'FF2CA27E':'FF6687D6');
+      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:fillColor}};
       cell.alignment={horizontal:'center',vertical:'middle'};
      }
     }
