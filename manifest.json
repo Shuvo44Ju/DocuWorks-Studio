@@ -1,7 +1,7 @@
 {
   "name": "DocuWorks Studio — Document Tools",
   "short_name": "DocuWorks",
-  "description": "Scan documents, create Control Specification workbooks, and optimize PDFs.",
+  "description": "Scan documents, create Control Specifications, manage projects, and optimize PDFs.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
