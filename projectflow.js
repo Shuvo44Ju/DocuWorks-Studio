@@ -43,8 +43,10 @@ function parseDate(v,order,date1904){
  if(v===null||v===undefined||v==='')return '';
  if(v instanceof Date&&!isNaN(v))return isoFromParts(v.getFullYear(),v.getMonth()+1,v.getDate());
  if(typeof v==='number'&&isFinite(v)&&v>=(date1904?0:1)&&v<=2958465){
-  const base=date1904?Date.UTC(1904,0,1):Date.UTC(1899,11,30);
-  const d=new Date(base+Math.floor(v)*86400000);
+  const serial=Math.floor(v);
+  if(!date1904&&serial===60)return '';
+  const base=date1904?Date.UTC(1904,0,1):Date.UTC(1899,11,serial<60?31:30);
+  const d=new Date(base+serial*86400000);
   return isoFromParts(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());
  }
  const s=String(v).replace(/^\uFEFF/,'').trim();if(!s)return '';
