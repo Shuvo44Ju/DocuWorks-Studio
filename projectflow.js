@@ -120,7 +120,11 @@ function parseSheet(rows,sheetName,fileName){
   const isGroup=!!vendor&&!hasSchedule&&!status;
   if(isGroup){
    while(stack.length&&stack[stack.length-1].indent>=indent)stack.pop();
-   stack.push({indent,name,vendor});warnings.groups++;continue;
+   const groupTask={row:r+1,name,group:true,groupPath:stack.map(g=>g.name).join(' / '),vendor,start:null,end:null,duration:null,done:false,active:false,status:'',basis:'group',milestone:false};
+   const groupIndex=tasks.push(groupTask)-1;
+   stack.push({indent,name,vendor,index:groupIndex});
+   warnings.groups++;
+   continue;
   }
   if(!hasSchedule&&!status&&!vendor&&indent===0){
    warnings.skipped++;stack.length=0;continue;
@@ -138,12 +142,20 @@ function parseSheet(rows,sheetName,fileName){
   if(finish!==null)lastEnd=finish;
   const groups=stack.map(g=>g.name);
   const inheritedVendor=stack.length?stack[stack.length-1].vendor:vendor;
-  tasks.push({
+  const childTask={
    row:r+1,name,group:groups.join(' / '),vendor:inheritedVendor,start:start===null?null:iso(start),
    end:finish===null?null:iso(finish),duration:dur,done:/^(done|complete|completed|finished|closed)$/i.test(status),
    active:/progress|ongoing|active|working|in progress/i.test(status),status,basis,
    milestone,sourceRow:r+1
-  });
+  };
+  tasks.push(childTask);
+  if(start!==null&&finish!==null){
+   stack.forEach(g=>{
+    const gt=tasks[g.index];
+    if(!gt.start||isoDay(gt.start)>start)gt.start=iso(start);
+    if(!gt.end||isoDay(gt.end)<finish)gt.end=iso(finish);
+   });
+  }
  }
  return {title:inferTitle(rows,fileName),sheet:sheetName,tasks,warnings};
 }
@@ -188,9 +200,8 @@ function draw(){
  $('k').innerHTML=['Done','In progress','Overdue','Planned'].map(s=>'<span class="chip" style="background:'+COL[s]+'">'+s+' '+count(s)+'</span>').join(' ');
  let rows=all.filter(t=>(!q||t.name.toLowerCase().includes(q)||t.vendor.toLowerCase().includes(q))&&(!filter||t.group||t.s===filter));
  if(q||filter){
-  const visibleGroups=new Set();
-  rows.forEach((t,i)=>{if(!t.group&&t.group)visibleGroups.add(t.group)});
-  rows=rows.filter(t=>!t.group||rows.some(x=>!x.group&&x.group===t.name));
+  const childRows=rows.filter(t=>!t.group);
+  rows=rows.filter(t=>!t.group||childRows.some(x=>String(x.group||'').split(' / ').includes(t.name)));
  }
  let html='<div class="row hd"><div class="lab">Task</div><div class="trk" style="width:'+W+'px">';
  const first=new Date(min*DAY);let d=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth(),1));
