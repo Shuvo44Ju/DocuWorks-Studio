@@ -350,7 +350,13 @@ function renderChart(){
   const item=document.createElement('div');item.className='month-label';item.style.left=(monthDay-range.start)*px+'px';item.style.width=(Math.min(range.end+1,nextDay)-monthDay)*px+'px';item.textContent=month.toLocaleDateString(undefined,{month:'short',year:'numeric'});head.appendChild(item);month=next;
  }
  const step=chartScale==='day'?1:chartScale==='week'?7:30;
- for(let day=0;day<range.days;day+=step){
+ if(chartScale==='month'){
+  let day=0;while(day<range.days){
+   const date=new Date((range.start+day)*86400000),nextMonth=new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+1,1));
+   const nextDay=Math.floor(nextMonth.getTime()/86400000),span=Math.max(1,Math.min(range.end+1,nextDay)-(range.start+day));
+   const item=document.createElement('div');item.className='time-tick';item.style.left=(day*px)+'px';item.style.width=span*px+'px';item.textContent=date.toLocaleDateString(undefined,{month:'short'});head.appendChild(item);day+=span;
+  }
+ }else for(let day=0;day<range.days;day+=step){
   const d=range.start+day,date=new Date(d*86400000),item=document.createElement('div');item.className='time-tick';item.style.left=(day*px)+'px';item.style.width=Math.min(step,range.days-day)*px+'px';
   item.textContent=chartScale==='day'?String(date.getUTCDate()):chartScale==='week'?'W'+Math.ceil((date.getUTCDate()+new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),1)).getUTCDay())/7):date.getUTCDate()===1?date.toLocaleDateString(undefined,{month:'short'}):'';
   head.appendChild(item);
@@ -458,6 +464,7 @@ async function exportExcel(){
    sheet['!cols']=[{wch:6},{wch:36},{wch:14},{wch:14},{wch:16},{wch:13}];
    XLSX.utils.book_append_sheet(book,sheet,'Gantt Chart');
    XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet(buildExportTasksRows()),'Task Data');
+   if(sourceMatrix.length)XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet(sourceMatrix),'Original Data');
    XLSX.writeFile(book,safeFileName(sourceName||'Project')+'_Gantt.xlsx');
    toast('Excel Gantt exported. Use ExcelJS-enabled export for coloured timeline bars.');
   }catch(fallbackError){toast(fallbackError.message||error.message||'Excel export failed.')}
