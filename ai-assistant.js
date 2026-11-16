@@ -31,8 +31,8 @@ function toolContext() {
     for (const file of Array.from(el.files || [])) parts.push("Selected file: " + file.name + " (" + file.size + " bytes)");
   }
   const main = d.querySelector("main") || d.querySelector("#app");
-  if (main?.innerText) parts.push("Visible workspace: " + main.innerText.replace(/\\n{3,}/g,"\\n\\n").slice(0,5000));
-  return parts.join("\\n").slice(0,10000);
+  if (main?.innerText) parts.push("Visible workspace: " + main.innerText.replace(/\n{3,}/g,"\n\n").slice(0,5000));
+  return parts.join("\n").slice(0,10000);
 }
 async function callAI(payload) {
   const response = await fetch(DOCUWORKS_AI_URL, {
@@ -46,7 +46,7 @@ async function callAI(payload) {
 }
 async function runAgent(message, history=[], context="", ui={}) {
   const transcript = Array.isArray(history) ? history : [];
-  if (message) transcript.push({role:"user",content:String(message).slice(0,6000)});
+  if (message) { const last=transcript[transcript.length-1]; if (!(last?.role==="user" && last.content===message)) transcript.push({role:"user",content:String(message).slice(0,6000)}); }
   const availableTools = window.DocuWorksAgentTools?.getAvailableTools(AI_TOOL) || ["inspect_current_tool","open_docuworks_tool"];
   if (!transcript.some(item => item.role === "user")) throw new Error("Write a message before starting the agent.");
   for (let turn=0; turn<5; turn++) {
@@ -172,7 +172,7 @@ function mountAssistant() {
     add("user",message);history.push({role:"user",content:message});input.value="";send.disabled=true;send.textContent="…";
     const wait=document.createElement("div");wait.className="dw-ai-msg bot";wait.textContent="Thinking…";messages.appendChild(wait);messages.scrollTop=messages.scrollHeight;
     try{
-      const reply=await runAgent(message,history.slice(0,-1),context,{
+      const reply=await runAgent(message,history,context,{
         onStatus:label=>{wait.textContent=label;},
         approve:call=>showApprovalCard(call)
       });
