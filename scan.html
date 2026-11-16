@@ -123,7 +123,7 @@ function solve(A,b){const n=8;for(let i=0;i<n;i++){let m=i;for(let r=i+1;r<n;r++
 function warp(src,q){
   const d=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
   let W=Math.max(d(q[0],q[1]),d(q[3],q[2])),H=Math.max(d(q[0],q[3]),d(q[1],q[2]));
-  const sc=Math.min(1,2200/Math.max(W,H));W=Math.max(2,Math.round(W*sc));H=Math.max(2,Math.round(H*sc));
+  const sc=Math.min(1,3200/Math.max(W,H));W=Math.max(2,Math.round(W*sc));H=Math.max(2,Math.round(H*sc));
   const D=[[0,0],[W,0],[W,H],[0,H]],A=[],B=[];
   for(let i=0;i<4;i++){const[u,v]=D[i],[x,y]=q[i];A.push([u,v,1,0,0,0,-u*x,-v*x]);B.push(x);A.push([0,0,0,u,v,1,-u*y,-v*y]);B.push(y)}
   const h=solve(A,B),o=mk(W,H),SW=src.width,SH=src.height,s=src.getContext('2d').getImageData(0,0,SW,SH).data,od=o.getContext('2d').createImageData(W,H),t=od.data;
@@ -392,7 +392,7 @@ $('#grid').onclick=e=>{const d=e.target.dataset,mv=(i,j)=>{if(j<0||j>=pages.leng
 /* ---------- capture / import ---------- */
 $('#bCam').onclick=async()=>{
   if(!navigator.mediaDevices)return alert('Camera is not available here. Use Import.');
-  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:2560},height:{ideal:1440}},audio:false});
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false});
     $('#vid').srcObject=stream;fromCam=true;show('cam')}catch(e){alert('Camera permission was denied. Use Import instead.')}
 };
 const stopCam=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;fromCam=false};
@@ -418,7 +418,7 @@ async function decodeImageFile(file){
     width=img.naturalWidth;height=img.naturalHeight;draw=(ctx,w,h)=>ctx.drawImage(img,0,0,w,h);
   }
   if(!width||!height)throw new Error('Image has invalid dimensions');
-  const scale=Math.min(1,2200/Math.max(width,height),Math.sqrt(6000000/(width*height)));
+  const scale=Math.min(1,3200/Math.max(width,height),Math.sqrt(10000000/(width*height)));
   const w=Math.max(1,Math.round(width*scale)),h=Math.max(1,Math.round(height*scale));
   const canvas=mk(w,h),ctx=canvas.getContext('2d',{alpha:false});
   ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);draw(ctx,w,h);
@@ -540,7 +540,7 @@ function exportPdfPages(selectedPages){
   selectedPages.forEach(p=>{
     const o=p.out.width>p.out.height?'l':'p',W=o==='p'?210:297,H=o==='p'?297:210,k=Math.min(W/p.out.width,H/p.out.height),w=p.out.width*k,h=p.out.height*k;
     if(!doc)doc=new jspdf.jsPDF({orientation:o,unit:'mm',format:'a4',compress:true});else doc.addPage('a4',o);
-    doc.addImage(p.out.toDataURL('image/jpeg',.94),'JPEG',(W-w)/2,(H-h)/2,w,h);
+    // Text-oriented profiles use lossless PNG to preserve fine character edges and avoid JPEG ringing.\n    // Original/Color remain JPEG because photographs and colored pages benefit from smaller files.\n    const lossless=['bw','gray','magic','pro'].includes(p.filter);\n    if(lossless)doc.addImage(p.out.toDataURL('image/png'),'PNG',(W-w)/2,(H-h)/2,w,h);\n    else doc.addImage(p.out.toDataURL('image/jpeg',.96),'JPEG',(W-w)/2,(H-h)/2,w,h);
   });
   doc.save(($('#fn').value||'Scan')+'.pdf');
 }
