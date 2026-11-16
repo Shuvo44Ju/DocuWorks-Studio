@@ -138,10 +138,12 @@ function mountAssistant() {
   `;
   document.head.appendChild(style);
   const launcher = document.createElement("button");
-  launcher.id = "dw-ai-launcher"; launcher.type = "button"; launcher.textContent = "✦ Ask DocuWorks AI";
+  launcher.id = "dw-ai-launcher"; launcher.type = "button"; launcher.textContent = "✦ DocuWorks AI Agent";
+  launcher.setAttribute("aria-label", "Open DocuWorks AI Agent");
+  launcher.title = "DocuWorks AI Agent — ask it to inspect and operate this tool";
   const panel = document.createElement("section");
   panel.id = "dw-ai-panel"; panel.setAttribute("aria-label",AI_LABEL);
-  panel.innerHTML = `<div id="dw-ai-head"><div>✦</div><div><strong>${AI_LABEL}</strong><small>Tell me what to do. I can inspect and use supported actions here.</small></div><button id="dw-ai-close" aria-label="Close">×</button></div><div id="dw-ai-messages"><div class="dw-ai-msg bot">Hello! Tell me what you want to do. You can write naturally—no special commands needed.</div></div><div id="dw-ai-controls"><label id="dw-ai-context"><input id="dw-ai-include" type="checkbox" checked> Share current page details with AI</label><div id="dw-ai-inputrow"><textarea id="dw-ai-input" placeholder="Describe what you need…" rows="2"></textarea><button id="dw-ai-send" type="button">Send</button></div><div id="dw-ai-foot">AI runs through the DocuWorks server. Your approval is required before document processing or export actions. Provider usage limits may apply.</div></div>`;
+  panel.innerHTML = `<div id="dw-ai-head"><div>✦</div><div><strong>DocuWorks AI Agent</strong><small>${AI_LABEL} · Can inspect and use supported actions</small></div><button id="dw-ai-close" aria-label="Close">×</button></div><div id="dw-ai-messages"><div class="dw-ai-msg bot">Hello! Tell me what you want to do. You can write naturally—no special commands needed.</div></div><div id="dw-ai-controls"><label id="dw-ai-context"><input id="dw-ai-include" type="checkbox" checked> Share current page details with AI</label><div id="dw-ai-inputrow"><textarea id="dw-ai-input" placeholder="Describe what you need…" rows="2"></textarea><button id="dw-ai-send" type="button">Send</button></div><div id="dw-ai-foot">AI runs through the DocuWorks server. Your approval is required before document processing or export actions. Provider usage limits may apply.</div></div>`;
   document.body.append(launcher,panel);
   const messages = panel.querySelector("#dw-ai-messages"), input=panel.querySelector("#dw-ai-input"), send=panel.querySelector("#dw-ai-send");
   const history=[];
