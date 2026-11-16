@@ -266,7 +266,7 @@ function readTasks(){
  return {list:list,warnings:warnings};
 }
 function updatePreview(){
- const taskCol=mapping.task,startCol=mapping.start,finishCol=mapping.finish;
+ const taskCol=mapping.task,startCol=mapping.start,finishCol=mapping.finish,durationCol=mapping.duration;
  const result=readTasks();
  const data=result.list.slice(0,5);
  const selected=columns.filter(field=>mapping[field.key]!==undefined&&mapping[field.key]!=='');
@@ -277,15 +277,15 @@ function updatePreview(){
  $('rowCount').textContent=result.list.length+' tasks detected';
  const notes=[];
  if(!taskCol)notes.push('Choose the task-name column.');
- if(!startCol)notes.push('Choose the start-date column.');
- if(!finishCol&&!mapping.duration)notes.push('Choose a finish-date or duration column.');
+ if(!startCol&&!finishCol)notes.push('Choose at least one date column: start date or finish date.');
+ if((!startCol||!finishCol)&&!durationCol)notes.push('Map both start and finish dates, or add a duration column to calculate the missing date.');
  if(result.warnings.missingDates)notes.push(result.warnings.missingDates+' task(s) do not have a complete date range.');
  if(result.warnings.invalidDates)notes.push(result.warnings.invalidDates+' date value(s) could not be read.');
  if(result.warnings.invalidDurations)notes.push(result.warnings.invalidDurations+' duration value(s) could not be converted.');
  if(!notes.length)notes.push('The detected task names and dates look ready.');
  $('qualityLine').textContent=notes.join(' ');
  $('qualityLine').classList.toggle('warning',taskCol===undefined||startCol===undefined||(finishCol===undefined&&mapping.duration===undefined)||result.warnings.invalidDates>0);
- $('buildButton').disabled=!taskCol||!startCol||(!finishCol&&!mapping.duration)||result.list.length===0;
+ $('buildButton').disabled=!taskCol||(!startCol&&!finishCol)||((!startCol||!finishCol)&&!durationCol)||result.list.length===0;
 }
 function loadFile(file){
  if(!file)return;
