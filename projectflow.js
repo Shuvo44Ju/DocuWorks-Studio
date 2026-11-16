@@ -253,7 +253,8 @@ async function exportExcel(){
   gantt[0]=['PROJECT GANTT'];
   gantt[1]=['Project schedule | '+(data.title||sourceFile.name)+' | Source worksheet: '+(data.sheet||'')];
   gantt[3]=['TOTAL ACTIVITIES',activities.length,'COMPLETED',activities.filter(t=>t.done).length,'IN PROGRESS',activities.filter(t=>t.active).length,'OVERDUE',activities.filter(t=>!t.done&&t.end&&isoDay(t.end)<dayUTC(new Date().getFullYear(),new Date().getMonth()+1,new Date().getDate())).length];
-  gantt[5]=['TASK / WORK PACKAGE','VENDOR / RESPONSIBLE','START DATE','FINISH DATE','DURATION (DAYS)','STATUS'];
+  gantt[4]=['LEGEND','Completed','In progress','Overdue','Planned','Summary'];
+  gantt[5]=[];
   weeks.forEach((d,i)=>gantt[5].push(iso(d)));
   data.tasks.forEach((t,i)=>{
    const row=[t.name,t.vendor||'',t.start||'',t.end||'',t.duration??'',t.group?(t.start?'Summary':'Group'):state(t)];
@@ -275,14 +276,16 @@ async function exportExcel(){
   ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:last}},{s:{r:1,c:0},e:{r:1,c:last}}];
   const kpis=[['TOTAL ACTIVITIES',activities.length],['COMPLETED',activities.filter(t=>t.done).length],['IN PROGRESS',activities.filter(t=>state(t)==='In progress').length],['OVERDUE',activities.filter(t=>state(t)==='Overdue').length]];
   kpis.forEach((k,i)=>{const c=i*2;put(3,c,k[0],style(blue,white,true,'center'));put(3,c+1,k[1],style('F2F6FC',dark,true,'center'));});
-  for(let c=0;c<6;c++)put(5,c,gantt[5][c],style(navy,white,true,'center',true));
+  const legendStyles=[style('F4F7FA',dark,true,'left'),style('E2F0D9','375623',true,'center'),style('DDEBF7','1F4E78',true,'center'),style('FCE4D6','9C0006',true,'center'),style('E8EEF7','44546A',true,'center'),style('D9E2F3',navy,true,'center')];
+  for(let c=0;c<6;c++)put(4,c,gantt[4][c],legendStyles[c]);
+  for(let c=0;c<6;c++)put(6,c,['WORK PACKAGE / ACTIVITY','VENDOR / RESPONSIBLE','START DATE','FINISH DATE','DURATION (DAYS)','STATUS'][c],style('DCE6F1',dark,true,'center',true));
   weeks.forEach((d,i)=>{
    const c=6+i,month=new Date(d*DAY).toLocaleDateString('en-GB',{month:'long',year:'numeric',timeZone:'UTC'});
    put(5,c,month,style(navy,white,true,'center'));
    put(6,c,d+25569,style('DCE6F1',dark,true,'center'), 'n','dd-mmm');
   });
-  for(let c=0;c<6;c++)put(6,c,['TASK / WORK PACKAGE','VENDOR / RESPONSIBLE','START DATE','FINISH DATE','DURATION (DAYS)','STATUS'][c],style('DCE6F1',dark,true,'center',true));
   const merges=ws['!merges'];
+  for(let c=0;c<6;c++)merges.push({s:{r:5,c},e:{r:6,c}});
   let monthStart=0,monthKey='';
   weeks.forEach((d,i)=>{
    const key=new Date(d*DAY).toLocaleDateString('en-CA',{month:'numeric',year:'numeric',timeZone:'UTC'});
@@ -311,9 +314,11 @@ async function exportExcel(){
    });
   });
   const monthCols=weeks.length;
-  ws['!cols']=[{wch:42},{wch:25},{wch:15},{wch:15},{wch:16},{wch:16},...Array(monthCols).fill({wch:11})];
-  ws['!rows']=[{hpt:30},{hpt:22},{hpt:8},{hpt:24},{hpt:8},{hpt:26},{hpt:22},...data.tasks.map(t=>({hpt:t.group?23:21}))];
+  ws['!cols']=[{wch:44},{wch:27},{wch:16},{wch:16},{wch:17},{wch:17},...Array(monthCols).fill({wch:12})];
+  ws['!rows']=[{hpt:34},{hpt:23},{hpt:8},{hpt:27},{hpt:24},{hpt:25},{hpt:28},...data.tasks.map(t=>({hpt:t.group?25:23}))];
   ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:6,c:0},e:{r:6+data.tasks.length,c:5}})};
+  ws['!sheetViews']=[{showGridLines:false}];
+  ws['!tabColor']={rgb:'4472C4'};
   ws['!freeze']={xSplit:6,ySplit:7};
   ws['!margins']={left:0.25,right:0.25,top:0.5,bottom:0.5,header:0.2,footer:0.2};
   ws['!pageSetup']={orientation:'landscape',paperSize:9,fitToWidth:1,fitToHeight:0,scale:75};
@@ -334,8 +339,10 @@ async function exportExcel(){
    if((c===3||c===4)&&r>=3&&cell.v){cell.t='n';cell.v=isoDay(cell.v)+25569;cell.z='dd-mmm-yyyy';}
    if(c===6&&r>=3){const v=cell.v;const colors={Done:'70AD47','In progress':'4472C4',Overdue:'C00000',Planned:'A5B9D5'};cell.s=style(colors[v]||'E8EDF3',colors[v]?'FFFFFF':dark,true,'center');}
   }
-  reg['!cols']=[{wch:8},{wch:48},{wch:28},{wch:16},{wch:16},{wch:17},{wch:17},{wch:34},{wch:12}];
-  reg['!rows']=[{hpt:30},{hpt:22},{hpt:28},...activities.map(()=>({hpt:22}))];
+  reg['!cols']=[{wch:8},{wch:50},{wch:30},{wch:17},{wch:17},{wch:18},{wch:18},{wch:36},{wch:13}];
+  reg['!sheetViews']=[{showGridLines:false}];
+  reg['!tabColor']={rgb:'70AD47'};
+  reg['!rows']=[{hpt:34},{hpt:24},{hpt:30},...activities.map(()=>({hpt:24}))];
   reg['!autofilter']={ref:'A3:I'+(3+activities.length)};
   reg['!freeze']={xSplit:2,ySplit:3};
   reg['!margins']={left:0.25,right:0.25,top:0.5,bottom:0.5,header:0.2,footer:0.2};
