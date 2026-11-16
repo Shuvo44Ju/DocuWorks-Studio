@@ -1,66 +1,42 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#f7f9fc">
-<title>ProjectFlow | Excel to Gantt | DocuWorks Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Project Gantt</title>
 <link rel="stylesheet" href="./projectflow.css">
 </head>
 <body>
-<header class="topbar">
-  <a class="brand" href="./index.html"><span class="brand-mark">↗</span><span>DocuWorks <b>Studio</b><small>PROJECTFLOW</small></span></a>
-  <div class="header-title">Excel to Gantt chart</div>
-  <a class="back-link" href="./index.html">← Studio home</a>
+<header>
+  <h1 id="t">Project Gantt</h1>
+  <div class="bar">
+    <span id="k"></span>
+    <input id="q" placeholder="Search task" aria-label="Search task">
+    <select id="f" aria-label="Filter state">
+      <option value="">All states</option>
+      <option>Done</option>
+      <option>In progress</option>
+      <option>Overdue</option>
+      <option>Planned</option>
+      <option>No date</option>
+    </select>
+    <label>Zoom <input id="z" type="range" min="1" max="8" step="0.5" value="3" aria-label="Zoom"></label>
+    <button id="export" type="button">↓ Export Excel</button>
+  </div>
 </header>
-<main class="workspace">
-  <section class="panel import-panel" id="importPanel">
-    <div class="eyebrow">SIMPLE EXCEL SCHEDULE VIEWER</div>
-    <h1>Turn your Excel schedule into a Gantt chart.</h1>
-    <p class="intro">Upload your project Excel file. ProjectFlow will read the task names and dates, then build the timeline for you.</p>
+
+<main>
+  <section id="upload">
     <label class="dropzone" for="fileInput" id="dropzone">
-      <span class="file-icon">XLS</span>
-      <span class="drop-title" id="dropTitle">Choose your Excel file</span>
-      <span class="drop-subtitle" id="dropSubtitle">Drag and drop here, or click to browse · .xlsx, .xls, .csv</span>
+      <strong>Choose your Excel file</strong>
+      <span>Drag and drop here, or click to browse · .xlsx, .xls, .csv</span>
       <input id="fileInput" type="file" accept=".xlsx,.xls,.csv">
     </label>
-    <div class="import-settings" id="importSettings" hidden>
-      <div class="section-heading">
-        <div><h2>Check the detected columns</h2><p id="fileInfo">Your workbook is ready to review.</p></div>
-        <span class="detected-tag" id="rowCount">0 tasks detected</span>
-      </div>
-      <div class="settings-grid">
-        <label>Worksheet<select id="sheetSelect"></select></label>
-        <label>Header row<select id="headerSelect"></select></label>
-        <label>Date format<select id="dateOrder"><option value="DMY">DD/MM/YYYY</option><option value="MDY">MM/DD/YYYY</option></select></label>
-      </div>
-      <div class="mapping-grid">
-        <label>Task / activity name <em>Required</em><select id="taskColumn"></select></label>
-        <label>Start date <em>Optional</em><select id="startColumn"></select></label>
-        <label>Finish date <em>Optional</em><select id="finishColumn"></select></label>
-        <label>Duration <em>Optional</em><select id="durationColumn"></select></label>
-        <label>Progress (%) <em>Optional</em><select id="progressColumn"></select></label>
-      </div>
-      <div class="quality-line" id="qualityLine">Select the columns used in your spreadsheet.</div>
-      <div class="preview-wrap"><div class="preview-heading">Data preview <span>First five task rows</span></div><div class="preview-scroll"><table id="previewTable"></table></div></div>
-      <div class="settings-actions"><button class="btn btn-primary" id="buildButton" disabled>Build Gantt chart →</button></div>
-    </div>
+    <div id="info"></div>
   </section>
-
-  <section class="panel chart-panel" id="chartPanel" hidden>
-    <div class="chart-heading">
-      <div><div class="eyebrow">PROJECT TIMELINE</div><h1 id="chartTitle">Gantt chart</h1><p id="chartSubtitle">Activities from your Excel workbook.</p></div>
-      <div class="chart-actions"><button class="btn btn-light" id="changeFileButton">Choose another Excel</button><button class="btn btn-primary" id="exportButton">↓ Export Excel</button></div>
-    </div>
-    <div class="chart-toolbar"><span id="chartSummary">0 activities</span><label>Timeline scale<select id="scaleSelect"><option value="day">Days</option><option value="week" selected>Weeks</option><option value="month">Months</option></select></label></div>
-    <div class="gantt-shell">
-      <div class="task-column"><div class="task-column-head">TASK / ACTIVITY</div><div id="taskLabels"></div></div>
-      <div class="timeline-scroll" id="timelineScroll"><div class="timeline" id="timeline"></div></div>
-    </div>
-    <div class="chart-footer"><span><i class="legend-planned"></i> Scheduled activity</span><span><i class="legend-progress"></i> Completed</span><span><i class="legend-milestone"></i> Deadline milestone</span><span id="missingDates"></span></div>
-  </section>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <section id="wrap" aria-label="Gantt chart"></section>
 </main>
+
 <script src="./projectflow.js"></script>
 </body>
 </html>
