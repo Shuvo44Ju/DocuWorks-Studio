@@ -63,7 +63,7 @@
       </div>
       <div id="tasksView" class="pf-view" hidden>
         <div class="pf-toolbar"><div class="pf-filter-group"><input class="pf-search" id="taskSearch" placeholder="Search task, owner, supplier, reference..." type="search"><select class="pf-select" id="taskStatusFilter"><option value="all">All statuses</option><option>Not started</option><option>In progress</option><option>On hold</option><option>Completed</option><option>Cancelled</option><option>Needs review</option></select></div><div class="pf-toolbar-right"><span class="pf-count-label" id="taskCountLabel"></span><button class="pf-btn pf-btn-light" id="deleteSelectedBtn" disabled>Delete selected</button></div></div>
-        <div class="pf-table-wrap"><table class="pf-task-table"><thead><tr><th><input type="checkbox" id="selectAllTasks" aria-label="Select all tasks"></th><th>Task / equipment</th><th>Responsible</th><th>Start</th><th>Finish</th><th>Duration</th><th>Progress</th><th>Status</th><th></th></tr></thead><tbody id="taskTableBody"></tbody></table><div class="pf-table-empty" id="taskTableEmpty" hidden>No tasks match these filters.</div></div>
+        <div class="pf-table-wrap"><table class="pf-task-table"><thead><tr><th><input type="checkbox" id="selectAllTasks" aria-label="Select all tasks"></th><th>Task / equipment</th><th>Responsible</th><th>Start</th><th>Finish / delivery</th><th>Finish variance</th><th>Duration</th><th>Progress</th><th>Status</th><th></th></tr></thead><tbody id="taskTableBody"></tbody></table><div class="pf-table-empty" id="taskTableEmpty" hidden>No tasks match these filters.</div></div>
         <div class="pf-table-foot"><span>Click any task row to edit dates, status, dependencies and other details.</span><span id="dataWarnings"></span></div>
       </div>
       <div id="resourcesView" class="pf-view" hidden>
@@ -98,6 +98,7 @@
       <input type="hidden" id="editTaskId">
       <div class="pf-form-grid">
         <label class="pf-field pf-span-2">Task / equipment name<input id="editName" required></label>
+        <label class="pf-field">PR / PO / CS reference<input id="editReference" placeholder="Reference number"></label>
         <label class="pf-field">Responsible person<input id="editOwner" list="ownerOptions"></label>
         <label class="pf-field">Supplier / contractor<input id="editSupplier"></label>
         <label class="pf-field">Planned start<input id="editStart" type="date"></label>
