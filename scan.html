@@ -106,7 +106,6 @@ dialog textarea{width:100%;height:240px;margin:10px 0;font:inherit}
   </div>
 </dialog>
 <div id="busy" class="busy" hidden aria-live="polite" aria-busy="true"><div class="busy-card"><span class="spinner"></span><span id="busyText">Preparing image…</span></div></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script>
 const $=s=>document.querySelector(s),ec=$('#ec'),pages=[];
 let ed={},Q=[],stream=null,fromCam=false,importTotal=0,importDone=0;
@@ -576,25 +575,97 @@ const back=()=>{if(fromCam)show('cam');else if(Q.length)nextFile();else{hideBusy
 $('#eBack').onclick=()=>{if(ed.pg)ed.pg.filtered=null;back()};
 addEventListener('resize',()=>{if($('#edit').classList.contains('on'))draw()});
 
-/* ---------- export ---------- */
-function exportPdfPages(selectedPages){
-  let doc;
-  selectedPages.forEach(p=>{
-    const o=p.out.width>p.out.height?'l':'p',W=o==='p'?210:297,H=o==='p'?297:210,k=Math.min(W/p.out.width,H/p.out.height),w=p.out.width*k,h=p.out.height*k;
-    if(!doc)doc=new jspdf.jsPDF({orientation:o,unit:'mm',format:'a4',compress:true});else doc.addPage('a4',o);
-    // Text-oriented profiles use lossless PNG to preserve fine character edges and avoid JPEG ringing.\n    // Original/Color remain JPEG because photographs and colored pages benefit from smaller files.\n    const lossless=['bw','gray','clean','magic','pro'].includes(p.filter);
-    if(lossless)doc.addImage(p.out.toDataURL('image/png'),'PNG',(W-w)/2,(H-h)/2,w,h);
-    else doc.addImage(p.out.toDataURL('image/jpeg',.96),'JPEG',(W-w)/2,(H-h)/2,w,h);
-  });
-  doc.save(($('#fn').value||'Scan')+'.pdf');
+/* ---------- robust PDF export ---------- */
+let pdfLibraryPromise=null;
+async function loadPdfLibrary(){
+  if(typeof window.jspdf?.jsPDF==='function')return window.jspdf.jsPDF;
+  if(pdfLibraryPromise)return pdfLibraryPromise;
+  const sources=[
+    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+    'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+    'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'
+  ];
+  pdfLibraryPromise=(async()=>{
+    let lastError=null;
+    for(const src of sources){
+      try{
+        await new Promise((resolve,reject)=>{
+          const script=document.createElement('script');
+          let settled=false;
+          const timeout=setTimeout(()=>finish(new Error('PDF library request timed out')),15000);
+          function finish(error){
+            if(settled)return;
+            settled=true;clearTimeout(timeout);
+            if(error){script.remove();reject(error)}else resolve();
+          }
+          script.src=src;script.async=true;script.crossOrigin='anonymous';
+          script.onload=()=>typeof window.jspdf?.jsPDF==='function'?finish():finish(new Error('PDF library loaded but did not initialize'));
+          script.onerror=()=>finish(new Error('Could not download PDF library'));
+          document.head.appendChild(script);
+        });
+        if(typeof window.jspdf?.jsPDF==='function')return window.jspdf.jsPDF;
+      }catch(error){lastError=error}
+    }
+    throw new Error('The PDF engine could not be loaded from the available sources. Check your internet connection and retry. '+(lastError?.message||''));
+  })();
+  try{return await pdfLibraryPromise}catch(error){pdfLibraryPromise=null;throw error}
 }
-$('#bPdf').onclick=()=>{
+function pdfSafeName(value){
+  return String(value||'Scan').trim().replace(/[\\/:*?"<>|]+/g,'_').replace(/\s+/g,' ').slice(0,100)||'Scan';
+}
+async function exportPdfPages(selectedPages){
+  const button=$('#bPdf'),selectedButton=$('#exportSelected');
+  if(!Array.isArray(selectedPages)||!selectedPages.length){alert('Select at least one page to export.');return}
+  button.disabled=true;if(selectedButton)selectedButton.disabled=true;
+  try{
+    showBusy('Loading PDF engine…');
+    const JsPDF=await loadPdfLibrary();
+    let doc=null;
+    for(let i=0;i<selectedPages.length;i++){
+      const p=selectedPages[i];
+      if(!p?.out||typeof p.out.toDataURL!=='function')throw new Error('Page '+(i+1)+' is not ready. Open the page, press Done, then export again.');
+      showBusy('Preparing PDF page '+(i+1)+' of '+selectedPages.length+'…');
+      await nextFrame();
+      const orientation=p.out.width>p.out.height?'l':'p';
+      const pageWidth=orientation==='p'?210:297,pageHeight=orientation==='p'?297:210;
+      const scale=Math.min(pageWidth/p.out.width,pageHeight/p.out.height);
+      const width=p.out.width*scale,height=p.out.height*scale;
+      if(!doc)doc=new JsPDF({orientation:orientation,unit:'mm',format:'a4',compress:true});
+      else doc.addPage('a4',orientation);
+      const lossless=['bw','gray','clean','magic','pro'].includes(p.filter);
+      const imageData=lossless?p.out.toDataURL('image/png'):p.out.toDataURL('image/jpeg',.96);
+      if(lossless)doc.addImage(imageData,'PNG',(pageWidth-width)/2,(pageHeight-height)/2,width,height);
+      else doc.addImage(imageData,'JPEG',(pageWidth-width)/2,(pageHeight-height)/2,width,height,undefined,'FAST');
+    }
+    showBusy('Saving PDF…');await nextFrame();
+    const filename=pdfSafeName($('#fn').value)+'.pdf';
+    doc.setProperties({title:filename.replace(/\.pdf$/i,''),subject:'Scanned document'});
+    doc.save(filename);
+  }catch(error){
+    console.error('Scanner PDF export failed:',error);
+    alert('PDF export failed: '+(error?.message||'Unexpected error. Please retry.'));
+  }finally{
+    hideBusy();button.disabled=false;if(selectedButton)selectedButton.disabled=false;
+  }
+}
+$('#bPdf').onclick=async()=>{
   if(!pages.length)return alert('Add a page first.');
-  if(!window.jspdf)return alert('The PDF library could not load. Check your internet connection.');
-  if(pages.length===1){exportPdfPages(pages);return}
-  $('#exportPageList').innerHTML=pages.map((p,i)=>`<label class="export-row"><input type="checkbox" data-export-index="${i}" checked><img src="${p.th}" alt="Page ${i+1}"><span>Page ${i+1}</span></label>`).join('');
-  $('#exportToggleAll').textContent='Deselect all';
-  $('#exportDlg').showModal();
+  const button=$('#bPdf');button.disabled=true;
+  try{
+    showBusy('Loading PDF engine…');
+    await loadPdfLibrary();
+    hideBusy();
+    if(pages.length===1){await exportPdfPages(pages);return}
+    $('#exportPageList').innerHTML=pages.map((p,i)=>'<label class="export-row"><input type="checkbox" data-export-index="'+i+'" checked><img src="'+p.th+'" alt="Page '+(i+1)+'"><span>Page '+(i+1)+'</span></label>').join('');
+    $('#exportToggleAll').textContent='Deselect all';
+    const dialog=$('#exportDlg');
+    if(typeof dialog.showModal==='function')dialog.showModal();
+    else if(confirm('Export all '+pages.length+' pages as one PDF?'))await exportPdfPages(pages);
+  }catch(error){
+    console.error('PDF library loading failed:',error);
+    hideBusy();
+    alert('The PDF engine could not be loaded. Check your internet connection and retry.');
+  }finally{button.disabled=false;hideBusy()}
 };
 $('#exportToggleAll').onclick=()=>{
   const boxes=[...$('#exportPageList').querySelectorAll('input[type="checkbox"]')],select=boxes.some(b=>!b.checked);
@@ -602,11 +673,11 @@ $('#exportToggleAll').onclick=()=>{
   $('#exportToggleAll').textContent=select?'Deselect all':'Select all';
 };
 $('#exportCancel').onclick=()=>$('#exportDlg').close();
-$('#exportSelected').onclick=()=>{
+$('#exportSelected').onclick=async()=>{
   const indexes=[...$('#exportPageList').querySelectorAll('input[type="checkbox"]:checked')].map(b=>+b.dataset.exportIndex);
   if(!indexes.length)return alert('Select at least one page to export.');
   $('#exportDlg').close();
-  exportPdfPages(indexes.map(i=>pages[i]));
+  await exportPdfPages(indexes.map(i=>pages[i]));
 };
 $('#bOcr').onclick=async()=>{
   if(!pages.length)return alert('Add a page first.');
