@@ -1,556 +1,262 @@
 'use strict';
 (function(){
 const $=id=>document.getElementById(id);
-let workbook=null,sourceFile='',sourceName='',sourceMatrix=[],sourceMerges=[],headerRow=0,headers=[],mapping={},tasks=[],dateRange=null,toastTimer=null,xlsxPromise=null,excelJsPromise=null,chartScale='week';
+const COL={Summary:'var(--sum)',Done:'var(--done)','In progress':'var(--prog)',Overdue:'var(--over)',Planned:'var(--plan)'};
+const DAY=86400000;
+let data=null,sourceFile=null,workbook=null,toastTimer=null;
 
-const columns=[
- {key:'task',id:'taskColumn',label:'Task / activity',aliases:['task','task name','task title','activity','activity name','activity title','task description','activity description','equipment','equipment name','equipment description','item','item name','item description','description of activity','work description','work item','deliverable','particulars','scope of work','name of work','job description','task / activity','activity / task','project activity','name','description'],required:true},
- {key:'start',id:'startColumn',label:'Start date',aliases:['start','start date','planned start','planned start date','schedule start','scheduled start','commencement','commencement date','date of commencement','starting date','target start date','work start date','from date'],required:true},
- {key:'finish',id:'finishColumn',label:'Finish date',aliases:['finish','finish date','end date','end date planned','planned finish','planned finish date','planned end date','schedule finish','scheduled finish','due date','delivery date','expected delivery date','expected completion date','completion date','target date','target completion date','deadline','to date'],required:true},
- {key:'duration',id:'durationColumn',label:'Duration',aliases:['duration','duration days','duration in days','calendar days','working days','business days','period','time required','lead time','implementation period','execution period','duration (days)','no of days']},
- {key:'progress',id:'progressColumn',label:'Progress',aliases:['progress','progress %','% progress','% complete','percent complete','percentage complete','physical progress','completion percentage','actual progress']}
-];
-
-function toast(message){
- const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3400);
+function dayUTC(y,m,d){return Math.floor(Date.UTC(y,m-1,d)/DAY)}
+function isoDay(s){
+ const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+ return m?dayUTC(+m[1],+m[2],+m[3]):NaN;
 }
-function norm(value){return String(value==null?'':value).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9%]+/g,' ').trim().replace(/\s+/g,' ')}
-function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function isoParts(y,m,d){
- const date=new Date(Date.UTC(Number(y),Number(m)-1,Number(d)));
- if(date.getUTCFullYear()!==Number(y)||date.getUTCMonth()!==Number(m)-1||date.getUTCDate()!==Number(d))return '';
- return String(y).padStart(4,'0')+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+function iso(day){const d=new Date(day*DAY);return d.toISOString().slice(0,10)}
+function fmt(day){return new Date(day*DAY).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit',timeZone:'UTC'})}
+function esc(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function norm(v){return String(v??'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ')}
+function number(v){
+ if(typeof v==='number'&&Number.isFinite(v))return v;
+ const m=String(v??'').replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);
+ return m?Number(m[0]):null;
 }
-function isoToDay(value){
- const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
- return m?Math.floor(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3]))/86400000):NaN;
-}
-function dayToISO(day){
- const d=new Date(Number(day)*86400000);
- return isoParts(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());
-}
-function fromISO(value){return Number.isFinite(isoToDay(value))?new Date(isoToDay(value)*86400000):null}
-function addDuration(date,days,workingDays){
- if(!date||!days||days<1)return '';
- let day=isoToDay(date),guard=0;
- if(workingDays){while([0,6].includes(new Date(day*86400000).getUTCDay())&&guard++<10000)day++}
- let remaining=Math.ceil(days)-1;
- while(remaining>0&&guard++<10000){
-  day++;
-  const weekday=new Date(day*86400000).getUTCDay();
-  if(!workingDays||(weekday!==0&&weekday!==6))remaining--;
+function parseDate(v){
+ if(v===null||v===undefined||v==='')return null;
+ if(v instanceof Date&&!isNaN(v))return dayUTC(v.getFullYear(),v.getMonth()+1,v.getDate());
+ if(typeof v==='number'&&Number.isFinite(v)&&v>0&&v<3000000){
+  const serial=Math.floor(v);
+  if(serial===60)return null;
+  const d=new Date(Date.UTC(1899,11,30)+serial*DAY);
+  return dayUTC(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());
  }
- return dayToISO(day);
-}
-function subtractDuration(date,days,workingDays){
- if(!date||!days||days<1)return '';
- let day=isoToDay(date),guard=0;
- if(workingDays){while([0,6].includes(new Date(day*86400000).getUTCDay())&&guard++<10000)day--}
- let remaining=Math.ceil(days)-1;
- while(remaining>0&&guard++<10000){
-  day--;
-  const weekday=new Date(day*86400000).getUTCDay();
-  if(!workingDays||(weekday!==0&&weekday!==6))remaining--;
- }
- return dayToISO(day);
-}
-function parseDate(value,order,date1904){
- if(value===null||value===undefined||value==='')return '';
- if(value instanceof Date&&!isNaN(value))return isoParts(value.getFullYear(),value.getMonth()+1,value.getDate());
- if(typeof value==='number'&&isFinite(value)&&value>=(date1904?0:1)&&value<=2958465){
-  const serial=Math.floor(value);if(!date1904&&serial===60)return '';
-  const base=date1904?Date.UTC(1904,0,1):Date.UTC(1899,11,serial<60?31:30);
-  const d=new Date(base+serial*86400000);return isoParts(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());
- }
- const text=String(value).trim().replace(/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?:day)?[,\s]+/i,'');if(!text)return '';
- let m=text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\D|$)/);
- if(m)return isoParts(m[1],m[2],m[3]);
- m=text.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})(?:\D|$)/);
+ let s=String(v).trim().replace(/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?:day)?[,\s]+/i,'');
+ if(!s)return null;
+ let m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+ if(m)return dayUTC(+m[1],+m[2],+m[3]);
+ m=s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
  if(m){
-  let a=Number(m[1]),b=Number(m[2]),y=Number(m[3]);if(y<100)y+=y<50?2000:1900;
-  let month,day;
-  if(a>12){day=a;month=b}else if(b>12){month=a;day=b}else if(order==='MDY'){month=a;day=b}else{day=a;month=b}
-  return isoParts(y,month,day);
+  let a=+m[1],b=+m[2],y=+m[3];if(y<100)y+=y<50?2000:1900;
+  const day=a>12?a:b,mon=a>12?b:a;
+  return dayUTC(y,mon,day);
  }
- const months={jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,sep:9,sept:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
- m=text.match(/^(\d{1,2})[\s,./-]+([a-z]{3,})[\s,./-]+(\d{2,4})/i);
- if(m&&months[m[2].toLowerCase()]){let y=Number(m[3]);if(y<100)y+=y<50?2000:1900;return isoParts(y,months[m[2].toLowerCase()],m[1])}
- m=text.match(/^([a-z]{3,})[\s,./-]+(\d{1,2})[\s,./-]+(\d{2,4})/i);
- if(m&&months[m[1].toLowerCase()]){let y=Number(m[3]);if(y<100)y+=y<50?2000:1900;return isoParts(y,months[m[1].toLowerCase()],m[2])}
- return '';
-}
-function numberValue(value){
- if(value===null||value===undefined||value==='')return null;
- if(typeof value==='number')return isFinite(value)?value:null;
- const match=String(value).replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);
- return match?Number(match[0]):null;
-}
-function parseDuration(value,header){
- const text=String(value==null?'':value).trim();if(!text)return {days:null,working:false};
- const head=norm(header+' '+text),range=text.match(/(\d+(?:\.\d+)?)\s*(?:-|to|–)\s*(\d+(?:\.\d+)?)/i);
- if(range)return {days:null,working:/working|business/.test(head)};
- const n=numberValue(text);if(n===null)return {days:null,working:/working|business/.test(head)};
- if(/\b(month|months|year|years|hour|hours|hr|hrs)\b/.test(head))return {days:null,working:/working|business/.test(head)};
- let multiplier=/\b(week|weeks|wk|wks)\b/.test(head)?7:1;
- return {days:Math.max(0,n*multiplier),working:/working|business/.test(head)};
-}
-function scoreField(field,header){
- const h=norm(header);if(!h)return 0;
- let score=0;
- field.aliases.forEach(alias=>{
-  const a=norm(alias);
-  if(h===a)score=Math.max(score,140);
-  else if(h.includes(a))score=Math.max(score,85);
-  else if(a.includes(h)&&h.length>=5)score=Math.max(score,45);
- });
- if((field.key==='start'||field.key==='finish')&&/actual|baseline|original|revised/.test(h))score-=100;
- if(field.key==='finish'&&/start|commencement/.test(h))score-=100;
- if(field.key==='start'&&/finish|end|delivery|completion|deadline/.test(h))score-=100;
- if(field.key==='task'&&/remarks|comment|status|progress/.test(h))score-=70;
- return score;
-}
-function autoMap(headerList){
- const candidates=[];
- columns.forEach(field=>headerList.forEach((header,index)=>{const score=scoreField(field,header);if(score>=55)candidates.push({key:field.key,index:index,score:score})}));
- candidates.sort((a,b)=>b.score-a.score);
- const output={},used=new Set();
- candidates.forEach(item=>{if(output[item.key]===undefined&&!used.has(item.index)){output[item.key]=String(item.index);used.add(item.index)}});
- return output;
-}
-function buildHeaders(matrix,index,merges){
- const child=(matrix[index]||[]).map(v=>String(v==null?'':v).trim());
- const parent=(index>0?(matrix[index-1]||[]).map(v=>String(v==null?'':v).trim()):[]);
- (merges||[]).forEach(m=>{
-  if(m.s&&m.e&&m.s.r===index-1&&m.e.r===index-1){
-   const val=parent[m.s.c]||'';for(let c=m.s.c;c<=m.e.c;c++)parent[c]=val;
-  }
- });
- const parentCount=parent.filter(Boolean).length;
- const grouped=parentCount>=2&&child.some((v,i)=>v&&parent[i]&&norm(v)!==norm(parent[i]));
- const len=Math.max(child.length,parent.length);
- return Array.from({length:len},(_,i)=>{
-  const top=grouped?parent[i]||'':'',bottom=child[i]||'';
-  return top&&bottom?top+' — '+bottom:(bottom||top||('Column '+(i+1)));
- });
-}
-function detectHeader(matrix,merges){
- let best=0,bestScore=-Infinity,bestMap={};
- for(let i=0;i<Math.min(matrix.length,60);i++){
-  const h=buildHeaders(matrix,i,merges),m=autoMap(h);
-  const mapped=Object.keys(m).length,task=m.task===undefined?-1:Number(m.task);
-  const sample=task<0?0:matrix.slice(i+1,i+9).filter(row=>String((row||[])[task]??'').trim()).length;
-  const dateCount=['start','finish'].filter(k=>m[k]!==undefined).length;
-  const populated=(matrix[i]||[]).filter(v=>String(v??'').trim()).length;
-  const score=(task>=0?20:0)+dateCount*8+mapped*2+Math.min(6,sample)*1.5+populated*.1;
-  if(score>bestScore){bestScore=score;best=i;bestMap=m}
+ m=s.match(/^(\d{1,2})[\s,./-]+([A-Za-z]{3,})[\s,./-]+(\d{2,4})/);
+ if(m){
+  const months={jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,sep:9,sept:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
+  let y=+m[3];if(y<100)y+=y<50?2000:1900;const mon=months[m[2].toLowerCase()];return mon?dayUTC(y,mon,+m[1]):null;
  }
- return {index:best,mapping:bestMap};
+ return null;
 }
-function parseCSV(text){
- const source=String(text||'').replace(/^\uFEFF/,'');
- const sample=source.split(/\r?\n/).filter(x=>x.trim()).slice(0,12);
- let delimiter=',',best=-1;
- [',',';','\t'].forEach(d=>{
-  const counts=sample.map(line=>{let n=0,q=false;for(let i=0;i<line.length;i++){if(line[i]==='"'){if(q&&line[i+1]==='"')i++;else q=!q}else if(!q&&line[i]===d)n++}return n});
-  const freq={};counts.filter(x=>x>0).forEach(x=>freq[x]=(freq[x]||0)+1);
-  const score=counts.reduce((a,b)=>a+b,0)+Math.max(0,...Object.values(freq))*3+Math.max(0,...counts)*2;
-  if(score>best){best=score;delimiter=d}
+function duration(v){
+ const s=String(v??'').trim();if(!s)return null;
+ const n=number(s);if(n===null)return null;
+ if(/\b(month|months|year|years|hour|hours|hr|hrs)\b/i.test(s))return null;
+ const weeks=/\b(week|weeks|wk|wks)\b/i.test(s);
+ return Math.max(0,n*(weeks?7:1));
+}
+function detectColumns(headers){
+ const aliases={
+  task:['tasks','task','task name','activity','activity name','description','equipment','equipment name','item','work description'],
+  vendor:['vendor','supplier','contractor'],
+  duration:['duration','duration days','days','period','lead time'],
+  start:['start','start date','planned start','commencement'],
+  finish:['deadline','finish','finish date','end date','due date','delivery date','completion date'],
+  status:['status','state','progress status'],
+  remaining:['remaining days','days remaining']
+ };
+ const out={};
+ Object.entries(aliases).forEach(([key,list])=>{
+  let best=-1,bscore=0;
+  headers.forEach((h,i)=>{
+   const x=norm(h);
+   list.forEach(a=>{const y=norm(a);let s=x===y?100:x.includes(y)?75:y.includes(x)&&x.length>3?45:0;if(s>bscore){bscore=s;best=i}});
+  });
+  if(best>=0)out[key]=best;
  });
- const rows=[];let row=[],cell='',quoted=false;
- for(let i=0;i<source.length;i++){
-  const c=source[i];
-  if(quoted){if(c==='"'&&source[i+1]==='"'){cell+='"';i++}else if(c==='"')quoted=false;else cell+=c}
-  else if(c==='"')quoted=true;
-  else if(c===delimiter){row.push(cell);cell=''}
-  else if(c==='\n'){row.push(cell.replace(/\r$/,''));rows.push(row);row=[];cell=''}
-  else cell+=c;
+ return out;
+}
+function headerRow(rows){
+ let best={row:0,score:-1,headers:[]};
+ for(let r=0;r<Math.min(rows.length,60);r++){
+  const h=(rows[r]||[]).map(v=>String(v??'').trim());
+  const map=detectColumns(h),score=(map.task!==undefined?50:0)+(map.finish!==undefined?25:0)+(map.start!==undefined?15:0)+(map.duration!==undefined?8:0)+h.filter(Boolean).length*.1;
+  if(score>best.score)best={row:r,score,headers:h};
  }
- if(cell.length||row.length){row.push(cell.replace(/\r$/,''));rows.push(row)}
- return rows;
+ return best;
 }
-function loadScript(urls,globalName,promiseName){
- if(window[globalName])return Promise.resolve(window[globalName]);
- if(promiseName==='xlsx'&&xlsxPromise)return xlsxPromise;
- if(promiseName==='exceljs'&&excelJsPromise)return excelJsPromise;
- const promise=new Promise((resolve,reject)=>{
-  let i=0;
-  function next(){
-   if(window[globalName]){resolve(window[globalName]);return}
-   if(i>=urls.length){reject(new Error('Could not load the Excel library. Check your internet connection and retry.'));return}
-   const script=document.createElement('script');script.src=urls[i++];script.async=true;
-   script.onload=()=>window[globalName]?resolve(window[globalName]):next();
-   script.onerror=next;document.head.appendChild(script);
-  }
-  next();
- });
- if(promiseName==='xlsx')xlsxPromise=promise.catch(e=>{xlsxPromise=null;throw e});
- else excelJsPromise=promise.catch(e=>{excelJsPromise=null;throw e});
- return promise;
-}
-function loadXLSX(){return loadScript(['https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js','https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js','https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'],'XLSX','xlsx')}
-function loadExcelJS(){return loadScript(['https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js','https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js','https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'],'ExcelJS','exceljs')}
-function sheetRows(wb,name){
- const sheet=wb.Sheets[name];
- if(sheet.__rows)return sheet.__rows;
- return XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:true,blankrows:true});
-}
-async function readWorkbook(file){
- if(/\.csv$/i.test(file.name)){
-  const text=await file.text();
-  return {SheetNames:['CSV'],Sheets:{CSV:{__rows:parseCSV(text)}},Workbook:{WBProps:{date1904:false}}};
+function inferTitle(rows,name){
+ for(let r=0;r<Math.min(5,rows.length);r++){
+  const vals=(rows[r]||[]).map(v=>String(v??'').trim()).filter(Boolean);
+  if(vals.length===1&&vals[0].length>4)return vals[0];
  }
- await loadXLSX();
- const buffer=await file.arrayBuffer();
- return XLSX.read(buffer,{type:'array',cellDates:false,cellNF:true,raw:true});
+ return String(name||'Project Gantt').replace(/\.[^.]+$/,'');
 }
-function showSheet(name){
- const sheet=workbook.Sheets[name];
- sourceMerges=sheet['!merges']||[];
- sourceMatrix=sheetRows(workbook,name);
- const detected=detectHeader(sourceMatrix,sourceMerges);
- headerRow=detected.index;
- $('headerSelect').innerHTML=sourceMatrix.slice(0,Math.min(60,sourceMatrix.length)).map((row,index)=>'<option value="'+index+'" '+(index===headerRow?'selected':'')+'>Row '+(index+1)+': '+esc((row||[]).slice(0,5).filter(Boolean).join(' · ').slice(0,85)||'(blank)')+'</option>').join('');
- updateHeader();
-}
-function fillColumnSelect(id,key){
- const current=mapping[key]===undefined?'':String(mapping[key]);
- const el=$(id);
- el.innerHTML='<option value="">— Not mapped —</option>'+headers.map((name,index)=>'<option value="'+index+'" '+(current===String(index)?'selected':'')+'>'+esc(name)+' · Col '+(index+1)+'</option>').join('');
-}
-function renderMapping(){
- columns.forEach(field=>fillColumnSelect(field.id,field.key));
-}
-function updateHeader(){
- headerRow=Number($('headerSelect').value||0);
- headers=buildHeaders(sourceMatrix,headerRow,sourceMerges);
- mapping=autoMap(headers);
- renderMapping();
- updatePreview();
-}
-function getCell(rowIndex,columnIndex,key){
- if(columnIndex===undefined||columnIndex===null||columnIndex==='')return '';
- const row=sourceMatrix[rowIndex]||[];
- const value=row[Number(columnIndex)];
- if(value!==''&&value!==null&&value!==undefined)return value;
- if(!['task'].includes(key)){
-  for(const merge of sourceMerges){
-   if(merge.s&&merge.e&&merge.s.c===Number(columnIndex)&&merge.e.c===Number(columnIndex)&&merge.s.r>headerRow&&merge.s.r<rowIndex&&merge.e.r>=rowIndex){
-    const anchor=(sourceMatrix[merge.s.r]||[])[merge.s.c];
-    if(anchor!==''&&anchor!==null&&anchor!==undefined)return anchor;
-   }
-  }
- }
- return '';
-}
-function readTasks(){
- const date1904=!!(workbook.Workbook&&workbook.Workbook.WBProps&&[true,1,'1'].includes(workbook.Workbook.WBProps.date1904));
- const order=$('dateOrder').value||'DMY';
- const fieldColumn=key=>mapping[key]===undefined||mapping[key]===''?null:Number(mapping[key]);
- const vendorColumn=headers.findIndex(h=>norm(h)==='vendor');
- const statusColumn=headers.findIndex(h=>norm(h)==='status');
- const remainingColumn=headers.findIndex(h=>norm(h)==='remaining days');
- const groupedLayout=vendorColumn>=0&&headers.some(h=>norm(h)==='tasks')&&headers.some(h=>norm(h)==='deadline');
- const list=[],warnings={invalidDates:0,missingDates:0,invalidDurations:0,skipped:0,derivedStarts:0,milestones:0,groups:0};
- const groupStack=[];
- const rowCount=sourceMatrix.length;
- for(let rowIndex=headerRow+1;rowIndex<rowCount;rowIndex++){
-  const row=sourceMatrix[rowIndex]||[];
+function parseSheet(rows,sheetName,fileName){
+ const hd=headerRow(rows),headers=hd.headers,map=detectColumns(headers);
+ // Strong fallback for the Dhamrai-style layout: B=Task, C=Vendor, D=Duration, E=Start, F=Deadline, G=Remaining Days, H=Status.
+ if(map.task===undefined&&headers.length>=2)map.task=1;
+ if(map.vendor===undefined&&headers.length>=3)map.vendor=2;
+ if(map.duration===undefined&&headers.length>=4)map.duration=3;
+ if(map.start===undefined&&headers.length>=5)map.start=4;
+ if(map.finish===undefined&&headers.length>=6)map.finish=5;
+ if(map.remaining===undefined&&headers.length>=7)map.remaining=6;
+ if(map.status===undefined&&headers.length>=8)map.status=7;
+ const tasks=[],stack=[];
+ const warnings={missing:0,derived:0,milestones:0,skipped:0,groups:0};
+ let lastEnd=null;
+ for(let r=hd.row+1;r<rows.length;r++){
+  const row=rows[r]||[];
   if(!row.some(v=>v!==''&&v!==null&&v!==undefined))continue;
-  const read=key=>{const col=fieldColumn(key);return col===null?'':getCell(rowIndex,col,key)};
-  const rawName=String(read('task')??''),name=rawName.trim();
+  const rawName=String(row[map.task]??''),name=rawName.trim();
   if(!name||/^(grand\s+)?total$|^overall summary$/i.test(name)){warnings.skipped++;continue}
   const indent=(rawName.match(/^\s*/)||[''])[0].length;
-  const rawStart=read('start'),rawFinish=read('finish');
-  let start=parseDate(rawStart,order,date1904),finish=parseDate(rawFinish,order,date1904);
-  const rawDuration=read('duration');
-  const durationHeader=fieldColumn('duration')===null?'':headers[fieldColumn('duration')];
-  const durationInfo=parseDuration(rawDuration,durationHeader);
-  let duration=durationInfo.days;
-  if(durationInfo.days===null&&rawDuration!=='')warnings.invalidDurations++;
-  if(rawStart!==''&&!start)warnings.invalidDates++;
-  if(rawFinish!==''&&!finish)warnings.invalidDates++;
-  const rawVendor=vendorColumn>=0?getCell(rowIndex,vendorColumn,'vendor'):'';
-  const vendor=String(rawVendor??'').trim();
-  let rawStatus=statusColumn>=0?getCell(rowIndex,statusColumn,'status'):'';
-  // In this workbook, some status entries are stored in the "Remaining Days" column.
-  // Numeric/formula values in that column are deliberately ignored.
-  if((rawStatus===null||rawStatus===undefined||rawStatus==='')&&remainingColumn>=0){
-   const candidate=getCell(rowIndex,remainingColumn,'remaining');
-   if(typeof candidate==='string'&&candidate.trim()&&numberValue(candidate)===null&&!parseDate(candidate,order,date1904))rawStatus=candidate;
+  const vendor=String(row[map.vendor]??'').trim();
+  const start0=parseDate(row[map.start]),finish0=parseDate(row[map.finish]),dur0=duration(row[map.duration]);
+  const statusRaw=String(row[map.status]??'').trim();
+  let status=statusRaw;
+  if(!status&&map.remaining!==undefined){
+   const rem=row[map.remaining];
+   if(typeof rem==='string'&&rem.trim()&&number(rem)===null&&!parseDate(rem))status=rem.trim();
   }
-  const status=String(rawStatus??'').trim();
-  const hasSchedule=!!(start||finish||duration!==null);
-  const isGroup=groupedLayout&&!!vendor&&!hasSchedule&&!status;
+  const hasSchedule=!!(start0!==null||finish0!==null||dur0!==null);
+  const isGroup=!!vendor&&!hasSchedule&&!status;
   if(isGroup){
-   for(let i=groupStack.length-1;i>=0;i--)if(groupStack[i].indent>=indent)groupStack.splice(i,1);
-   groupStack.push({indent:indent,name:name,vendor:vendor});warnings.groups++;
-   continue;
+   while(stack.length&&stack[stack.length-1].indent>=indent)stack.pop();
+   stack.push({indent,name,vendor});warnings.groups++;continue;
   }
-  // A top-level equipment/phase heading with no dates, duration or status is a label, not a schedulable activity.
-  if(groupedLayout&&indent===0&&!hasSchedule&&!status&&!vendor){
-   for(let i=groupStack.length-1;i>=0;i--)if(groupStack[i].indent>=indent)groupStack.splice(i,1);
-   warnings.skipped++;continue;
+  if(!hasSchedule&&!status&&!vendor&&indent===0){
+   warnings.skipped++;stack.length=0;continue;
   }
-  for(let i=groupStack.length-1;i>=0;i--)if(groupStack[i].indent>=indent)groupStack.splice(i,1);
-  if(start&&finish&&isoToDay(finish)<isoToDay(start)){start='';finish='';warnings.invalidDates++}
-  let startBasis=start?'Source start date':'Not provided',isMilestone=false;
-  if(start&&finish)startBasis='Source dates';
-  if(start&&!finish&&duration!==null&&duration>0){finish=addDuration(start,duration,durationInfo.working);if(finish)startBasis='Source start + duration'}
-  if(finish&&!start&&duration!==null&&duration>0){start=subtractDuration(finish,duration,durationInfo.working);if(start){warnings.derivedStarts++;startBasis='Derived from deadline + duration'}}
-  // A deadline without a duration is shown as a one-day milestone; no missing span is invented.
-  if(finish&&!start&&duration===null){start=finish;duration=1;warnings.milestones++;isMilestone=true;startBasis='Deadline-only milestone'}
-  if(start&&!finish&&duration===null){finish=start;duration=1;warnings.milestones++;isMilestone=true;startBasis='Start-only milestone'}
-  if(duration===null&&start&&finish)duration=isoToDay(finish)-isoToDay(start)+1;
-  if(!start||!finish)warnings.missingDates++;
-  const rawProgress=read('progress'),n=numberValue(rawProgress);
-  let progress=n;
-  if(progress!==null&&progress>0&&progress<=1&&!String(rawProgress).includes('%'))progress*=100;
-  if(progress!==null)progress=Math.max(0,Math.min(100,progress));
-  if(progress===null&&/^(done|complete|completed|finished|closed)$/i.test(status))progress=100;
-  const groups=groupStack.map(g=>g.name);
-  const groupVendors=groupStack.map(g=>g.vendor).filter(Boolean);
-  const taskVendor=groupVendors.length?groupVendors[groupVendors.length-1]:(groupedLayout?'':'');
-  list.push({
-   name:name,group:groups.join(' / '),vendor:taskVendor,status:status,
-   indent:indent,start:start,finish:finish,duration:duration,progress:progress,
-   startBasis:startBasis,sourceStart:rawStart,sourceFinish:rawFinish,
-   sourceRow:rowIndex+1,isMilestone:isMilestone
+  while(stack.length&&stack[stack.length-1].indent>=indent)stack.pop();
+  let start=start0,finish=finish0,dur=dur0,basis='source',milestone=false;
+  if(start!==null&&finish!==null&&finish<start){start=null;finish=null}
+  if(start!==null&&finish===null&&dur!==null&&dur>0){finish=start+Math.ceil(dur)-1}
+  if(finish!==null&&start===null&&dur!==null&&dur>0){start=finish-Math.ceil(dur)+1;basis='calculated'}
+  if(finish!==null&&start===null&&dur===null){start=finish;dur=1;milestone=true;basis='milestone';warnings.milestones++}
+  if(start!==null&&finish===null&&dur===null){finish=start;dur=1;milestone=true;basis='milestone';warnings.milestones++}
+  if(dur===null&&start!==null&&finish!==null)dur=finish-start+1;
+  if(start===null||finish===null)warnings.missing++;
+  if(basis==='calculated')warnings.derived++;
+  if(finish!==null)lastEnd=finish;
+  const groups=stack.map(g=>g.name);
+  const inheritedVendor=stack.length?stack[stack.length-1].vendor:vendor;
+  tasks.push({
+   row:r+1,name,group:groups.join(' / '),vendor:inheritedVendor,start:start===null?null:iso(start),
+   end:finish===null?null:iso(finish),duration:dur,done:/^(done|complete|completed|finished|closed)$/i.test(status),
+   active:/progress|ongoing|active|working|in progress/i.test(status),status,basis,
+   milestone,sourceRow:r+1
   });
  }
- return {list:list,warnings:warnings};
+ return {title:inferTitle(rows,fileName),sheet:sheetName,tasks,warnings};
 }
-function updatePreview(){
- const taskCol=mapping.task,startCol=mapping.start,finishCol=mapping.finish,durationCol=mapping.duration;
- const result=readTasks();
- const data=result.list.slice(0,5);
- const selected=columns.filter(field=>mapping[field.key]!==undefined&&mapping[field.key]!=='');
- $('previewTable').innerHTML='<thead><tr>'+selected.map(f=>'<th>'+esc(f.label)+'</th>').join('')+'</tr></thead><tbody>'+data.map(task=>'<tr>'+selected.map(f=>{
-  const value=f.key==='task'?task.name:f.key==='start'?task.start:f.key==='finish'?task.finish:f.key==='duration'?task.duration:f.key==='progress'?task.progress:'';
-  return '<td>'+esc(value===null||value===undefined?'':value)+'</td>';
- }).join('')+'</tr>').join('')+'</tbody>';
- $('rowCount').textContent=result.list.length+' tasks detected';
- const notes=[];
- if(!taskCol)notes.push('Choose the task-name column.');
- if(!startCol&&!finishCol)notes.push('Choose at least one date column: start date or finish date.');
- if((!startCol||!finishCol)&&!durationCol)notes.push('Map both start and finish dates, or add a duration column to calculate the missing date.');
- if(result.warnings.derivedStarts)notes.push(result.warnings.derivedStarts+' start date(s) calculated from deadline and duration.');
- if(result.warnings.milestones)notes.push(result.warnings.milestones+' deadline-only row(s) shown as milestones.');
- if(result.warnings.missingDates)notes.push(result.warnings.missingDates+' activity rows have no complete dates.');
- if(result.warnings.invalidDates)notes.push(result.warnings.invalidDates+' date value(s) could not be read.');
- if(result.warnings.invalidDurations)notes.push(result.warnings.invalidDurations+' duration value(s) could not be converted.');
- if(!notes.length)notes.push('The detected task names and dates look ready.');
- $('qualityLine').textContent=notes.join(' ');
- $('qualityLine').classList.toggle('warning',taskCol===undefined||startCol===undefined||(finishCol===undefined&&mapping.duration===undefined)||result.warnings.invalidDates>0||result.warnings.missingDates>0);
- $('buildButton').disabled=!taskCol||(!startCol&&!finishCol)||((!startCol||!finishCol)&&!durationCol)||result.list.length===0;
-}
-function loadFile(file){
- if(!file)return;
- if(!/\.(xlsx|xls|csv)$/i.test(file.name)){toast('Please choose an .xlsx, .xls or .csv file.');return}
- $('dropTitle').textContent='Reading your workbook…';$('dropSubtitle').textContent=file.name;
- readWorkbook(file).then(wb=>{
-  workbook=wb;sourceFile=file.name;sourceName=file.name.replace(/\.[^.]+$/,'');
-  const sheetNames=wb.SheetNames||[];
-  if(!sheetNames.length)throw new Error('No worksheet found in this file.');
-  $('sheetSelect').innerHTML=sheetNames.map(name=>'<option value="'+esc(name)+'">'+esc(name)+'</option>').join('');
-  $('fileInfo').textContent=sourceFile+' · Choose the worksheet and check the detected columns.';
-  $('importSettings').hidden=false;
-  showSheet(sheetNames[0]);
-  $('dropTitle').textContent=sourceFile;$('dropSubtitle').textContent='Workbook loaded. You can choose another file at any time.';
-  $('chartPanel').hidden=true;
-  $('importPanel').scrollIntoView({behavior:'smooth',block:'start'});
- }).catch(error=>{
-  $('dropTitle').textContent='Choose your Excel file';$('dropSubtitle').textContent='Drag and drop here, or click to browse · .xlsx, .xls, .csv';
-  toast(error.message||'Unable to read this workbook.');
+async function loadLibrary(){
+ if(window.XLSX)return window.XLSX;
+ return new Promise((resolve,reject)=>{
+  const s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';s.onload=()=>resolve(window.XLSX);s.onerror=()=>reject(new Error('Excel reader could not be loaded.'));document.head.appendChild(s);
  });
 }
-function buildChart(){
- const result=readTasks();tasks=result.list;
- if(!tasks.length){toast('No task rows were detected. Check the task-name column.');return}
- tasks.sort((a,b)=>{
-  if(a.start&&b.start)return isoToDay(a.start)-isoToDay(b.start)||a.sourceRow-b.sourceRow;
-  if(a.start)return -1;if(b.start)return 1;return a.sourceRow-b.sourceRow;
- });
- $('chartTitle').textContent=sourceName||'Gantt chart';
- $('chartSubtitle').textContent=sourceFile+' · '+$('sheetSelect').value+' · Start dates derived from duration and deadline when the source start is blank';
- $('chartSummary').textContent=tasks.length+' activities · '+tasks.filter(t=>t.start&&t.finish).length+' scheduled · '+tasks.filter(t=>t.isMilestone).length+' milestones';
- const missing=tasks.filter(t=>!t.start||!t.finish).length;
- $('missingDates').textContent=missing?missing+' activities have incomplete dates':'All activities have dates';
- $('importPanel').hidden=true;$('chartPanel').hidden=false;$('chartPanel').scrollIntoView({behavior:'smooth',block:'start'});
- chartScale=$('scaleSelect').value||'week';renderChart();
- if(missing)toast('Gantt chart built. '+missing+' task(s) need a complete start and finish date.');
- else toast('Gantt chart built successfully.');
-}
-function getRange(){
- const dates=[];tasks.forEach(t=>{if(t.start&&t.finish&&isoToDay(t.finish)>=isoToDay(t.start)){dates.push(isoToDay(t.start),isoToDay(t.finish))}});
- if(!dates.length)return null;
- const min=Math.min(...dates)-2,max=Math.max(...dates)+2;
- return {start:min,end:max,days:max-min+1};
-}
-function renderChart(){
- const labels=$('taskLabels'),timeline=$('timeline'),range=getRange();
- labels.innerHTML='';timeline.innerHTML='';
- const count=tasks.length,head=document.createElement('div');head.className='timeline-head';
- if(!range){
-  timeline.style.width='700px';timeline.style.height=(64+count*46)+'px';timeline.appendChild(head);
-  tasks.forEach(t=>{
-   const label=document.createElement('div');label.className='task-label';const meta=[t.group,t.vendor?'Vendor: '+t.vendor:'',t.status].filter(Boolean).join(' · ');label.innerHTML='<strong>'+esc(t.name)+'</strong><small>'+esc(meta||'No dates supplied')+'</small>';labels.appendChild(label);
-   const row=document.createElement('div');row.className='gantt-row';row.style.width='700px';const no=document.createElement('span');no.className='no-date';no.textContent='Dates not available';row.appendChild(no);timeline.appendChild(row);
-  });
-  return;
+async function readFile(file){
+ const XLSX=await loadLibrary();
+ if(/\.csv$/i.test(file.name)){
+  const text=await file.text();const rows=text.split(/\r?\n/).map(line=>line.split(','));
+  return {SheetNames:['CSV'],Sheets:{CSV:{__rows:rows}},Workbook:{WBProps:{date1904:false}}};
  }
- const px=chartScale==='day'?28:chartScale==='week'?14:5;
- const total=Math.max(700,range.days*px);timeline.style.width=total+'px';timeline.style.height=(64+count*46)+'px';
- let month=new Date(range.start*86400000);month=new Date(Date.UTC(month.getUTCFullYear(),month.getUTCMonth(),1));
- while(month.getTime()/86400000<=range.end){
-  const monthDay=Math.floor(month.getTime()/86400000),next=new Date(Date.UTC(month.getUTCFullYear(),month.getUTCMonth()+1,1)),nextDay=Math.floor(next.getTime()/86400000);
-  const item=document.createElement('div');item.className='month-label';item.style.left=(monthDay-range.start)*px+'px';item.style.width=(Math.min(range.end+1,nextDay)-monthDay)*px+'px';item.textContent=month.toLocaleDateString(undefined,{month:'short',year:'numeric'});head.appendChild(item);month=next;
- }
- const step=chartScale==='day'?1:chartScale==='week'?7:30;
- if(chartScale==='month'){
-  let day=0;while(day<range.days){
-   const date=new Date((range.start+day)*86400000),nextMonth=new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+1,1));
-   const nextDay=Math.floor(nextMonth.getTime()/86400000),span=Math.max(1,Math.min(range.end+1,nextDay)-(range.start+day));
-   const item=document.createElement('div');item.className='time-tick';item.style.left=(day*px)+'px';item.style.width=span*px+'px';item.textContent=date.toLocaleDateString(undefined,{month:'short'});head.appendChild(item);day+=span;
-  }
- }else for(let day=0;day<range.days;day+=step){
-  const d=range.start+day,date=new Date(d*86400000),item=document.createElement('div');item.className='time-tick';item.style.left=(day*px)+'px';item.style.width=Math.min(step,range.days-day)*px+'px';
-  item.textContent=chartScale==='day'?String(date.getUTCDate()):chartScale==='week'?'W'+Math.ceil((date.getUTCDate()+new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),1)).getUTCDay())/7):date.getUTCDate()===1?date.toLocaleDateString(undefined,{month:'short'}):'';
-  head.appendChild(item);
- }
- timeline.appendChild(head);
- tasks.forEach(task=>{
-  const label=document.createElement('div');label.className='task-label';
-  const meta=[task.group,task.vendor?'Vendor: '+task.vendor:'',task.start&&task.finish?task.start+' → '+task.finish:'Dates not supplied',task.startBasis,task.status].filter(Boolean).join(' · ');
-  label.innerHTML='<strong title="'+esc(task.name)+'">'+esc(task.name)+'</strong><small title="'+esc(meta)+'">'+esc(meta)+'</small>';labels.appendChild(label);
-  const row=document.createElement('div');row.className='gantt-row';row.style.width=total+'px';row.style.backgroundSize=(step*px)+'px 100%';
-  if(task.start&&task.finish&&isoToDay(task.finish)>=isoToDay(task.start)){
-   const left=(isoToDay(task.start)-range.start)*px,width=(isoToDay(task.finish)-isoToDay(task.start)+1)*px;
-   const bar=document.createElement('div');bar.className='gantt-bar'+(task.isMilestone?' gantt-milestone':'');bar.style.left=left+'px';bar.style.width=task.isMilestone?'12px':Math.max(4,width)+'px';
-   bar.title=[task.group,task.name,task.vendor?'Vendor: '+task.vendor:'',task.start+' to '+task.finish,task.startBasis,task.status,task.progress===null?'':task.progress+'% complete','Source row '+task.sourceRow].filter(Boolean).join(' · ');
-   if(task.progress!==null&&!task.isMilestone){const progress=document.createElement('div');progress.className='gantt-progress';progress.style.width=task.progress+'%';bar.appendChild(progress)}
-   if(width>100){const name=document.createElement('span');name.textContent=task.name;bar.appendChild(name)}
-   row.appendChild(bar);
-  }else{const no=document.createElement('span');no.className='no-date';no.textContent='No complete schedule';row.appendChild(no)}
-  timeline.appendChild(row);
- });
- dateRange=range;
+ const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false,raw:true});
+ return wb;
 }
-function addExcelRowsFromSource(ws){
- if(!sourceMatrix.length)return;
- sourceMatrix.forEach((row,index)=>ws.addRow((row||[]).map(v=>v==null?'':v)));
- ws.getRow(Math.min(headerRow+1,ws.rowCount)).font={bold:true,color:{argb:'FF2B4566'}};
- ws.views=[{state:'frozen',ySplit:headerRow+1,showGridLines:false}];
+function rowsOf(wb,name){
+ const s=wb.Sheets[name];
+ if(s.__rows)return s.__rows;
+ return window.XLSX.utils.sheet_to_json(s,{header:1,defval:'',raw:true,blankrows:true});
 }
-function buildExportTasksRows(){
- return [
-  ['Equipment / Group','Task / Activity','Vendor','Start date','Finish date','Duration (days)','Progress (%)','Status','Start date basis','Source row'],
-  ...tasks.map(t=>[t.group||'',t.name,t.vendor||'',t.start||'',t.finish||'',t.duration===null?'':t.duration,t.progress===null?'':t.progress,t.status||'',t.startBasis||'',t.sourceRow])
- ];
+function state(t){
+ if(t.done)return'Done';
+ const today=dayUTC(new Date().getFullYear(),new Date().getMonth()+1,new Date().getDate());
+ if(!t.end)return'No date';
+ const end=isoDay(t.end),start=isoDay(t.start);
+ if(end<today)return'Overdue';
+ if(t.active||(start<=today&&end>=today))return'In progress';
+ return'Planned';
+}
+function draw(){
+ if(!data)return;
+ const q=$('q').value.toLowerCase().trim(),filter=$('f').value,ppd=+$('z').value;
+ data.tasks.forEach(t=>t.s=state(t));
+ const all=data.tasks,dated=all.filter(t=>t.start&&t.end);
+ if(!dated.length){$('wrap').innerHTML='<div class="empty">No usable schedule dates were found in the workbook.</div>';return}
+ let min=Math.min(...dated.map(t=>isoDay(t.start)))-7,max=Math.max(...dated.map(t=>isoDay(t.end)))+14;
+ const W=Math.max(700,(max-min)*ppd);
+ const count=s=>all.filter(t=>!t.group&&t.s===s).length;
+ $('k').innerHTML=['Done','In progress','Overdue','Planned'].map(s=>'<span class="chip" style="background:'+COL[s]+'">'+s+' '+count(s)+'</span>').join(' ');
+ let rows=all.filter(t=>(!q||t.name.toLowerCase().includes(q)||t.vendor.toLowerCase().includes(q))&&(!filter||t.group||t.s===filter));
+ if(q||filter){
+  const visibleGroups=new Set();
+  rows.forEach((t,i)=>{if(!t.group&&t.group)visibleGroups.add(t.group)});
+  rows=rows.filter(t=>!t.group||rows.some(x=>!x.group&&x.group===t.name));
+ }
+ let html='<div class="row hd"><div class="lab">Task</div><div class="trk" style="width:'+W+'px">';
+ const first=new Date(min*DAY);let d=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth(),1));
+ while(d.getTime()/DAY<max){
+  const day=d.getTime()/DAY,x=(day-min)*ppd;
+  html+='<div class="m" style="left:'+x+'px">'+d.toLocaleDateString('en-GB',{month:'short',year:'2-digit',timeZone:'UTC'})+'</div>';
+  d=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,1));
+ }
+ html+='</div></div>';
+ for(const t of rows){
+  const s=t.s,sd=t.start?isoDay(t.start):null,ed=t.end?isoDay(t.end):null;
+  const dt=sd!==null&&ed!==null?fmt(sd)+' - '+fmt(ed):'no date';
+  const tip=esc(t.name+'\n'+dt+'\nState: '+s+(t.basis==='calculated'?'\nStart calculated from finish + duration':''));
+  const bar=sd!==null&&ed!==null?'<div class="b '+(t.milestone?'milestone':'')+'" title="'+tip+'" style="left:'+((sd-min)*ppd)+'px;width:'+Math.max((ed-sd)*ppd,7)+'px;background:'+COL[s]+'"></div>':'';
+  html+='<div class="row'+(t.group?' g':'')+'"><div class="lab" title="'+tip+'" style="padding-left:'+(t.group?8:22)+'px">'+esc(t.name)+(t.vendor?'<small>'+esc(t.vendor)+'</small>':'')+'</div><div class="trk" style="width:'+W+'px">'+bar+'</div></div>';
+ }
+ $('wrap').innerHTML=html;
+ const today=dayUTC(new Date().getFullYear(),new Date().getMonth()+1,new Date().getDate());
+ if(today>=min&&today<=max)$('wrap').querySelectorAll('.trk').forEach((e,i)=>{if(i)e.insertAdjacentHTML('beforeend','<div class="today" style="left:'+((today-min)*ppd)+'px"></div>')});
+ $('t').textContent=data.title||'Project Gantt';
+ $('info').textContent=(data.sheet?'Sheet: '+data.sheet+' · ':'')+all.filter(t=>!t.group).length+' activities · '+(data.warnings.derived||0)+' calculated starts · '+(data.warnings.milestones||0)+' deadline milestones';
+}
+async function importFile(file){
+ try{
+  $('info').textContent='Reading '+file.name+'…';
+  workbook=await readFile(file);sourceFile=file;
+  const names=workbook.SheetNames||[];
+  if(!names.length)throw new Error('No worksheet found.');
+  // Prefer the first sheet containing a task-like header and a finish/deadline header.
+  let chosen=names[0];
+  for(const name of names){const rows=rowsOf(workbook,name);const h=headerRow(rows).headers.map(norm);if(h.some(x=>x==='tasks'||x==='task'||x==='activity')&&h.some(x=>x==='deadline'||x==='finish'||x==='finish date')){chosen=name;break}}
+  data=parseSheet(rowsOf(workbook,chosen),chosen,file.name);
+  $('upload').style.display='none';draw();
+ }catch(e){$('info').textContent='Could not read the workbook: '+e.message}
 }
 async function exportExcel(){
- if(!tasks.length){toast('Build a Gantt chart first.');return}
- $('exportButton').disabled=true;$('exportButton').textContent='Preparing Excel…';
+ if(!data||!sourceFile)return;
+ const btn=$('export');btn.disabled=true;btn.textContent='Preparing…';
  try{
-  const ExcelJS=await loadExcelJS();
-  const wb=new ExcelJS.Workbook();wb.creator='DocuWorks Studio';wb.subject='Excel Gantt chart';wb.created=new Date();
-  const ws=wb.addWorksheet('Gantt Chart');
-  const range=getRange();
-  const startDay=range?range.start:null,endDay=range?range.end:null,dayCount=range?range.days:0;
-  const fixedColumnCount=11,timelineColumn=12,lastColumn=fixedColumnCount+dayCount;
-  ws.mergeCells(1,1,1,Math.max(fixedColumnCount,lastColumn));
-  ws.getCell(1,1).value='PROJECT GANTT CHART';
-  ws.getCell(1,1).font={name:'Aptos Display',size:16,bold:true,color:{argb:'FFFFFFFF'}};
-  ws.getCell(1,1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF24456D'}};
-  ws.getRow(1).height=29;
-  ws.mergeCells(2,1,2,Math.max(fixedColumnCount,lastColumn));
-  ws.getCell(2,1).value='Source: '+sourceFile+'  |  Worksheet: '+$('sheetSelect').value+'  |  Generated: '+new Date().toLocaleString();
-  ws.getCell(2,1).font={italic:true,size:9,color:{argb:'FF667891'}};
-  const fixedHeaders=['No.','Equipment / Group','Task / Activity','Vendor','Start date','Finish date','Duration (days)','Progress (%)','Status','Start date basis','Source row'];
-  const headerRowValues=fixedHeaders.slice();
-  if(range){for(let day=startDay;day<=endDay;day++)headerRowValues.push(new Date(day*86400000))}
-  const header=ws.addRow(headerRowValues);header.height=34;
-  header.eachCell(cell=>{cell.font={bold:true,color:{argb:'FFFFFFFF'},size:9};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF385D8A'}};cell.alignment={vertical:'middle',horizontal:'center',wrapText:true};cell.border={bottom:{style:'thin',color:{argb:'FFCFD8E5'}}}});
-  if(range){for(let c=timelineColumn;c<=lastColumn;c++)ws.getCell(3,c).numFmt='dd-mmm'}
-  tasks.forEach((task,index)=>{
-   const rowValues=[index+1,task.group||'',task.name,task.vendor||'',task.start?new Date(isoToDay(task.start)*86400000):'',task.finish?new Date(isoToDay(task.finish)*86400000):'',task.duration===null?'':task.duration,task.progress===null?'':task.progress,task.status||'',task.startBasis||'',task.sourceRow];
-   if(range){for(let day=startDay;day<=endDay;day++)rowValues.push('')}
-   const row=ws.addRow(rowValues);row.height=21;
-   row.getCell(1).alignment={horizontal:'center',vertical:'middle'};
-   row.getCell(2).alignment={vertical:'middle'};
-   [5,6].forEach(col=>{row.getCell(col).numFmt='dd-mmm-yyyy';row.getCell(col).alignment={horizontal:'center',vertical:'middle'}});
-   row.getCell(7).alignment={horizontal:'center',vertical:'middle'};
-   row.getCell(8).alignment={horizontal:'center',vertical:'middle'};
-   row.eachCell({includeEmpty:true},cell=>{cell.border={bottom:{style:'hair',color:{argb:'FFE7ECF2'}}}});
-   if(range&&task.start&&task.finish){
-    const first=Math.max(startDay,isoToDay(task.start)),last=Math.min(endDay,isoToDay(task.finish));
-    if(last>=first){
-     const span=last-first+1,done=task.progress===null?0:Math.round(span*task.progress/100);
-     for(let day=first;day<=last;day++){
-      const cell=row.getCell(timelineColumn+day-startDay);
-      const fillColor=task.isMilestone?'FF8B6ED0':(day-first<done?'FF2CA27E':'FF6687D6');
-      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:fillColor}};
-      cell.alignment={horizontal:'center',vertical:'middle'};
-     }
-    }
-   }
-  });
-  ws.columns[0].width=6;ws.columns[1].width=29;ws.columns[2].width=34;ws.columns[3].width=22;ws.columns[4].width=14;ws.columns[5].width=14;ws.columns[6].width=15;ws.columns[7].width=13;ws.columns[8].width=27;
-  if(range){for(let c=timelineColumn;c<=lastColumn;c++)ws.getColumn(c).width=4.2}
-  ws.views=[{state:'frozen',xSplit:fixedColumnCount,ySplit:3,topLeftCell:'L4',showGridLines:false}];
-  ws.autoFilter={from:{row:3,column:1},to:{row:3+tasks.length,column:fixedColumnCount}};
-  const data=wb.addWorksheet('Task Data');
-  data.addRows(buildExportTasksRows());
-  data.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};
-  data.getRow(1).eachCell(cell=>{cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF385D8A'}};cell.alignment={vertical:'middle'}});
-  data.columns=[{width:29},{width:36},{width:24},{width:15},{width:15},{width:16},{width:14},{width:28},{width:29},{width:13}];
-  data.views=[{state:'frozen',ySplit:1,showGridLines:false}];
-  const original=wb.addWorksheet('Original Data');addExcelRowsFromSource(original);
-  const buffer=await wb.xlsx.writeBuffer();
-  downloadBlob(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),safeFileName(sourceName||'Project')+'_Gantt.xlsx');
-  toast('Excel Gantt workbook exported.');
- }catch(error){
-  try{
-   if(!window.XLSX)await loadXLSX();
-   const range=getRange(),rows=[['PROJECT GANTT CHART'],['Source: '+sourceFile+' | Worksheet: '+$('sheetSelect').value],['No.','Equipment / Group','Task / Activity','Vendor','Start date','Finish date','Duration (days)','Progress (%)','Status','Start date basis','Source row']];
-   if(range){for(let d=range.start;d<=range.end;d++)rows[2].push(dayToISO(d))}
-   tasks.forEach((t,i)=>{
-    const row=[i+1,t.group||'',t.name,t.vendor||'',t.start,t.finish,t.duration===null?'':t.duration,t.progress===null?'':t.progress,t.status||'',t.startBasis||'',t.sourceRow];
-    if(range){for(let d=range.start;d<=range.end;d++)row.push(t.start&&t.finish&&d>=isoToDay(t.start)&&d<=isoToDay(t.finish)?'■':'')}
-    rows.push(row);
+  const XLSX=await loadLibrary();
+  const rows=[['PROJECT GANTT CHART'],['Source: '+sourceFile.name+' | Worksheet: '+data.sheet],['Group','Task','Vendor','Start','Finish','Duration (days)','Status','Start date basis','Source row']];
+  data.tasks.forEach(t=>rows.push([t.group,t.name,t.vendor,t.start||'',t.end||'',t.duration??'',t.status,t.basis==='calculated'?'Calculated from finish + duration':t.basis,t.sourceRow]));
+  const range=data.tasks.filter(t=>t.start&&t.end);
+  if(range.length){
+   const min=Math.min(...range.map(t=>isoDay(t.start))),max=Math.max(...range.map(t=>isoDay(t.end)));
+   rows[2].push(...Array.from({length:max-min+1},(_,i)=>iso(min+i)));
+   data.tasks.forEach((t,i)=>{
+    const row=rows[i+3];
+    row.push(...Array.from({length:max-min+1},(_,j)=>t.start&&t.end&&j+min>=isoDay(t.start)&&j+min<=isoDay(t.end)?'■':''));
    });
-   const book=XLSX.utils.book_new(),sheet=XLSX.utils.aoa_to_sheet(rows);
-   sheet['!cols']=[{wch:6},{wch:29},{wch:36},{wch:24},{wch:14},{wch:14},{wch:16},{wch:13},{wch:28},{wch:29},{wch:12}];
-   XLSX.utils.book_append_sheet(book,sheet,'Gantt Chart');
-   XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet(buildExportTasksRows()),'Task Data');
-   if(sourceMatrix.length)XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet(sourceMatrix),'Original Data');
-   XLSX.writeFile(book,safeFileName(sourceName||'Project')+'_Gantt.xlsx');
-   toast('Excel Gantt exported. Use ExcelJS-enabled export for coloured timeline bars.');
-  }catch(fallbackError){toast(fallbackError.message||error.message||'Excel export failed.')}
- }finally{$('exportButton').disabled=false;$('exportButton').textContent='↓ Export Excel'}
+  }
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Gantt Chart');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(data.tasks.map(t=>[t.name,t.vendor,t.start,t.end,t.duration,t.status,t.sourceRow])), 'Task Data');
+  XLSX.writeFile(wb,(sourceFile.name.replace(/\.[^.]+$/,'')||'Project')+'_Gantt.xlsx');
+  $('info').textContent='Gantt Excel exported successfully.';
+ }catch(e){$('info').textContent='Export failed: '+e.message}
+ finally{btn.disabled=false;btn.textContent='↓ Export Excel'}
 }
-function safeFileName(name){return String(name||'Project').replace(/[\\/:*?"<>|]+/g,'_').trim()||'Project'}
-function downloadBlob(blob,name){
- const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
-}
-function chooseAnother(){ $('importPanel').hidden=false;$('importPanel').scrollIntoView({behavior:'smooth',block:'start'});$('fileInput').click() }
 function wire(){
- $('fileInput').addEventListener('change',e=>{const file=e.target.files&&e.target.files[0];if(file)loadFile(file);e.target.value=''});
- $('dropzone').addEventListener('dragover',e=>{e.preventDefault();$('dropzone').classList.add('dragover')});
- $('dropzone').addEventListener('dragleave',()=>$('dropzone').classList.remove('dragover'));
- $('dropzone').addEventListener('drop',e=>{e.preventDefault();$('dropzone').classList.remove('dragover');const file=e.dataTransfer.files&&e.dataTransfer.files[0];if(file)loadFile(file)});
- $('sheetSelect').addEventListener('change',()=>showSheet($('sheetSelect').value));
- $('headerSelect').addEventListener('change',updateHeader);
- columns.forEach(field=>$(field.id).addEventListener('change',()=>{
-  mapping[field.key]=$(field.id).value;
-  const used=new Set();
-  columns.forEach(f=>{if(mapping[f.key]!==undefined&&mapping[f.key]!=='' ){if(used.has(mapping[f.key]))mapping[f.key]='';else used.add(mapping[f.key])}});
-  renderMapping();updatePreview();
- }));
- $('dateOrder').addEventListener('change',updatePreview);
- $('buildButton').addEventListener('click',buildChart);
- $('scaleSelect').addEventListener('change',()=>{chartScale=$('scaleSelect').value;renderChart()});
- $('changeFileButton').addEventListener('click',chooseAnother);
- $('exportButton').addEventListener('click',exportExcel);
+ $('fileInput').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(f)importFile(f)});
+ $('dropzone').addEventListener('dragover',e=>{e.preventDefault();$('dropzone').classList.add('drag')});
+ $('dropzone').addEventListener('dragleave',()=>$('dropzone').classList.remove('drag'));
+ $('dropzone').addEventListener('drop',e=>{e.preventDefault();$('dropzone').classList.remove('drag');const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)importFile(f)});
+ ['q','f','z'].forEach(id=>$(id).addEventListener('input',draw));
+ $('export').addEventListener('click',exportExcel);
 }
 wire();
 })();
