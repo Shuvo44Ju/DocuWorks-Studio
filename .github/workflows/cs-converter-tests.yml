@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - cs.html
+      - file-reader.js
       - builder.js
       - .github/tests/cs-metadata.test.cjs
       - .github/workflows/cs-converter-tests.yml
