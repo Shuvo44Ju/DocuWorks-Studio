@@ -13,9 +13,11 @@ input,select,button{background:var(--bg);color:var(--fg);border:1px solid var(--
 input[type=range]{padding:0;width:110px}
 button{cursor:pointer;font-weight:600}
 button:hover{border-color:#b8c2ce;background:#f7f9fb}
-#export{margin-left:auto;background:#1f3864;color:#fff;border-color:#1f3864}
-#export:hover{background:#294a80}
-#export:disabled{opacity:.5;cursor:not-allowed}
+#export,#exportHtml{background:#1f3864;color:#fff;border-color:#1f3864}
+#export{margin-left:auto}
+#exportHtml{margin-left:0}
+#export:hover,#exportHtml:hover{background:#294a80}
+#export:disabled,#exportHtml:disabled{opacity:.5;cursor:not-allowed}
 .chip{padding:3px 10px;border-radius:12px;color:#fff;font-size:12px}
 #info{margin:10px 16px 0;color:var(--mut);font-size:11px}
 #upload{padding:10px 16px 0}
