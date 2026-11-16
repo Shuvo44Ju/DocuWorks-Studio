@@ -41,7 +41,7 @@ function isoFromParts(y,m,d){
 }
 function parseDate(v,order,date1904){
  if(v===null||v===undefined||v==='')return '';
- if(v instanceof Date&&!isNaN(v))return isoFromParts(v.getUTCFullYear(),v.getUTCMonth()+1,v.getUTCDate());
+ if(v instanceof Date&&!isNaN(v))return isoFromParts(v.getFullYear(),v.getMonth()+1,v.getDate());
  if(typeof v==='number'&&isFinite(v)&&v>=(date1904?0:1)&&v<=2958465){
   const base=date1904?Date.UTC(1904,0,1):Date.UTC(1899,11,30);
   const d=new Date(base+Math.floor(v)*86400000);
@@ -75,8 +75,13 @@ function dayToISO(n){
 function daySpan(a,b){return dayNumber(b)-dayNumber(a)}
 function shiftDurationDate(date,days,workdays,reverse){
  if(!date||!days||days<=0)return date||'';
- const d=fromISO(date),dir=reverse?-1:1;let left=Math.max(0,Math.ceil(days)-1),guard=0;
- while(left>0&&guard++<20000){d.setDate(d.getDate()+dir);if(!workdays||(d.getDay()!==0&&d.getDay()!==6))left--}
+ const d=fromISO(date),dir=reverse?-1:1;let remaining=Math.max(1,Math.ceil(days)),guard=0;
+ if(workdays){while((d.getDay()===0||d.getDay()===6)&&guard++<20000)d.setDate(d.getDate()+dir)}
+ remaining--;
+ while(remaining>0&&guard++<20000){
+  d.setDate(d.getDate()+dir);
+  if(!workdays||(d.getDay()!==0&&d.getDay()!==6))remaining--;
+ }
  return iso(d);
 }
 function parseDuration(value,header){
@@ -88,8 +93,7 @@ function parseDuration(value,header){
  const u=norm(raw+' '+h);
  let factor=1;
  if(/\b(week|weeks|wk|wks)\b/.test(u))factor=7;
- else if(/\b(month|months|mo)\b/.test(u))factor=30;
- else if(/\b(year|years|yr)\b/.test(u))factor=365;
+ else if(/\b(month|months|mo|year|years|yr)\b/.test(u))return {days:null,workdays:workdays,text:raw,invalid:false,nonDay:true};
  else if(/\b(hour|hours|hr|hrs)\b/.test(u))return {days:null,workdays:workdays,text:raw,invalid:true};
  return {days:Math.max(0,n*factor),workdays:workdays,text:raw,invalid:false};
 }
@@ -222,7 +226,7 @@ function fileToWorkbook(file){
    try{
     if(/\.csv$/i.test(file.name)){resolve({SheetNames:['CSV'],Sheets:{CSV:{__rows:parseCSV(e.target.result)}}});return}
     if(!window.XLSX)await loadXLSX();
-    const wb=XLSX.read(e.target.result,{type:'array',cellDates:true,cellNF:true});
+    const wb=XLSX.read(e.target.result,{type:'array',cellDates:false,cellNF:true});
     resolve(wb);
    }catch(err){reject(err)}
   };
@@ -304,6 +308,7 @@ function renderImportPreview(){
  if(result.stats.invalidDates)lines.push(result.stats.invalidDates+' date value(s) could not be interpreted');
  if(result.stats.reversedDates)lines.push(result.stats.reversedDates+' row(s) have finish dates before start dates');
  if(result.stats.invalidDurations)lines.push(result.stats.invalidDurations+' duration value(s) need review');
+ if(result.stats.calendarDurations)lines.push(result.stats.calendarDurations+' month/year duration(s) kept as source text; no approximate day conversion');
  if(!ix.name)lines.unshift('Task name column is not mapped — select it before importing');
  if(result.warnings.length)lines.push(result.warnings[0]);
  $('importQuality').innerHTML='<strong>'+(ix.name?'Import check':'Mapping required')+'</strong><span>'+lines.map(esc).join(' · ')+'</span>';
@@ -314,7 +319,7 @@ function readMappedRows(){
  const col=k=>ix[k]===undefined||ix[k]===''?null:Number(ix[k]);
  const get=(rowIndex,k)=>{const c=col(k);return c===null?'':mappedCell(rowIndex,c,k)??''};
  const dateOrder=$('dateOrder')?.value||'DMY',date1904=!!pending.date1904;
- const stats={rowsScanned:0,skippedRows:0,missingDates:0,invalidDates:0,reversedDates:0,invalidDurations:0,ambiguousDates:0,duplicates:0};
+ const stats={rowsScanned:0,skippedRows:0,missingDates:0,invalidDates:0,reversedDates:0,invalidDurations:0,calendarDurations:0,ambiguousDates:0,duplicates:0};
  const idSeen=new Set(),nameSeen=new Set();
  rows.forEach((r,offset)=>{
   const rowIndex=pending.headerIndex+1+offset;
@@ -331,7 +336,7 @@ function readMappedRows(){
   const durationHeader=col('duration')===null?'':pending.headers[col('duration')];
   const durationMeta=parseDuration(get(rowIndex,'duration'),durationHeader);
   let duration=durationMeta.days;
-  if(durationMeta.invalid)stats.invalidDurations++;
+  if(durationMeta.invalid)stats.invalidDurations++;if(durationMeta.nonDay)stats.calendarDurations++;
   if(rawStart!==''&&!start)stats.invalidDates++;
   if(rawFinish!==''&&!finish)stats.invalidDates++;
   if(start&&finish&&daySpan(start,finish)<0){stats.reversedDates++;start='';finish=''}
@@ -365,6 +370,7 @@ function readMappedRows(){
  if(stats.invalidDates)warnings.push(stats.invalidDates+' date value(s) could not be interpreted; review the source cells and date format.');
  if(stats.reversedDates)warnings.push(stats.reversedDates+' task(s) have finish dates earlier than start dates. Their planned dates were cleared.');
  if(stats.invalidDurations)warnings.push(stats.invalidDurations+' duration value(s) contain ranges or unsupported units; they were not converted into guessed dates.');
+ if(stats.calendarDurations)warnings.push(stats.calendarDurations+' duration value(s) use months or years. They were not approximated as 30/365-day periods; valid start and finish dates remain the source of truth.');
  if(stats.duplicates)warnings.push(stats.duplicates+' possible duplicate task rows were found; all were retained for review.');
  stats.missingDates=list.filter(t=>!t.start||!t.finish).length;
  return {list:list,warnings:warnings,stats:stats};
