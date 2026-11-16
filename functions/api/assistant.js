@@ -172,7 +172,9 @@ async function runDocuWorksAgent({env, origin, pageTool, history, context, avail
   const requested = Array.isArray(availableTools) ? availableTools : pageAllowList;
   const names = pageAllowList.filter(name => requested.includes(name) && Object.hasOwn(AGENT_TOOL_DEFS, name));
   if (!names.length) names.push("inspect_current_tool");
-  const definitions = names.map(name => AGENT_TOOL_DEFS[name]);
+  // Workers AI chat-completions expects each function definition in the
+  // OpenAI-compatible { type: "function", function: { ... } } envelope.
+  const definitions = names.map(name => ({ type: "function", function: AGENT_TOOL_DEFS[name] }));
   const system = [
     "You are DocuWorks AI Agent, the action-taking assistant for DocuWorks Studio.",
     "Understand the user's ordinary-language goal, inspect the active workspace when useful, select the correct available tool, execute a short sequence of tools when needed, and then report the real result.",
