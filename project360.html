@@ -722,8 +722,17 @@ document.getElementById('applyChangeBtn').onclick=async()=>{
  if(customModel&&!currentDesign){toast('Imported models are view-only. Create a Project 360 model to use AI editing.');return;}
  if(!currentDesign){toast('Create your first 3D drawing before editing it.');return;}
  const instruction=prompt.value.trim();if(!instruction){feedback.textContent='Describe the change you want first.';return;}
- btn.disabled=true;btn.textContent='Understanding…';feedback.textContent='AI is interpreting your instruction and preparing a preview…';hideDesignPreview();
+ btn.disabled=true;btn.textContent='Understanding…';feedback.textContent='DocuWorks AI is planning the next step…';hideDesignPreview();
  try{
+  if(window.DocuWorksAI&&typeof window.DocuWorksAI.runAgent==='function'){
+   const agentContext=JSON.stringify({currentDesign,importedModel:!!customModel});
+   const reply=await window.DocuWorksAI.runAgent(instruction,[],agentContext,{
+    onStatus:label=>{feedback.textContent=label;},
+    approve:call=>Promise.resolve(window.confirm('DocuWorks AI wants to run: '+String(call.name||'this action').replace(/_/g,' ')+'. Proceed?'))
+   });
+   feedback.textContent=reply;
+   return;
+  }
   const resolved=await resolveDesignChange(instruction);
   if(resolved.error){feedback.textContent=resolved.error;return;}
   const next=cloneDesign(resolved.design);
