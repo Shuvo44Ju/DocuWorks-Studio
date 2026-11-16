@@ -36,7 +36,6 @@ footer{display:flex;gap:8px;padding:10px;background:var(--n);justify-content:cen
 .adjust-label{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:3px}
 .adjust-value{color:#5eead4;font-variant-numeric:tabular-nums;font-weight:700}
 .adjust-control input{display:block;width:100%;height:20px;margin:0;accent-color:#2dd4bf;cursor:pointer}
-.detect-hint{align-self:center;color:#aebfd3;font-size:11px;white-space:nowrap;padding:0 4px}
 #eTools{display:flex;gap:8px;padding:10px;background:var(--n);overflow:auto;justify-content:center;align-items:center;flex-wrap:wrap}
 @media(max-width:520px){.adjust-controls{gap:9px}.adjust-control{font-size:10px}.adjust-head{margin-bottom:5px}}
 .chip.on{background:var(--t);color:#06231f;font-weight:700}
@@ -115,46 +114,6 @@ const show=id=>document.querySelectorAll('.scr').forEach(e=>e.classList.toggle('
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
 
-/* ---------- document detection (OpenCV.js, loaded only when needed) ---------- */
-function loadCV(){
-  if(window.cvP)return window.cvP;
-  window.cvP=new Promise((ok,no)=>{
-    const s=document.createElement('script');s.async=true;s.src='https://docs.opencv.org/4.8.0/opencv.js';
-    s.onload=()=>{
-      const runtime=window.cv;
-      if(!runtime){no(new Error('Document detection engine did not initialize'));return}
-      if(runtime instanceof Promise){runtime.then(module=>{window.cv=module;ok(module)},no)}
-      else if(runtime.Mat)ok(runtime);
-      else{
-        const previous=runtime.onRuntimeInitialized;
-        runtime.onRuntimeInitialized=()=>{if(typeof previous==='function')previous();ok(runtime)};
-        runtime.onAbort=()=>no(new Error('Document detection engine aborted'));
-      }
-    };
-    s.onerror=()=>no(new Error('Document detection engine could not be downloaded'));
-    document.head.appendChild(s);
-  });
-  return window.cvP;
-}
-const order=p=>{const s=p.map(q=>q[0]+q[1]),d=p.map(q=>q[0]-q[1]);return[p[s.indexOf(Math.min(...s))],p[d.indexOf(Math.max(...d))],p[s.indexOf(Math.max(...s))],p[d.indexOf(Math.min(...d))]]};
-async function detect(src){
-  try{
-    const cv=await loadCV(),k=Math.min(1,600/Math.max(src.width,src.height)),w=Math.max(1,Math.round(src.width*k)),h=Math.max(1,Math.round(src.height*k)),t=mk(w,h);
-    t.getContext('2d').drawImage(src,0,0,w,h);
-    const m=cv.imread(t),g=new cv.Mat(),e=new cv.Mat(),cs=new cv.MatVector(),hi=new cv.Mat(),ke=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(5,5));
-    cv.cvtColor(m,g,cv.COLOR_RGBA2GRAY);cv.GaussianBlur(g,g,new cv.Size(5,5),0);cv.Canny(g,e,60,160);cv.dilate(e,e,ke);
-    cv.findContours(e,cs,hi,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE);
-    let best=null,ba=w*h*0.10;
-    for(let i=0;i<cs.size();i++){
-      const c=cs.get(i),a=cv.contourArea(c);
-      if(a>ba){const ap=new cv.Mat();cv.approxPolyDP(c,ap,0.02*cv.arcLength(c,true),true);
-        if(ap.rows===4&&cv.isContourConvex(ap)){ba=a;best=[];for(let j=0;j<4;j++)best.push([ap.data32S[j*2]/k,ap.data32S[j*2+1]/k])}ap.delete()}
-      c.delete();
-    }
-    [m,g,e,cs,hi,ke].forEach(x=>x.delete());
-    return best?order(best):null;
-  }catch(err){return null}
-}
 const inset=s=>{const x=s.width*.05,y=s.height*.05;return[[x,y],[s.width-x,y],[s.width-x,s.height-y],[x,s.height-y]]};
 
 /* ---------- perspective warp (pure JS) ---------- */
@@ -494,35 +453,12 @@ dropZone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preve
 dropZone.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();dropZone.classList.remove('over');if(e.dataTransfer?.files?.length)queueFiles(e.dataTransfer.files)});
 
 /* ---------- editor ---------- */
-async function autoDetectPage(pg){
-  if(pg.detecting)return;
-  pg.detecting=true;
-  const hint=$('#detectHint'),button=$('#tAuto');
-  if(hint)hint.textContent='Detecting page edges…';
-  if(button){button.disabled=true;button.textContent='Detecting…'}
-  try{
-    const q=await detect(pg.src);
-    if(ed.pg!==pg||ed.mode!=='crop'||pg.manualQuad)return;
-    if(q){
-      pg.quad=q;draw();
-      if(hint)hint.textContent='Page found · adjust corners if needed';
-    }else if(hint)hint.textContent='Page not found · adjust corners manually';
-  }catch(err){
-    if(ed.pg===pg&&hint)hint.textContent='Auto detection unavailable · adjust corners manually';
-  }finally{
-    pg.detecting=false;
-    if(ed.pg===pg&&ed.mode==='crop'){
-      const b=$('#tAuto');if(b){b.disabled=false;b.textContent='↻ Detect again'}
-    }
-  }
-}
 function openEd(pg,isNew,mode){
   pg.adjustments={brightness:0,shadows:0,highlights:0,contrast:0,paper:0,sharpness:0,...(pg.adjustments||{})};
   ed={pg,isNew,mode,drag:-1,sc:1,zoom:1};show('edit');
   if(mode==='crop'&&!pg.quad)pg.quad=inset(pg.src);
   if(mode==='filter'){pg.filtered=filt(pg.base,pg.filter,pg.bgc);renderAdjustedPg(pg)}
   ui();draw();
-  if(mode==='crop')autoDetectPage(pg);
 }
 function updateAdjustmentControls(pg){
   for(const key of ['brightness','shadows','highlights','contrast','paper','sharpness']){
@@ -536,7 +472,7 @@ function ui(){
   $('#eTitle').textContent=crop?'Adjust corners':'Choose filter';$('#eNext').textContent=crop?'Next ›':'Done ✓';
   $('#adjustPanel').classList.toggle('visible',!crop);
   if(!crop)updateAdjustmentControls(pg);
-  $('#eTools').innerHTML=crop?'<button id="tAuto">↻ Detect again</button><button id="tFull">⛶ Full image</button><span class="detect-hint" id="detectHint" role="status">Detecting page edges…</span>'
+  $('#eTools').innerHTML=crop?'<button id="tFull">⛶ Full image</button>'
    :['orig:Original','color:Color','magic:Magic','pro:Magic Pro','bw:B&W','gray:Grayscale'].map(s=>{const[k,l]=s.split(':');return`<button class="chip${pg.filter===k?' on':''}" data-f="${k}">${l}</button>`}).join('')+'<button id="tRot">↻ Rotate</button><button id="tCrop">✂ Re-crop</button>';
 }
 function draw(){
@@ -558,16 +494,15 @@ function draw(){
 }
 ec.ondblclick=e=>{if(ed.mode!=='filter')return;e.preventDefault();ed.zoom=(ed.zoom||1)>1?1:2;draw();const st=$('#stage');st.scrollTop=0;st.scrollLeft=0};
 const pt=e=>{const r=ec.getBoundingClientRect();return[(e.clientX-r.left)*ec.width/r.width,(e.clientY-r.top)*ec.height/r.height]};
-ec.onpointerdown=e=>{if(ed.mode!=='crop')return;ed.pg.manualQuad=true;const p=pt(e);let b=-1,bd=48*ec.width/ec.getBoundingClientRect().width;
+ec.onpointerdown=e=>{if(ed.mode!=='crop')return;const p=pt(e);let b=-1,bd=48*ec.width/ec.getBoundingClientRect().width;
   ed.pg.quad.forEach((q,i)=>{const d=Math.hypot(q[0]*ed.sc-p[0],q[1]*ed.sc-p[1]);if(d<bd){bd=d;b=i}});ed.drag=b;if(b>=0)ec.setPointerCapture(e.pointerId)};
 ec.onpointermove=e=>{if(ed.drag<0)return;const p=pt(e),s=ed.pg.src;ed.pg.quad[ed.drag]=[clamp(p[0]/ed.sc,0,s.width),clamp(p[1]/ed.sc,0,s.height)];draw()};
 ec.onpointerup=()=>{ed.drag=-1};
 $('#eTools').onclick=async e=>{
   const b=e.target.closest('button');if(!b)return;const pg=ed.pg;
-  if(b.id==='tAuto'){autoDetectPage(pg)}
-  else if(b.id==='tFull'){pg.manualQuad=true;pg.quad=[[0,0],[pg.src.width,0],[pg.src.width,pg.src.height],[0,pg.src.height]];draw()}
+  if(b.id==='tFull'){pg.quad=[[0,0],[pg.src.width,0],[pg.src.width,pg.src.height],[0,pg.src.height]];draw()}
   else if(b.id==='tRot'){pg.rot=(pg.rot+90)%360;renderAdjustedPg(pg);draw()}
-  else if(b.id==='tCrop'){pg.filtered=null;pg.manualQuad=false;ed.mode='crop';ui();draw();autoDetectPage(pg)}
+  else if(b.id==='tCrop'){pg.filtered=null;ed.mode='crop';ui();draw()}
   else if(b.dataset.f){pg.filter=b.dataset.f;renderPg(pg);ui();draw()}
 };
 $('#adjustPanel').oninput=e=>{
