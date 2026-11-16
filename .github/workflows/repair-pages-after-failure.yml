@@ -23,9 +23,9 @@ jobs:
           script: |
             const runs = await github.paginate(
               github.rest.actions.listWorkflowRunsForRepo,
-              { owner: context.repo.owner, repo: context.repo.repo, branch: "main", per_page: 100 }
+              { owner: context.repo.owner, repo: context.repo.repo, branch: "main", per_page: 30 }
             );
-            const staleRuns = runs.workflow_runs.filter(run =>
+            const staleRuns = runs.filter(run =>
               run.name === "pages build and deployment" &&
               run.status === "in_progress" &&
               run.head_sha !== context.sha
