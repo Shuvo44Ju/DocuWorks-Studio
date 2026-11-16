@@ -174,7 +174,7 @@ function loadScript(urls,globalName,promiseName){
  return promise;
 }
 function loadXLSX(){return loadScript(['https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js','https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js','https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'],'XLSX','xlsx')}
-function loadExcelJS(){return loadScript(['https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js','https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'],'ExcelJS','exceljs')}
+function loadExcelJS(){return loadScript(['https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js','https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js','https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'],'ExcelJS','exceljs')}
 function sheetRows(wb,name){
  const sheet=wb.Sheets[name];
  if(sheet.__rows)return sheet.__rows;
@@ -319,7 +319,7 @@ function buildChart(){
  $('chartSummary').textContent=tasks.length+' activities · '+tasks.filter(t=>t.start&&t.finish).length+' scheduled';
  const missing=tasks.filter(t=>!t.start||!t.finish).length;
  $('missingDates').textContent=missing?missing+' activities have incomplete dates':'All activities have dates';
- $('chartPanel').hidden=false;$('chartPanel').scrollIntoView({behavior:'smooth',block:'start'});
+ $('importPanel').hidden=true;$('chartPanel').hidden=false;$('chartPanel').scrollIntoView({behavior:'smooth',block:'start'});
  chartScale=$('scaleSelect').value||'week';renderChart();
  if(missing)toast('Gantt chart built. '+missing+' task(s) need a complete start and finish date.');
  else toast('Gantt chart built successfully.');
@@ -474,7 +474,7 @@ function safeFileName(name){return String(name||'Project').replace(/[\\/:*?"<>|]
 function downloadBlob(blob,name){
  const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
-function chooseAnother(){ $('fileInput').click() }
+function chooseAnother(){ $('importPanel').hidden=false;$('importPanel').scrollIntoView({behavior:'smooth',block:'start'});$('fileInput').click() }
 function wire(){
  $('fileInput').addEventListener('change',e=>{const file=e.target.files&&e.target.files[0];if(file)loadFile(file);e.target.value=''});
  $('dropzone').addEventListener('dragover',e=>{e.preventDefault();$('dropzone').classList.add('dragover')});
