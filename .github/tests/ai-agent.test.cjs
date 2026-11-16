@@ -216,7 +216,7 @@ test("Project 360 uses the same agent while preserving its separate Apply-to-mod
 
 test("offline app cache includes the imported agent tools module", () => {
   const serviceWorker = fs.readFileSync(path.join(root, "service-worker.js"), "utf8");
-  assert.match(serviceWorker, /docuworks-studio-v34-agent-cache/);
+  assert.match(serviceWorker, /docuworks-studio-v36-scanner-pdf-fix/);
   assert.match(serviceWorker, /['"]\.\/agent-tools\.js['"]/);
 });
 
