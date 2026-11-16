@@ -192,8 +192,8 @@ test("shared assistant runs multiple tool rounds and pauses for approval", () =>
   assert.match(assistant, /for \(let turn=0; turn<5; turn\+\+\)/);
   assert.match(assistant, /approvalRequired\(name\)/);
   assert.match(assistant, /showApprovalCard/);
-  assert.match(assistant, /context === "" \\? allTools\\.filter/);
-  assert.match(assistant, /context === null \\? toolContext\\(\\)/);
+  assert.ok(assistant.includes('context === "" ? allTools.filter'));
+  assert.ok(assistant.includes("context === null ? toolContext()"));
   assert.match(assistant, /window\.DocuWorksAgentTools\.execute/);
   assert.match(assistant, /tool_call_id/);
   assert.match(assistant, /askDesign:/);
