@@ -116,8 +116,26 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
 
 /* ---------- document detection (OpenCV.js, loaded only when needed) ---------- */
-function loadCV(){return window.cvP||(window.cvP=new Promise((ok,no)=>{const s=document.createElement('script');s.async=true;s.src='https://docs.opencv.org/4.8.0/opencv.js';
-  s.onload=()=>{if(window.cv instanceof Promise)cv.then(r=>{window.cv=r;ok(r)});else if(cv.Mat)ok(cv);else cv.onRuntimeInitialized=()=>ok(cv)};s.onerror=no;document.head.appendChild(s)}))}
+function loadCV(){
+  if(window.cvP)return window.cvP;
+  window.cvP=new Promise((ok,no)=>{
+    const s=document.createElement('script');s.async=true;s.src='https://docs.opencv.org/4.8.0/opencv.js';
+    s.onload=()=>{
+      const runtime=window.cv;
+      if(!runtime){no(new Error('Document detection engine did not initialize'));return}
+      if(runtime instanceof Promise){runtime.then(module=>{window.cv=module;ok(module)},no)}
+      else if(runtime.Mat)ok(runtime);
+      else{
+        const previous=runtime.onRuntimeInitialized;
+        runtime.onRuntimeInitialized=()=>{if(typeof previous==='function')previous();ok(runtime)};
+        runtime.onAbort=()=>no(new Error('Document detection engine aborted'));
+      }
+    };
+    s.onerror=()=>no(new Error('Document detection engine could not be downloaded'));
+    document.head.appendChild(s);
+  });
+  return window.cvP;
+}
 const order=p=>{const s=p.map(q=>q[0]+q[1]),d=p.map(q=>q[0]-q[1]);return[p[s.indexOf(Math.min(...s))],p[d.indexOf(Math.max(...d))],p[s.indexOf(Math.max(...s))],p[d.indexOf(Math.min(...d))]]};
 async function detect(src){
   try{
@@ -549,7 +567,7 @@ $('#eTools').onclick=async e=>{
   if(b.id==='tAuto'){autoDetectPage(pg)}
   else if(b.id==='tFull'){pg.manualQuad=true;pg.quad=[[0,0],[pg.src.width,0],[pg.src.width,pg.src.height],[0,pg.src.height]];draw()}
   else if(b.id==='tRot'){pg.rot=(pg.rot+90)%360;renderAdjustedPg(pg);draw()}
-  else if(b.id==='tCrop'){pg.filtered=null;ed.mode='crop';ui();draw()}
+  else if(b.id==='tCrop'){pg.filtered=null;pg.manualQuad=false;ed.mode='crop';ui();draw();autoDetectPage(pg)}
   else if(b.dataset.f){pg.filter=b.dataset.f;renderPg(pg);ui();draw()}
 };
 $('#adjustPanel').oninput=e=>{
