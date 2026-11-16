@@ -19,7 +19,28 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 @media(max-width:1050px){.app{grid-template-columns:230px 1fr}.grid{grid-template-columns:1fr}.right{display:grid;grid-template-columns:1fr 1fr}.viewer{height:650px}.viewer-foot{flex-wrap:wrap}}
 @media(max-width:700px){.app{display:block;height:auto;min-height:100vh;overflow:visible}.top{height:62px}.side{border-right:0;border-bottom:1px solid var(--line);padding:12px 15px}.side .steps{display:flex;overflow:auto;gap:5px}.step{min-width:145px;margin:0}.tip{display:none}.main{padding:14px}.right{display:flex}.viewer{height:560px;min-height:0}.grid{display:flex;flex-direction:column}}
 @media(max-width:600px){.ai-launch{right:15px;bottom:15px;width:44px;height:44px}.ai-popover{right:15px;bottom:70px;width:calc(100vw - 30px)}}
-.edit-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 11px;border-top:1px solid #e8edf4;background:#fbfcfe}.edit-toolbar .iconbtn{padding:6px 8px;font-size:10px}.edit-toolbar .iconbtn.active{background:#eaf1ff;border-color:#8ca9e9;color:#2458d3}.edit-toolbar .edit-status{font-size:9px;color:#71819a;min-width:130px;flex:1}.edit-toolbar .edit-status strong{color:#2458d3}.cad-room-list{display:grid;gap:6px;margin-top:8px}.cad-room-row{display:flex;align-items:center;gap:8px;width:100%;padding:8px;border:1px solid #e4eaf2;border-radius:8px;background:#fff;text-align:left;color:#405672}.cad-room-row:hover{border-color:#9ab3ed;background:#f8faff}.cad-room-row strong{display:block;font-size:10px}.cad-room-row small{display:block;font-size:9px;color:#8492a6}.cad-room-dot{width:9px;height:9px;border-radius:50%;background:#6b91d7;flex:none}.cad-room-empty{font-size:10px;color:#8492a6;padding:9px;border:1px dashed #dce4ef;border-radius:8px}.edit-numeric{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;padding:8px 11px;border-top:1px solid #edf1f6;background:#fff}.edit-numeric label{font-size:9px;color:#667995;font-weight:700}.edit-numeric input{width:100%;min-width:0;box-sizing:border-box;margin-top:3px;padding:6px 5px;border:1px solid #dbe3ee;border-radius:6px;font-size:11px;color:#263f5d}.edit-numeric input:focus{outline:2px solid #9bb7f0;border-color:#6e94e4}@media(max-width:560px){.edit-numeric{grid-template-columns:repeat(3,minmax(0,1fr))}}</style>
+.edit-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 11px;border-top:1px solid #e8edf4;background:#fbfcfe}.edit-toolbar .iconbtn{padding:6px 8px;font-size:10px}.edit-toolbar .iconbtn.active{background:#eaf1ff;border-color:#8ca9e9;color:#2458d3}.edit-toolbar .edit-status{font-size:9px;color:#71819a;min-width:130px;flex:1}.edit-toolbar .edit-status strong{color:#2458d3}.cad-room-list{display:grid;gap:6px;margin-top:8px}.cad-room-row{display:flex;align-items:center;gap:8px;width:100%;padding:8px;border:1px solid #e4eaf2;border-radius:8px;background:#fff;text-align:left;color:#405672}.cad-room-row:hover{border-color:#9ab3ed;background:#f8faff}.cad-room-row strong{display:block;font-size:10px}.cad-room-row small{display:block;font-size:9px;color:#8492a6}.cad-room-dot{width:9px;height:9px;border-radius:50%;background:#6b91d7;flex:none}.cad-room-empty{font-size:10px;color:#8492a6;padding:9px;border:1px dashed #dce4ef;border-radius:8px}.edit-numeric{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;padding:8px 11px;border-top:1px solid #edf1f6;background:#fff}.edit-numeric label{font-size:9px;color:#667995;font-weight:700}.edit-numeric input{width:100%;min-width:0;box-sizing:border-box;margin-top:3px;padding:6px 5px;border:1px solid #dbe3ee;border-radius:6px;font-size:11px;color:#263f5d}.edit-numeric input:focus{outline:2px solid #9bb7f0;border-color:#6e94e4}@media(max-width:560px){.edit-numeric{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.secondary-options{border:1px solid var(--line);background:#fff;border-radius:11px;padding:12px 14px}
+.secondary-options>summary,.cad-advanced>summary{cursor:pointer;list-style:none;font-size:11px;font-weight:800;color:#526782;display:flex;align-items:center;gap:8px}
+.secondary-options>summary::-webkit-details-marker,.cad-advanced>summary::-webkit-details-marker{display:none}
+.secondary-options>summary:after,.cad-advanced>summary:after{content:"＋";margin-left:auto;color:#2458d3;font-size:15px}
+.secondary-options[open]>summary:after,.cad-advanced[open]>summary:after{content:"−"}
+.secondary-options[open]>summary{margin-bottom:10px}
+.secondary-options .panel{box-shadow:none;border:0;border-top:1px solid #edf1f6;border-radius:0;padding:14px 2px}
+.cad-ready-summary{padding:10px 11px;border:1px solid #dce6f5;background:#f7faff;border-radius:9px}
+.cad-ready-summary strong{display:block;font-size:12px;color:#2458d3}
+.cad-ready-summary span{display:block;font-size:10px;color:#71819a;margin-top:3px;overflow-wrap:anywhere}
+.cad-generation-actions{display:flex;gap:9px;margin-top:10px}
+.cad-generation-actions .action{flex:1;min-height:46px;font-size:11px}
+.cad-2d-output{margin-top:12px;padding-top:10px;border-top:1px solid #edf1f6}
+.cad-2d-output .cad-preview{height:auto;max-height:480px;object-fit:contain}
+.cad-advanced{margin-top:13px;padding:11px;border:1px solid #e5ebf3;border-radius:9px;background:#fff}
+.cad-advanced-inner{padding-top:8px}
+.cad-advanced[open]{border-color:#d5dfed}
+.viewer:not(.model-ready) .viewer-foot{display:none}
+.viewer:not(.model-ready) .edit-toolbar,.viewer:not(.model-ready) .edit-numeric,.viewer:not(.model-ready) .controls,.viewer:not(.model-ready) .ai-launch,.viewer:not(.model-ready) .ai-popover{display:none!important}
+@media(max-width:700px){.cad-generation-actions{flex-direction:column}.secondary-options{padding:11px}.cad-2d-output .cad-preview{max-height:340px}}
+</style>
 </head>
 <body>
 <div class="app">
@@ -30,10 +51,8 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <aside class="side">
 <h2>Project 360</h2><p>Reconstruct the building from its original AutoCAD floor plan.</p>
 <div class="steps">
-<div class="step active"><div class="num">1</div><div><strong>Import AutoCAD plan</strong><span>Upload the ground-floor DWG</span></div></div>
-<div class="step"><div class="num">2</div><div><strong>Review geometry</strong><span>Walls, rooms, openings & layers</span></div></div>
-<div class="step"><div class="num">3</div><div><strong>Generate and refine</strong><span>Build and edit the 3D model</span></div></div>
-<div class="step"><div class="num">4</div><div><strong>Export 360° view</strong><span>Create a rotating video</span></div></div>
+<div class="step active"><div class="num">1</div><div><strong>Upload drawing</strong><span>Choose your DWG / DXF</span></div></div>
+<div class="step"><div class="num">2</div><div><strong>Choose output</strong><span>2D drawing or 3D model</span></div></div>
 </div>
 <div class="tip"><b>Local 3D generation</b><br>The 3D geometry runs in your browser. Natural-language AI assistance uses your Cloudflare Worker and may have provider limits; basic creation and supported edits have a local fallback.</div>
 </aside>
@@ -45,6 +64,8 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="viewer-foot"><button class="ai-launch" id="askAiToggle" type="button" aria-label="AI assistant"><span>✦</span></button><div class="ai-popover" id="askAiPopover" role="dialog" aria-label="AI assistant"><div class="ai-popover-head"><span aria-hidden="true">✦</span><button class="ai-popover-close" id="askAiClose" type="button" aria-label="Close">✕</button></div><div class="note" style="margin:0">Describe a change and I’ll update the current 3D concept.</div><textarea class="field details" id="changePrompt" placeholder="e.g. Add 3 floors, move the stairs to the left, or change the facade."></textarea><div class="edit-actions"><button class="action main" id="applyChangeBtn">Preview change</button><button class="action" id="undoChangeBtn" disabled>Undo</button><button class="action" id="redoChangeBtn" disabled>Redo</button></div><div class="note" id="changeFeedback">You can keep refining your design.</div><div class="design-preview" id="designPreview"><strong>REVIEW YOUR DESIGN CHANGE</strong><p id="designPreviewText"></p><div class="design-preview-actions"><button class="action main" id="confirmDesignBtn" type="button">Apply to 3D model</button><button class="action" id="cancelDesignBtn" type="button">Cancel</button></div></div></div><div class="edit-toolbar" id="modelEditToolbar" aria-label="3D object editing tools"><span class="edit-status" id="editModeStatus">Double-click an object to select it</span><button class="iconbtn active" id="editSelectBtn" type="button">Select</button><button class="iconbtn" id="editMoveBtn" type="button">Move</button><button class="iconbtn" id="editRotateBtn" type="button">Rotate</button><button class="iconbtn" id="editScaleBtn" type="button">Resize</button><button class="iconbtn" id="editUndoBtn" type="button" disabled>Undo edit</button><button class="iconbtn" id="editRedoBtn" type="button" disabled>Redo edit</button><button class="iconbtn" id="editDeselectBtn" type="button">Deselect</button></div><div class="edit-numeric" id="editNumericPanel" style="display:none" aria-label="Selected object dimensions and position"><label>X position (m)<input id="editPosX" type="number" step="0.05"></label><label>Elevation Y (m)<input id="editPosY" type="number" step="0.05"></label><label>Z position (m)<input id="editPosZ" type="number" step="0.05"></label><label>Width (m)<input id="editSizeX" type="number" min="0.05" step="0.05"></label><label>Height (m)<input id="editSizeY" type="number" min="0.05" step="0.05"></label><label>Depth (m)<input id="editSizeZ" type="number" min="0.05" step="0.05"></label></div><div class="controls"><button class="iconbtn" id="resetBtn">Reset view</button><button class="iconbtn" id="rotateBtn">Auto rotate</button><button class="iconbtn" id="wireBtn">Wireframe</button><button class="iconbtn" id="cutawayBtn" title="Hide the front and right exterior walls to inspect the conceptual room partitions">Interior view</button></div><span>Use Interior view to inspect conceptual rooms · not construction drawings</span></div>
 </section>
 <aside class="right">
+<details class="secondary-options" id="conceptOptions">
+<summary>Other creation options (optional)</summary>
 <section class="panel box">
 <span class="pill">PROJECT DETAILS</span>
 <h3>PROJECT INFORMATION</h3>
@@ -73,6 +94,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <select class="field" id="style"><option value="modern">Modern</option><option value="industrial">Industrial</option><option value="clean">Clean / Laboratory</option><option value="simple">Simple</option></select>
 <div class="note">This creates a free parametric concept model. It is not a full BIM/CAD replacement.</div>
 </div></section>
+</details>
 
 <section class="panel box cad-panel">
 <span class="pill">START HERE · DRAWING-TO-3D</span>
@@ -82,17 +104,35 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div class="cad-actions"><button class="action" id="cadSampleBtn" type="button">Load sample plan</button><button class="action" id="cadClearBtn" type="button">Clear plan</button></div>
 <div id="cadStatus" class="cad-status" aria-live="polite">Ready for the IPL Dhamrai Vaccine ground-floor DWG. Upload the drawing to analyse its actual geometry.</div>
 <div id="cadMappingWrap" class="cad-hidden">
-<div class="section-title">2D FLOOR-PLAN PREVIEW</div><canvas id="cadPreview" class="cad-preview" width="1000" height="560"></canvas><div class="cad-intelligence" id="cadIntelligence" aria-live="polite"><strong>DRAWING INTELLIGENCE</strong><p id="cadIntelligenceText">Import a plan to analyse its geometry, curves, possible room outlines and architectural labels.</p><div class="cad-intel-tags" id="cadIntelligenceTags"></div></div><div class="section-title">RECOGNISED ROOMS · CLICK TO SELECT IN 3D</div><div id="cadRoomSummary" class="note" style="margin-top:0">Room boundaries and names will appear after analysis.</div><div id="cadRoomList" class="cad-room-list"><div class="cad-room-empty">No room analysis yet.</div></div>
+<div class="cad-ready-summary"><strong id="cadLoadedTitle">Drawing uploaded successfully</strong><span id="cadLoadedMeta">Choose one of the two outputs below.</span></div>
+<div class="cad-generation-actions">
+<button class="action" id="cadGenerate2DBtn" type="button">Generate 2D Drawing</button>
+<button class="action main" id="cadGenerate3DBtn" type="button">Generate 3D Model</button>
+</div>
+<div id="cad2DOutput" class="cad-2d-output cad-hidden">
+<div class="section-title">2D DRAWING PREVIEW</div>
+<canvas id="cadPreview" class="cad-preview" width="1600" height="900"></canvas>
+<div class="cad-actions"><button class="action main" id="cadDownload2DBtn" type="button">Download 2D Drawing (PNG)</button><button class="action" id="cadClose2DBtn" type="button">Close preview</button></div>
+</div>
+<div id="cadGenerationStatus" class="cad-status" aria-live="polite">Upload a drawing, then choose Generate 2D Drawing or Generate 3D Model.</div>
+<details id="cadAdvanced" class="cad-advanced">
+<summary>Advanced drawing controls (optional)</summary>
+<div class="cad-advanced-inner">
+<div class="section-title">DRAWING INTELLIGENCE</div>
+<div class="cad-intelligence" id="cadIntelligence" aria-live="polite"><strong>DRAWING INTELLIGENCE</strong><p id="cadIntelligenceText">Detailed geometry analysis has not run yet.</p><div class="cad-intel-tags" id="cadIntelligenceTags"></div></div>
+<div class="section-title">RECOGNISED ROOMS</div>
+<div id="cadRoomSummary" class="note" style="margin-top:0">Room boundaries and names will be analysed only when advanced controls are opened.</div>
+<div id="cadRoomList" class="cad-room-list"><div class="cad-room-empty">No room analysis yet.</div></div>
 <div class="section-title">MULTI-FLOOR BUILDING</div>
-<div class="note" style="margin-top:0">Add a separate DWG/DXF for every level. Each floor keeps its own layer mapping, elevation and alignment offsets.</div>
+<div class="note" style="margin-top:0">Add other floor drawings only when you are ready to build a multi-floor model.</div>
 <label class="action" style="display:block;text-align:center;margin-top:9px">＋ Add more floor drawings<input type="file" id="cadMultiFile" accept=".dwg,.dxf" multiple style="display:none"></label>
 <div class="row" style="margin-top:9px"><div style="flex:1"><div class="label">Default floor-to-floor height (m)</div><input class="field" id="cadStoryHeight" type="number" min="2" max="8" step=".1" value="3.2"></div><div style="flex:1;display:flex;align-items:end;padding-bottom:8px"><label style="font-size:10px;font-weight:800;color:#516783"><input type="checkbox" id="cadAutoAlign" checked> Auto center-align plans</label></div></div>
 <div id="cadFloorList" class="cad-floor-list"></div>
 <div class="row" style="margin-top:9px"><div style="flex:1"><div class="label">Exploded-view separation (m)</div><input class="field" id="cadExplodeDistance" type="number" min="1" max="30" step=".5" value="4"></div><div style="flex:1;display:flex;align-items:end"><button class="action" id="cadExplodeBtn" type="button" style="width:100%">Explode floors</button></div></div>
-<div class="note">Use each floor’s visibility checkbox to inspect one level, or separate the levels vertically to inspect their plans.</div>
-<div class="note">Auto alignment matches drawing bounding-box centers. For accurate column/grid alignment, adjust each floor’s X/Y offsets manually. Floor elevations are editable independently.</div>
+<div class="note">Use each floor’s visibility checkbox to inspect one level, or separate the levels vertically to inspect their plans. Floor elevations and offsets are editable independently.</div>
 <div class="cad-floor-actions"><button class="action" id="cadSampleUpperBtn" type="button">Add sample upper floor</button><button class="action main" id="cadBuildMultiBtn" type="button">Generate complete building</button></div>
-<div class="section-title">DETECTED LAYERS · CONFIRM THEIR PURPOSE</div><div id="cadLayerList" class="cad-layer-list"></div>
+<div class="section-title">DETECTED LAYERS · CONFIRM THEIR PURPOSE</div>
+<div id="cadLayerList" class="cad-layer-list"></div>
 <div class="row" style="margin-top:10px">
 <div style="flex:1"><div class="label">Drawing units</div><select class="field" id="cadUnits"><option value="auto">Auto detect</option><option value="mm">Millimetres</option><option value="cm">Centimetres</option><option value="m">Metres</option><option value="inch">Inches</option><option value="foot">Feet</option></select></div>
 <div style="flex:1"><div class="label">Wall height (m)</div><input class="field" id="cadWallHeight" type="number" min="2" max="8" step=".1" value="3"></div>
@@ -101,9 +141,14 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div style="flex:1"><div class="label">Door height (m)</div><input class="field" id="cadDoorHeight" type="number" min="1.8" max="2.8" step=".05" value="2.1"></div>
 <div style="flex:1"><div class="label">Window sill height (m)</div><input class="field" id="cadWindowSill" type="number" min=".3" max="1.5" step=".05" value=".9"></div>
 <div style="flex:1"><div class="label">Window height (m)</div><input class="field" id="cadWindowHeight" type="number" min=".5" max="2.5" step=".05" value="1.35"></div></div>
-<div class="cad-actions"><button class="action main" id="cadBuildBtn" type="button">Generate 3D from this floor plan</button><button class="action" id="cadDownloadBtn" type="button">Download active DXF</button></div>
-<div class="note">Geometry analysis suggests walls from paired parallel faces, recognises curved wall segments and closed room outlines, and extracts common room labels from CAD text. Door swing arcs and mapped door/window markers can create openings. Review the detected layer roles before generation; a role you manually set to Ignore will stay ignored. Some specialised entities, external references and 3D solids may need conversion or manual review. This is a conceptual reconstruction, not a construction-ready BIM model.</div>
-</div></section>
+<div class="cad-actions"><button class="action main" id="cadBuildBtn" type="button">Regenerate 3D Model</button><button class="action" id="cadDownloadBtn" type="button">Download source DXF</button></div>
+<div class="cad-actions"><button class="action" id="cadSampleBtn" type="button">Load sample plan</button><button class="action" id="cadClearBtn" type="button">Clear plan</button></div>
+<div class="note">Advanced geometry review may take extra time on large drawings. Use it only when the automatically generated 3D result needs correction. The output is a conceptual reconstruction, not a verified construction or BIM model.</div>
+</div>
+</details>
+</div></div></section>
+<details class="secondary-options" id="exportOptions">
+<summary>Import / export tools (optional)</summary>
 <section class="panel box">
 <span class="pill">OPTIONAL</span>
 <h3>IMPORT EXISTING 3D MODEL</h3>
@@ -120,6 +165,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}.app{height:100v
 <div id="videoResult" style="display:none;margin-top:10px"></div>
 <div class="note">Creates a standard 15-second rotating turntable video in WebM format, not an immersive VR or equirectangular 360° video. Recording stays in your browser; no server upload is required.</div>
 </section>
+</details>
 </aside>
 </div>
 </main>
@@ -165,6 +211,7 @@ function material(color,rough=.65){return new THREE.MeshStandardMaterial({color,
 function cube(w,h,d,x,y,z,m,rotationY=0){const g=new THREE.BoxGeometry(w,h,d);const o=new THREE.Mesh(g,m);o.position.set(x,y,z);o.rotation.y=rotationY;o.castShadow=true;o.receiveShadow=true;scene.add(o);parts.push(o);return o}
 function clearGenerated(){
  if(typeof clearEditableSelection==="function")clearEditableSelection();
+ document.querySelector('.viewer')?.classList.remove('model-ready');
  objectUndoStack=[];objectRedoStack=[];updateObjectEditButtons();
  // CAD floor meshes are re-parented into floor groups. Remove those groups first,
  // otherwise a rebuild/clear can leave stale geometry in the scene.
@@ -539,6 +586,7 @@ function makeBuilding(){
  }
  grid.scale.set(Math.max(1,W/10),1,Math.max(1,D/10));grid.position.y=0;
  fitParts();
+ document.querySelector('.viewer')?.classList.add('model-ready');
  document.getElementById('emptyView').style.display='none';
  setWizardStep(4);
  document.getElementById('viewerError').classList.remove('show');
@@ -748,7 +796,7 @@ nameInput.addEventListener('input',e=>document.getElementById('projectTitle').te
 let cadDocument=null,cadDxfText="",cadFileName="",cadLayers=[];
 let cadFloors=[],cadActiveFloorIndex=0,cadRenderedFloorGroups=[],cadFloorSequence=1,cadExploded=false;
 const CAD_ROLES=["Ignore","Walls","Columns","Doors","Windows","Stairs","Elevators","Beams","Rooms","Floors","Room labels","Dimensions"];
-let cadAnalysisScale=1,cadAutoWallEntities=new WeakSet(),cadAutoWindowEntities=new WeakSet(),cadAutoWindowSegments=[],cadAutoWallPairs=0,cadWallPairingSkipped=false;
+let cadAnalysisScale=1,cadAutoWallEntities=new WeakSet(),cadAutoWindowEntities=new WeakSet(),cadAutoWindowSegments=[],cadAutoWallPairs=0,cadWallPairingSkipped=false,cadAnalysisPrepared=false,cadAdvancedAnalysisReady=false;
 function cadEntityText(e){
  const raw=e?.text??e?.textString??e?.string??e?.contents??e?.mText??e?.value??"";
  return String(raw||"").replace(/\\P/gi," ").replace(/\\[A-Za-z][^;]*;?/g," ").replace(/[{}]/g," ").replace(/\s+/g," ").trim();
@@ -944,11 +992,13 @@ function cadBounds(entities){
  for(const e of entities||[])for(const p of cadEntityPoints(e)){minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);}
  if(!Number.isFinite(minX))return null;return {minX,minY,maxX,maxY,width:maxX-minX,height:maxY-minY};
 }
-function cadPrepareAnalysis(){
+function cadPrepareAnalysis(force=false){
+ if(cadAnalysisPrepared&&!force)return;
  cadAnalysisScale=cadUnitScale();
  const entities=cadDocument?.entities||[];
  cadAutoWindowEntities=cadBuildAutoWindowCandidates(entities);
  cadAutoWallEntities=cadBuildAutoWallCandidates(entities);
+ cadAnalysisPrepared=true;
 }
 function cadUpdateIntelligence(){
  const panel=el("cadIntelligence"),copy=el("cadIntelligenceText"),tags=el("cadIntelligenceTags");if(!panel||!copy||!tags)return;
@@ -970,7 +1020,7 @@ function cadUpdateIntelligence(){
  chips.forEach(value=>{const span=document.createElement("span");span.className="cad-intel-tag";span.textContent=value;tags.appendChild(span);});
  if(!(counts.Walls||0)){const warn=document.createElement("span");warn.className="cad-intel-tag";warn.textContent="No wall role detected · review layer mapping";tags.appendChild(warn);}
 }
-function cadRefreshIntelligence(){cadPrepareAnalysis();cadRenderPreview();cadUpdateIntelligence();if(typeof cadRenderDetectedRooms==="function")cadRenderDetectedRooms();}
+function cadRefreshIntelligence(){cadAnalysisPrepared=false;cadAdvancedAnalysisReady=false;cadPrepareAnalysis(true);cadRenderPreview();cadUpdateIntelligence();if(typeof cadRenderDetectedRooms==="function")cadRenderDetectedRooms();}
 function cadRenderPreview(){
  const c=el("cadPreview"),ctx=c.getContext("2d"),entities=cadDocument?.entities||[],b=cadBounds(entities);
  ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle="#fbfcfe";ctx.fillRect(0,0,c.width,c.height);
@@ -1006,10 +1056,12 @@ function cadRenderPreview(){
 function cadShowLayers(){
  cadPrepareAnalysis();
  const list=el("cadLayerList");list.innerHTML="";
+ const entitiesByLayer=new Map();
+ (cadDocument?.entities||[]).forEach(e=>{const key=e.layer||"0";if(!entitiesByLayer.has(key))entitiesByLayer.set(key,[]);entitiesByLayer.get(key).push(e);});
  cadLayers.forEach(layer=>{
   const row=document.createElement("div");row.className="cad-layer-row";
   const info=document.createElement("div"),title=document.createElement("strong"),sub=document.createElement("small");
-  const layerEntities=(cadDocument?.entities||[]).filter(e=>(e.layer||"0")===layer.name),suggestions=new Map();
+  const layerEntities=entitiesByLayer.get(layer.name)||[],suggestions=new Map();
   layerEntities.forEach(e=>{const role=cadGeometryRole(e);if(role!=="Ignore")suggestions.set(role,(suggestions.get(role)||0)+1);});
   const suggested=[...suggestions.entries()].sort((a,b)=>b[1]-a[1])[0];
   title.textContent=layer.name;sub.textContent=layer.count+" entities · auto geometry: "+(suggested?suggested[0]+" ("+suggested[1]+")":(layer.role==="Ignore"?"needs review":layer.role));info.append(title,sub);
@@ -1172,16 +1224,16 @@ function cadRoomType(label){
  ];
  return types.find(([name,re])=>re.test(t))?.[0]||"Unclassified";
 }
-function cadBuildRoomRecords(entities,scale){
+function cadBuildRoomRecords(entities,scale,providedWallSegments){
  const all=entities||[],bounds=cadBounds(all),extent=Math.max(bounds?.width||0,bounds?.height||0);
  const tolerance=Math.max(.012,Math.min(.12,Math.max(extent*.0008,(Number(el("cadWallThickness")?.value)||.2)*.36/Math.max(scale,.000001))));
  const wallSegments=all.filter(e=>cadEntityRole(e)==="Walls").flatMap(e=>{
   const pts=cadEntityPoints(e),segments=[];for(let i=1;i<pts.length;i++)segments.push([pts[i-1],pts[i]]);
   if(cadEntityIsClosed(e)&&pts.length>2)segments.push([pts[pts.length-1],pts[0]]);return segments;
  });
- const normalized=cadNormalizeWallSegments(wallSegments,scale,Number(el("cadWallThickness")?.value)||.2);
+ const normalizedSegments=Array.isArray(providedWallSegments)?providedWallSegments:cadNormalizeWallSegments(wallSegments,scale,Number(el("cadWallThickness")?.value)||.2).segments.map(w=>[w.a,w.b]);
  const explicit=all.filter(e=>cadEntityRole(e)==="Rooms"&&cadEntityIsClosed(e)&&cadEntityPoints(e).length>=3);
- const inferred=cadInferRoomLoops(all,tolerance,normalized.segments.map(w=>[w.a,w.b]));
+ const inferred=cadInferRoomLoops(all,tolerance,normalizedSegments);
  let loops=explicit.map(e=>({points:cadEntityPoints(e),source:e})).concat(inferred.map(points=>({points,source:null})));
  const seen=new Set();
  loops=loops.filter(item=>{
@@ -1215,7 +1267,7 @@ function cadRenderDetectedRooms(){
  const list=el("cadRoomList"),summary=el("cadRoomSummary");if(!list||!summary)return;
  const source=cadDocument?.entities||[];
  if(!source.length){list.innerHTML='<div class="cad-room-empty">Import a floor plan to detect its rooms.</div>';summary.textContent="No floor plan loaded.";return;}
- const rooms=cadBuildRoomRecords(source,cadUnitScale());cadDetectedRooms=rooms;
+ const rooms=cadDetectedRooms.length?cadDetectedRooms:cadBuildRoomRecords(source,cadUnitScale());cadDetectedRooms=rooms;
  summary.textContent=rooms.length+" enclosed spaces detected · "+rooms.filter(r=>r.confidence>.8).length+" have an in-room CAD label. Geometry-only names are provisional.";
  list.replaceChildren();
  if(!rooms.length){const empty=document.createElement("div");empty.className="cad-room-empty";empty.textContent="No closed room boundaries found yet. Check the wall mapping or gaps between wall lines.";list.appendChild(empty);return;}
@@ -1274,11 +1326,21 @@ function cadFloorListRender(){
   row.append(meta,nameWrap,elevation,offsetX,offsetY,remove);list.append(row);
  });
 }
-function cadActivateFloor(index,snapshot=true){
+function cadActivateFloor(index,snapshot=true,options={}){
  if(index<0||index>=cadFloors.length)return;if(snapshot)cadSnapshotActiveFloor();cadActiveFloorIndex=index;
  const f=cadFloors[index];cadDocument=f.document;cadDxfText=f.dxfText;cadFileName=f.fileName;cadLayers=f.layers;
- el("cadMappingWrap").classList.remove("cad-hidden");cadShowLayers();cadRenderDetectedRooms();cadFloorListRender();
- const b=cadBounds(cadDocument.entities);el("cadStatus").textContent="Editing "+(f.label||cadDefaultFloorName(index))+" · "+cadDocument.entities.length+" entities · "+cadLayers.length+" layers"+(b?" · "+b.width.toFixed(2)+" × "+b.height.toFixed(2)+" drawing units":"")+". Each floor retains its own layer mapping.";
+ el("cadMappingWrap").classList.remove("cad-hidden");
+ if(options.deferAnalysis){
+  cadDetectedRooms=[];cadAnalysisPrepared=false;cadAdvancedAnalysisReady=false;
+  const advanced=el("cadAdvanced");if(advanced)advanced.open=false;
+  el("cadLoadedTitle").textContent="Drawing uploaded successfully";
+  el("cadLoadedMeta").textContent=f.fileName+" · "+cadDocument.entities.length.toLocaleString()+" drawing elements · "+cadLayers.length+" layers";
+  el("cadGenerationStatus").textContent="Your drawing is ready. Choose Generate 2D Drawing or Generate 3D Model.";
+ }else{
+  cadShowLayers();cadRenderDetectedRooms();cadAdvancedAnalysisReady=true;
+ }
+ cadFloorListRender();
+ const b=cadBounds(cadDocument.entities);el("cadStatus").textContent="Loaded "+(f.label||cadDefaultFloorName(index))+" · "+cadDocument.entities.length.toLocaleString()+" entities · "+cadLayers.length+" layers"+(b?" · "+b.width.toFixed(2)+" × "+b.height.toFixed(2)+" drawing units":"")+".";
 }
 function cadSetDocument(doc,dxfText,fileName,options={}){
  if(!doc||!Array.isArray(doc.entities)||!doc.entities.length)throw new Error("No supported drawing entities were found in this file.");
@@ -1290,7 +1352,7 @@ function cadSetDocument(doc,dxfText,fileName,options={}){
  const previousElevation=cadFloors.length?Number(cadFloors[cadFloors.length-1].elevation)||0:0,story=Math.max(2,Math.min(8,Number(el("cadStoryHeight")?.value)||3.2));
  const floor={id:prior?.id||("cad-floor-"+(cadFloorSequence++)),document:documentData,dxfText,fileName,layers,label:options.label||prior?.label||cadDefaultFloorName(index),elevation:options.elevation??(append?previousElevation+story:(prior?.elevation??0)),offsetX:options.offsetX??prior?.offsetX??0,offsetY:options.offsetY??prior?.offsetY??0,visible:prior?.visible??true,blockStats:blockResult.stats};
  if(index===cadFloors.length)cadFloors.push(floor);else cadFloors[index]=floor;
- cadActiveFloorIndex=index;cadActivateFloor(index,false);
+ cadActiveFloorIndex=index;cadActivateFloor(index,false,{deferAnalysis:true});
  const b=cadBounds(documentData.entities);
  el("cadStatus").textContent=(append?"Added ":"Loaded ")+(floor.label)+" · "+documentData.entities.length+" geometry entities · "+layers.length+" layers · "+blockResult.stats.insertRefs+" block references expanded"+(blockResult.stats.unresolved?" · "+blockResult.stats.unresolved+" unresolved references":"")+(blockResult.stats.cycles?" · "+blockResult.stats.cycles+" cyclic references skipped":"")+(b?" · drawing span "+b.width.toFixed(2)+" × "+b.height.toFixed(2)+" drawing units":"")+". Review its layer mapping before generating 3D.";
  el("modelStatus").textContent="Architectural plan loaded";
@@ -1406,7 +1468,7 @@ function cadBuild3D(options={}){
 
  const addBox=(w,h,d,x,y,z,mat,rot=0)=>{if(w<=.015||h<=.015||d<=.015)return;const o=cube(w,h,d,x,y,z,mat,rot);created.push(o);return o;};
  const addWallPiece=(a,b,z0,z1,offset=0,wallWidth=thick)=>{const dx=(b.x-a.x)*scale,dy=(b.y-a.y)*scale,len=Math.hypot(dx,dy);if(len<.025||len>500)return;const ux=dx/len,uz=-dy/len;const midx=(a.x+b.x)*.5*scale+(-uz)*offset,midz=-(a.y+b.y)*.5*scale+ux*offset;addBox(len,z1-z0,wallWidth,midx,(z0+z1)/2,midz,wallMat,Math.atan2(dy,dx));};
- const drawingBounds=cadBounds(all),roomTolerance=Math.max(.012,Math.min(.12,Math.max((drawingBounds?.width||0)*.0008,thick*.36/Math.max(scale,.000001))));const explicitRoomEntities=all.filter(e=>cadEntityRole(e)==="Rooms"&&cadEntityIsClosed(e)&&cadEntityPoints(e).length>=3);const inferredRoomLoops=cadInferRoomLoops(all,roomTolerance,walls.map(w=>[w.a,w.b]));const roomRecords=cadBuildRoomRecords(all,scale);cadDetectedRooms=roomRecords;
+ const explicitRoomEntities=all.filter(e=>cadEntityRole(e)==="Rooms"&&cadEntityIsClosed(e)&&cadEntityPoints(e).length>=3);const roomRecords=cadBuildRoomRecords(all,scale,walls.map(w=>[w.a,w.b]));const inferredRoomLoops=roomRecords.filter(room=>!room.source).map(room=>room.points);cadDetectedRooms=roomRecords;
  walls.forEach(wall=>{const {a,b}=wall,wallThickness=wall.thickness||thick,len=dist(a,b);if(len*scale<.05)return;const ux=(b.x-a.x)/len,uy=(b.y-a.y)/len;const cuts=[];openingSegments.forEach(o=>{const p=project(o.a,a,ux,uy),q=project(o.b,a,ux,uy),olen=dist(o.a,o.b);if(p.off*scale<=Math.max(.12,thick*1.5)&&q.off*scale<=Math.max(.12,thick*1.5)&&olen*scale>=.45){const lo=Math.max(.04,Math.min(p.t,q.t)),hi=Math.min(len-.04,Math.max(p.t,q.t));if(hi-lo>=.45)cuts.push({lo,hi,role:o.role,confidence:o.confidence||"mapped-layer",sourceEntities:o.sourceEntities||[]});}});
    cuts.sort((x,y)=>x.lo-y.lo);const merged=[];cuts.forEach(c=>{const last=merged[merged.length-1];if(last&&c.lo<=last.hi+.05){last.hi=Math.max(last.hi,c.hi);if(c.role==="Doors")last.role="Doors";last.sourceEntities=[...(last.sourceEntities||[]),...(c.sourceEntities||[])];}else merged.push({...c});});
    let cursor=0;merged.forEach(c=>{if(c.lo>cursor){const p={x:a.x+ux*cursor,y:a.y+uy*cursor},q={x:a.x+ux*c.lo,y:a.y+uy*c.lo};addWallPiece(p,q,0,height,0,wallThickness);}
@@ -1500,7 +1562,7 @@ function cadBuild3D(options={}){
  }
  if(!created.length){if(!options.quiet)toast("No 3D geometry found. Map a layer containing visible linework to Walls, Columns, Doors, Windows, Stairs, Elevators, Beams, Rooms or Floors. Text and dimensions are reference-only.");return false;}
  const floorParts=parts.slice(partStart),floorGroup=new THREE.Group();floorParts.forEach(object=>{floorGroup.attach(object);if(object.userData?.editable){object.updateMatrix();object.userData.initialMatrix=object.matrix.clone();object.userData.syncedPosition=object.position.clone();}});floorGroup.position.set(Number(options.offsetX)||0,Number(options.baseElevation)||0,-(Number(options.offsetY)||0));floorGroup.userData.floorLabel=options.floorLabel||"Floor";floorGroup.userData.floorId=options.floorId||cadFloors[cadActiveFloorIndex]?.id||null;floorGroup.userData.floorIndex=options.floorIndex??cadActiveFloorIndex;floorGroup.userData.baseElevation=Number(options.baseElevation)||0;floorGroup.visible=options.visible!==false;scene.add(floorGroup);cadRenderedFloorGroups.push(floorGroup);
- currentDesign=null;customModel=false;model=null;el("emptyView").style.display="none";if(!options.deferFit)fitParts();const wallNote=wallResult.pairingSkipped?"Wall-face pairing skipped because this drawing has a very large wall-segment count.":wallResult.pairedSections?wallResult.pairedSections+" paired wall sections merged · average measured thickness "+wallResult.averageThickness.toFixed(2)+" m":"No paired wall faces detected; the selected default thickness was used.";const openingNote=detectedDoorCount+" door markers and "+detectedWindowCount+" window-layer markers matched · "+uncertainOpeningCount+" uncertain opening symbols · door height "+doorH.toFixed(2)+" m · window sill "+windowSill.toFixed(2)+" m · window height "+windowH.toFixed(2)+" m.";el("modelStatus").textContent="Architectural 3D generated · "+explicitRoomEntities.length+" explicit room outlines · "+inferredRoomLoops.length+" inferred enclosed spaces · "+wallResult.pairedSections+" paired wall sections · "+detectedDoorCount+" doors · "+detectedWindowCount+" windows";el("changeFeedback").textContent="CAD reconstruction generated. "+wallNote+" "+openingNote+" "+(inferredRoomLoops.length?inferredRoomLoops.length+" enclosed spaces inferred from normalized wall centerlines. ":"")+"Only openings matched to mapped CAD markers or door swing arcs are cut; uncertain symbols need review. This is a visual concept, not a verified BIM model.";if(!options.quiet)toast("Architectural 3D reconstruction generated");return true;
+ currentDesign=null;customModel=false;model=null;el("emptyView").style.display="none";document.querySelector('.viewer')?.classList.add('model-ready');if(!options.deferFit)fitParts();const wallNote=wallResult.pairingSkipped?"Wall-face pairing skipped because this drawing has a very large wall-segment count.":wallResult.pairedSections?wallResult.pairedSections+" paired wall sections merged · average measured thickness "+wallResult.averageThickness.toFixed(2)+" m":"No paired wall faces detected; the selected default thickness was used.";const openingNote=detectedDoorCount+" door markers and "+detectedWindowCount+" window-layer markers matched · "+uncertainOpeningCount+" uncertain opening symbols · door height "+doorH.toFixed(2)+" m · window sill "+windowSill.toFixed(2)+" m · window height "+windowH.toFixed(2)+" m.";el("modelStatus").textContent="Architectural 3D generated · "+explicitRoomEntities.length+" explicit room outlines · "+inferredRoomLoops.length+" inferred enclosed spaces · "+wallResult.pairedSections+" paired wall sections · "+detectedDoorCount+" doors · "+detectedWindowCount+" windows";el("changeFeedback").textContent="CAD reconstruction generated. "+wallNote+" "+openingNote+" "+(inferredRoomLoops.length?inferredRoomLoops.length+" enclosed spaces inferred from normalized wall centerlines. ":"")+"Only openings matched to mapped CAD markers or door swing arcs are cut; uncertain symbols need review. This is a visual concept, not a verified BIM model.";if(!options.quiet)toast("Architectural 3D reconstruction generated");return true;
 }
 let cadDetectedRooms=[];
 function cadSetRenderedFloorVisibility(floorId,visible){const group=cadRenderedFloorGroups.find(g=>g.userData.floorId===floorId);if(group){group.visible=visible;renderer.render(scene,camera);}}
@@ -1534,7 +1596,8 @@ el("cadSampleBtn").addEventListener("click",cadMakeSample);
 el("cadSampleUpperBtn").addEventListener("click",cadAddSampleUpperFloor);
 el("cadClearBtn").addEventListener("click",()=>{
  cadDocument=null;cadDxfText="";cadFileName="";cadLayers=[];cadFloors=[];cadActiveFloorIndex=0;
- cadAutoWindowSegments=[];cadAutoWallEntities=new WeakSet();cadAutoWindowEntities=new WeakSet();cadAutoWallPairs=0;cadWallPairingSkipped=false;
+ cadAutoWindowSegments=[];cadAutoWallEntities=new WeakSet();cadAutoWindowEntities=new WeakSet();cadAutoWallPairs=0;cadWallPairingSkipped=false;cadAnalysisPrepared=false;cadAdvancedAnalysisReady=false;
+ el("cad2DOutput").classList.add("cad-hidden");el("cadGenerationStatus").textContent="Upload a drawing, then choose Generate 2D Drawing or Generate 3D Model.";
  clearGenerated();cadExploded=false;el("cadExplodeBtn").textContent="Explode floors";
  el("cadFloorList").replaceChildren();el("cadRoomList").innerHTML='<div class="cad-room-empty">No room analysis yet.</div>';el("cadRoomSummary").textContent="Room boundaries and names will appear after analysis.";el("cadMappingWrap").classList.add("cad-hidden");
  currentDesign=null;
@@ -1542,8 +1605,40 @@ el("cadClearBtn").addEventListener("click",()=>{
  else{el("emptyView").style.display="none";el("modelStatus").textContent="Imported model";}
  el("cadStatus").textContent="All floor plans and generated CAD geometry cleared.";
 });
-el("cadBuildBtn").addEventListener("click",cadBuild3D);
-el("cadUnits").addEventListener("change",()=>cadShowLayers());
+el("cadAdvanced").addEventListener("toggle",()=>{
+ if(!el("cadAdvanced").open||!cadDocument||cadAdvancedAnalysisReady)return;
+ el("cadGenerationStatus").textContent="Loading optional geometry diagnostics…";
+ requestAnimationFrame(()=>{
+  try{cadShowLayers();cadRenderDetectedRooms();cadAdvancedAnalysisReady=true;el("cadGenerationStatus").textContent="Advanced controls loaded. The two main generation actions work without changing these settings.";}
+  catch(err){console.error("Advanced CAD analysis failed",err);el("cadGenerationStatus").textContent="Advanced analysis failed: "+(err?.message||String(err));}
+ });
+});
+async function cadGenerate3DAction(button){
+ if(!cadDocument){toast("Upload a DWG or DXF first.");return;}
+ const original=button.textContent;button.disabled=true;button.textContent="Generating 3D Model…";
+ el("cadGenerationStatus").textContent="Analysing architectural geometry and building the 3D model…";
+ await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+ try{
+  const ok=cadBuild3D();
+  if(ok){el("cadGenerationStatus").textContent="3D model generated. Rotate, zoom and inspect it in the viewer.";el("modelStatus").textContent="3D model ready";}
+  else{el("cadGenerationStatus").textContent="No usable 3D geometry was found automatically. Open Advanced drawing controls only if you need to map layers manually.";}
+ }catch(err){console.error("CAD 3D generation failed",err);el("cadGenerationStatus").textContent="3D generation failed: "+(err?.message||String(err));toast("3D generation failed");}
+ finally{button.disabled=false;button.textContent=original;}
+}
+el("cadGenerate2DBtn").addEventListener("click",()=>{
+ if(!cadDocument){toast("Upload a DWG or DXF first.");return;}
+ el("cad2DOutput").classList.remove("cad-hidden");
+ cadDetectedRooms=[];cadRenderPreview();
+ el("cadGenerationStatus").textContent="2D floor-plan drawing is ready. You can inspect it or download the PNG.";
+});
+el("cadDownload2DBtn").addEventListener("click",()=>{
+ const canvas=el("cadPreview");
+ canvas.toBlob(blob=>{if(!blob){toast("Could not export the 2D drawing.");return;}const name=(cadFileName||"floor-plan").replace(/\\.[^.]+$/,"");download(blob,name+"-2D-drawing.png");},"image/png");
+});
+el("cadClose2DBtn").addEventListener("click",()=>el("cad2DOutput").classList.add("cad-hidden"));
+el("cadGenerate3DBtn").addEventListener("click",e=>cadGenerate3DAction(e.currentTarget));
+el("cadBuildBtn").addEventListener("click",e=>cadGenerate3DAction(e.currentTarget));
+el("cadUnits").addEventListener("change",()=>{cadAnalysisPrepared=false;cadAdvancedAnalysisReady=false;cadShowLayers();});
 el("cadBuildMultiBtn").addEventListener("click",cadBuildMultiFloor);
 el("cadExplodeBtn").addEventListener("click",cadToggleExplodedView);
 el("cadDownloadBtn").addEventListener("click",()=>{if(!cadDxfText){toast("The active floor has no source DXF to download.");return;}download(new Blob([cadDxfText],{type:"application/dxf"}),(cadFileName.replace(/\.[^.]+$/,"")||"floor-plan")+".dxf");});
