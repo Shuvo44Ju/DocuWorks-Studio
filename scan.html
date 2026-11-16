@@ -85,6 +85,9 @@ dialog textarea{width:100%;height:240px;margin:10px 0;font:inherit}
       <label class="adjust-control"><span class="adjust-label">Brightness <output class="adjust-value" data-adjust-value="brightness">0</output></span><input type="range" min="-100" max="100" step="1" value="0" data-adjust="brightness" aria-label="Brightness"></label>
       <label class="adjust-control"><span class="adjust-label">Shadows <output class="adjust-value" data-adjust-value="shadows">0</output></span><input type="range" min="-100" max="100" step="1" value="0" data-adjust="shadows" aria-label="Shadows"></label>
       <label class="adjust-control"><span class="adjust-label">Highlights <output class="adjust-value" data-adjust-value="highlights">0</output></span><input type="range" min="-100" max="100" step="1" value="0" data-adjust="highlights" aria-label="Highlights"></label>
+      <label class="adjust-control"><span class="adjust-label">Contrast <output class="adjust-value" data-adjust-value="contrast">0</output></span><input type="range" min="-100" max="100" step="1" value="0" data-adjust="contrast" aria-label="Contrast"></label>
+      <label class="adjust-control"><span class="adjust-label">Paper white <output class="adjust-value" data-adjust-value="paper">0</output></span><input type="range" min="0" max="100" step="1" value="0" data-adjust="paper" aria-label="Paper white"></label>
+      <label class="adjust-control"><span class="adjust-label">Sharpness <output class="adjust-value" data-adjust-value="sharpness">0</output></span><input type="range" min="0" max="100" step="1" value="0" data-adjust="sharpness" aria-label="Sharpness"></label>
     </div>
   </section>
   <div id="eTools"></div>
@@ -158,12 +161,20 @@ function warp(src,q){
 
 /* ---------- filters (paper-white background correction) ---------- */
 function bgGrid(c){
-  const W=c.width,H=c.height,d=c.getContext('2d').getImageData(0,0,W,H).data,B=Math.max(16,Math.round(Math.max(W,H)/36)),gw=Math.ceil(W/B),gh=Math.ceil(H/B),g=new Float32Array(gw*gh);
+  const W=c.width,H=c.height,d=c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const B=Math.max(16,Math.round(Math.max(W,H)/36)),gw=Math.ceil(W/B),gh=Math.ceil(H/B),g=new Float32Array(gw*gh);
+  const br=new Float32Array(gw*gh),bg=new Float32Array(gw*gh),bb=new Float32Array(gw*gh);
   for(let by=0;by<gh;by++)for(let bx=0;bx<gw;bx++){
-    const l=[];for(let y=by*B;y<Math.min(H,by*B+B);y+=3)for(let x=bx*B;x<Math.min(W,bx*B+B);x+=3){const i=(y*W+x)*4;l.push(.299*d[i]+.587*d[i+1]+.114*d[i+2])}
-    l.sort((a,b)=>a-b);g[by*gw+bx]=l[Math.floor(l.length*.96)]||255;
+    const l=[],rr=[],gg=[],bl=[];
+    for(let y=by*B;y<Math.min(H,by*B+B);y+=3)for(let x=bx*B;x<Math.min(W,bx*B+B);x+=3){
+      const i=(y*W+x)*4;l.push(.299*d[i]+.587*d[i+1]+.114*d[i+2]);
+      rr.push(d[i]);gg.push(d[i+1]);bl.push(d[i+2]);
+    }
+    const qi=Math.max(0,Math.floor(l.length*.96));
+    l.sort((a,b)=>a-b);rr.sort((a,b)=>a-b);gg.sort((a,b)=>a-b);bl.sort((a,b)=>a-b);
+    const k=by*gw+bx;g[k]=l[qi]||255;br[k]=rr[qi]||255;bg[k]=gg[qi]||255;bb[k]=bl[qi]||255;
   }
-  return{g,gw,gh,B};
+  return{g,br,bg,bb,gw,gh,B};
 }
 function sharpenText(canvas,amount=.48){
   const W=canvas.width,H=canvas.height,ctx=canvas.getContext('2d',{willReadFrequently:true}),image=ctx.getImageData(0,0,W,H),d=image.data,src=new Uint8ClampedArray(d);
@@ -197,14 +208,35 @@ function sharpenMagicText(canvas,amount=.28){
   }
   ctx.putImageData(image,0,0);return canvas;
 }
+function adaptiveBinarize(base){
+  const W=base.width,H=base.height,ctx=base.getContext('2d',{willReadFrequently:true});
+  const image=ctx.getImageData(0,0,W,H),d=image.data,stride=W+1;
+  const lum=new Uint8Array(W*H),integral=new Uint32Array((W+1)*(H+1));
+  for(let i=0,j=0;i<d.length;i+=4,j++)lum[j]=.299*d[i]+.587*d[i+1]+.114*d[i+2];
+  for(let y=0;y<H;y++){
+    let row=0;const line=(y+1)*stride,above=y*stride,src=y*W;
+    for(let x=0;x<W;x++){row+=lum[src+x];integral[line+x+1]=integral[above+x+1]+row}
+  }
+  const radius=Math.max(10,Math.round(Math.min(W,H)*.012));
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const x0=Math.max(0,x-radius),x1=Math.min(W-1,x+radius);
+    const y0=Math.max(0,y-radius),y1=Math.min(H-1,y+radius);
+    const a=y0*stride+x0,b=y0*stride+x1+1,c=(y1+1)*stride+x0,e=(y1+1)*stride+x1+1;
+    const count=(x1-x0+1)*(y1-y0+1),mean=(integral[e]-integral[b]-integral[c]+integral[a])/count;
+    const threshold=mean-Math.max(9,mean*.075),v=lum[y*W+x]<threshold?0:255,i=(y*W+x)*4;
+    d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;
+  }
+  const out=mk(W,H);out.getContext('2d').putImageData(image,0,0);return out;
+}
 function filt(base,type,bgc){
   const W=base.width,H=base.height,o=mk(W,H),x=o.getContext('2d');x.drawImage(base,0,0);
   if(type==='orig')return o;
-  const id=x.getImageData(0,0,W,H),d=id.data,{g,gw,gh,B}=bgc;
+  if(type==='bw')return adaptiveBinarize(base);
+  const id=x.getImageData(0,0,W,H),d=id.data,{g:lumBg,br:bgRGrid,bg:bgGGrid,bb:bgBGrid,gw,gh,B}=bgc;
   // A compact luminance map lets Magic distinguish soft paper shading from
   // the sharp edges of printed letters and coloured marks.
   let lumMap=null;
-  if(type==='magic'){
+  if(type==='magic'||type==='pro'){
     lumMap=new Uint8Array(W*H);
     for(let p=0,j=0;p<d.length;p+=4,j++)lumMap[j]=.299*d[p]+.587*d[p+1]+.114*d[p+2];
   }
@@ -212,9 +244,39 @@ function filt(base,type,bgc){
     const fy=clamp(y/B-.5,0,gh-1),y0=fy|0,y1=Math.min(gh-1,y0+1),ty=fy-y0;
     for(let xx=0;xx<W;xx++){
       const fx=clamp(xx/B-.5,0,gw-1),x0=fx|0,x1=Math.min(gw-1,x0+1),tx=fx-x0;
-      const bg=(g[y0*gw+x0]*(1-tx)+g[y0*gw+x1]*tx)*(1-ty)+(g[y1*gw+x0]*(1-tx)+g[y1*gw+x1]*tx)*ty,k=255/Math.max(bg,100),i=(y*W+xx)*4;
+      const bg=(lumBg[y0*gw+x0]*(1-tx)+lumBg[y0*gw+x1]*tx)*(1-ty)+(lumBg[y1*gw+x0]*(1-tx)+lumBg[y1*gw+x1]*tx)*ty;
+      let bgR=255,bgG=255,bgB=255;
+      if(type==='pro'){
+        bgR=(bgRGrid[y0*gw+x0]*(1-tx)+bgRGrid[y0*gw+x1]*tx)*(1-ty)+(bgRGrid[y1*gw+x0]*(1-tx)+bgRGrid[y1*gw+x1]*tx)*ty;
+        bgG=(bgGGrid[y0*gw+x0]*(1-tx)+bgGGrid[y0*gw+x1]*tx)*(1-ty)+(bgGGrid[y1*gw+x0]*(1-tx)+bgGGrid[y1*gw+x1]*tx)*ty;
+        bgB=(bgBGrid[y0*gw+x0]*(1-tx)+bgBGrid[y0*gw+x1]*tx)*(1-ty)+(bgBGrid[y1*gw+x0]*(1-tx)+bgBGrid[y1*gw+x1]*tx)*ty;
+      }
+      const k=255/Math.max(bg,100),i=(y*W+xx)*4;
       let r=d[i],gg=d[i+1],b=d[i+2];
-      if(type==='magic'){
+      if(type==='pro'){
+        const rawL=lumMap[y*W+xx],left=lumMap[y*W+Math.max(0,xx-1)],right=lumMap[y*W+Math.min(W-1,xx+1)];
+        const up=lumMap[Math.max(0,y-1)*W+xx],down=lumMap[Math.min(H-1,y+1)*W+xx];
+        const localMean=(left+right+up+down)*.25;
+        const edge=Math.max(Math.abs(rawL-left),Math.abs(rawL-right),Math.abs(rawL-up),Math.abs(rawL-down));
+        const nr=clamp(r*255/Math.max(bgR,90),0,255),ng=clamp(gg*255/Math.max(bgG,90),0,255),nb=clamp(b*255/Math.max(bgB,90),0,255);
+        const normalizedL=.299*nr+.587*ng+.114*nb;
+        const ratio=rawL/Math.max(bg,90);
+        const denoise=.12*(1-clamp((Math.abs(rawL-localMean)-3)/14,0,1));
+        const cleanL=clamp(normalizedL+(localMean-rawL)*denoise*255/Math.max(bg,90),0,255);
+        const v=cleanL/255;
+        const bgChroma=Math.max(bgR,bgG,bgB)-Math.min(bgR,bgG,bgB);
+        const pixelChroma=Math.max(r,gg,b)-Math.min(r,gg,b);
+        const colorInk=clamp((pixelChroma-bgChroma-10)/38,0,1);
+        const inkGuard=clamp((.84-ratio)/.38,0,1);
+        const edgeGuard=clamp((edge-5)/30,0,1);
+        const paperTarget=255*(1-Math.pow(1-v,2.35));
+        const paperBlend=.88*(1-edgeGuard)*(1-inkGuard)*(1-colorInk*.88);
+        const targetL=clamp(cleanL+(paperTarget-cleanL)*paperBlend,0,255);
+        const colorMix=colorInk*.86,delta=targetL-cleanL;
+        r=clamp((nr+delta)*(1-colorMix)+r*colorMix,0,255);
+        gg=clamp((ng+delta)*(1-colorMix)+gg*colorMix,0,255);
+        b=clamp((nb+delta)*(1-colorMix)+b*colorMix,0,255);
+      }else if(type==='magic'){
         // Magic works on luminance while carrying the original chroma through
         // the pipeline. This keeps stamps, signatures and colored annotations recognizable.
         const rawL=lumMap[y*W+xx];
@@ -275,13 +337,15 @@ function filt(base,type,bgc){
     }
   }
   x.putImageData(id,0,0);
-  return type==='magic'?sharpenMagicText(o,.28):sharpenText(o,type==='bw'?.20:.48);
+  if(type==='pro')return sharpenMagicText(o,.42);
+  return type==='magic'?sharpenMagicText(o,.28):sharpenText(o,.48);
 }
 function rot(c,r){if(!r)return c;const s=r%180,o=mk(s?c.height:c.width,s?c.width:c.height),x=o.getContext('2d');x.translate(o.width/2,o.height/2);x.rotate(r*Math.PI/180);x.drawImage(c,-c.width/2,-c.height/2);return o}
 function thumb(c){const k=260/Math.max(c.width,c.height),t=mk(Math.max(1,c.width*k|0),Math.max(1,c.height*k|0));t.getContext('2d').drawImage(c,0,0,t.width,t.height);return t.toDataURL('image/jpeg',.7)}
 function adjustTone(source,settings={}){
   const brightness=Number(settings.brightness)||0,shadows=Number(settings.shadows)||0,highlights=Number(settings.highlights)||0;
-  if(!brightness&&!shadows&&!highlights)return source;
+  const contrast=Number(settings.contrast)||0,paper=Number(settings.paper)||0,sharpness=Number(settings.sharpness)||0;
+  if(!brightness&&!shadows&&!highlights&&!contrast&&!paper&&!sharpness)return source;
   const W=source.width,H=source.height,o=mk(W,H),ctx=o.getContext('2d');
   ctx.drawImage(source,0,0);
   const image=ctx.getImageData(0,0,W,H),d=image.data;
@@ -290,6 +354,8 @@ function adjustTone(source,settings={}){
     let target=l+brightness*.58;
     target+=shadows*.78*Math.pow(1-v,2);
     target+=highlights*.78*Math.pow(v,2);
+    target=(target-128)*(1+contrast*.008)+128;
+    target+=(255-target)*(paper/100)*.72*Math.pow(v,2.35);
     target=clamp(target,0,255);
     if(l>.5){
       const gain=target/l;
@@ -300,7 +366,7 @@ function adjustTone(source,settings={}){
     }
   }
   ctx.putImageData(image,0,0);
-  return o;
+  return sharpness>0?sharpenMagicText(o,sharpness/100*.78):o;
 }
 function renderAdjustedPg(p){
   const source=p.filtered||filt(p.base,p.filter,p.bgc);
@@ -383,7 +449,7 @@ async function nextFile(){
 }
 function addSrc(c){
   // The import decoder already limits image dimensions and total pixels.
-  openEd({src:c,quad:null,filter:'magic',rot:0},true,'crop');
+  openEd({src:c,quad:null,filter:'pro',rot:0},true,'crop');
 }
 const dropZone=$('#dropZone');
 dropZone.addEventListener('click',()=>$('#fIn').click());
@@ -394,7 +460,7 @@ dropZone.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();drop
 
 /* ---------- editor ---------- */
 function openEd(pg,isNew,mode){
-  if(!pg.adjustments)pg.adjustments={brightness:0,shadows:0,highlights:0};
+  pg.adjustments={brightness:0,shadows:0,highlights:0,contrast:0,paper:0,sharpness:0,...(pg.adjustments||{})};
   ed={pg,isNew,mode,drag:-1,sc:1,zoom:1};show('edit');
   if(mode==='crop'&&!pg.quad)pg.quad=inset(pg.src);
   if(mode==='filter'){pg.filtered=filt(pg.base,pg.filter,pg.bgc);renderAdjustedPg(pg)}
@@ -403,7 +469,7 @@ function openEd(pg,isNew,mode){
   // the explicit Auto detect button, so importing remains immediate and light.
 }
 function updateAdjustmentControls(pg){
-  for(const key of ['brightness','shadows','highlights']){
+  for(const key of ['brightness','shadows','highlights','contrast','paper','sharpness']){
     const value=Number(pg.adjustments[key])||0,input=$(`[data-adjust="${key}"]`),output=$(`[data-adjust-value="${key}"]`);
     if(input)input.value=value;
     if(output)output.textContent=value>0?'+'+value:String(value);
@@ -415,7 +481,7 @@ function ui(){
   $('#adjustPanel').classList.toggle('visible',!crop);
   if(!crop)updateAdjustmentControls(pg);
   $('#eTools').innerHTML=crop?'<button id="tAuto">✨ Auto detect</button><button id="tFull">⛶ Full image</button>'
-   :['orig:Original','magic:Magic','bw:B&W','gray:Gray'].map(s=>{const[k,l]=s.split(':');return`<button class="chip${pg.filter===k?' on':''}" data-f="${k}">${l}</button>`}).join('')+'<button id="tRot">↻ Rotate</button><button id="tCrop">✂ Re-crop</button>';
+   :['orig:Original','magic:Magic','pro:Magic Pro','bw:B&W','gray:Gray'].map(s=>{const[k,l]=s.split(':');return`<button class="chip${pg.filter===k?' on':''}" data-f="${k}">${l}</button>`}).join('')+'<button id="tRot">↻ Rotate</button><button id="tCrop">✂ Re-crop</button>';
 }
 function draw(){
   const pg=ed.pg,st=$('#stage'),W=st.clientWidth-16,H=st.clientHeight-16,x=ec.getContext('2d');
@@ -455,7 +521,7 @@ $('#adjustPanel').oninput=e=>{
 };
 $('#adjustPanel').onclick=e=>{
   if(!e.target.closest('#tResetAdjust'))return;
-  const pg=ed.pg;pg.adjustments={brightness:0,shadows:0,highlights:0};
+  const pg=ed.pg;pg.adjustments={brightness:0,shadows:0,highlights:0,contrast:0,paper:0,sharpness:0};
   updateAdjustmentControls(pg);renderAdjustedPg(pg);draw();
 };
 $('#eNext').onclick=()=>{
