@@ -188,6 +188,13 @@ test("backend discards model tool calls that are not enabled for the current pag
   assert.match(data.reply, /not available in this workspace/i);
 });
 
+test("the visible assistant launchers are clearly labelled as DocuWorks AI Agent", () => {
+  assert.match(assistant, /launcher\.textContent\s*=\s*"✦ DocuWorks AI Agent"/);
+  assert.match(assistant, /<strong>DocuWorks AI Agent<\/strong>/);
+  assert.match(project360, /aria-label="Open DocuWorks AI Agent"/);
+  assert.doesNotMatch(project360, /\.viewer:not\(\.model-ready\).*\.ai-launch/);
+});
+
 test("shared assistant runs multiple tool rounds and pauses for approval", () => {
   assert.match(assistant, /runAgent/);
   assert.match(assistant, /for \(let turn=0; turn<5; turn\+\+\)/);
