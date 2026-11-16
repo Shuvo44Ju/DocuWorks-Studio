@@ -1,0 +1,27 @@
+name: CS converter metadata regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - cs.html
+      - builder.js
+      - .github/tests/cs-metadata.test.cjs
+      - .github/workflows/cs-converter-tests.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metadata-optional:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test optional URS metadata workflow
+        run: node --test .github/tests/cs-metadata.test.cjs
