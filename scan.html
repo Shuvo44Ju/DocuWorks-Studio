@@ -575,72 +575,99 @@ const back=()=>{if(fromCam)show('cam');else if(Q.length)nextFile();else{hideBusy
 $('#eBack').onclick=()=>{if(ed.pg)ed.pg.filtered=null;back()};
 addEventListener('resize',()=>{if($('#edit').classList.contains('on'))draw()});
 
-/* ---------- robust PDF export ---------- */
-let pdfLibraryPromise=null;
-async function loadPdfLibrary(){
-  if(typeof window.jspdf?.jsPDF==='function')return window.jspdf.jsPDF;
-  if(pdfLibraryPromise)return pdfLibraryPromise;
-  const sources=[
-    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-    'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
-    'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'
-  ];
-  pdfLibraryPromise=(async()=>{
-    let lastError=null;
-    for(const src of sources){
-      try{
-        await new Promise((resolve,reject)=>{
-          const script=document.createElement('script');
-          let settled=false;
-          const timeout=setTimeout(()=>finish(new Error('PDF library request timed out')),15000);
-          function finish(error){
-            if(settled)return;
-            settled=true;clearTimeout(timeout);
-            if(error){script.remove();reject(error)}else resolve();
-          }
-          script.src=src;script.async=true;script.crossOrigin='anonymous';
-          script.onload=()=>typeof window.jspdf?.jsPDF==='function'?finish():finish(new Error('PDF library loaded but did not initialize'));
-          script.onerror=()=>finish(new Error('Could not download PDF library'));
-          document.head.appendChild(script);
-        });
-        if(typeof window.jspdf?.jsPDF==='function')return window.jspdf.jsPDF;
-      }catch(error){lastError=error}
-    }
-    throw new Error('The PDF engine could not be loaded from the available sources. Check your internet connection and retry. '+(lastError?.message||''));
-  })();
-  try{return await pdfLibraryPromise}catch(error){pdfLibraryPromise=null;throw error}
+/* ---------- built-in PDF export: no external library required ---------- */
+const pdfEncoder=new TextEncoder();
+function pdfAscii(value){return pdfEncoder.encode(value)}
+function pdfJoin(parts){
+  const total=parts.reduce((n,p)=>n+p.length,0),out=new Uint8Array(total);
+  let offset=0;for(const part of parts){out.set(part,offset);offset+=part.length}
+  return out;
 }
 function pdfSafeName(value){
   return String(value||'Scan').trim().replace(/[\\/:*?"<>|]+/g,'_').replace(/\s+/g,' ').slice(0,100)||'Scan';
+}
+async function pdfImageStream(canvas,lossless){
+  const width=canvas.width,height=canvas.height;
+  if(lossless&&typeof CompressionStream==='function'){
+    try{
+      const context=canvas.getContext('2d',{willReadFrequently:true});
+      const pixels=context.getImageData(0,0,width,height).data;
+      const rgb=new Uint8Array(width*height*3);
+      let target=0;
+      for(let y=0;y<height;y++){
+        const rowStart=y*width*4,rowEnd=rowStart+width*4;
+        for(let source=rowStart;source<rowEnd;source+=4){
+          rgb[target++]=pixels[source];rgb[target++]=pixels[source+1];rgb[target++]=pixels[source+2];
+        }
+        if(y&&y%120===0)await nextFrame();
+      }
+      const compressed=await new Response(new Blob([rgb]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer();
+      return {bytes:new Uint8Array(compressed),filter:'FlateDecode',width:width,height:height};
+    }catch(error){
+      console.warn('Lossless PDF compression unavailable; using high-quality JPEG for this page.',error);
+    }
+  }
+  const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Could not encode a scanned page.')),'image/jpeg',.98));
+  return {bytes:new Uint8Array(await blob.arrayBuffer()),filter:'DCTDecode',width:width,height:height};
+}
+function buildPdfBlob(encodedPages){
+  const objects=[];
+  const addObject=body=>{objects.push(typeof body==='string'?pdfAscii(body):body);return objects.length};
+  const catalogId=addObject('<< /Type /Catalog /Pages 2 0 R >>');
+  const pagesId=addObject('');
+  const pageIds=[];
+  encodedPages.forEach((image,index)=>{
+    const portrait=image.width>=image.height?false:true;
+    const pageWidth=portrait?595.28:841.89,pageHeight=portrait?841.89:595.28;
+    const scale=Math.min(pageWidth/image.width,pageHeight/image.height);
+    const drawWidth=image.width*scale,drawHeight=image.height*scale;
+    const left=(pageWidth-drawWidth)/2,bottom=(pageHeight-drawHeight)/2;
+    const imageId=objects.length+1;
+    const imageHeader='<< /Type /XObject /Subtype /Image /Width '+image.width+' /Height '+image.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /'+image.filter+' /Length '+image.bytes.length+' >>\nstream\n';
+    addObject(pdfJoin([pdfAscii(imageHeader),image.bytes,pdfAscii('\nendstream')]));
+    const content='q\n'+drawWidth.toFixed(3)+' 0 0 '+drawHeight.toFixed(3)+' '+left.toFixed(3)+' '+bottom.toFixed(3)+' cm\n/Im0 Do\nQ';
+    const contentId=addObject('<< /Length '+pdfAscii(content).length+' >>\nstream\n'+content+'\nendstream');
+    const pageId=addObject('<< /Type /Page /Parent '+pagesId+' 0 R /MediaBox [0 0 '+pageWidth+' '+pageHeight+'] /Resources << /XObject << /Im0 '+imageId+' 0 R >> >> /Contents '+contentId+' 0 R >>');
+    pageIds.push(pageId);
+  });
+  objects[pagesId-1]=pdfAscii('<< /Type /Pages /Kids ['+pageIds.map(id=>id+' 0 R').join(' ')+'] /Count '+pageIds.length+' >>');
+  const chunks=[pdfAscii('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n')],offsets=[0];
+  let position=chunks[0].length;
+  objects.forEach((body,index)=>{
+    offsets.push(position);
+    const prefix=pdfAscii((index+1)+' 0 obj\n'),suffix=pdfAscii('\nendobj\n');
+    chunks.push(prefix,body,suffix);position+=prefix.length+body.length+suffix.length;
+  });
+  const xrefPosition=position;
+  const xref='xref\n0 '+(objects.length+1)+'\n0000000000 65535 f \n'+offsets.slice(1).map(n=>String(n).padStart(10,'0')+' 00000 n \n').join('');
+  const trailer='trailer\n<< /Size '+(objects.length+1)+' /Root '+catalogId+' 0 R >>\nstartxref\n'+xrefPosition+'\n%%EOF';
+  chunks.push(pdfAscii(xref),pdfAscii(trailer));
+  return new Blob(chunks,{type:'application/pdf'});
+}
+function downloadPdf(blob,name){
+  const url=URL.createObjectURL(blob),link=document.createElement('a');
+  link.href=url;link.download=name;link.style.display='none';document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
 async function exportPdfPages(selectedPages){
   const button=$('#bPdf'),selectedButton=$('#exportSelected');
   if(!Array.isArray(selectedPages)||!selectedPages.length){alert('Select at least one page to export.');return}
   button.disabled=true;if(selectedButton)selectedButton.disabled=true;
   try{
-    showBusy('Loading PDF engine…');
-    const JsPDF=await loadPdfLibrary();
-    let doc=null;
+    const encoded=[];
     for(let i=0;i<selectedPages.length;i++){
-      const p=selectedPages[i];
-      if(!p?.out||typeof p.out.toDataURL!=='function')throw new Error('Page '+(i+1)+' is not ready. Open the page, press Done, then export again.');
-      showBusy('Preparing PDF page '+(i+1)+' of '+selectedPages.length+'…');
-      await nextFrame();
-      const orientation=p.out.width>p.out.height?'l':'p';
-      const pageWidth=orientation==='p'?210:297,pageHeight=orientation==='p'?297:210;
-      const scale=Math.min(pageWidth/p.out.width,pageHeight/p.out.height);
-      const width=p.out.width*scale,height=p.out.height*scale;
-      if(!doc)doc=new JsPDF({orientation:orientation,unit:'mm',format:'a4',compress:true});
-      else doc.addPage('a4',orientation);
-      const lossless=['bw','gray','clean','magic','pro'].includes(p.filter);
-      const imageData=lossless?p.out.toDataURL('image/png'):p.out.toDataURL('image/jpeg',.96);
-      if(lossless)doc.addImage(imageData,'PNG',(pageWidth-width)/2,(pageHeight-height)/2,width,height);
-      else doc.addImage(imageData,'JPEG',(pageWidth-width)/2,(pageHeight-height)/2,width,height,undefined,'FAST');
+      const page=selectedPages[i];
+      if(!page?.out||typeof page.out.toBlob!=='function')throw new Error('Page '+(i+1)+' is not ready. Open the page, press Done, then export again.');
+      showBusy('Preparing PDF page '+(i+1)+' of '+selectedPages.length+'…');await nextFrame();
+      const lossless=['bw','gray','clean','magic','pro'].includes(page.filter);
+      encoded.push(await pdfImageStream(page.out,lossless));
     }
+    showBusy('Building PDF file…');await nextFrame();
+    const blob=buildPdfBlob(encoded);
+    if(!blob.size)throw new Error('The PDF file could not be assembled.');
     showBusy('Saving PDF…');await nextFrame();
-    const filename=pdfSafeName($('#fn').value)+'.pdf';
-    doc.setProperties({title:filename.replace(/\.pdf$/i,''),subject:'Scanned document'});
-    doc.save(filename);
+    downloadPdf(blob,pdfSafeName($('#fn').value)+'.pdf');
+    toast('PDF exported · '+selectedPages.length+' page(s)');
   }catch(error){
     console.error('Scanner PDF export failed:',error);
     alert('PDF export failed: '+(error?.message||'Unexpected error. Please retry.'));
@@ -648,24 +675,14 @@ async function exportPdfPages(selectedPages){
     hideBusy();button.disabled=false;if(selectedButton)selectedButton.disabled=false;
   }
 }
-$('#bPdf').onclick=async()=>{
+$('#bPdf').onclick=()=>{
   if(!pages.length)return alert('Add a page first.');
-  const button=$('#bPdf');button.disabled=true;
-  try{
-    showBusy('Loading PDF engine…');
-    await loadPdfLibrary();
-    hideBusy();
-    if(pages.length===1){await exportPdfPages(pages);return}
-    $('#exportPageList').innerHTML=pages.map((p,i)=>'<label class="export-row"><input type="checkbox" data-export-index="'+i+'" checked><img src="'+p.th+'" alt="Page '+(i+1)+'"><span>Page '+(i+1)+'</span></label>').join('');
-    $('#exportToggleAll').textContent='Deselect all';
-    const dialog=$('#exportDlg');
-    if(typeof dialog.showModal==='function')dialog.showModal();
-    else if(confirm('Export all '+pages.length+' pages as one PDF?'))await exportPdfPages(pages);
-  }catch(error){
-    console.error('PDF library loading failed:',error);
-    hideBusy();
-    alert('The PDF engine could not be loaded. Check your internet connection and retry.');
-  }finally{button.disabled=false;hideBusy()}
+  if(pages.length===1){exportPdfPages(pages);return}
+  $('#exportPageList').innerHTML=pages.map((p,i)=>'<label class="export-row"><input type="checkbox" data-export-index="'+i+'" checked><img src="'+p.th+'" alt="Page '+(i+1)+'"><span>Page '+(i+1)+'</span></label>').join('');
+  $('#exportToggleAll').textContent='Deselect all';
+  const dialog=$('#exportDlg');
+  if(typeof dialog.showModal==='function')dialog.showModal();
+  else if(confirm('Export all '+pages.length+' pages as one PDF?'))exportPdfPages(pages);
 };
 $('#exportToggleAll').onclick=()=>{
   const boxes=[...$('#exportPageList').querySelectorAll('input[type="checkbox"]')],select=boxes.some(b=>!b.checked);
