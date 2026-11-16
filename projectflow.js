@@ -255,13 +255,13 @@ async function exportExcel(){
   gantt[3]=['TOTAL ACTIVITIES',activities.length,'COMPLETED',activities.filter(t=>t.done).length,'IN PROGRESS',activities.filter(t=>t.active).length,'OVERDUE',activities.filter(t=>!t.done&&t.end&&isoDay(t.end)<dayUTC(new Date().getFullYear(),new Date().getMonth()+1,new Date().getDate())).length];
   gantt[5]=['TASK / WORK PACKAGE','VENDOR / RESPONSIBLE','START DATE','FINISH DATE','DURATION (DAYS)','STATUS'];
   weeks.forEach((d,i)=>gantt[5].push(iso(d)));
-  data.tasks.forEach(t=>{
+  data.tasks.forEach((t,i)=>{
    const row=[t.name,t.vendor||'',t.start||'',t.end||'',t.duration??'',t.group?(t.start?'Summary':'Group'):state(t)];
    weeks.forEach(d=>{
     const taskStart=t.start?isoDay(t.start):null,taskEnd=t.end?isoDay(t.end):null;
     row.push(taskStart!==null&&taskEnd!==null&&d<=taskEnd&&d+6>=taskStart?' ': '');
    });
-   gantt.push(row);
+   gantt[7+i]=row;
   });
   const ws=XLSX.utils.aoa_to_sheet(gantt);
   const navy='17365D',blue='4472C4',lightBlue='D9EAF7',pale='F3F6FA',grey='E7EBF0',white='FFFFFF',dark='243447',line='D6DEE8';
