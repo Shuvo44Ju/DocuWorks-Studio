@@ -5,6 +5,7 @@ on:
     branches: [main]
 
 permissions:
+  actions: write
   contents: read
   deployments: write
 
@@ -16,39 +17,55 @@ jobs:
   clear-stale-deployment:
     runs-on: ubuntu-latest
     steps:
-      - name: Mark stale Pages deployment inactive
+      - name: Cancel stale GitHub Pages builds
         uses: actions/github-script@v7
         with:
           script: |
-            const staleSha = "c2deef35fc714135c112a8169ed4ac28c2603797";
+            const runs = await github.paginate(
+              github.rest.actions.listWorkflowRunsForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, branch: "main", per_page: 100 }
+            );
+            const staleRuns = runs.workflow_runs.filter(run =>
+              run.name === "pages build and deployment" &&
+              run.status === "in_progress" &&
+              run.head_sha !== context.sha
+            );
+            for (const run of staleRuns) {
+              await github.rest.actions.cancelWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id
+              });
+              core.info("Cancelled stale Pages build " + run.id + " for " + run.head_sha + ".");
+            }
+            if (!staleRuns.length) core.info("No stale in-progress Pages builds found.");
+      - name: Mark known stale Pages deployment inactive
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const staleShas = [
+              "c2deef35fc714135c112a8169ed4ac28c2603797",
+              "6e86143b16fa25bc767093887e31808dccf1c3ba"
+            ];
             const deployments = await github.paginate(
               github.rest.repos.listDeployments,
               { owner: context.repo.owner, repo: context.repo.repo, per_page: 100 }
             );
             const stale = deployments.filter(d =>
-              d.sha === staleSha && d.environment === "github-pages"
+              staleShas.includes(d.sha) && d.environment === "github-pages"
             );
-            if (!stale.length) {
-              core.warning("No stale github-pages deployment was returned for " + staleSha + ".");
-            }
             for (const deployment of stale) {
               const statuses = await github.rest.repos.listDeploymentStatuses({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                deployment_id: deployment.id,
-                per_page: 1
+                owner: context.repo.owner, repo: context.repo.repo,
+                deployment_id: deployment.id, per_page: 1
               });
               const latest = statuses.data[0];
-              if (latest && latest.state !== "inactive" && latest.state !== "failure" && latest.state !== "error") {
+              if (latest && !["inactive","failure","error"].includes(latest.state)) {
                 await github.rest.repos.createDeploymentStatus({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  deployment_id: deployment.id,
-                  state: "inactive",
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  deployment_id: deployment.id, state: "inactive",
                   description: "Closing a stale Pages deployment to unblock the latest website build."
                 });
                 core.info("Closed stale deployment " + deployment.id + ".");
-              } else {
-                core.info("Deployment " + deployment.id + " is already " + (latest ? latest.state : "without status") + ".");
               }
             }
