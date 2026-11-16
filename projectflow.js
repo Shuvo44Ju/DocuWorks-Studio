@@ -96,13 +96,13 @@ function parseDuration(value,header){
 function numberValue(v){if(v===null||v===undefined||v==='')return null;if(typeof v==='number')return v;const s=String(v).replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);return s?Number(s[0]):null}
 function normalizeStatus(raw,progress){
  const s=norm(raw);
+ if(/not started|not yet started|not initiate|not commenced|to be started|planned|new/.test(s))return 'Not started';
  if(/awaiting|waiting|pending|not received|not submitted|not issued|not released|not yet/.test(s))return 'Needs review';
  if(/complete|completed|done|closed|delivered|received|installed|commissioned|finished|released/.test(s))return 'Completed';
- if(/hold|suspend|blocked|pending approval/.test(s))return 'On hold';
+ if(/hold|suspend|blocked/.test(s))return 'On hold';
  if(/cancel|dropped|terminated/.test(s))return 'Cancelled';
- if(/review|clarif|awaiting|waiting|pending|not received|not submitted/.test(s))return 'Needs review';
+ if(/review|clarif/.test(s))return 'Needs review';
  if(/progress|ongoing|working|started|under process|processing|procurement|manufactur|shipment|transit|installation|testing|evaluation|issued|ordered/.test(s))return 'In progress';
- if(/not started|not yet|not initiate|new|planned|to be started/.test(s))return 'Not started';
  if(progress===100)return 'Completed';if(progress!==null&&progress>0)return 'In progress';if(progress===0)return 'Not started';return 'Needs review';
 }
 function normalizeProgress(v,status){
@@ -670,7 +670,7 @@ function wire(){
  $('projectName').onchange=()=>{projectName=$('projectName').value.trim()||'Untitled project';$('projectName').value=projectName;save()};
  $('closeTask').onclick=$('cancelTask').onclick=closeTask;$('taskForm').onsubmit=saveTask;$('deleteTaskBtn').onclick=()=>{const id=$('editTaskId').value;if(id&&confirm('Delete this task from the project?'))deleteTask(id)};
  $('taskSearch').oninput=renderTasks;$('taskStatusFilter').onchange=renderTasks;$('deleteSelectedBtn').onclick=deleteSelected;$('selectAllTasks').onchange=e=>{document.querySelectorAll('[data-check]').forEach(c=>{c.checked=e.target.checked;if(e.target.checked)selectedIds.add(c.dataset.check);else selectedIds.delete(c.dataset.check)});$('deleteSelectedBtn').disabled=!selectedIds.size};
- $('ganttSearch').oninput=renderGantt;$('ganttFilter').onchange=renderGantt;$('zoomSelect').onchange=e=>{zoom=e.target.value;renderGantt()};$('todayBtn').onclick=()=>{const r=dateRange;if(r){const x=daySpan(iso(r.start),iso(today()))*(zoom==='day'?29:zoom==='week'?13:4.2);$('ganttScroll').scrollLeft=Math.max(0,x-180)}};
+ $('ganttSearch').oninput=renderGantt;$('ganttFilter').onchange=renderGantt;$('ganttLabels').addEventListener('click',e=>{const row=e.target.closest('[data-edit]');if(row)editTask(row.dataset.edit)});$('zoomSelect').onchange=e=>{zoom=e.target.value;renderGantt()};$('todayBtn').onclick=()=>{const r=dateRange;if(r){const x=daySpan(iso(r.start),iso(today()))*(zoom==='day'?29:zoom==='week'?13:4.2);$('ganttScroll').scrollLeft=Math.max(0,x-180)}};
  $('resourceFilter').onchange=renderResources;$('reportBtn').onclick=()=>setView('report');$('printReportBtn').onclick=()=>window.print();$('taskTableBody').addEventListener('click',e=>{const row=e.target.closest('tr[data-edit]');if(row&&!e.target.closest('input'))editTask(row.dataset.edit)});
  $('taskOverlay').addEventListener('click',e=>{if(e.target===$('taskOverlay'))closeTask()});$('importOverlay').addEventListener('click',e=>{if(e.target===$('importOverlay'))$('importOverlay').hidden=true});
 }
