@@ -48,6 +48,28 @@ test("Project 360 design tool is offered only when its existing design runner ex
   }
 });
 
+test("scanner and PDF editor export tools are hidden until their documents are ready", () => {
+  const scanDoc = count => ({
+    getElementById(id) {
+      if (id === "bPdf") return {disabled:false};
+      if (id === "grid") return {children:{length:count}};
+      return null;
+    }
+  });
+  assert.ok(!AgentTools.getAvailableTools("scan", scanDoc(0)).includes("scan_export_pdf"));
+  assert.ok(AgentTools.getAvailableTools("scan", scanDoc(1)).includes("scan_export_pdf"));
+
+  const pdfDoc = visible => ({
+    getElementById(id) {
+      if (id === "export") return {disabled:false};
+      if (id === "editor") return {getClientRects:() => ({length:visible ? 1 : 0})};
+      return null;
+    }
+  });
+  assert.ok(!AgentTools.getAvailableTools("priceReduction", pdfDoc(false)).includes("export_cleaned_pdf"));
+  assert.ok(AgentTools.getAvailableTools("priceReduction", pdfDoc(true)).includes("export_cleaned_pdf"));
+});
+
 test("only file-processing and export actions require user approval", () => {
   for (const name of ["start_urs_cs_conversion","create_cs_excel","scan_export_pdf","optimize_pdfs","export_cleaned_pdf"]) {
     assert.equal(AgentTools.approvalRequired(name), true, name);
