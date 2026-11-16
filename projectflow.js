@@ -173,9 +173,14 @@ function detectHeader(matrix){
 }
 function parseCSV(text){
  const clean=String(text||'').replace(/^\uFEFF/,'');
- const first=clean.split(/\r?\n/).find(x=>x.trim())||'';
+ const sampleLines=clean.split(/\r?\n/).filter(x=>x.trim()).slice(0,14);
  const delimiters=[',',';','\t'];let delimiter=',',best=-1;
- delimiters.forEach(d=>{let count=0,quoted=false;for(let i=0;i<first.length;i++){if(first[i]==='"'){if(quoted&&first[i+1]==='"'){i++}else quoted=!quoted}else if(!quoted&&first[i]===d)count++}if(count>best){best=count;delimiter=d}});
+ delimiters.forEach(d=>{
+  const counts=sampleLines.map(line=>{let count=0,quoted=false;for(let i=0;i<line.length;i++){if(line[i]==='"'){if(quoted&&line[i+1]==='"'){i++}else quoted=!quoted}else if(!quoted&&line[i]===d)count++}return count});
+  const total=counts.reduce((a,b)=>a+b,0),freq={};counts.filter(n=>n>0).forEach(n=>freq[n]=(freq[n]||0)+1);
+  const consistency=Math.max(0,...Object.values(freq)),score=total+consistency*3+Math.max(0,...counts)*2;
+  if(score>best){best=score;delimiter=d}
+ });
  const rows=[];let row=[],cell='',quoted=false;
  for(let i=0;i<clean.length;i++){
   const c=clean[i];
@@ -276,11 +281,12 @@ function renderMapping(){
   pending.mapping[key]=value;renderMapping();renderImportPreview();
  }));
 }
-function mappedCell(rowIndex,colIndex){
+function mappedCell(rowIndex,colIndex,fieldKey){
  const row=pending.matrix[rowIndex]||[];let value=row[colIndex];
  if(value!==''&&value!==null&&value!==undefined)return value;
+ if(!['project','owner','supplier','reference'].includes(fieldKey))return value;
  for(const m of pending.merges||[]){
-  if(m.s&&m.e&&m.s.r<rowIndex&&m.e.r>=rowIndex&&m.s.c<=colIndex&&m.e.c>=colIndex){
+  if(m.s&&m.e&&m.s.c===colIndex&&m.e.c===colIndex&&m.s.r>pending.headerIndex&&m.s.r<rowIndex&&m.e.r>=rowIndex){
    const anchor=(pending.matrix[m.s.r]||[])[m.s.c];if(anchor!==''&&anchor!==null&&anchor!==undefined)return anchor;
   }
  }
@@ -291,7 +297,7 @@ function renderImportPreview(){
  const ix=pending.mapping,chosen=fields.filter(f=>ix[f.key]!==undefined&&ix[f.key]!=='');
  const result=readMappedRows(),previewRows=result.list.length?result.list.slice(0,5).map(t=>t.sourceRow-1):pending.matrix.slice(pending.headerIndex+1).map((r,i)=>pending.headerIndex+1+i).filter(i=>(pending.matrix[i]||[]).some(v=>v!==''&&v!==null&&v!==undefined)).slice(0,5);
  const shown=chosen.slice(0,10);
- $('importPreview').innerHTML='<thead><tr>'+shown.map(f=>'<th>'+esc(f.label)+'</th>').join('')+'</tr></thead><tbody>'+previewRows.map(ri=>'<tr>'+shown.map(f=>'<td>'+esc(mappedCell(ri,Number(ix[f.key]))??'')+'</td>').join('')+'</tr>').join('')+'</tbody>';
+ $('importPreview').innerHTML='<thead><tr>'+shown.map(f=>'<th>'+esc(f.label)+'</th>').join('')+'</tr></thead><tbody>'+previewRows.map(ri=>'<tr>'+shown.map(f=>'<td>'+esc(mappedCell(ri,Number(ix[f.key]),f.key)??'')+'</td>').join('')+'</tr>').join('')+'</tbody>';
  $('importRowCount').textContent=result.list.length+' task rows detected · '+result.stats.rowsScanned+' source rows scanned';
  const mapped=Object.keys(ix).filter(k=>ix[k]!==''&&ix[k]!==undefined).length;
  const lines=[''+mapped+' of '+fields.length+' project fields mapped automatically',result.stats.missingDates+' task(s) without complete planned dates'];
@@ -306,7 +312,7 @@ function renderImportPreview(){
 function readMappedRows(){
  const ix=pending.mapping,rows=pending.matrix.slice(pending.headerIndex+1),list=[],warnings=[];
  const col=k=>ix[k]===undefined||ix[k]===''?null:Number(ix[k]);
- const get=(rowIndex,k)=>{const c=col(k);return c===null?'':mappedCell(rowIndex,c)??''};
+ const get=(rowIndex,k)=>{const c=col(k);return c===null?'':mappedCell(rowIndex,c,k)??''};
  const dateOrder=$('dateOrder')?.value||'DMY',date1904=!!pending.date1904;
  const stats={rowsScanned:0,skippedRows:0,missingDates:0,invalidDates:0,reversedDates:0,invalidDurations:0,ambiguousDates:0,duplicates:0};
  const idSeen=new Set(),nameSeen=new Set();
