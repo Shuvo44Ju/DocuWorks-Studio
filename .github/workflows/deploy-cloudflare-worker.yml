@@ -1,0 +1,48 @@
+name: Deploy DocuWorks Cloudflare Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - worker.js
+      - wrangler.jsonc
+      - functions/api/assistant.js
+      - functions/api/convert.js
+      - .github/workflows/deploy-cloudflare-worker.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Deploy Worker
+        if: ${{ env.CF_API_TOKEN != '' && env.CF_ACCOUNT_ID != '' }}
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify deployed AI Agent backend
+        if: ${{ env.CF_API_TOKEN != '' && env.CF_ACCOUNT_ID != '' }}
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error https://docuworks-studio.shuvokh97.workers.dev/api/assistant)"
+          echo "$response"
+          echo "$response" | grep -q '"agentMode":true'
+          echo "$response" | grep -q '"agentBuild":"2026-11-16-agent-v1"'
+
+      - name: Report missing deployment credentials
+        if: ${{ env.CF_API_TOKEN == '' || env.CF_ACCOUNT_ID == '' }}
+        run: |
+          echo "::warning::Cloudflare Worker was not deployed because CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID is missing from GitHub Actions secrets."
+          echo "Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID under repository Settings > Secrets and variables > Actions, then rerun this workflow."
