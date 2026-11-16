@@ -167,7 +167,7 @@ async function loadLibrary(){
 }
 async function readFile(file){
  const XLSX=await loadLibrary();
- if(/\\.csv$/i.test(file.name))return XLSX.read(await file.text(),{type:'string',cellDates:false,raw:true});
+ if(/\.csv$/i.test(file.name))return XLSX.read(await file.text(),{type:'string',cellDates:false,raw:true});
  return XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false,raw:true});
 }
 function rowsOf(wb,name){
