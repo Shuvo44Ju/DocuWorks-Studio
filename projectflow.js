@@ -167,12 +167,8 @@ async function loadLibrary(){
 }
 async function readFile(file){
  const XLSX=await loadLibrary();
- if(/\.csv$/i.test(file.name)){
-  const text=await file.text();const rows=text.split(/\r?\n/).map(line=>line.split(','));
-  return {SheetNames:['CSV'],Sheets:{CSV:{__rows:rows}},Workbook:{WBProps:{date1904:false}}};
- }
- const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false,raw:true});
- return wb;
+ if(/\\.csv$/i.test(file.name))return XLSX.read(await file.text(),{type:'string',cellDates:false,raw:true});
+ return XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false,raw:true});
 }
 function rowsOf(wb,name){
  const s=wb.Sheets[name];
