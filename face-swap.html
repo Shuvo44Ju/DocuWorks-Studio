@@ -30,47 +30,135 @@
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/delaunator@5.0.1/delaunator.min.js"></script>
-<script>
-"use strict";
-const $=id=>document.getElementById(id);let targetImg=null,sourceImg=null,engineReady=false;
-const MODEL="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model";
+<script type="module">
+import { createFaceSwap, KNOWN_SHA256, probe } from "https://esm.sh/browser-inswapper@0.1.0";
+
+const $=id=>document.getElementById(id);
+let targetFile=null,sourceFile=null,engine=null,targetFaces=[],sourceFaces=[];
+const HF="https://huggingface.co/";
+const models={
+  landmarker:{url:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",sha256:KNOWN_SHA256.landmarker},
+  swapperFp16:{url:HF+"facefusion/models-3.0.0/resolve/main/inswapper_128_fp16.onnx",sha256:KNOWN_SHA256.swapperFp16},
+  swapperFp32:{url:HF+"facefusion/models-3.0.0/resolve/main/inswapper_128.onnx",sha256:KNOWN_SHA256.swapperFp32},
+  arcface:{url:HF+"public-data/insightface/resolve/main/models/buffalo_l/w600k_r50.onnx",sha256:KNOWN_SHA256.arcface},
+  segmenter:{url:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite",sha256:KNOWN_SHA256.segmenter}
+};
 function status(t,c=""){const s=$("status");s.textContent=t;s.className="status "+c}
-function read(file){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error("Could not read image."));i.src=r.result};r.onerror=()=>no(new Error("Could not read file."));r.readAsDataURL(file)})}
-function show(drop,img,inputId){drop.classList.add("has-image");drop.innerHTML="";const im=img.cloneNode();im.className="thumb";drop.appendChild(im);const b=document.createElement("button");b.className="replace";b.textContent="Replace";b.onclick=()=>$(inputId).click();drop.appendChild(b)}
-async function pick(kind,file){if(!file||!file.type.startsWith("image/"))return;try{const im=await read(file);if(kind==="target"){targetImg=im;show($("targetDrop"),im,"targetInput")}else{sourceImg=im;show($("sourceDrop"),im,"sourceInput")}ready()}catch(e){status(e.message,"error")}}
-function ready(){$("swapBtn").disabled=!(engineReady&&targetImg&&sourceImg);$("faceInfo").textContent=targetImg&&sourceImg?(engineReady?"Both photos ready. Click Swap Face.":"Face engine is still loading…"):"Choose both photos to begin."}
-function bind(){ $("targetInput").onchange=e=>pick("target",e.target.files[0]);$("sourceInput").onchange=e=>pick("source",e.target.files[0]) }
-bind();
-for(const [id,kind] of [["targetDrop","target"],["sourceDrop","source"]]){const d=$(id);d.ondragover=e=>{e.preventDefault();d.classList.add("drag")};d.ondragleave=()=>d.classList.remove("drag");d.ondrop=e=>{e.preventDefault();d.classList.remove("drag");pick(kind,e.dataTransfer.files[0])}}
-async function init(){try{if(!window.faceapi)throw new Error("Face engine library did not load.");if(!window.Delaunator)throw new Error("Geometry engine did not load.");await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL),faceapi.nets.faceLandmark68Net.loadFromUri(MODEL)]);engineReady=true;status("Ready","ready");ready()}catch(e){console.error(e);status("Face engine failed","error");$("faceInfo").textContent="Face engine could not load. Reload the page or check your internet connection.";}}
-function pts(d){return d.landmarks.positions.map(p=>[p.x,p.y])}
-function matrix(s,d){const [x0,y0]=s[0],[x1,y1]=s[1],[x2,y2]=s[2],[u0,v0]=d[0],[u1,v1]=d[1],[u2,v2]=d[2],den=x0*(y1-y2)+x1*(y2-y0)+x2*(y0-y1);if(Math.abs(den)<1e-8)return null;return{a:(u0*(y1-y2)+u1*(y2-y0)+u2*(y0-y1))/den,b:(u0*(x2-x1)+u1*(x0-x2)+u2*(x1-x0))/den,c:(u0*(x1*y2-x2*y1)+u1*(x2*y0-x0*y2)+u2*(x0*y1-x1*y0))/den,d:(v0*(y1-y2)+v1*(y2-y0)+v2*(y0-y1))/den,e:(v0*(x2-x1)+v1*(x0-x2)+v2*(x1-x0))/den,f:(v0*(x1*y2-x2*y1)+v1*(x2*y0-x0*y2)+v2*(x0*y1-x1*y0))/den}}
-function clip(c,p){c.beginPath();c.moveTo(p[0][0],p[0][1]);c.lineTo(p[1][0],p[1][1]);c.lineTo(p[2][0],p[2][1]);c.closePath();c.clip()}
-async function swap(){if(!(engineReady&&targetImg&&sourceImg))return;$("swapBtn").disabled=true;$("progress").classList.add("show");status("Detecting faces…");try{const opts=new faceapi.TinyFaceDetectorOptions({inputSize:416,minConfidence:.25});await Promise.all([targetImg.decode?.().catch(()=>{}),sourceImg.decode?.().catch(()=>{})]);const td=await faceapi.detectSingleFace(targetImg,opts).withFaceLandmarks();const sd=await faceapi.detectSingleFace(sourceImg,opts).withFaceLandmarks();if(!td)throw new Error("No face detected in the Target Photo. Use a clearer, larger face.");if(!sd)throw new Error("No face detected in the Source Face photo. Use a clear, front-facing face.");const T=pts(td),S=pts(sd),out=$("output");
-// Add corresponding anchors around the detected head so the source hair/forehead/temples
-// are warped too, rather than replacing only the central 68-point face area.
-function headAnchors(det){
-  const b=det.detection.box,x=b.x,y=b.y,w=b.width,h=b.height,cx=x+w/2;
-  return [
-    [cx,y-h*.62],[x+w*.08,y-h*.18],[x-w*.16,y+h*.22],[x-w*.20,y+h*.62],
-    [x+w*.06,y+h*1.02],[cx,y+h*1.10],[x+w*.94,y+h*1.02],
-    [x+w*1.20,y+h*.62],[x+w*1.16,y+h*.22],[x+w*.92,y-h*.18],[cx,y+h*.52]
-  ];
+function fileURL(file){return URL.createObjectURL(file)}
+function show(drop,file,inputId){
+  const u=fileURL(file);drop.classList.add("has-image");drop.innerHTML="";
+  const im=document.createElement("img");im.className="thumb";im.src=u;drop.appendChild(im);
+  const b=document.createElement("button");b.className="replace";b.textContent="Replace";b.onclick=()=>$(inputId).click();drop.appendChild(b);
 }
-const TA=headAnchors(td),SA=headAnchors(sd),TALL=T.concat(TA),SALL=S.concat(SA);const tw=targetImg.naturalWidth||targetImg.width,th=targetImg.naturalHeight||targetImg.height,sw0=sourceImg.naturalWidth||sourceImg.width,sh0=sourceImg.naturalHeight||sourceImg.height;if(!tw||!th||!sw0||!sh0)throw new Error("The selected image could not be decoded. Please choose JPG or PNG and try again.");out.width=tw;out.height=th;const ctx=out.getContext("2d");ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(targetImg,0,0);const sw=document.createElement("canvas");sw.width=sw0;sw.height=sh0;sw.getContext("2d").drawImage(sourceImg,0,0);const warp=document.createElement("canvas");warp.width=out.width;warp.height=out.height;const wc=warp.getContext("2d");wc.imageSmoothingEnabled=true;wc.imageSmoothingQuality="high";const triangles=Delaunator.from(TALL).triangles;if(!triangles||!triangles.length)throw new Error("Could not build the face geometry.");for(let i=0;i<triangles.length;i+=3){const a=triangles[i],b=triangles[i+1],d=triangles[i+2],m=matrix([SALL[a],SALL[b],SALL[d]],[TALL[a],TALL[b],TALL[d]]);if(!m)continue;wc.save();clip(wc,[TALL[a],TALL[b],TALL[d]]);// Canvas expects (a,b,c,d,e,f) as x'=a*x+c*y+e, y'=b*x+d*y+f.
-wc.setTransform(m.a,m.d,m.b,m.e,m.c,m.f);wc.drawImage(sw,0,0);wc.restore()}const hb=td.detection.box,minX=Math.max(0,Math.floor(hb.x-hb.width*.28)),maxX=Math.min(out.width,Math.ceil(hb.x+hb.width*1.28)),minY=Math.max(0,Math.floor(hb.y-hb.height*.62)),maxY=Math.min(out.height,Math.ceil(hb.y+hb.height*1.10));const cx=(minX+maxX)/2,cy=(minY+maxY)/2,rx=(maxX-minX)*.50,ry=(maxY-minY)*.50;
-// Match the warped source face's average tone and contrast to the target face.
-const bw=Math.max(1,maxX-minX),bh=Math.max(1,maxY-minY),warpCtx=warp.getContext("2d"),faceData=warpCtx.getImageData(minX,minY,bw,bh),targetData=ctx.getImageData(minX,minY,bw,bh),fd=faceData.data,tdp=targetData.data;
-const sumS=[0,0,0],sumT=[0,0,0],sqS=[0,0,0],sqT=[0,0,0];let samples=0;
-const sampleStep=Math.max(2,Math.floor(Math.min(bw,bh)/90));
-for(let y=0;y<bh;y+=sampleStep)for(let x=0;x<bw;x+=sampleStep){const k=(y*bw+x)*4;if(fd[k+3]<100)continue;for(let ch=0;ch<3;ch++){const sv=fd[k+ch],tv=tdp[k+ch];sumS[ch]+=sv;sumT[ch]+=tv;sqS[ch]+=sv*sv;sqT[ch]+=tv*tv;}samples++;}
-if(samples>30){const meansS=sumS.map(v=>v/samples),meansT=sumT.map(v=>v/samples),stdS=sqS.map((v,i)=>Math.sqrt(Math.max(1,v/samples-meansS[i]*meansS[i]))),stdT=sqT.map((v,i)=>Math.sqrt(Math.max(1,v/samples-meansT[i]*meansT[i]))),scales=stdT.map((v,i)=>Math.max(.72,Math.min(1.38,v/stdS[i])));
-for(let i=0;i<fd.length;i+=4)if(fd[i+3]>0)for(let ch=0;ch<3;ch++)fd[i+ch]=Math.max(0,Math.min(255,(fd[i+ch]-meansS[ch])*scales[ch]+meansT[ch]));
-warpCtx.putImageData(faceData,minX,minY);
-}const mask=document.createElement("canvas");mask.width=out.width;mask.height=out.height;const mc=mask.getContext("2d");if("filter" in mc)mc.filter="blur("+Math.max(2,(maxY-minY)*.035)+"px)";mc.fillStyle="#fff";mc.beginPath();mc.moveTo(cx,cy-ry);mc.quadraticCurveTo(cx+rx,cy-ry,cx+rx,cy);mc.quadraticCurveTo(cx+rx,cy+ry,cx,cy+ry);mc.quadraticCurveTo(cx-rx,cy+ry,cx-rx,cy);mc.quadraticCurveTo(cx-rx,cy-ry,cx,cy-ry);mc.closePath();mc.fill();const masked=document.createElement("canvas");masked.width=out.width;masked.height=out.height;const mm=masked.getContext("2d");mm.drawImage(warp,0,0);mm.globalCompositeOperation="destination-in";mm.drawImage(mask,0,0);ctx.drawImage(masked,0,0);$("result").classList.add("show");$("faceInfo").textContent="Swap complete. The generated image is ready.";status("Face swap complete","ready");$("result").scrollIntoView({behavior:"smooth",block:"start"})}catch(e){console.error(e);status("Swap failed","error");$("faceInfo").textContent=(e&&e.message)?e.message:"Could not create the face swap.";console.error("Face swap error:",e)}finally{$("progress").classList.remove("show");$("swapBtn").disabled=!(engineReady&&targetImg&&sourceImg)}}
+function setProgress(p){$("progress").classList.add("show");$("progress").style.setProperty("--p",Math.max(4,Math.min(100,p))+"%")}
+function hideProgress(){$("progress").classList.remove("show")}
+async function initEngine(){
+  if(engine)return engine;
+  status("Checking AI engine…");
+  const caps=await probe();
+  if(!caps.webgpu.available&&!caps.webnn&&matchMedia("(pointer:coarse)").matches){
+    status("AI engine unavailable","error");
+    $("faceInfo").textContent="This device/browser has no WebGPU/WebNN. Use Chrome/Edge with WebGPU enabled for the high-quality engine.";
+    return null;
+  }
+  status("Loading AI models…");
+  try{
+    engine=await createFaceSwap({
+      models,
+      backend:"auto",
+      occlusion:true,
+      workers:{
+        swap:"https://cdn.jsdelivr.net/npm/browser-inswapper@0.1.0/dist/worker.js",
+        occlusion:"https://cdn.jsdelivr.net/npm/browser-inswapper@0.1.0/dist/segment-worker.js"
+      },
+      onProgress:p=>{
+        const mb=p.loaded/1e6,total=p.total/1e6;
+        const pct=p.total?Math.round(p.loaded/p.total*100):5;
+        setProgress(pct);
+        status("Loading "+p.model+" · "+mb.toFixed(0)+"/"+total.toFixed(0)+" MB");
+      },
+      onLog:m=>console.info("[DocuWorks Face Swap]",m)
+    });
+    hideProgress();status("AI engine ready · "+engine.backend.toUpperCase(),"ready");
+    $("faceInfo").textContent="Neural face replacement is ready. Select both photos.";
+    ready();
+    return engine;
+  }catch(e){
+    console.error(e);hideProgress();status("AI engine failed","error");
+    $("faceInfo").textContent=e?.message||"Could not start the AI face engine.";
+    return null;
+  }
+}
+async function readImage(file){return createImageBitmap(file,{imageOrientation:"from-image"})}
+async function pick(kind,file){
+  if(!file||!file.type.startsWith("image/"))return;
+  if(kind==="target")targetFile=file;else sourceFile=file;
+  show($(kind==="target"?"targetDrop":"sourceDrop"),file,kind==="target"?"targetInput":"sourceInput");
+  $("result").classList.remove("show");
+  ready();
+}
+function ready(){
+  $("swapBtn").disabled=!(targetFile&&sourceFile&&engine);
+  if(!targetFile||!sourceFile)$("faceInfo").textContent="Choose both photos to begin.";
+  else if(!engine)$("faceInfo").textContent="AI engine is loading…";
+  else $("faceInfo").textContent="Both photos ready. Click AI Face Swap.";
+}
+async function findFaces(){
+  const e=await initEngine();if(!e)return false;
+  status("Analyzing faces…");
+  const [t,s]=await Promise.all([readImage(targetFile),readImage(sourceFile)]);
+  try{
+    targetFaces=await e.findFaces(t);sourceFaces=await e.findFaces(s);
+  }finally{t.close();s.close()}
+  if(!targetFaces.length)throw new Error("No face found in the Target Photo. Use a clear, larger face.");
+  if(!sourceFaces.length)throw new Error("No face found in the Source Face photo. Use a clear, front-facing face.");
+  if(targetFaces[0].issues.length)console.info("Target face quality:",targetFaces[0].issues);
+  if(sourceFaces[0].issues.length)console.info("Source face quality:",sourceFaces[0].issues);
+  $("faceInfo").textContent="Detected "+targetFaces.length+" target face"+(targetFaces.length>1?"s":"")+" and "+sourceFaces.length+" source face"+(sourceFaces.length>1?"s":"")+".";
+  return true;
+}
+async function swap(){
+  if(!(targetFile&&sourceFile))return;
+  $("swapBtn").disabled=true;$("progress").classList.add("show");setProgress(8);
+  try{
+    const e=await initEngine();if(!e)return;
+    await findFaces();setProgress(35);status("Building identity…");
+    const source=await readImage(sourceFile);
+    const target=await readImage(targetFile);
+    try{
+      // ArcFace identity embedding + 478-point MediaPipe alignment + neural InSwapper.
+      // The source face is not pasted as a bitmap; the model reconstructs the target face from the identity vector.
+      const identity=await e.identityOf({image:source,face:sourceFaces[0]});
+      setProgress(58);status("Neural face synthesis…");
+      const swaps=targetFaces.slice(0,1).map(face=>({face,identity}));
+      const result=await e.swapPhoto(target,swaps);
+      setProgress(86);status("Natural blending + occlusion protection…");
+      const out=$("output"),w=result.width,h=result.height;out.width=w;out.height=h;
+      const ctx=out.getContext("2d");ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";
+      ctx.drawImage(result,0,0);
+      result.close();
+      setProgress(100);
+      $("result").classList.add("show");
+      $("faceInfo").textContent="AI face replacement complete. Identity, pose, lighting and edge blending were processed by the neural pipeline.";
+      status("AI face swap complete","ready");
+      $("result").scrollIntoView({behavior:"smooth",block:"start"});
+    }finally{source.close();target.close()}
+  }catch(e){
+    console.error(e);status("Swap failed","error");$("faceInfo").textContent=e?.message||"The AI face swap could not be completed.";
+  }finally{hideProgress();$("swapBtn").disabled=!(targetFile&&sourceFile&&engine)}
+}
+$("targetInput").onchange=e=>pick("target",e.target.files[0]);
+$("sourceInput").onchange=e=>pick("source",e.target.files[0]);
+for(const [id,kind] of [["targetDrop","target"],["sourceDrop","source"]]){
+  const d=$(id);d.ondragover=e=>{e.preventDefault();d.classList.add("drag")};
+  d.ondragleave=()=>d.classList.remove("drag");
+  d.ondrop=e=>{e.preventDefault();d.classList.remove("drag");pick(kind,e.dataTransfer.files[0])};
+}
 $("swapBtn").onclick=swap;
 $("clearBtn").onclick=()=>location.reload();
-function download(type,name){const a=document.createElement("a");a.href=$("output").toDataURL(type,.95);a.download=name;a.click()}
-$("downloadBtn").onclick=()=>download("image/png","docuworks-face-swap.png");$("downloadJpgBtn").onclick=()=>download("image/jpeg","docuworks-face-swap.jpg");init();
+function download(type,name){const a=document.createElement("a");a.href=$("output").toDataURL(type,.96);a.download=name;a.click()}
+$("downloadBtn").onclick=()=>download("image/png","docuworks-ai-face-swap.png");
+$("downloadJpgBtn").onclick=()=>download("image/jpeg","docuworks-ai-face-swap.jpg");
+initEngine();
 </script>
 </body></html>
