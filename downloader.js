@@ -148,6 +148,21 @@ function start(j){
  activeTransfers++;runJob(j).finally(()=>{activeTransfers=Math.max(0,activeTransfers-1);pumpQueue();render()});
 }
 async function runJob(j){
+ for(let attempt=0;attempt<3;attempt++){
+  await runAttempt(j);
+  if(j.status!=="Error"||!$("autoRetry")?.checked||!/(429|5\\d\\d|network|fetch|temporarily|timeout|failed after 6 attempts)/i.test(j.error||"")||attempt===2)break;
+  j.status="Queued";j.error="Temporary connection problem. Retrying ("+(attempt+1)+"/2)…";await persist(j);render();
+  await sleep(1500*(attempt+1));
+  if(j.cancelRequested){j.status="Cancelled";await persist(j);break}
+ }
+ if(j.status==="Completed")notify("Download complete",j.name||"Your file is ready.");
+ else if(j.status==="Error")notify("Download failed",j.name||j.error||"A download could not be completed.");
+}
+function notify(title,body){
+ if(!$("notifyDone")?.checked||!("Notification" in window)||Notification.permission!=="granted")return;
+ try{new Notification(title,{body,tag:"dws-download-"+title})}catch(e){}
+}
+async function runAttempt(j){
  j.pauseRequested=false;j.cancelRequested=false;j.error="";j.status="Downloading";j.startedAt=j.startedAt||Date.now();j.controller=new AbortController();
  const signal=j.controller.signal;
  try{
@@ -227,6 +242,6 @@ setInterval(()=>{
 },1000);
 $("statusTabs").addEventListener("click",e=>{const b=e.target.closest("[data-filter]");if(!b)return;filterStatus=b.dataset.filter;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));render()});
 $("jobSearch").addEventListener("input",render);
-["connections","maxActive","bandwidthLimit","autoStart"].forEach(id=>{const el=$(id),key="dws-setting-"+id;if(!el)return;const saved=localStorage.getItem(key);if(saved!==null){if(el.type==="checkbox")el.checked=saved==="true";else el.value=saved}el.addEventListener("change",()=>{localStorage.setItem(key,el.type==="checkbox"?String(el.checked):el.value);pumpQueue()})});
+["connections","maxActive","bandwidthLimit","autoStart","autoRetry","notifyDone"].forEach(id=>{const el=$(id),key="dws-setting-"+id;if(!el)return;const saved=localStorage.getItem(key);if(saved!==null){if(el.type==="checkbox")el.checked=saved==="true";else el.value=saved}el.addEventListener("change",()=>{localStorage.setItem(key,el.type==="checkbox"?String(el.checked):el.value);if(id==="notifyDone"&&el.checked&&"Notification" in window&&Notification.permission==="default")Notification.requestPermission();pumpQueue()})});
 render();restoreJobs().then(()=>{render();pumpQueue()});window.addEventListener("resize",drawDashboard);
 })();
