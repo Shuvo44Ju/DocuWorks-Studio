@@ -2,15 +2,15 @@ name: Build Face Swap Engine
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+  workflow_dispatch:
     paths:
       - "face-swap.html"
       - "package.json"
       - "package-lock.json"
       - "scripts/build-face-swap.mjs"
       - ".github/workflows/build-face-swap.yml"
-  workflow_dispatch:
-
 permissions:
   contents: write
 
@@ -29,7 +29,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install --no-audit --no-fund --ignore-scripts
 
       - name: Build self-hosted Face Swap engine
         run: npm run build:face-swap
@@ -44,4 +44,4 @@ jobs:
             exit 0
           fi
           git commit -m "build: self-host Face Swap engine [skip ci]"
-          git push
+          git push origin HEAD:main
