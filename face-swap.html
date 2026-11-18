@@ -56,22 +56,9 @@ async function initEngine(){
   if(engine)return engine;
   status("Connecting to AI engine…");
   try{
-    // Load the module dynamically so CDN/import failures are caught and shown instead
-    // of leaving the page stuck forever on the initial "Loading face engine…" label.
-    if(!modulePromise) modulePromise=(async()=>{
-      const sources=[
-        "https://docuworks-studio.shuvokh97.workers.dev/api/face-swap-engine",
-        "https://cdn.skypack.dev/browser-inswapper@0.1.0",
-        "https://jspm.dev/browser-inswapper@0.1.0",
-        "https://esm.sh/browser-inswapper@0.1.0?bundle"
-      ];
-      const failures=[];
-      for(const url of sources){
-        try{return await import(url);}
-        catch(e){failures.push(url+" → "+(e?.message||String(e)));console.warn("[DocuWorks Face Swap] Module source failed:",url,e);}
-      }
-      throw new Error("The AI engine could not be reached. Tried the DocuWorks engine proxy plus 3 public hosts: "+failures.join(" | ")+".");
-    })();
+    // The engine is bundled and served by DocuWorks itself. No CDN/npm dynamic import is used.
+    // This removes the previous startup failure caused by third-party module loading.
+    if(!modulePromise) modulePromise=import("./assets/face-swap/engine.js");
     const mod=await modulePromise;
     createFaceSwap=mod.createFaceSwap; KNOWN_SHA256=mod.KNOWN_SHA256; probe=mod.probe;
     if(typeof createFaceSwap!=="function" || !KNOWN_SHA256) throw new Error("The AI engine module did not load correctly. Refresh the page or try Chrome.");
@@ -82,10 +69,13 @@ async function initEngine(){
       models:getModels(),
       backend:"auto",
       occlusion:!lowMemoryMobile,
+      // Workers are self-hosted with the bundled engine.
       workers:{
-        swap:"https://cdn.jsdelivr.net/npm/browser-inswapper@0.1.0/dist/worker.js",
-        occlusion:"https://cdn.jsdelivr.net/npm/browser-inswapper@0.1.0/dist/segment-worker.js"
+        swap:"./assets/face-swap/worker.js",
+        occlusion:"./assets/face-swap/segment-worker.js"
       },
+      ortWasmPaths:"./assets/face-swap/ort/",
+      mediapipeWasm:"./assets/face-swap/mediapipe",
       onProgress:p=>{
         const mb=p.loaded/1e6,total=p.total/1e6;
         const pct=p.total?Math.round(p.loaded/p.total*100):5;
