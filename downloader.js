@@ -6,6 +6,7 @@ function maxActive(){return Math.max(1,Math.min(4,Number($("maxActive")?.value)|
 function pumpQueue(){for(const j of jobs){if(activeTransfers>=maxActive())break;if(j.status==="Queued")start(j)}}
 function pace(bytes,started,signal,connections=1){const limit=Number($("bandwidthLimit")?.value)||0;if(!limit)return Promise.resolve();const target=bytes/(limit*1048576/Math.max(1,connections))*1000,wait=target-(Date.now()-started);return wait>0?sleep(wait,signal):Promise.resolve()}
 function extension(name){const m=(name||"").match(/\.([a-z0-9]{1,8})(?:$|[?#])/i);return m?m[1].toUpperCase():"FILE"}
+function duration(j){const end=j.completedAt||Date.now(),start=j.startedAt||j.created||end;const sec=Math.max(0,Math.floor((end-start)/1000));return sec>=3600?Math.floor(sec/3600)+"h "+Math.floor(sec%3600/60)+"m":sec>=60?Math.floor(sec/60)+"m "+sec%60+"s":sec+"s"}
 function category(j){if(j.status==="Completed")return"Completed";if(j.status==="Error")return"Failed";if(j.status==="Queued")return"Queued";if(j.status==="Paused"||j.status==="Cancelled")return"Paused";if(j.status==="Downloading")return"Active";return"All"}
 function drawDashboard(){
  const active=jobs.filter(j=>j.status==="Downloading"),speed=active.reduce((n,j)=>n+(j.speed||0),0);
@@ -33,7 +34,7 @@ async function dbWrite(store,value){const db=await openDB();return new Promise((
 async function dbReadAll(store){const db=await openDB();return new Promise((resolve,reject)=>{const req=db.transaction(store).objectStore(store).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)})}
 async function dbDelete(store,key){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(store,"readwrite");tx.objectStore(store).delete(key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
 async function dbDeleteParts(id){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction("parts","readwrite"),idx=tx.objectStore("parts").index("jobId"),req=idx.openCursor(IDBKeyRange.only(id));req.onsuccess=()=>{const c=req.result;if(c){c.delete();c.continue()}};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
-function snapshot(j){return {id:j.id,url:j.url,name:j.name,status:j.status,loaded:j.loaded,total:j.total,error:j.error||"",blob:j.blob||null,chunkSize:j.chunkSize||0,count:j.count||0,created:j.created||Date.now()}}
+function snapshot(j){return {id:j.id,url:j.url,name:j.name,status:j.status,loaded:j.loaded,total:j.total,error:j.error||"",blob:j.blob||null,chunkSize:j.chunkSize||0,count:j.count||0,created:j.created||Date.now(),startedAt:j.startedAt||0,completedAt:j.completedAt||0}}
 async function persist(j){try{await dbWrite("jobs",snapshot(j))}catch(e){j.storageWarning="Browser storage is full or unavailable; this download may not survive a refresh."}}
 async function restoreJobs(){
  try{
@@ -110,7 +111,7 @@ function render(){
   el.innerHTML='<div class="jobtop"><div class="fileicon"></div><div class="jobmain"><div class="filename"></div><div class="meta"></div></div><div class="actions"></div></div><div class="bar"><div class="fill"></div></div><div class="jobstats"><span class="left"></span><span class="right"></span></div>';
   el.querySelector(".fileicon").textContent=extension(j.name||j.url);
   el.querySelector(".filename").textContent=j.name||j.url;
-  el.querySelector(".meta").textContent=j.status+" · "+(j.total?fmt(j.total):"size unknown");
+  el.querySelector(".meta").textContent=j.status+" · "+(j.total?fmt(j.total):"size unknown")+(j.name?" · "+extension(j.name):"")+(j.startedAt?" · "+duration(j):"");
   el.querySelector(".fill").style.width=(j.total?Math.min(100,j.loaded/j.total*100):0)+"%";
   el.querySelector(".left").textContent=j.total?fmt(j.loaded)+" / "+fmt(j.total):fmt(j.loaded)+" downloaded";
   el.querySelector(".right").textContent=j.status==="Downloading"?fmt(j.speed)+"/s · ETA "+(j.speed>0&&j.total?Math.ceil((j.total-j.loaded)/j.speed)+"s":"calculating"):(j.error||j.status);
@@ -147,7 +148,7 @@ function start(j){
  activeTransfers++;runJob(j).finally(()=>{activeTransfers=Math.max(0,activeTransfers-1);pumpQueue();render()});
 }
 async function runJob(j){
- j.pauseRequested=false;j.cancelRequested=false;j.error="";j.status="Downloading";j.controller=new AbortController();
+ j.pauseRequested=false;j.cancelRequested=false;j.error="";j.status="Downloading";j.startedAt=j.startedAt||Date.now();j.controller=new AbortController();
  const signal=j.controller.signal;
  try{
   const probe=await request(proxy(j.url),{headers:{Range:"bytes=0-0"},signal},"File check");
@@ -160,8 +161,8 @@ async function runJob(j){
   j.total=total;j.name=fileName(probe,j.url);
   if(supportsRanges){
    const connections=Math.max(1,Math.min(8,Number($("connections").value)||4));
-   const chunkSize=Math.max(4*1024*1024,Math.ceil(total/(connections*3)));
-   const count=Math.ceil(total/chunkSize);
+   const chunkSize=j.chunkSize||Math.max(4*1024*1024,Math.ceil(total/(connections*3)));
+   const count=j.count||Math.ceil(total/chunkSize);j.chunkSize=chunkSize;j.count=count;await persist(j);
    const pending=Array.from({length:count},(_,i)=>i).filter(i=>!j.parts[i]);
    let cursor=0;
    const worker=async()=>{
@@ -205,7 +206,7 @@ async function runJob(j){
    j.total=j.blob.size;
   }
   await verifyBlob(j.blob);
-  j.loaded=j.blob.size;j.status="Completed";j.speed=0;await dbDeleteParts(j.id).catch(()=>{});await persist(j);save(j);
+  j.loaded=j.blob.size;j.status="Completed";j.completedAt=Date.now();j.speed=0;await dbDeleteParts(j.id).catch(()=>{});await persist(j);save(j);
  }catch(e){
   if(j.cancelRequested)j.status="Cancelled";
   else if(j.pauseRequested||signal.aborted)j.status="Paused";
