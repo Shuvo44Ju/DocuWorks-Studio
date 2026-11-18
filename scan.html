@@ -43,10 +43,12 @@ dialog{border:0;border-radius:14px;padding:16px;width:min(560px,92vw);background
 dialog textarea{width:100%;height:240px;margin:10px 0;font:inherit}
 #exportDlg{max-height:88vh;overflow:hidden}
 #exportPageList{display:flex;flex-direction:column;gap:8px;max-height:58vh;overflow:auto;margin:14px 0}
-.export-row{display:flex;align-items:center;gap:11px;padding:7px;border:1px solid #d8e0e8;border-radius:9px;cursor:pointer}
+.export-row{display:flex;align-items:center;gap:11px;padding:7px;border:1px solid #d8e0e8;border-radius:9px;cursor:grab;background:#fff;transition:transform .12s,opacity .12s,border-color .12s,box-shadow .12s}
+.export-row:active{cursor:grabbing}.export-row.dragging{opacity:.45;box-shadow:none}
+.export-row.drop-target{border-color:#0d9b83;box-shadow:0 0 0 2px #0d9b8330}
 .export-row input{width:18px;height:18px;accent-color:#0d9b83;flex:0 0 auto}
-.export-row img{width:42px;height:54px;object-fit:contain;background:#eef2f4;border-radius:4px}
-.export-row span{font-weight:600}
+.export-row img{width:42px;height:54px;object-fit:contain;background:#eef2f4;border-radius:4px;pointer-events:none}
+.export-row span{font-weight:600;flex:1}
 #exportDlg .export-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 
 .dropzone{flex:0 0 auto;margin:10px 12px 0;padding:13px 16px;border:2px dashed #496486;border-radius:12px;background:#12223a;color:#d8e7f5;text-align:center;cursor:pointer;transition:background .15s,border-color .15s}
@@ -97,7 +99,7 @@ dialog textarea{width:100%;height:240px;margin:10px 0;font:inherit}
 </dialog>
 <dialog id="exportDlg">
   <b>Select pages to export</b>
-  <p style="margin:6px 0;color:#526174;font-size:13px">Choose the pages you want in the PDF. They will stay in their original order.</p>
+  <p style="margin:6px 0;color:#526174;font-size:13px">Choose the pages you want in the PDF. Drag any page to place it anywhere in the export order.</p>
   <div id="exportPageList"></div>
   <div class="export-actions">
     <button id="exportToggleAll">Deselect all</button>
@@ -524,7 +526,7 @@ function ui(){
   $('#adjustPanel').classList.toggle('visible',!crop);
   if(!crop)updateAdjustmentControls(pg);
   $('#eTools').innerHTML=crop?'<button id="tFull">⛶ Full image</button>'
-   :['orig:Original','color:Color','clean:Clean','magic:Magic','pro:Magic Pro','bw:B&W','gray:Grayscale'].map(s=>{const[k,l]=s.split(':');return`<button class="chip${pg.filter===k?' on':''}" data-f="${k}">${l}</button>`}).join('')+'<button id="tRot">↻ Rotate</button><button id="tCrop">✂ Re-crop</button>';
+   :['orig:Original','color:Color','clean:Clean','magic:Magic','bw:B&W','gray:Grayscale'].map(s=>{const[k,l]=s.split(':');return`<button class="chip${pg.filter===k?' on':''}" data-f="${k}">${l}</button>`}).join('')+'<button id="tRot">↻ Rotate</button><button id="tCrop">✂ Re-crop</button>';
 }
 function draw(){
   const pg=ed.pg,st=$('#stage'),W=st.clientWidth-16,H=st.clientHeight-16,x=ec.getContext('2d');
@@ -675,11 +677,63 @@ async function exportPdfPages(selectedPages){
     hideBusy();button.disabled=false;if(selectedButton)selectedButton.disabled=false;
   }
 }
+function renderExportPageList(){
+  const list=$('#exportPageList');
+  const rows=[...list.querySelectorAll('.export-row')];
+  rows.forEach((row,i)=>{
+    const input=row.querySelector('input');
+    const img=row.querySelector('img');
+    const span=row.querySelector('span');
+    const pageIndex=+row.dataset.pageIndex;
+    if(img)img.alt='Page '+(i+1);
+    if(span)span.textContent='Page '+(i+1);
+    if(input)input.dataset.exportIndex=String(pageIndex);
+  });
+}
+function enableExportReorder(){
+  const list=$('#exportPageList');
+  let dragged=null;
+  list.querySelectorAll('.export-row').forEach(row=>{
+    row.draggable=true;
+    row.addEventListener('dragstart',e=>{
+      dragged=row;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',row.dataset.pageIndex);
+    });
+    row.addEventListener('dragover',e=>{
+      e.preventDefault();
+      if(!dragged||dragged===row)return;
+      e.dataTransfer.dropEffect='move';
+      list.querySelectorAll('.export-row').forEach(r=>r.classList.remove('drop-target'));
+      row.classList.add('drop-target');
+    });
+    row.addEventListener('dragleave',e=>{
+      if(!row.contains(e.relatedTarget))row.classList.remove('drop-target');
+    });
+    row.addEventListener('drop',e=>{
+      e.preventDefault();
+      if(!dragged||dragged===row)return;
+      const rect=row.getBoundingClientRect();
+      const before=e.clientY<rect.top+rect.height/2;
+      if(before)list.insertBefore(dragged,row);
+      else list.insertBefore(dragged,row.nextSibling);
+      list.querySelectorAll('.export-row').forEach(r=>r.classList.remove('drop-target'));
+      renderExportPageList();
+    });
+    row.addEventListener('dragend',()=>{
+      if(dragged)dragged.classList.remove('dragging');
+      list.querySelectorAll('.export-row').forEach(r=>r.classList.remove('drop-target'));
+      dragged=null;
+    });
+  });
+}
 $('#bPdf').onclick=()=>{
   if(!pages.length)return alert('Add a page first.');
   if(pages.length===1){exportPdfPages(pages);return}
-  $('#exportPageList').innerHTML=pages.map((p,i)=>'<label class="export-row"><input type="checkbox" data-export-index="'+i+'" checked><img src="'+p.th+'" alt="Page '+(i+1)+'"><span>Page '+(i+1)+'</span></label>').join('');
+  $('#exportPageList').innerHTML=pages.map((p,i)=>'<label class="export-row" draggable="true" data-page-index="'+i+'"><input type="checkbox" data-export-index="'+i+'" checked><img src="'+p.th+'" alt="Page '+(i+1)+'"><span>Page '+(i+1)+'</span></label>').join('');
   $('#exportToggleAll').textContent='Deselect all';
+  enableExportReorder();
   const dialog=$('#exportDlg');
   if(typeof dialog.showModal==='function')dialog.showModal();
   else if(confirm('Export all '+pages.length+' pages as one PDF?'))exportPdfPages(pages);
@@ -691,7 +745,7 @@ $('#exportToggleAll').onclick=()=>{
 };
 $('#exportCancel').onclick=()=>$('#exportDlg').close();
 $('#exportSelected').onclick=async()=>{
-  const indexes=[...$('#exportPageList').querySelectorAll('input[type="checkbox"]:checked')].map(b=>+b.dataset.exportIndex);
+  const indexes=[...$('#exportPageList').querySelectorAll('.export-row')].filter(row=>row.querySelector('input')?.checked).map(row=>+row.dataset.pageIndex);
   if(!indexes.length)return alert('Select at least one page to export.');
   $('#exportDlg').close();
   await exportPdfPages(indexes.map(i=>pages[i]));
