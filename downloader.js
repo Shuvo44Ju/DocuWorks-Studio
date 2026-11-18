@@ -176,18 +176,6 @@ async function runAttempt(j){
   j.total=total;j.name=fileName(probe,j.url);
   if(supportsRanges){
    try{await probe.body?.cancel()}catch{}
-  }else if(probe.status===206){
-   // A partial response without a usable Content-Range must never be saved as a complete file.
-   try{await probe.body?.cancel()}catch{}
-   const full=await request(proxy(j.url),{signal},"Full file request");
-   if(!full.ok||full.status===206)throw new Error("The source returned an incomplete range response. This server cannot provide a complete download through this link.");
-   rejectHtml(full);
-   j.name=fileName(full,j.url);
-   const reader=full.body?.getReader(),chunks=[];j.loaded=0;
-   if(reader){while(true){const {done,value}=await reader.read();if(done)break;if(!chunks.length){const sample=new TextDecoder().decode(value.slice(0,1024)).replace(/^\\uFEFF/,"").trimStart();if(/^<!doctype\\s+html|^<html[\\s>]|^<head[\\s>]|^<body[\\s>]/i.test(sample))throw new Error("The server returned a webpage (HTML), not a file. Use a direct download link.");}chunks.push(value);j.loaded+=value.byteLength;sessionBytes+=value.byteLength;render();}j.blob=new Blob(chunks,{type:full.headers.get("content-type")||"application/octet-stream"});}
-   else j.blob=await full.blob();
-   j.total=j.blob.size;
-  }else if(probe.status===206){
    const connections=Math.max(1,Math.min(8,Number($("connections").value)||4));
    const chunkSize=j.chunkSize||Math.max(4*1024*1024,Math.ceil(total/(connections*3)));
    const count=j.count||Math.ceil(total/chunkSize);j.chunkSize=chunkSize;j.count=count;await persist(j);
@@ -217,6 +205,17 @@ async function runAttempt(j){
    const chunks=Array.from({length:count},(_,i)=>j.parts[i]);
    if(chunks.some(x=>!x))throw new Error("Some file segments are missing. Resume or retry the download.");
    j.blob=new Blob(chunks,{type:probe.headers.get("content-type")||"application/octet-stream"});
+  }else if(probe.status===206){
+   // A partial response without a usable Content-Range must never be saved as a complete file.
+   try{await probe.body?.cancel()}catch{}
+   const full=await request(proxy(j.url),{signal},"Full file request");
+   if(!full.ok||full.status===206)throw new Error("The source returned an incomplete range response. This server cannot provide a complete download through this link.");
+   rejectHtml(full);
+   j.name=fileName(full,j.url);
+   const reader=full.body?.getReader(),chunks=[];j.loaded=0;
+   if(reader){while(true){const {done,value}=await reader.read();if(done)break;if(!chunks.length){const sample=new TextDecoder().decode(value.slice(0,1024)).replace(/^\\uFEFF/,"").trimStart();if(/^<!doctype\\s+html|^<html[\\s>]|^<head[\\s>]|^<body[\\s>]/i.test(sample))throw new Error("The server returned a webpage (HTML), not a file. Use a direct download link.");}chunks.push(value);j.loaded+=value.byteLength;sessionBytes+=value.byteLength;render();}j.blob=new Blob(chunks,{type:full.headers.get("content-type")||"application/octet-stream"});}
+   else j.blob=await full.blob();
+   j.total=j.blob.size;
   }else if(probe.status===200){
    // Non-range servers are downloaded as one stream; resuming requires restarting that stream.
    const response=probe;
