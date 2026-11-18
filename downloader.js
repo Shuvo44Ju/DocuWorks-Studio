@@ -102,7 +102,7 @@ async function verifyBlob(blob){
 function updateLoaded(j){j.loaded=Object.values(j.parts||{}).reduce((sum,p)=>sum+p.byteLength,0)}
 function render(){
  queue.innerHTML="";
- if(!jobs.length){queue.innerHTML='<div class="empty">Your download queue is empty.</div>';return}
+ if(!jobs.length){queue.innerHTML='<div class="empty">Your download queue is empty.</div>';drawDashboard();return}
  const term=($("jobSearch")?.value||"").toLowerCase();
  const visible=jobs.filter(j=>(filterStatus==="All"||category(j)===filterStatus)&&(!term||((j.name||"")+" "+j.url).toLowerCase().includes(term)));
  if(!visible.length){queue.innerHTML='<div class="empty">No downloads match this view.</div>';drawDashboard();return}
