@@ -11,7 +11,7 @@
 .wrap{width:min(1080px,calc(100% - 32px));margin:auto;padding:28px 0}.head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:20px}.head h1{margin:0;font-size:28px;letter-spacing:-.8px}.head p{margin:5px 0 0;color:var(--muted);font-size:13px}.status{font-size:11px;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 11px;white-space:nowrap}.status.ready{color:var(--green);background:var(--green2);border-color:#cce9dc}.status.error{color:#a83c4d;background:#fff1f3;border-color:#efd0d6}
 .uploads{display:grid;grid-template-columns:1fr 1fr;gap:15px}.drop{min-height:205px;border:2px dashed #d5dfd9;border-radius:18px;background:#fff;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}.drop.drag{border-color:var(--green);background:var(--green2)}.drop.has-image{padding:10px}.drop strong{font-size:15px}.drop p{margin:5px 0 12px;color:var(--muted);font-size:12px}.icon{font-size:35px;color:var(--green);margin-bottom:5px}.filebtn,.btn{border-radius:10px;padding:10px 14px;font-weight:800;font-size:12px}.filebtn{background:var(--green);color:#fff;border:0}.drop input{display:none}.thumb{width:100%;height:180px;object-fit:contain;border-radius:12px;background:#eef2ef}.replace{position:absolute;right:16px;top:16px;background:#17251fcc;color:#fff;border:0;border-radius:8px;padding:7px 9px;font-size:11px;font-weight:700}
 .controls,.result{margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:17px;padding:15px}.controls{display:flex;align-items:center;justify-content:space-between;gap:15px}.info{font-size:12px;color:var(--muted)}.info strong{display:block;color:var(--ink);font-size:13px;margin-bottom:3px}.actions{display:flex;gap:8px}.btn{border:1px solid var(--line);background:#fff;color:var(--ink)}.btn.primary{background:var(--green);border-color:var(--green);color:#fff}.btn:disabled{opacity:.45;cursor:not-allowed}.progress{height:5px;background:#e9efeb;border-radius:99px;overflow:hidden;margin-top:12px;display:none}.progress.show{display:block}.progress i{display:block;height:100%;width:35%;background:var(--green);animation:load 1s infinite}@keyframes load{to{transform:translateX(300%)}}
-.result{display:none}.result.show{display:block}.resulthead{display:flex;justify-content:space-between;margin-bottom:12px}.resulthead span,.hint{font-size:11px;color:var(--muted)}.canvaswrap{background:#eef2ef;border-radius:14px;display:grid;place-items:center;overflow:auto;padding:10px}.canvaswrap canvas{max-width:100%;height:auto}.hint{margin:10px 2px 0}.note{margin-top:15px;padding:12px 14px;border-radius:13px;background:var(--green2);font-size:11px;color:#557168}.note strong{color:var(--ink)}
+.result{display:none}.result.show{display:block}.resulthead{display:flex;justify-content:space-between;margin-bottom:12px}.resulthead span,.hint{font-size:11px;color:var(--muted)}.canvaswrap{background:#eef2ef;border-radius:14px;display:grid;place-items:center;overflow:auto;padding:10px}.canvaswrap canvas{max-width:100%;height:auto}.hint{margin:10px 2px 0}.face-panel{display:none;margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px}.face-panel.show{display:block}.face-panel h3{margin:0 0 9px;font-size:13px}.face-grid{display:flex;flex-wrap:wrap;gap:8px}.face-choice{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 11px;font-size:11px;color:var(--ink);display:flex;align-items:center;gap:7px}.face-choice.active{border-color:#7ab69d;background:var(--green2);color:var(--green)}.quality{margin-top:11px;display:flex;flex-wrap:wrap;gap:7px}.quality span{background:#f3f6f4;border:1px solid #e6ece8;border-radius:7px;padding:5px 8px;font-size:10px;color:#5d6c65}.compare{margin-top:12px}.compare label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:6px}.compare input{width:100%;accent-color:var(--green)}.compare-key{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:3px}.note{margin-top:15px;padding:12px 14px;border-radius:13px;background:var(--green2);font-size:11px;color:#557168}.note strong{color:var(--ink)}
 @media(max-width:700px){.uploads{grid-template-columns:1fr}.wrap{width:calc(100% - 24px);padding-top:20px}.head,.controls{align-items:flex-start;flex-direction:column}.actions{width:100%}.actions .btn{flex:1}.header{padding:0 12px}.brand{font-size:17px}}
 </style>
 </head>
@@ -24,8 +24,8 @@
 <div class="drop" id="sourceDrop"><div class="icon">◉</div><strong>Source Face</strong><p>A clear photo containing the face you want to use.</p><button class="filebtn" onclick="sourceInput.click()">Choose Photo</button><input id="sourceInput" type="file" accept="image/*"></div>
 </section>
 <div class="controls"><div class="info"><strong>High-accuracy head replacement</strong><span id="faceInfo">Choose both photos to begin.</span></div><div class="actions"><button class="btn" id="clearBtn">Clear</button><button class="btn primary" id="swapBtn" disabled>Swap Face</button></div></div>
-<div class="progress" id="progress"><i></i></div>
-<section class="result" id="result"><div class="resulthead"><strong>Result</strong><span>Browser-processed output</span></div><div class="canvaswrap"><canvas id="output"></canvas></div><p class="hint">Best results come from clear, well-lit, forward-facing photos with one person per image.</p><div class="actions"><button class="btn primary" id="downloadBtn">Download PNG</button><button class="btn" id="downloadJpgBtn">Download JPG</button></div></section>
+<div class="face-panel" id="facePanel"><h3>Choose target faces to replace</h3><div class="face-grid" id="faceChoices"></div><div class="quality" id="qualityInfo"></div></div>\n<div class="progress" id="progress"><i></i></div>
+<section class="result" id="result"><div class="resulthead"><strong>Result</strong><span>Browser-processed output</span></div><div class="canvaswrap"><canvas id="preview"></canvas></div><div class="compare"><label><span>Before / After</span><span id="compareValue">50% After</span></label><input id="compareSlider" type="range" min="0" max="100" value="50"><div class="compare-key"><span>Original</span><span>AI result</span></div></div><canvas id="output" hidden></canvas><p class="hint">Best results come from clear, well-lit, forward-facing photos with one person per image.</p><div class="actions"><button class="btn primary" id="downloadBtn">Download PNG</button><button class="btn" id="downloadJpgBtn">Download JPG</button></div></section>
 <div class="note"><strong>Privacy:</strong> Face processing is performed in your browser; this page does not upload selected photos to a DocuWorks server.</div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.min.js"></script>
@@ -34,7 +34,7 @@
 import { createFaceSwap, KNOWN_SHA256, probe } from "https://esm.sh/browser-inswapper@0.1.0";
 
 const $=id=>document.getElementById(id);
-let targetFile=null,sourceFile=null,engine=null,targetFaces=[],sourceFaces=[];
+let targetFile=null,sourceFile=null,engine=null,targetFaces=[],sourceFaces=[],selectedTargetIndices=new Set(),originalBitmap=null;
 const HF="https://huggingface.co/";
 const models={
   landmarker:{url:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",sha256:KNOWN_SHA256.landmarker},
@@ -103,6 +103,25 @@ function ready(){
   else if(!engine)$("faceInfo").textContent="AI engine is loading…";
   else $("faceInfo").textContent="Both photos ready. Click AI Face Swap.";
 }
+function qualitySummary(face){
+  const issues=Array.isArray(face?.issues)?face.issues:[];
+  const labels=issues.map(x=>String(x).replace(/[_-]/g," "));
+  const score=Math.max(25,100-labels.length*18);
+  return {score,labels};
+}
+function renderFaceChoices(){
+  const panel=$("facePanel"),grid=$("faceChoices"),quality=$("qualityInfo");
+  grid.innerHTML="";quality.innerHTML="";
+  targetFaces.forEach((face,i)=>{
+    const b=document.createElement("button");b.type="button";b.className="face-choice"+(selectedTargetIndices.has(i)?" active":"");
+    b.textContent=(selectedTargetIndices.has(i)?"✓ ":"○ ")+"Face "+(i+1)+(i===0?" · largest":"");
+    b.onclick=()=>{if(selectedTargetIndices.has(i))selectedTargetIndices.delete(i);else selectedTargetIndices.add(i);renderFaceChoices()};
+    grid.appendChild(b);
+    const q=qualitySummary(face);
+    const chip=document.createElement("span");chip.textContent="Face "+(i+1)+" quality: "+q.score+"/100"+(q.labels.length?" · "+q.labels.join(", "):" · Good capture");quality.appendChild(chip);
+  });
+  panel.classList.toggle("show",targetFaces.length>0);
+}
 async function findFaces(){
   const e=await initEngine();if(!e)return false;
   status("Analyzing faces…");
@@ -130,7 +149,7 @@ async function swap(){
       // The source face is not pasted as a bitmap; the model reconstructs the target face from the identity vector.
       const identity=await e.identityOf({image:source,face:sourceFaces[0]});
       setProgress(58);status("Neural face synthesis…");
-      const swaps=targetFaces.slice(0,1).map(face=>({face,identity}));
+      const swaps=targetFaces.filter((_,i)=>selectedTargetIndices.has(i)).map(face=>({face,identity}));\n      if(!swaps.length)throw new Error("Select at least one target face to replace.");
       const result=await e.swapPhoto(target,swaps);
       setProgress(86);status("Natural blending + occlusion protection…");
       const out=$("output"),w=result.width,h=result.height;out.width=w;out.height=h;
@@ -156,6 +175,15 @@ for(const [id,kind] of [["targetDrop","target"],["sourceDrop","source"]]){
 }
 $("swapBtn").onclick=swap;
 $("clearBtn").onclick=()=>location.reload();
+function drawComparison(){
+  const p=$("preview"),ctx=p.getContext("2d"),w=p.width,h=p.height;
+  if(!w||!h||!originalBitmap)return;
+  const pct=Number($("compareSlider").value)/100;
+  ctx.clearRect(0,0,w,h);ctx.drawImage(originalBitmap,0,0,w,h);
+  ctx.save();ctx.beginPath();ctx.rect(0,0,w*pct,h);ctx.clip();ctx.drawImage($("output"),0,0,w,h);ctx.restore();
+  $("compareValue").textContent=Math.round(pct*100)+"% After";
+}
+$("compareSlider").addEventListener("input",drawComparison);
 function download(type,name){const a=document.createElement("a");a.href=$("output").toDataURL(type,.96);a.download=name;a.click()}
 $("downloadBtn").onclick=()=>download("image/png","docuworks-ai-face-swap.png");
 $("downloadJpgBtn").onclick=()=>download("image/jpeg","docuworks-ai-face-swap.jpg");
