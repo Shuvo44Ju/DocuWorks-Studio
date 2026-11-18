@@ -23,7 +23,7 @@
 <div class="drop" id="targetDrop"><div class="icon">◎</div><strong>Target Photo</strong><p>The photo where the new face will be placed.</p><button class="filebtn" onclick="targetInput.click()">Choose Photo</button><input id="targetInput" type="file" accept="image/*"></div>
 <div class="drop" id="sourceDrop"><div class="icon">◉</div><strong>Source Face</strong><p>A clear photo containing the face you want to use.</p><button class="filebtn" onclick="sourceInput.click()">Choose Photo</button><input id="sourceInput" type="file" accept="image/*"></div>
 </section>
-<div class="controls"><div class="info"><strong>High-accuracy head replacement</strong><span id="faceInfo">Choose both photos to begin.</span></div><div class="actions"><button class="btn" id="clearBtn">Clear</button><button class="btn primary" id="swapBtn" disabled>Swap Face</button></div></div>
+<div class="controls"><div class="info"><strong>High-accuracy head replacement</strong><span id="faceInfo">Choose both photos to begin.</span></div><div class="actions"><button class="btn" id="clearBtn">Clear</button><button class="btn" id="analyzeBtn" disabled>Analyze Faces</button><button class="btn primary" id="swapBtn" disabled>Swap Selected Faces</button></div></div>
 <div class="face-panel" id="facePanel"><h3>Choose target faces to replace</h3><div class="face-grid" id="faceChoices"></div><div class="quality" id="qualityInfo"></div></div>
 <div class="progress" id="progress"><i></i></div>
 <section class="result" id="result"><div class="resulthead"><strong>Result</strong><span>Browser-processed output</span></div><div class="canvaswrap"><canvas id="preview"></canvas></div><div class="compare"><label><span>Before / After</span><span id="compareValue">50% After</span></label><input id="compareSlider" type="range" min="0" max="100" value="50"><div class="compare-key"><span>Original</span><span>AI result</span></div></div><canvas id="output" hidden></canvas><p class="hint">Best results come from clear, well-lit, forward-facing photos with one person per image.</p><div class="actions"><button class="btn primary" id="downloadBtn">Download PNG</button><button class="btn" id="downloadJpgBtn">Download JPG</button></div></section>
@@ -93,13 +93,14 @@ async function initEngine(){
 async function readImage(file){return createImageBitmap(file,{imageOrientation:"from-image"})}
 async function pick(kind,file){
   if(!file||!file.type.startsWith("image/"))return;
-  if(kind==="target")targetFile=file;else sourceFile=file;
+  if(kind==="target"){targetFile=file;targetFaces=[];selectedTargetIndices.clear();$("facePanel").classList.remove("show");}else{sourceFile=file;sourceFaces=[];}
   show($(kind==="target"?"targetDrop":"sourceDrop"),file,kind==="target"?"targetInput":"sourceInput");
   $("result").classList.remove("show");
   ready();
 }
 function ready(){
-  $("swapBtn").disabled=!(targetFile&&sourceFile&&engine);
+  $("analyzeBtn").disabled=!(targetFile&&sourceFile&&engine);
+  $("swapBtn").disabled=!(targetFile&&sourceFile&&engine&&targetFaces.length);
   if(!targetFile||!sourceFile)$("faceInfo").textContent="Choose both photos to begin.";
   else if(!engine)$("faceInfo").textContent="AI engine is loading…";
   else $("faceInfo").textContent="Both photos ready. Click AI Face Swap.";
@@ -143,7 +144,7 @@ async function swap(){
   $("swapBtn").disabled=true;$("progress").classList.add("show");setProgress(8);
   try{
     const e=await initEngine();if(!e)return;
-    await findFaces();setProgress(35);status("Building identity…");
+    if(!targetFaces.length||!sourceFaces.length)await findFaces();setProgress(35);status("Building identity…");
     const source=await readImage(sourceFile);
     const target=await readImage(targetFile);
     try{
@@ -167,7 +168,7 @@ async function swap(){
     }finally{source.close();target.close()}
   }catch(e){
     console.error(e);status("Swap failed","error");$("faceInfo").textContent=e?.message||"The AI face swap could not be completed.";
-  }finally{hideProgress();$("swapBtn").disabled=!(targetFile&&sourceFile&&engine)}
+  }finally{hideProgress();ready()}
 }
 $("targetInput").onchange=e=>pick("target",e.target.files[0]);
 $("sourceInput").onchange=e=>pick("source",e.target.files[0]);
@@ -177,6 +178,7 @@ for(const [id,kind] of [["targetDrop","target"],["sourceDrop","source"]]){
   d.ondrop=e=>{e.preventDefault();d.classList.remove("drag");pick(kind,e.dataTransfer.files[0])};
 }
 $("swapBtn").onclick=swap;
+$("analyzeBtn").onclick=async()=>{if(!(targetFile&&sourceFile))return;$("analyzeBtn").disabled=true;try{const ok=await findFaces();if(ok)status("Faces ready · select targets below","ready")}catch(e){status("Face analysis failed","error");$("faceInfo").textContent=e?.message||"Could not analyze these photos."}finally{ready()}};
 $("clearBtn").onclick=()=>location.reload();
 function drawComparison(){
   const p=$("preview"),ctx=p.getContext("2d"),w=p.width,h=p.height;
