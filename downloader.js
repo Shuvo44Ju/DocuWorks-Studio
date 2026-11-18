@@ -170,11 +170,24 @@ async function runAttempt(j){
   if(!probe.ok){let detail=await probe.clone().text().catch(()=>"");try{detail=JSON.parse(detail).error||detail}catch{}throw new Error(detail||("Source returned HTTP "+probe.status+"."))}
   rejectHtml(probe);
   const range=probe.headers.get("content-range")||"";
-  const match=range.match(/^bytes\s+\d+-\d+\/(\d+)$/i);
+  const match=range.match(/^bytes\s+0-0\/(\d+)$/i);
   const total=match?Number(match[1]):Number(probe.headers.get("content-length"))||0;
   const supportsRanges=probe.status===206&&!!match&&total>0;
   j.total=total;j.name=fileName(probe,j.url);
   if(supportsRanges){
+   try{await probe.body?.cancel()}catch{}
+  }else if(probe.status===206){
+   // A partial response without a usable Content-Range must never be saved as a complete file.
+   try{await probe.body?.cancel()}catch{}
+   const full=await request(proxy(j.url),{signal},"Full file request");
+   if(!full.ok||full.status===206)throw new Error("The source returned an incomplete range response. This server cannot provide a complete download through this link.");
+   rejectHtml(full);
+   j.name=fileName(full,j.url);
+   const reader=full.body?.getReader(),chunks=[];j.loaded=0;
+   if(reader){while(true){const {done,value}=await reader.read();if(done)break;if(!chunks.length){const sample=new TextDecoder().decode(value.slice(0,1024)).replace(/^\\uFEFF/,"").trimStart();if(/^<!doctype\\s+html|^<html[\\s>]|^<head[\\s>]|^<body[\\s>]/i.test(sample))throw new Error("The server returned a webpage (HTML), not a file. Use a direct download link.");}chunks.push(value);j.loaded+=value.byteLength;sessionBytes+=value.byteLength;render();}j.blob=new Blob(chunks,{type:full.headers.get("content-type")||"application/octet-stream"});}
+   else j.blob=await full.blob();
+   j.total=j.blob.size;
+  }else if(probe.status===200){
    const connections=Math.max(1,Math.min(8,Number($("connections").value)||4));
    const chunkSize=j.chunkSize||Math.max(4*1024*1024,Math.ceil(total/(connections*3)));
    const count=j.count||Math.ceil(total/chunkSize);j.chunkSize=chunkSize;j.count=count;await persist(j);
@@ -188,10 +201,12 @@ async function runAttempt(j){
       try{
        const r=await request(proxy(j.url),{headers:{Range:"bytes="+from+"-"+to},signal},"File segment");
        if(r.status!==206)throw new Error("The server stopped supporting range downloads (HTTP "+r.status+").");
+       const expectedRange=new RegExp("^bytes\\s+"+from+"-"+to+"\\/"+total+"$","i");
+       if(!expectedRange.test(r.headers.get("content-range")||""))throw new Error("The source returned the wrong file segment. Try a direct download link.");
        const bytes=await r.arrayBuffer();
        await pace(bytes.byteLength,started,signal,connections);
        if(bytes.byteLength!==to-from+1)throw new Error("The server returned an incomplete file segment.");
-       j.parts[index]=bytes;await dbWrite("parts",{key:j.id+":"+index,jobId:j.id,index,data:bytes});updateLoaded(j);render();last=null;break;
+       j.parts[index]=bytes;sessionBytes+=bytes.byteLength;await dbWrite("parts",{key:j.id+":"+index,jobId:j.id,index,data:bytes});updateLoaded(j);render();last=null;break;
       }catch(e){last=e;if(signal.aborted)break;if(attempt<2)await sleep(500*(attempt+1),signal)}
      }
      if(last&&!signal.aborted)throw last;
@@ -202,9 +217,9 @@ async function runAttempt(j){
    const chunks=Array.from({length:count},(_,i)=>j.parts[i]);
    if(chunks.some(x=>!x))throw new Error("Some file segments are missing. Resume or retry the download.");
    j.blob=new Blob(chunks,{type:probe.headers.get("content-type")||"application/octet-stream"});
-  }else{
+  }else if(probe.status===200){
    // Non-range servers are downloaded as one stream; resuming requires restarting that stream.
-   const response=probe.status===200?probe:await request(proxy(j.url),{signal},"File download");
+   const response=probe;
    if(!response.ok)throw new Error("Download request failed (HTTP "+response.status+").");
    j.name=fileName(response,j.url);
    const reader=response.body?.getReader();
@@ -220,6 +235,7 @@ async function runAttempt(j){
    }
    j.total=j.blob.size;
   }
+  if(!j.blob)throw new Error("No complete file data was received from the source.");
   await verifyBlob(j.blob);
   j.loaded=j.blob.size;j.status="Completed";j.completedAt=Date.now();j.speed=0;await dbDeleteParts(j.id).catch(()=>{});await persist(j);save(j);
  }catch(e){
