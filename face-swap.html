@@ -24,7 +24,8 @@
 <div class="drop" id="sourceDrop"><div class="icon">◉</div><strong>Source Face</strong><p>A clear photo containing the face you want to use.</p><button class="filebtn" onclick="sourceInput.click()">Choose Photo</button><input id="sourceInput" type="file" accept="image/*"></div>
 </section>
 <div class="controls"><div class="info"><strong>High-accuracy head replacement</strong><span id="faceInfo">Choose both photos to begin.</span></div><div class="actions"><button class="btn" id="clearBtn">Clear</button><button class="btn primary" id="swapBtn" disabled>Swap Face</button></div></div>
-<div class="face-panel" id="facePanel"><h3>Choose target faces to replace</h3><div class="face-grid" id="faceChoices"></div><div class="quality" id="qualityInfo"></div></div>\n<div class="progress" id="progress"><i></i></div>
+<div class="face-panel" id="facePanel"><h3>Choose target faces to replace</h3><div class="face-grid" id="faceChoices"></div><div class="quality" id="qualityInfo"></div></div>
+<div class="progress" id="progress"><i></i></div>
 <section class="result" id="result"><div class="resulthead"><strong>Result</strong><span>Browser-processed output</span></div><div class="canvaswrap"><canvas id="preview"></canvas></div><div class="compare"><label><span>Before / After</span><span id="compareValue">50% After</span></label><input id="compareSlider" type="range" min="0" max="100" value="50"><div class="compare-key"><span>Original</span><span>AI result</span></div></div><canvas id="output" hidden></canvas><p class="hint">Best results come from clear, well-lit, forward-facing photos with one person per image.</p><div class="actions"><button class="btn primary" id="downloadBtn">Download PNG</button><button class="btn" id="downloadJpgBtn">Download JPG</button></div></section>
 <div class="note"><strong>Privacy:</strong> Face processing is performed in your browser; this page does not upload selected photos to a DocuWorks server. <strong>Usage:</strong> The face-swap engine and model weights have separate licence terms; commercial use may require permission from their owners.</div>
 </main>
@@ -130,6 +131,8 @@ async function findFaces(){
   }finally{t.close();s.close()}
   if(!targetFaces.length)throw new Error("No face found in the Target Photo. Use a clear, larger face.");
   if(!sourceFaces.length)throw new Error("No face found in the Source Face photo. Use a clear, front-facing face.");
+  if(!selectedTargetIndices.size)selectedTargetIndices=new Set(targetFaces.map((_,i)=>i));
+  renderFaceChoices();
   if(targetFaces[0].issues.length)console.info("Target face quality:",targetFaces[0].issues);
   if(sourceFaces[0].issues.length)console.info("Source face quality:",sourceFaces[0].issues);
   $("faceInfo").textContent="Detected "+targetFaces.length+" target face"+(targetFaces.length>1?"s":"")+" and "+sourceFaces.length+" source face"+(sourceFaces.length>1?"s":"")+".";
@@ -148,13 +151,14 @@ async function swap(){
       // The source face is not pasted as a bitmap; the model reconstructs the target face from the identity vector.
       const identity=await e.identityOf({image:source,face:sourceFaces[0]});
       setProgress(58);status("Neural face synthesis…");
-      const swaps=targetFaces.filter((_,i)=>selectedTargetIndices.has(i)).map(face=>({face,identity}));\n      if(!swaps.length)throw new Error("Select at least one target face to replace.");
+      const swaps=targetFaces.filter((_,i)=>selectedTargetIndices.has(i)).map(face=>({face,identity}));
+      if(!swaps.length)throw new Error("Select at least one target face to replace.");
       const result=await e.swapPhoto(target,swaps);
       setProgress(86);status("Natural blending + occlusion protection…");
-      const out=$("output"),w=result.width,h=result.height;out.width=w;out.height=h;
-      const ctx=out.getContext("2d");ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";
-      ctx.drawImage(result,0,0);
-      result.close();
+      const out=$("output"),preview=$("preview"),w=result.width,h=result.height;out.width=w;out.height=h;preview.width=w;preview.height=h;
+      const ctx=out.getContext("2d");ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(result,0,0);
+      if(originalBitmap)originalBitmap.close();originalBitmap=await createImageBitmap(targetFile,{imageOrientation:"from-image"});
+      drawComparison();result.close();
       setProgress(100);
       $("result").classList.add("show");
       $("faceInfo").textContent="AI face replacement complete. Identity, pose, lighting and edge blending were processed by the neural pipeline.";
