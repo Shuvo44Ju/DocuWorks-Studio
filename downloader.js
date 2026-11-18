@@ -1,33 +1,170 @@
-(()=>{"use strict";
+(()=>{
+"use strict";
 const $=id=>document.getElementById(id),jobs=[],queue=$("queue"),form=$("downloadForm");
-const DOWNLOAD_PROXY="https://docuworks-studio.shuvokh97.workers.dev/api/download";
-const proxyUrl=url=>DOWNLOAD_PROXY+"?url="+encodeURIComponent(url);
-const sleep=(ms,signal)=>new Promise((resolve,reject)=>{if(signal?.aborted)return reject(new DOMException("Stopped","AbortError"));const t=setTimeout(resolve,ms);signal?.addEventListener("abort",()=>{clearTimeout(t);reject(new DOMException("Stopped","AbortError"))},{once:true})});
-function retryDelay(res,attempt){const h=res?.headers?.get("retry-after");if(h){const n=Number(h);if(Number.isFinite(n))return Math.min(30000,Math.max(500,n*1000));const date=Date.parse(h);if(Number.isFinite(date))return Math.min(30000,Math.max(500,date-Date.now()))}return Math.min(15000,800*Math.pow(2,attempt))+Math.random()*350}
-async function fetchResilient(url,options={},label="download"){let last;for(let attempt=0;attempt<6;attempt++){if(options.signal?.aborted)throw new DOMException("Stopped","AbortError");try{const res=await fetch(url,options);if(![429,500,502,503,504].includes(res.status))return res;last=res;const delay=retryDelay(res,attempt);try{await res.body?.cancel()}catch{}if(attempt===5)break;await sleep(delay,options.signal)}catch(e){if(options.signal?.aborted||e?.name==="AbortError")throw e;last=e;if(attempt===5)break;await sleep(Math.min(12000,700*Math.pow(2,attempt))+Math.random()*300,options.signal)}}throw new Error(last instanceof Response?(`Source is rate-limiting or temporarily unavailable (HTTP ${last.status}). Retried 6 times; wait a little and try again.`):(`${label} failed after 6 attempts: ${last?.message||"network error"}`))}
-const fmt=n=>{if(!Number.isFinite(n)||n<0)return"—";const u=["B","KB","MB","GB","TB"];let i=0;while(n>=1024&&i<u.length-1){n/=1024;i++}return n.toFixed(i?2:0)+" "+u[i]};
-const speedFmt=n=>fmt(n)+"/s";
-function safeName(s){try{return decodeURIComponent(s).split(/[\\/]/).pop().replace(/[<>:"|?*\x00-\x1f]/g,"_").slice(0,180)||"download"}catch{return"download"}}
-function filenameFrom(res,url){const cd=res.headers.get("content-disposition")||"";let m=cd.match(/filename\*=UTF-8''([^;]+)/i)||cd.match(/filename="?([^";]+)"?/i);if(m)return safeName(m[1]);return safeName(new URL(url).pathname.split("/").pop()||"download")}
-function rejectHtmlResponse(res){const type=(res.headers.get("content-type")||"").split(";")[0].trim().toLowerCase();if(type==="text/html"||type==="application/xhtml+xml")throw new Error("This link returned a webpage (HTML), not a downloadable file. Copy the direct file download link instead of the page URL.");}
-async function rejectHtmlBlob(blob){const type=(blob.type||"").split(";")[0].trim().toLowerCase();if(type==="text/html"||type==="application/xhtml+xml")throw new Error("The server returned a webpage (HTML), not the requested file. Use a direct file download link.");const head=(await blob.slice(0,1024).text()).replace(/^\\uFEFF/,"").trimStart();if(/^<!doctype\\s+html|^<html[\\s>]|^<head[\\s>]|^<body[\\s>]/i.test(head))throw new Error("The server returned a webpage (HTML), not the requested file. Use a direct file download link.");}
-
-function render(){queue.innerHTML="";if(!jobs.length){queue.innerHTML='<div class="empty">Your download queue is empty.</div>';return}
-for(const j of jobs){const el=document.createElement("article");el.className="job";el.innerHTML='<div class="jobtop"><div class="fileicon">↓</div><div class="jobmain"><div class="filename"></div><div class="meta"></div></div><div class="actions"></div></div><div class="bar"><div class="fill"></div></div><div class="jobstats"><span class="left"></span><span class="right"></span></div>';el.querySelector(".filename").textContent=j.name||j.url;el.querySelector(".meta").textContent=j.status+" · "+(j.total?fmt(j.total):"size unknown");el.querySelector(".fill").style.width=(j.total?Math.min(100,j.loaded/j.total*100):0)+"%";el.querySelector(".left").textContent=j.total?fmt(j.loaded)+" / "+fmt(j.total):fmt(j.loaded)+" downloaded";el.querySelector(".right").textContent=j.status==="Downloading"?speedFmt(j.speed)+" · ETA "+(j.speed>0&&j.total?Math.ceil((j.total-j.loaded)/j.speed)+"s":"calculating"):j.error||j.status;const acts=el.querySelector(".actions");function act(label,fn,cls=""){const b=document.createElement("button");b.className="small "+cls;b.textContent=label;b.onclick=fn;acts.append(b)}
-if(j.status==="Downloading")act("Pause",()=>pause(j));if(j.status==="Paused")act("Resume",()=>start(j));if(j.status==="Queued")act("Start",()=>start(j),"primary");if(j.status==="Error")act("Retry",()=>{j.error="";j.status="Queued";start(j)},"primary");if(j.status==="Completed")act("Save again",()=>saveBlob(j));if(!["Completed","Cancelled"].includes(j.status))act("Cancel",()=>cancel(j),"danger");if(j.status==="Completed"||j.status==="Cancelled"||j.status==="Error")act("Remove",()=>{jobs.splice(jobs.indexOf(j),1);render()});queue.append(el)}}
-function saveBlob(j){if(!j.blob)return;const a=document.createElement("a"),u=URL.createObjectURL(j.blob);a.href=u;a.download=j.name||"download";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000)}
-function pause(j){if(j.controller)j.controller.abort();j.pauseRequested=true;j.status="Paused";render()}
-function cancel(j){if(j.controller)j.controller.abort();j.cancelRequested=true;j.status="Cancelled";j.speed=0;render()}
-function add(url){const u=new URL(url),host=u.hostname.toLowerCase(),isYouTube=host==="youtube.com"||host.endsWith(".youtube.com")||host==="youtu.be"||host.endsWith(".youtu.be");const j={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()),url,name:isYouTube?"YouTube link (not a direct file)":"",status:isYouTube?"Error":"Queued",loaded:0,total:0,speed:0,blob:null,controller:null,error:isYouTube?"This is a YouTube watch/playlist page, not a direct file URL. This browser downloader cannot download YouTube watch pages. Open the video in YouTube and use its Download option if available, or paste a direct file link provided by the content owner.":"",pauseRequested:false,cancelRequested:false};jobs.unshift(j);render();if(!isYouTube&&$("autoStart").checked)start(j)}
-async function start(j){if(j.status==="Downloading"||j.status==="Completed")return;j.pauseRequested=false;j.cancelRequested=false;j.error="";j.status="Downloading";j.speed=0;j.controller=new AbortController();const signal=j.controller.signal;
-try{
-const probe=await fetchResilient(proxyUrl(j.url),{headers:{Range:"bytes=0-0"},signal},"File check");if(!probe.ok){const msg=await probe.clone().text().catch(()=>"");let detail=msg;try{detail=JSON.parse(msg).error||msg}catch{}throw new Error(detail||("Source returned HTTP "+probe.status+"."))}rejectHtmlResponse(probe);const cr=,len=Number((cr||"").split("/")[1])||Number(probe.headers.get("content-length"))||0;const ranged=probe.status===206&&!!cr&&len>0;j.total=len;j.name=filenameFrom(probe,j.url);
-if(ranged){if(!j.parts||j.total!==len){j.parts={};j.loaded=0;j.partSize=null}const connections=Number($("connections").value);j.partSize=j.partSize||Math.max(1024*1024,Math.ceil(len/connections));const count=Math.ceil(len/j.partSize);const indexes=Array.from({length:count},(_,i)=>i).filter(i=>!j.parts[i]);let cursor=0;const worker=async()=>{while(cursor<indexes.length&&!signal.aborted){const i=indexes[cursor++],from=i*j.partSize,to=Math.min(len-1,from+j.partSize-1);let attempt=0,ok=false;while(attempt<3&&!ok&&!signal.aborted){try{const r=await fetchResilient(proxyUrl(j.url),{headers:{Range:"bytes="+from+"-"+to},signal},"File segment");if(r.status!==206)throw new Error(r.status===429?"Source is rate-limiting range requests (HTTP 429).":"Range request rejected (HTTP "+r.status+").");const data=await r.arrayBuffer();if(data.byteLength!==to-from+1)throw new Error("Incomplete segment received.");j.parts[i]=data;j.loaded=Object.values(j.parts).reduce((n,b)=>n+b.byteLength,0);ok=true;render()}catch(e){if(signal.aborted)break;if(++attempt>=3)throw e}}}};await Promise.all(Array.from({length:Math.min(connections,indexes.length)},worker));if(signal.aborted)throw new DOMException("Stopped","AbortError");const pieces=Array.from({length:count},(_,i)=>j.parts[i]);if(pieces.some(x=>!x))throw new Error("Some file segments are missing.");j.blob=new Blob(pieces,{type:probe.headers.get("content-type")||"application/octet-stream"});await rejectHtmlBlob(j.blob);
-}else{if(j.loaded>0)throw new Error("This server does not support resumable range downloads.");const r=probe.status===206?await fetchResilient(proxyUrl(j.url),{signal},"File download"):probe;if(!r.ok)throw new Error("Download request failed.");j.name=filenameFrom(r,j.url);j.blob=await r.blob();await rejectHtmlBlob(j.blob);j.total=j.blob.size;j.loaded=j.total}
-j.status="Completed";j.speed=0;saveBlob(j)
-}catch(e){if(j.cancelRequested){j.status="Cancelled"}else if(j.pauseRequested||signal.aborted){j.status="Paused"}else{j.status="Error";j.error=e.message||"Download failed. The source may require sign-in or block automated downloads."}}finally{j.controller=null;render()}}
-form.addEventListener("submit",e=>{e.preventDefault();const url=$("downloadUrl").value.trim();try{const u=new URL(url);if(!["http:","https:"].includes(u.protocol))throw 0;add(u.href);$("downloadUrl").value=""}catch{$("downloadUrl").setCustomValidity("Enter a valid HTTP or HTTPS URL.");$("downloadUrl").reportValidity();$("downloadUrl").setCustomValidity("")}});
+const PROXY="https://docuworks-studio.shuvokh97.workers.dev/api/download";
+const proxy=url=>PROXY+"?url="+encodeURIComponent(url);
+const sleep=(ms,signal)=>new Promise((resolve,reject)=>{
+ if(signal?.aborted)return reject(new DOMException("Stopped","AbortError"));
+ const timer=setTimeout(resolve,ms);
+ signal?.addEventListener("abort",()=>{clearTimeout(timer);reject(new DOMException("Stopped","AbortError"))},{once:true});
+});
+const fmt=n=>{if(!Number.isFinite(n)||n<0)return "—";const units=["B","KB","MB","GB","TB"];let i=0;while(n>=1024&&i<units.length-1){n/=1024;i++}return n.toFixed(i?2:0)+" "+units[i]};
+const safeName=s=>{try{return decodeURIComponent(s).split(/[\\/]/).pop().replace(/[<>:"|?*\x00-\x1f]/g,"_").slice(0,180)||"download"}catch{return "download"}};
+function fileName(res,url){
+ const cd=res.headers.get("content-disposition")||"";
+ let m=cd.match(/filename\*=UTF-8''([^;]+)/i)||cd.match(/filename="?([^";]+)"?/i);
+ if(m)return safeName(m[1]);
+ const path=new URL(url).pathname.split("/").filter(Boolean).pop();
+ return safeName(path||"download");
+}
+function retryDelay(res,attempt){
+ const h=res?.headers?.get("retry-after");
+ if(h){const n=Number(h);if(Number.isFinite(n))return Math.min(30000,Math.max(500,n*1000));const d=Date.parse(h);if(Number.isFinite(d))return Math.min(30000,Math.max(500,d-Date.now()))}
+ return Math.min(15000,700*2**attempt)+Math.random()*350;
+}
+async function request(url,options={},label="Download"){
+ let last;
+ for(let attempt=0;attempt<6;attempt++){
+  if(options.signal?.aborted)throw new DOMException("Stopped","AbortError");
+  try{
+   const res=await fetch(url,options);
+   if(![429,500,502,503,504].includes(res.status))return res;
+   last=new Error("HTTP "+res.status);
+   try{await res.body?.cancel()}catch{}
+   if(attempt<5)await sleep(retryDelay(res,attempt),options.signal);
+  }catch(e){
+   if(options.signal?.aborted||e?.name==="AbortError")throw e;
+   last=e;
+   if(attempt<5)await sleep(Math.min(12000,600*2**attempt)+Math.random()*300,options.signal);
+  }
+ }
+ throw new Error(last?.message?.startsWith("HTTP 429")?"The source is rate-limiting requests (HTTP 429). Wait and retry.":label+" failed after 6 attempts: "+(last?.message||"network error"));
+}
+function rejectHtml(res){
+ const type=(res.headers.get("content-type")||"").split(";")[0].trim().toLowerCase();
+ if(type==="text/html"||type==="application/xhtml+xml")throw new Error("This link returned a webpage, not a file. Copy the direct download link instead of the page URL.");
+}
+async function verifyBlob(blob){
+ const type=(blob.type||"").split(";")[0].trim().toLowerCase();
+ if(type==="text/html"||type==="application/xhtml+xml")throw new Error("The server returned a webpage (HTML), not a file. Use a direct download link.");
+ const head=(await blob.slice(0,1024).text()).replace(/^\uFEFF/,"").trimStart();
+ if(/^<!doctype\s+html|^<html[\s>]|^<head[\s>]|^<body[\s>]/i.test(head))throw new Error("The server returned a webpage (HTML), not a file. Use a direct download link.");
+}
+function updateLoaded(j){j.loaded=Object.values(j.parts||{}).reduce((sum,p)=>sum+p.byteLength,0)}
+function render(){
+ queue.innerHTML="";
+ if(!jobs.length){queue.innerHTML='<div class="empty">Your download queue is empty.</div>';return}
+ for(const j of jobs){
+  const el=document.createElement("article");el.className="job";
+  el.innerHTML='<div class="jobtop"><div class="fileicon">↓</div><div class="jobmain"><div class="filename"></div><div class="meta"></div></div><div class="actions"></div></div><div class="bar"><div class="fill"></div></div><div class="jobstats"><span class="left"></span><span class="right"></span></div>';
+  el.querySelector(".filename").textContent=j.name||j.url;
+  el.querySelector(".meta").textContent=j.status+" · "+(j.total?fmt(j.total):"size unknown");
+  el.querySelector(".fill").style.width=(j.total?Math.min(100,j.loaded/j.total*100):0)+"%";
+  el.querySelector(".left").textContent=j.total?fmt(j.loaded)+" / "+fmt(j.total):fmt(j.loaded)+" downloaded";
+  el.querySelector(".right").textContent=j.status==="Downloading"?fmt(j.speed)+"/s · ETA "+(j.speed>0&&j.total?Math.ceil((j.total-j.loaded)/j.speed)+"s":"calculating"):(j.error||j.status);
+  const actions=el.querySelector(".actions");
+  const button=(label,fn,cls="")=>{const b=document.createElement("button");b.className="small "+cls;b.textContent=label;b.addEventListener("click",fn);actions.append(b)};
+  if(j.status==="Downloading")button("Pause",()=>pause(j));
+  if(j.status==="Paused")button("Resume",()=>start(j));
+  if(j.status==="Queued")button("Start",()=>start(j),"primary");
+  if(j.status==="Error")button("Retry",()=>{j.error="";j.status="Queued";start(j)},"primary");
+  if(j.status==="Completed")button("Save again",()=>save(j));
+  if(!["Completed","Cancelled"].includes(j.status))button("Cancel",()=>cancel(j),"danger");
+  if(["Completed","Cancelled","Error"].includes(j.status))button("Remove",()=>{jobs.splice(jobs.indexOf(j),1);render()});
+  queue.append(el);
+ }
+}
+function save(j){
+ if(!j.blob)return;
+ const a=document.createElement("a"),u=URL.createObjectURL(j.blob);
+ a.href=u;a.download=j.name||"download";document.body.append(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(u),60000);
+}
+function pause(j){j.pauseRequested=true;j.controller?.abort();j.status="Paused";render()}
+function cancel(j){j.cancelRequested=true;j.controller?.abort();j.status="Cancelled";j.speed=0;render()}
+function add(raw){
+ const u=new URL(raw),host=u.hostname.toLowerCase();
+ const youtube=host==="youtube.com"||host.endsWith(".youtube.com")||host==="youtu.be"||host.endsWith(".youtu.be");
+ const j={id:crypto.randomUUID?.()||String(Date.now()+Math.random()),url:u.href,name:youtube?"Video page (not a direct file)":"",status:youtube?"Error":"Queued",loaded:0,total:0,speed:0,blob:null,parts:{},controller:null,error:youtube?"This is a YouTube webpage, not a direct media-file URL. This downloader accepts direct file links; use the platform's official download option where available.":"",pauseRequested:false,cancelRequested:false};
+ jobs.unshift(j);render();if(!youtube&&$("autoStart").checked)start(j);
+}
+async function start(j){
+ if(j.status==="Downloading"||j.status==="Completed")return;
+ j.pauseRequested=false;j.cancelRequested=false;j.error="";j.status="Downloading";j.controller=new AbortController();
+ const signal=j.controller.signal;
+ try{
+  const probe=await request(proxy(j.url),{headers:{Range:"bytes=0-0"},signal},"File check");
+  if(!probe.ok){let detail=await probe.clone().text().catch(()=>"");try{detail=JSON.parse(detail).error||detail}catch{}throw new Error(detail||("Source returned HTTP "+probe.status+"."))}
+  rejectHtml(probe);
+  const range=probe.headers.get("content-range")||"";
+  const match=range.match(/^bytes\s+\d+-\d+\/(\d+)$/i);
+  const total=match?Number(match[1]):Number(probe.headers.get("content-length"))||0;
+  const supportsRanges=probe.status===206&&!!match&&total>0;
+  j.total=total;j.name=fileName(probe,j.url);
+  if(supportsRanges){
+   const connections=Math.max(1,Math.min(8,Number($("connections").value)||4));
+   const chunkSize=Math.max(4*1024*1024,Math.ceil(total/(connections*3)));
+   const count=Math.ceil(total/chunkSize);
+   const pending=Array.from({length:count},(_,i)=>i).filter(i=>!j.parts[i]);
+   let cursor=0;
+   const worker=async()=>{
+    while(cursor<pending.length&&!signal.aborted){
+     const index=pending[cursor++],from=index*chunkSize,to=Math.min(total-1,from+chunkSize-1);
+     let last;
+     for(let attempt=0;attempt<3&&!signal.aborted;attempt++){
+      try{
+       const r=await request(proxy(j.url),{headers:{Range:"bytes="+from+"-"+to},signal},"File segment");
+       if(r.status!==206)throw new Error("The server stopped supporting range downloads (HTTP "+r.status+").");
+       const bytes=await r.arrayBuffer();
+       if(bytes.byteLength!==to-from+1)throw new Error("The server returned an incomplete file segment.");
+       j.parts[index]=bytes;updateLoaded(j);render();last=null;break;
+      }catch(e){last=e;if(signal.aborted)break;if(attempt<2)await sleep(500*(attempt+1),signal)}
+     }
+     if(last&&!signal.aborted)throw last;
+    }
+   };
+   await Promise.all(Array.from({length:Math.min(connections,pending.length)},worker));
+   if(signal.aborted)throw new DOMException("Stopped","AbortError");
+   const chunks=Array.from({length:count},(_,i)=>j.parts[i]);
+   if(chunks.some(x=>!x))throw new Error("Some file segments are missing. Resume or retry the download.");
+   j.blob=new Blob(chunks,{type:probe.headers.get("content-type")||"application/octet-stream"});
+  }else{
+   // Non-range servers are downloaded as one stream; resuming requires restarting that stream.
+   const response=probe.status===200?probe:await request(proxy(j.url),{signal},"File download");
+   if(!response.ok)throw new Error("Download request failed (HTTP "+response.status+").");
+   j.name=fileName(response,j.url);
+   const reader=response.body?.getReader();
+   if(!reader)j.blob=await response.blob();
+   else{
+    const chunks=[];j.loaded=0;let first=true;
+    while(true){
+     const {done,value}=await reader.read();if(done)break;
+     if(first){first=false;const sample=new TextDecoder().decode(value.slice(0,1024)).replace(/^\uFEFF/,"").trimStart();if(/^<!doctype\s+html|^<html[\s>]|^<head[\s>]|^<body[\s>]/i.test(sample))throw new Error("The server returned a webpage (HTML), not a file. Use a direct download link.");}
+     chunks.push(value);j.loaded+=value.byteLength;render();
+    }
+    j.blob=new Blob(chunks,{type:response.headers.get("content-type")||"application/octet-stream"});
+   }
+   j.total=j.blob.size;
+  }
+  await verifyBlob(j.blob);
+  j.loaded=j.blob.size;j.status="Completed";j.speed=0;save(j);
+ }catch(e){
+  if(j.cancelRequested)j.status="Cancelled";
+  else if(j.pauseRequested||signal.aborted)j.status="Paused";
+  else{j.status="Error";j.error=e.message||"Download failed. The source may require sign-in or block automated downloads."}
+ }finally{j.controller=null;render()}
+}
+form.addEventListener("submit",e=>{
+ e.preventDefault();const field=$("downloadUrl"),raw=field.value.trim();
+ try{const u=new URL(raw);if(!["http:","https:"].includes(u.protocol))throw new Error();add(u.href);field.value=""}
+ catch{field.setCustomValidity("Enter a valid HTTP or HTTPS direct file URL.");field.reportValidity();field.setCustomValidity("")}
+});
 $("clearDone").addEventListener("click",()=>{for(let i=jobs.length-1;i>=0;i--)if(["Completed","Cancelled"].includes(jobs[i].status))jobs.splice(i,1);render()});
-setInterval(()=>{const now=performance.now();for(const j of jobs){if(j.status==="Downloading"){if(!j._last){j._last=now;j._bytes=j.loaded}else{const dt=(now-j._last)/1000;if(dt>=.7){j.speed=Math.max(0,(j.loaded-j._bytes)/dt);j._last=now;j._bytes=j.loaded}}}}render()},900);
+let lastTime=performance.now();
+setInterval(()=>{
+ const now=performance.now(),dt=(now-lastTime)/1000;lastTime=now;
+ for(const j of jobs){if(j.status==="Downloading"){const previous=j._previousLoaded??j.loaded;j.speed=dt>0?Math.max(0,(j.loaded-previous)/dt):0;j._previousLoaded=j.loaded}}
+ render();
+},1000);
 render();
 })();
