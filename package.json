@@ -6,7 +6,6 @@
     "build:face-swap": "node scripts/build-face-swap.mjs"
   },
   "dependencies": {
-    "browser-inswapper": "0.1.0",
     "esbuild": "0.25.12"
   }
 }
