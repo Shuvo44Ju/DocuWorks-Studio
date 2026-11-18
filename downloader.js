@@ -150,7 +150,7 @@ function start(j){
 async function runJob(j){
  for(let attempt=0;attempt<3;attempt++){
   await runAttempt(j);
-  if(j.status!=="Error"||!$("autoRetry")?.checked||!/(429|5\\d\\d|network|fetch|temporarily|timeout|failed after 6 attempts)/i.test(j.error||"")||attempt===2)break;
+  if(j.status!=="Error"||!$("autoRetry")?.checked||!/(429|5\d\d|network|fetch|temporarily|timeout|failed after 6 attempts)/i.test(j.error||"")||attempt===2)break;
   j.status="Queued";j.error="Temporary connection problem. Retrying ("+(attempt+1)+"/2)…";await persist(j);render();
   await sleep(1500*(attempt+1));
   if(j.cancelRequested){j.status="Cancelled";await persist(j);break}
