@@ -249,6 +249,11 @@ form.addEventListener("submit",e=>{
  try{const u=new URL(raw);if(!["http:","https:"].includes(u.protocol))throw new Error();add(u.href);field.value=""}
  catch{field.setCustomValidity("Enter a valid HTTP or HTTPS direct file URL.");field.reportValidity();field.setCustomValidity("")}
 });
+$("addBulk").addEventListener("click",()=>{
+ const field=$("bulkUrls"),lines=field.value.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);let added=0,skipped=0;
+ for(const line of lines){try{const u=new URL(line);if(!["http:","https:"].includes(u.protocol))throw new Error();add(u.href);added++}catch{skipped++}}
+ field.value="";if(skipped)alert(added+" link(s) added. "+skipped+" invalid line(s) skipped.");else if(added)alert(added+" link(s) added to your queue.");
+});
 $("pauseAll").addEventListener("click",()=>{for(const j of jobs)if(j.status==="Downloading")pause(j)});
 $("resumeQueued").addEventListener("click",()=>{for(const j of jobs)if(j.status==="Paused"||j.status==="Queued"){j.status="Queued";persist(j)}pumpQueue();render()});
 $("retryFailed").addEventListener("click",()=>{for(const j of jobs)if(j.status==="Error"){j.error="";j.status="Queued";persist(j)}pumpQueue();render()});
