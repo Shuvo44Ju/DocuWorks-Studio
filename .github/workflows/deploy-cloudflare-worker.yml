@@ -41,6 +41,14 @@ jobs:
           echo "$response" | grep -q '"agentMode":true'
           echo "$response" | grep -q '"agentBuild":"2026-11-16-agent-v1"'
 
+      - name: Verify download proxy route
+        if: ${{ env.CF_API_TOKEN != '' && env.CF_ACCOUNT_ID != '' }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --output /tmp/download-proxy-check.json --write-out '%{http_code}' 'https://docuworks-studio.shuvokh97.workers.dev/api/download')"
+          test "$status" = "400"
+          grep -q 'Missing file URL' /tmp/download-proxy-check.json
+
       - name: Report missing deployment credentials
         if: ${{ env.CF_API_TOKEN == '' || env.CF_ACCOUNT_ID == '' }}
         run: |
