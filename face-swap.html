@@ -59,11 +59,17 @@ async function initEngine(){
     // Load the module dynamically so CDN/import failures are caught and shown instead
     // of leaving the page stuck forever on the initial "Loading face engine…" label.
     if(!modulePromise) modulePromise=(async()=>{
-      let firstError;
-      try{return await import("https://cdn.jsdelivr.net/npm/browser-inswapper@0.1.0/+esm");}
-      catch(e){firstError=e;console.warn("[DocuWorks Face Swap] jsDelivr module failed; trying esm.sh",e);}
-      try{return await import("https://esm.sh/browser-inswapper@0.1.0");}
-      catch(e){throw new Error("Could not download the face-swap engine from either CDN. jsDelivr: "+(firstError?.message||firstError)+"; esm.sh: "+(e?.message||e));}
+      const sources=[
+        "https://cdn.skypack.dev/browser-inswapper@0.1.0",
+        "https://jspm.dev/browser-inswapper@0.1.0",
+        "https://esm.sh/browser-inswapper@0.1.0?bundle"
+      ];
+      const failures=[];
+      for(const url of sources){
+        try{return await import(url);}
+        catch(e){failures.push(url+" → "+(e?.message||String(e)));console.warn("[DocuWorks Face Swap] Module source failed:",url,e);}
+      }
+      throw new Error("The AI engine could not be reached from this browser. Tried 3 independent module hosts: "+failures.join(" | ")+". This usually means the network, browser data saver, DNS filter or content blocker is blocking external JavaScript modules.");
     })();
     const mod=await modulePromise;
     createFaceSwap=mod.createFaceSwap; KNOWN_SHA256=mod.KNOWN_SHA256; probe=mod.probe;
