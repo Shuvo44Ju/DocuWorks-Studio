@@ -143,9 +143,9 @@ function add(raw){
  j.created=Date.now();jobs.unshift(j);render();persist(j);if(!youtube&&$("autoStart").checked)start(j);
 }
 function start(j){
- if(j.status==="Downloading"||j.status==="Completed")return;
+ if(j.status==="Downloading"||j.status==="Completed"||j.running)return;
  if(activeTransfers>=maxActive()){j.status="Queued";render();persist(j);return}
- activeTransfers++;runJob(j).finally(()=>{activeTransfers=Math.max(0,activeTransfers-1);pumpQueue();render()});
+ j.running=true;activeTransfers++;runJob(j).finally(()=>{j.running=false;activeTransfers=Math.max(0,activeTransfers-1);pumpQueue();render()});
 }
 async function runJob(j){
  for(let attempt=0;attempt<3;attempt++){
@@ -187,7 +187,7 @@ async function runAttempt(j){
    if(reader){while(true){const {done,value}=await reader.read();if(done)break;if(!chunks.length){const sample=new TextDecoder().decode(value.slice(0,1024)).replace(/^\\uFEFF/,"").trimStart();if(/^<!doctype\\s+html|^<html[\\s>]|^<head[\\s>]|^<body[\\s>]/i.test(sample))throw new Error("The server returned a webpage (HTML), not a file. Use a direct download link.");}chunks.push(value);j.loaded+=value.byteLength;sessionBytes+=value.byteLength;render();}j.blob=new Blob(chunks,{type:full.headers.get("content-type")||"application/octet-stream"});}
    else j.blob=await full.blob();
    j.total=j.blob.size;
-  }else if(probe.status===200){
+  }else if(probe.status===206){
    const connections=Math.max(1,Math.min(8,Number($("connections").value)||4));
    const chunkSize=j.chunkSize||Math.max(4*1024*1024,Math.ceil(total/(connections*3)));
    const count=j.count||Math.ceil(total/chunkSize);j.chunkSize=chunkSize;j.count=count;await persist(j);
@@ -234,6 +234,7 @@ async function runAttempt(j){
     j.blob=new Blob(chunks,{type:response.headers.get("content-type")||"application/octet-stream"});
    }
    j.total=j.blob.size;
+   if(total>0&&j.total!==total)throw new Error("The downloaded file size does not match the server's advertised size. The file may be incomplete.");
   }
   if(!j.blob)throw new Error("No complete file data was received from the source.");
   await verifyBlob(j.blob);
@@ -249,6 +250,9 @@ form.addEventListener("submit",e=>{
  try{const u=new URL(raw);if(!["http:","https:"].includes(u.protocol))throw new Error();add(u.href);field.value=""}
  catch{field.setCustomValidity("Enter a valid HTTP or HTTPS direct file URL.");field.reportValidity();field.setCustomValidity("")}
 });
+$("pauseAll").addEventListener("click",()=>{for(const j of jobs)if(j.status==="Downloading")pause(j)});
+$("resumeQueued").addEventListener("click",()=>{for(const j of jobs)if(j.status==="Paused"||j.status==="Queued"){j.status="Queued";persist(j)}pumpQueue();render()});
+$("retryFailed").addEventListener("click",()=>{for(const j of jobs)if(j.status==="Error"){j.error="";j.status="Queued";persist(j)}pumpQueue();render()});
 $("clearDone").addEventListener("click",()=>{for(let i=jobs.length-1;i>=0;i--)if(["Completed","Cancelled"].includes(jobs[i].status)){const j=jobs[i];jobs.splice(i,1);dbDelete("jobs",j.id).catch(()=>{});dbDeleteParts(j.id).catch(()=>{})}render()});
 let lastTime=performance.now();
 setInterval(()=>{
