@@ -2,6 +2,38 @@
 "use strict";
 const $=id=>document.getElementById(id),jobs=[],queue=$("queue"),form=$("downloadForm");
 const PROXY="https://docuworks-studio.shuvokh97.workers.dev/api/download";
+const DB_NAME="docuworks-downloads",DB_VERSION=1;
+let dbPromise;
+function openDB(){
+ if(!("indexedDB" in window))return Promise.reject(new Error("Persistent storage is unavailable in this browser."));
+ if(!dbPromise)dbPromise=new Promise((resolve,reject)=>{
+  const req=indexedDB.open(DB_NAME,DB_VERSION);
+  req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains("jobs"))db.createObjectStore("jobs",{keyPath:"id"});if(!db.objectStoreNames.contains("parts")){const st=db.createObjectStore("parts",{keyPath:"key"});st.createIndex("jobId","jobId",{unique:false})}};
+  req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+ });
+ return dbPromise;
+}
+async function dbWrite(store,value){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(store,"readwrite");tx.objectStore(store).put(value);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)})}
+async function dbReadAll(store){const db=await openDB();return new Promise((resolve,reject)=>{const req=db.transaction(store).objectStore(store).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)})}
+async function dbDelete(store,key){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(store,"readwrite");tx.objectStore(store).delete(key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+async function dbDeleteParts(id){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction("parts","readwrite"),idx=tx.objectStore("parts").index("jobId"),req=idx.openCursor(IDBKeyRange.only(id));req.onsuccess=()=>{const c=req.result;if(c){c.delete();c.continue()}};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+function snapshot(j){return {id:j.id,url:j.url,name:j.name,status:j.status,loaded:j.loaded,total:j.total,error:j.error||"",blob:j.blob||null,chunkSize:j.chunkSize||0,count:j.count||0,created:j.created||Date.now()}}
+async function persist(j){try{await dbWrite("jobs",snapshot(j))}catch(e){j.storageWarning="Browser storage is full or unavailable; this download may not survive a refresh."}}
+async function restoreJobs(){
+ try{
+  const [saved,parts]=await Promise.all([dbReadAll("jobs"),dbReadAll("parts")]);
+  for(const x of saved.sort((a,b)=>(b.created||0)-(a.created||0))){
+   if(jobs.some(j=>j.id===x.id))continue;
+   const j={...x,parts:{},controller:null,pauseRequested:false,cancelRequested:false,speed:0};
+   if(j.status==="Downloading")j.status="Paused";
+   if(j.status==="Completed"&&!j.blob)j.status="Error",j.error="The saved file is no longer available in browser storage.";
+   for(const p of parts)if(p.jobId===j.id)j.parts[p.index]=p.data;
+   updateLoaded(j);jobs.push(j);
+  }
+  render();
+ }catch(e){console.warn("Download restore unavailable",e)}
+}
+
 const proxy=url=>PROXY+"?url="+encodeURIComponent(url);
 const sleep=(ms,signal)=>new Promise((resolve,reject)=>{
  if(signal?.aborted)return reject(new DOMException("Stopped","AbortError"));
@@ -70,7 +102,7 @@ function render(){
   if(j.status==="Error")button("Retry",()=>{j.error="";j.status="Queued";start(j)},"primary");
   if(j.status==="Completed")button("Save again",()=>save(j));
   if(!["Completed","Cancelled"].includes(j.status))button("Cancel",()=>cancel(j),"danger");
-  if(["Completed","Cancelled","Error"].includes(j.status))button("Remove",()=>{jobs.splice(jobs.indexOf(j),1);render()});
+  if(["Completed","Cancelled","Error"].includes(j.status))button("Remove",()=>{jobs.splice(jobs.indexOf(j),1);render();dbDelete("jobs",j.id).catch(()=>{});dbDeleteParts(j.id).catch(()=>{})});
   queue.append(el);
  }
 }
@@ -80,13 +112,13 @@ function save(j){
  a.href=u;a.download=j.name||"download";document.body.append(a);a.click();a.remove();
  setTimeout(()=>URL.revokeObjectURL(u),60000);
 }
-function pause(j){j.pauseRequested=true;j.controller?.abort();j.status="Paused";render()}
-function cancel(j){j.cancelRequested=true;j.controller?.abort();j.status="Cancelled";j.speed=0;render()}
+function pause(j){j.pauseRequested=true;j.controller?.abort();j.status="Paused";render();persist(j)}
+function cancel(j){j.cancelRequested=true;j.controller?.abort();j.status="Cancelled";j.speed=0;render();persist(j);dbDeleteParts(j.id).catch(()=>{})}
 function add(raw){
  const u=new URL(raw),host=u.hostname.toLowerCase();
  const youtube=host==="youtube.com"||host.endsWith(".youtube.com")||host==="youtu.be"||host.endsWith(".youtu.be");
  const j={id:crypto.randomUUID?.()||String(Date.now()+Math.random()),url:u.href,name:youtube?"Video page (not a direct file)":"",status:youtube?"Error":"Queued",loaded:0,total:0,speed:0,blob:null,parts:{},controller:null,error:youtube?"This is a YouTube webpage, not a direct media-file URL. This downloader accepts direct file links; use the platform's official download option where available.":"",pauseRequested:false,cancelRequested:false};
- jobs.unshift(j);render();if(!youtube&&$("autoStart").checked)start(j);
+ j.created=Date.now();jobs.unshift(j);render();persist(j);if(!youtube&&$("autoStart").checked)start(j);
 }
 async function start(j){
  if(j.status==="Downloading"||j.status==="Completed")return;
@@ -117,7 +149,7 @@ async function start(j){
        if(r.status!==206)throw new Error("The server stopped supporting range downloads (HTTP "+r.status+").");
        const bytes=await r.arrayBuffer();
        if(bytes.byteLength!==to-from+1)throw new Error("The server returned an incomplete file segment.");
-       j.parts[index]=bytes;updateLoaded(j);render();last=null;break;
+       j.parts[index]=bytes;await dbWrite("parts",{key:j.id+":"+index,jobId:j.id,index,data:bytes});updateLoaded(j);render();last=null;break;
       }catch(e){last=e;if(signal.aborted)break;if(attempt<2)await sleep(500*(attempt+1),signal)}
      }
      if(last&&!signal.aborted)throw last;
@@ -147,11 +179,11 @@ async function start(j){
    j.total=j.blob.size;
   }
   await verifyBlob(j.blob);
-  j.loaded=j.blob.size;j.status="Completed";j.speed=0;save(j);
+  j.loaded=j.blob.size;j.status="Completed";j.speed=0;await dbDeleteParts(j.id).catch(()=>{});await persist(j);save(j);
  }catch(e){
   if(j.cancelRequested)j.status="Cancelled";
   else if(j.pauseRequested||signal.aborted)j.status="Paused";
-  else{j.status="Error";j.error=e.message||"Download failed. The source may require sign-in or block automated downloads."}
+  else{j.status="Error";j.error=e.message||"Download failed. The source may require sign-in or block automated downloads."}await persist(j);
  }finally{j.controller=null;render()}
 }
 form.addEventListener("submit",e=>{
@@ -159,7 +191,7 @@ form.addEventListener("submit",e=>{
  try{const u=new URL(raw);if(!["http:","https:"].includes(u.protocol))throw new Error();add(u.href);field.value=""}
  catch{field.setCustomValidity("Enter a valid HTTP or HTTPS direct file URL.");field.reportValidity();field.setCustomValidity("")}
 });
-$("clearDone").addEventListener("click",()=>{for(let i=jobs.length-1;i>=0;i--)if(["Completed","Cancelled"].includes(jobs[i].status))jobs.splice(i,1);render()});
+$("clearDone").addEventListener("click",()=>{for(let i=jobs.length-1;i>=0;i--)if(["Completed","Cancelled"].includes(jobs[i].status)){const j=jobs[i];jobs.splice(i,1);dbDelete("jobs",j.id).catch(()=>{});dbDeleteParts(j.id).catch(()=>{})}render()});
 let lastTime=performance.now();
 setInterval(()=>{
  const now=performance.now(),dt=(now-lastTime)/1000;lastTime=now;
