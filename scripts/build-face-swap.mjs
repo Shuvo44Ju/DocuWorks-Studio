@@ -30,7 +30,7 @@ const ortSrc = join(pkg, "onnxruntime-web", "dist");
 const ortOut = join(out, "ort");
 await mkdir(ortOut, { recursive: true });
 for (const f of await readdir(ortSrc)) {
-  if (/\\.(wasm|mjs|js)$/i.test(f)) {
+  if (/\.(wasm|mjs|js)$/i.test(f)) {
     await cp(join(ortSrc, f), join(ortOut, f));
   }
 }
