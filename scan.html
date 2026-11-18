@@ -43,7 +43,7 @@ dialog{border:0;border-radius:14px;padding:16px;width:min(560px,92vw);background
 dialog textarea{width:100%;height:240px;margin:10px 0;font:inherit}
 #exportDlg{max-height:88vh;overflow:hidden}
 #exportPageList{display:flex;flex-direction:column;gap:8px;max-height:58vh;overflow:auto;margin:14px 0}
-.export-row{display:flex;align-items:center;gap:11px;padding:7px;border:1px solid #d8e0e8;border-radius:9px;cursor:grab;background:#fff;transition:transform .12s,opacity .12s,border-color .12s,box-shadow .12s}
+.export-row{display:flex;align-items:center;gap:11px;padding:7px;border:1px solid #d8e0e8;border-radius:9px;cursor:grab;background:#fff;transition:transform .12s,opacity .12s,border-color .12s,box-shadow .12s;user-select:none}
 .export-row:active{cursor:grabbing}.export-row.dragging{opacity:.45;box-shadow:none}
 .export-row.drop-target{border-color:#0d9b83;box-shadow:0 0 0 2px #0d9b8330}
 .export-row input{width:18px;height:18px;accent-color:#0d9b83;flex:0 0 auto}
@@ -679,11 +679,8 @@ async function exportPdfPages(selectedPages){
 }
 function renderExportPageList(){
   const list=$('#exportPageList');
-  const rows=[...list.querySelectorAll('.export-row')];
-  rows.forEach((row,i)=>{
-    const input=row.querySelector('input');
-    const img=row.querySelector('img');
-    const span=row.querySelector('span');
+  [...list.querySelectorAll('.export-row')].forEach((row,i)=>{
+    const input=row.querySelector('input'),img=row.querySelector('img'),span=row.querySelector('span');
     const pageIndex=+row.dataset.pageIndex;
     if(img)img.alt='Page '+(i+1);
     if(span)span.textContent='Page '+(i+1);
@@ -692,46 +689,53 @@ function renderExportPageList(){
 }
 function enableExportReorder(){
   const list=$('#exportPageList');
-  let dragged=null;
+  let drag=null;
+  const cleanup=()=>{
+    if(drag?.row){
+      drag.row.classList.remove('dragging');
+      drag.row.style.zIndex='';
+    }
+    list.querySelectorAll('.export-row').forEach(r=>r.classList.remove('drop-target'));
+    drag=null;
+  };
   list.querySelectorAll('.export-row').forEach(row=>{
-    row.draggable=true;
-    row.addEventListener('dragstart',e=>{
-      dragged=row;
-      row.classList.add('dragging');
-      e.dataTransfer.effectAllowed='move';
-      e.dataTransfer.setData('text/plain',row.dataset.pageIndex);
+    row.addEventListener('pointerdown',e=>{
+      if(e.button!==undefined&&e.button!==0)return;
+      if(e.target.closest('input'))return;
+      drag={row,startX:e.clientX,startY:e.clientY,pointerId:e.pointerId,active:false};
     });
-    row.addEventListener('dragover',e=>{
+    row.addEventListener('pointermove',e=>{
+      if(!drag||drag.row!==row||drag.pointerId!==e.pointerId)return;
+      if(!drag.active){
+        if(Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<6)return;
+        drag.active=true;
+        row.classList.add('dragging');
+        row.style.zIndex='10';
+      }
       e.preventDefault();
-      if(!dragged||dragged===row)return;
-      e.dataTransfer.dropEffect='move';
+      const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('.export-row');
+      if(!target||target===row||!list.contains(target))return;
       list.querySelectorAll('.export-row').forEach(r=>r.classList.remove('drop-target'));
-      row.classList.add('drop-target');
+      target.classList.add('drop-target');
+      const rect=target.getBoundingClientRect();
+      if(e.clientY<rect.top+rect.height/2)list.insertBefore(row,target);
+      else list.insertBefore(row,target.nextSibling);
     });
-    row.addEventListener('dragleave',e=>{
-      if(!row.contains(e.relatedTarget))row.classList.remove('drop-target');
+    row.addEventListener('pointerup',e=>{
+      if(!drag||drag.row!==row||drag.pointerId!==e.pointerId)return;
+      if(drag.active){
+        e.preventDefault();
+        renderExportPageList();
+      }
+      cleanup();
     });
-    row.addEventListener('drop',e=>{
-      e.preventDefault();
-      if(!dragged||dragged===row)return;
-      const rect=row.getBoundingClientRect();
-      const before=e.clientY<rect.top+rect.height/2;
-      if(before)list.insertBefore(dragged,row);
-      else list.insertBefore(dragged,row.nextSibling);
-      list.querySelectorAll('.export-row').forEach(r=>r.classList.remove('drop-target'));
-      renderExportPageList();
-    });
-    row.addEventListener('dragend',()=>{
-      if(dragged)dragged.classList.remove('dragging');
-      list.querySelectorAll('.export-row').forEach(r=>r.classList.remove('drop-target'));
-      dragged=null;
-    });
+    row.addEventListener('pointercancel',cleanup);
   });
 }
 $('#bPdf').onclick=()=>{
   if(!pages.length)return alert('Add a page first.');
   if(pages.length===1){exportPdfPages(pages);return}
-  $('#exportPageList').innerHTML=pages.map((p,i)=>'<label class="export-row" draggable="true" data-page-index="'+i+'"><input type="checkbox" data-export-index="'+i+'" checked><img src="'+p.th+'" alt="Page '+(i+1)+'"><span>Page '+(i+1)+'</span></label>').join('');
+  $('#exportPageList').innerHTML=pages.map((p,i)=>'<div class="export-row" data-page-index="'+i+'"><input type="checkbox" data-export-index="'+i+'" checked><img draggable="false" src="'+p.th+'" alt="Page '+(i+1)+'"><span>Page '+(i+1)+'</span></div>').join('');
   $('#exportToggleAll').textContent='Deselect all';
   enableExportReorder();
   const dialog=$('#exportDlg');
