@@ -108,7 +108,7 @@ function render(){
  for(const j of visible){
   const el=document.createElement("article");el.className="job";
   el.innerHTML='<div class="jobtop"><div class="fileicon"></div><div class="jobmain"><div class="filename"></div><div class="meta"></div></div><div class="actions"></div></div><div class="bar"><div class="fill"></div></div><div class="jobstats"><span class="left"></span><span class="right"></span></div>';
-  el.querySelector(".fileicon").textContent=j.isYoutube?"YT":extension(j.name||j.url);
+  el.querySelector(".fileicon").textContent=extension(j.name||j.url);
   el.querySelector(".filename").textContent=j.name||j.url;
   el.querySelector(".meta").textContent=j.status+" · "+(j.total?fmt(j.total):"size unknown")+(j.name?" · "+extension(j.name):"")+(j.startedAt?" · "+duration(j):"");
   el.querySelector(".fill").style.width=(j.total?Math.min(100,j.loaded/j.total*100):0)+"%";
@@ -136,10 +136,9 @@ function save(j){
 function pause(j){j.pauseRequested=true;j.controller?.abort();j.status="Paused";render();persist(j)}
 function cancel(j){j.cancelRequested=true;j.controller?.abort();j.status="Cancelled";j.speed=0;render();persist(j);dbDeleteParts(j.id).catch(()=>{})}
 function add(raw){
- const u=new URL(raw),host=u.hostname.toLowerCase();
- const youtube=host==="youtube.com"||host.endsWith(".youtube.com")||host==="youtu.be"||host.endsWith(".youtu.be");
- const j={id:crypto.randomUUID?.()||String(Date.now()+Math.random()),url:u.href,name:youtube?"Video page (not a direct file)":"",status:youtube?"Error":"Queued",loaded:0,total:0,speed:0,blob:null,parts:{},controller:null,error:youtube?"This is a YouTube webpage, not a direct media-file URL. This downloader accepts direct file links; use the platform's official download option where available.":"",pauseRequested:false,cancelRequested:false};
- j.created=Date.now();jobs.unshift(j);render();persist(j);if(!youtube&&$("autoStart").checked)start(j);
+ const u=new URL(raw);
+ const j={id:crypto.randomUUID?.()||String(Date.now()+Math.random()),url:u.href,name:"",status:"Queued",loaded:0,total:0,speed:0,blob:null,parts:{},controller:null,error:"",pauseRequested:false,cancelRequested:false};
+ j.created=Date.now();jobs.unshift(j);render();persist(j);if($("autoStart").checked)start(j);
 }
 function start(j){
  if(j.status==="Downloading"||j.status==="Completed"||j.running)return;
