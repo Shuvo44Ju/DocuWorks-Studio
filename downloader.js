@@ -10,14 +10,13 @@ function duration(j){const end=j.completedAt||Date.now(),start=j.startedAt||j.cr
 function category(j){if(j.status==="Completed")return"Completed";if(j.status==="Error")return"Failed";if(j.status==="Queued")return"Queued";if(j.status==="Paused"||j.status==="Cancelled")return"Paused";if(j.status==="Downloading")return"Active";return"All"}
 function drawDashboard(){
  const active=jobs.filter(j=>j.status==="Downloading"),speed=active.reduce((n,j)=>n+(j.speed||0),0);
- $("metricSpeed").textContent=fmt(speed)+"/s";$("metricData").textContent=fmt(sessionBytes);$("metricActive").textContent=String(active.length);$("metricCompleted").textContent=String(jobs.filter(j=>j.status==="Completed").length);
- peakSpeed=Math.max(peakSpeed,speed);$("speedPeak").textContent="Peak "+fmt(peakSpeed)+"/s";
- speedHistory.push(speed);if(speedHistory.length>48)speedHistory.shift();
- const c=$("speedChart"),ctx=c?.getContext("2d");if(!ctx)return;
- const w=Math.max(280,c.clientWidth||600),h=112,dpr=window.devicePixelRatio||1;c.width=w*dpr;c.height=h*dpr;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);ctx.strokeStyle="#e8edf5";ctx.lineWidth=1;
- for(let y=20;y<h;y+=28){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
- const max=Math.max(1,...speedHistory);ctx.beginPath();speedHistory.forEach((v,i)=>{const x=i/(speedHistory.length-1)*w,y=h-8-(v/max)*(h-20);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.lineWidth=2.5;ctx.strokeStyle="#2458d3";ctx.stroke();ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fillStyle="rgba(36,88,211,.10)";ctx.fill();
+ $("metricSpeed").textContent=fmt(speed)+"/s";
+ $("metricData").textContent=fmt(sessionBytes);
+ $("metricActive").textContent=String(active.length);
+ $("metricCompleted").textContent=String(jobs.filter(j=>j.status==="Completed").length);
+ peakSpeed=Math.max(peakSpeed,speed);
 }
+
 const PROXY="https://docuworks-studio.shuvokh97.workers.dev/api/download";
 const DB_NAME="docuworks-downloads",DB_VERSION=1;
 let dbPromise;
@@ -109,7 +108,7 @@ function render(){
  for(const j of visible){
   const el=document.createElement("article");el.className="job";
   el.innerHTML='<div class="jobtop"><div class="fileicon"></div><div class="jobmain"><div class="filename"></div><div class="meta"></div></div><div class="actions"></div></div><div class="bar"><div class="fill"></div></div><div class="jobstats"><span class="left"></span><span class="right"></span></div>';
-  el.querySelector(".fileicon").textContent=extension(j.name||j.url);
+  el.querySelector(".fileicon").textContent=j.isYoutube?"YT":extension(j.name||j.url);
   el.querySelector(".filename").textContent=j.name||j.url;
   el.querySelector(".meta").textContent=j.status+" · "+(j.total?fmt(j.total):"size unknown")+(j.name?" · "+extension(j.name):"")+(j.startedAt?" · "+duration(j):"");
   el.querySelector(".fill").style.width=(j.total?Math.min(100,j.loaded/j.total*100):0)+"%";
