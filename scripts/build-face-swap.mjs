@@ -1,16 +1,17 @@
 import { build } from "esbuild";
 import { cp, mkdir, rm, readdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
 const root = process.cwd();
 const out = join(root, "assets", "face-swap");
 const pkg = join(root, "node_modules");
+const inswapper = join(pkg, "browser-inswapper");
 
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 
 await build({
-  entryPoints: [join(pkg, "browser-inswapper", "dist", "index.js")],
+  entryPoints: [join(inswapper, "dist", "index.js")],
   outfile: join(out, "engine.js"),
   bundle: true,
   format: "esm",
@@ -23,7 +24,7 @@ await build({
 });
 
 for (const name of ["worker.js", "segment-worker.js"]) {
-  await cp(join(pkg, "browser-inswapper", "dist", name), join(out, name));
+  await cp(join(inswapper, "dist", name), join(out, name));
 }
 
 const ortSrc = join(pkg, "onnxruntime-web", "dist");
