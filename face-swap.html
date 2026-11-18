@@ -18,7 +18,7 @@
 <body>
 <header class="header"><a class="brand" href="./index.html"><span class="mark">◈</span><span>DocuWorks <em>Studio</em></span></a><a class="home" href="./index.html">Home</a></header>
 <main class="wrap">
-<div class="head"><div><h1>Face Swap</h1><p>High-accuracy head replacement with face alignment, hair-area coverage and natural edge blending.</p></div><div id="status" class="status">Loading face engine…</div></div>
+<div class="head"><div><h1>Face Swap</h1><p>Neural face identity replacement with automatic detection, facial alignment and natural blending.</p></div><div id="status" class="status">Loading face engine…</div></div>
 <section class="uploads">
 <div class="drop" id="targetDrop"><div class="icon">◎</div><strong>Target Photo</strong><p>The photo where the new face will be placed.</p><button class="filebtn" onclick="targetInput.click()">Choose Photo</button><input id="targetInput" type="file" accept="image/*"></div>
 <div class="drop" id="sourceDrop"><div class="icon">◉</div><strong>Source Face</strong><p>A clear photo containing the face you want to use.</p><button class="filebtn" onclick="sourceInput.click()">Choose Photo</button><input id="sourceInput" type="file" accept="image/*"></div>
@@ -26,7 +26,7 @@
 <div class="controls"><div class="info"><strong>High-accuracy head replacement</strong><span id="faceInfo">Choose both photos to begin.</span></div><div class="actions"><button class="btn" id="clearBtn">Clear</button><button class="btn" id="analyzeBtn" disabled>Analyze Faces</button><button class="btn primary" id="swapBtn" disabled>Swap Selected Faces</button></div></div>
 <div class="face-panel" id="facePanel"><h3>Choose target faces to replace</h3><div class="face-grid" id="faceChoices"></div><div class="quality" id="qualityInfo"></div></div>
 <div class="progress" id="progress"><i></i></div>
-<section class="result" id="result"><div class="resulthead"><strong>Result</strong><span>Browser-processed output</span></div><div class="canvaswrap"><canvas id="preview"></canvas></div><div class="compare"><label><span>Before / After</span><span id="compareValue">50% After</span></label><input id="compareSlider" type="range" min="0" max="100" value="50"><div class="compare-key"><span>Original</span><span>AI result</span></div></div><canvas id="output" hidden></canvas><p class="hint">Best results come from clear, well-lit, forward-facing photos with one person per image.</p><div class="actions"><button class="btn primary" id="downloadBtn">Download PNG</button><button class="btn" id="downloadJpgBtn">Download JPG</button></div></section>
+<section class="result" id="result"><div class="resulthead"><strong>Result</strong><span>Browser-processed output</span></div><div class="canvaswrap"><canvas id="preview"></canvas></div><div class="compare"><label><span>Before / After</span><span id="compareValue">50% After</span></label><input id="compareSlider" type="range" min="0" max="100" value="50"><div class="compare-key"><span>Original</span><span>AI result</span></div></div><canvas id="output" hidden></canvas><p class="hint">Best results come from clear, well-lit photos. This model replaces facial identity within the face region; it does not generate a new hairstyle or replace the entire head.</p><div class="actions"><button class="btn primary" id="downloadBtn">Download PNG</button><button class="btn" id="downloadJpgBtn">Download JPG</button></div></section>
 <div class="note"><strong>Privacy:</strong> Face processing is performed in your browser; this page does not upload selected photos to a DocuWorks server. <strong>Usage:</strong> The face-swap engine and model weights have separate licence terms; commercial use may require permission from their owners.</div>
 </main>
 <script type="module">
@@ -44,13 +44,19 @@ const getModels=()=>({
   segmenter:{url:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite",sha256:KNOWN_SHA256.segmenter}
 });
 function status(t,c=""){const s=$("status");s.textContent=t;s.className="status "+c}
+const previewURLs={target:null,source:null};
 function fileURL(file){return URL.createObjectURL(file)}
 function show(drop,file,inputId){
-  const u=fileURL(file);drop.classList.add("has-image");drop.innerHTML="";
-  const im=document.createElement("img");im.className="thumb";im.src=u;drop.appendChild(im);
-  const b=document.createElement("button");b.className="replace";b.textContent="Replace";b.onclick=()=>$(inputId).click();drop.appendChild(b);
+  const input=$(inputId),kind=inputId==="targetInput"?"target":"source";
+  if(previewURLs[kind])URL.revokeObjectURL(previewURLs[kind]);
+  previewURLs[kind]=fileURL(file);
+  drop.classList.add("has-image");drop.replaceChildren();
+  const im=document.createElement("img");im.className="thumb";im.alt=kind==="target"?"Target photo preview":"Source face preview";im.src=previewURLs[kind];drop.appendChild(im);
+  const b=document.createElement("button");b.type="button";b.className="replace";b.textContent="Replace";b.onclick=()=>input.click();drop.appendChild(b);
+  // Keep the original input in the DOM so Replace and subsequent file selections continue to work.
+  drop.appendChild(input);
 }
-function setProgress(p){$("progress").classList.add("show");$("progress").style.setProperty("--p",Math.max(4,Math.min(100,p))+"%")}
+function setProgress(p){$("progress").classList.add("show");$("progress").style.setProperty("--p",Math.max(4,Math.min(100,p))+"%");const bar=$("progress").querySelector("i");if(bar)bar.style.width=Math.max(4,Math.min(100,p))+"%"}
 function hideProgress(){$("progress").classList.remove("show")}
 async function initEngine(){
   if(engine)return engine;
@@ -63,8 +69,14 @@ async function initEngine(){
     createFaceSwap=mod.createFaceSwap; KNOWN_SHA256=mod.KNOWN_SHA256; probe=mod.probe;
     if(typeof createFaceSwap!=="function" || !KNOWN_SHA256) throw new Error("The AI engine module did not load correctly. Refresh the page or try Chrome.");
     const caps=await probe();
+    const mobileTouch=matchMedia("(pointer: coarse)").matches && /Android|iPhone|iPad/i.test(navigator.userAgent);
+    // The full-precision CPU model is roughly 550 MB. On phones without WebGPU/WebNN it can exceed
+    // the browser tab's memory limit, causing the page to reload instead of showing a useful error.
+    if(mobileTouch&&!caps.webgpu?.available&&!caps.webnn){
+      throw new Error("This phone's browser does not expose WebGPU or WebNN. The CPU model is too large for reliable processing on this device. Try a recent Android phone with Chrome and WebGPU enabled, or use Chrome/Edge on a computer with a supported GPU.");
+    }
     status(caps.webgpu?.available||caps.webnn?"Loading AI models…":"Loading CPU-compatible AI models…");
-    const lowMemoryMobile=/Android|iPhone|iPad/i.test(navigator.userAgent) && (navigator.deviceMemory||4)<=4;
+    const lowMemoryMobile=mobileTouch&&(navigator.deviceMemory||4)<=4;
     engine=await createFaceSwap({
       models:getModels(),
       backend:"auto",
@@ -106,7 +118,7 @@ async function pick(kind,file){
 }
 function ready(){
   $("analyzeBtn").disabled=!(targetFile&&sourceFile);
-  $("swapBtn").disabled=!(targetFile&&sourceFile&&engine&&targetFaces.length);
+  $("swapBtn").disabled=!(targetFile&&sourceFile&&engine&&targetFaces.length&&sourceFaces.length);
   if(engineError){$("faceInfo").textContent="Startup error: "+engineError;return;}
   if(!targetFile||!sourceFile)$("faceInfo").textContent="Choose both photos to begin.";
   else if(!engine)$("faceInfo").textContent="Photos ready. Tap Analyze Faces to start the AI engine and download its models.";
@@ -133,10 +145,14 @@ function renderFaceChoices(){
 async function findFaces(){
   const e=await initEngine();if(!e){ready();return false;}
   status("Analyzing faces…");
-  const [t,s]=await Promise.all([readImage(targetFile),readImage(sourceFile)]);
-  try{
-    targetFaces=await e.findFaces(t);sourceFaces=await e.findFaces(s);
-  }finally{t.close();s.close()}
+  // Run detection sequentially: MediaPipe's image task is shared by both calls, and keeping
+  // only one decoded full-size bitmap at a time is safer on memory-constrained devices.
+  const t=await readImage(targetFile);
+  try{targetFaces=await e.findFaces(t)}finally{t.close()}
+  const s=await readImage(sourceFile);
+  try{sourceFaces=await e.findFaces(s)}finally{s.close()}
+  // The picker UI uses labels rather than the model's preview bitmaps; release those bitmaps.
+  for(const face of [...targetFaces,...sourceFaces]){try{face.preview?.close()}catch{}}
   if(!targetFaces.length)throw new Error("No face found in the Target Photo. Use a clear, larger face.");
   if(!sourceFaces.length)throw new Error("No face found in the Source Face photo. Use a clear, front-facing face.");
   if(!selectedTargetIndices.size)selectedTargetIndices=new Set(targetFaces.map((_,i)=>i));
@@ -151,7 +167,7 @@ async function swap(){
   $("swapBtn").disabled=true;$("progress").classList.add("show");setProgress(8);
   try{
     const e=await initEngine();if(!e)return;
-    if(!targetFaces.length||!sourceFaces.length)await findFaces();setProgress(35);status("Building identity…");
+    if(!targetFaces.length||!sourceFaces.length){const found=await findFaces();if(!found)throw new Error("Face analysis did not complete. Please analyze both photos again.");}if(!selectedTargetIndices.size)selectedTargetIndices=new Set(targetFaces.map((_,i)=>i));if(!selectedTargetIndices.size)throw new Error("Select at least one target face to replace.");setProgress(35);status("Building identity…");
     const source=await readImage(sourceFile);
     const target=await readImage(targetFile);
     try{
@@ -169,7 +185,7 @@ async function swap(){
       drawComparison();result.close();
       setProgress(100);
       $("result").classList.add("show");
-      $("faceInfo").textContent="AI face replacement complete. Identity, pose, lighting and edge blending were processed by the neural pipeline.";
+      $("faceInfo").textContent="AI face replacement complete. The neural model transferred facial identity while preserving the target photo’s pose and surrounding hair."; 
       status("AI face swap complete","ready");
       $("result").scrollIntoView({behavior:"smooth",block:"start"});
     }finally{source.close();target.close()}
