@@ -120,6 +120,7 @@ function ready(){
   $("analyzeBtn").disabled=!(targetFile&&sourceFile);
   $("swapBtn").disabled=!(targetFile&&sourceFile&&engine&&targetFaces.length&&sourceFaces.length);
   if(engineError){$("faceInfo").textContent="Startup error: "+engineError;return;}
+  if($("result").classList.contains("show"))return;
   if(!targetFile||!sourceFile)$("faceInfo").textContent="Choose both photos to begin.";
   else if(!engine)$("faceInfo").textContent="Photos ready. Tap Analyze Faces to start the AI engine and download its models.";
   else $("faceInfo").textContent="Both photos ready. Analyze faces or swap selected faces.";
@@ -191,7 +192,11 @@ async function swap(){
     }finally{source.close();target.close()}
   }catch(e){
     console.error(e);status("Swap failed","error");$("faceInfo").textContent=e?.message||"The AI face swap could not be completed.";
-  }finally{hideProgress();ready()}
+  }finally{
+    hideProgress();
+    $("swapBtn").disabled=!(targetFile&&sourceFile&&engine&&targetFaces.length&&sourceFaces.length);
+    if(!$("status").classList.contains("error"))ready();
+  }
 }
 $("targetInput").onchange=e=>pick("target",e.target.files[0]);
 $("sourceInput").onchange=e=>pick("source",e.target.files[0]);
@@ -201,7 +206,7 @@ for(const [id,kind] of [["targetDrop","target"],["sourceDrop","source"]]){
   d.ondrop=e=>{e.preventDefault();d.classList.remove("drag");pick(kind,e.dataTransfer.files[0])};
 }
 $("swapBtn").onclick=swap;
-$("analyzeBtn").onclick=async()=>{if(!(targetFile&&sourceFile))return;$("analyzeBtn").disabled=true;try{const ok=await findFaces();if(ok){engineError="";status("Faces ready · select targets below","ready")}}catch(e){status("Face analysis failed","error");$("faceInfo").textContent="Analysis error: "+(e?.message||"Could not analyze these photos.")}finally{ready()}};
+$("analyzeBtn").onclick=async()=>{if(!(targetFile&&sourceFile))return;$("analyzeBtn").disabled=true;try{const ok=await findFaces();if(ok){engineError="";status("Faces ready · select targets below","ready")}}catch(e){status("Face analysis failed","error");$("faceInfo").textContent="Analysis error: "+(e?.message||"Could not analyze these photos.")}finally{if(!$("status").classList.contains("error"))ready();else $("analyzeBtn").disabled=!(targetFile&&sourceFile)}};
 $("clearBtn").onclick=()=>location.reload();
 function drawComparison(){
   const p=$("preview"),ctx=p.getContext("2d"),w=p.width,h=p.height;
