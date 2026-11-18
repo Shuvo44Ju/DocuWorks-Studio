@@ -29,10 +29,9 @@
 <section class="result" id="result"><div class="resulthead"><strong>Result</strong><span>Browser-processed output</span></div><div class="canvaswrap"><canvas id="preview"></canvas></div><div class="compare"><label><span>Before / After</span><span id="compareValue">50% After</span></label><input id="compareSlider" type="range" min="0" max="100" value="50"><div class="compare-key"><span>Original</span><span>AI result</span></div></div><canvas id="output" hidden></canvas><p class="hint">Best results come from clear, well-lit, forward-facing photos with one person per image.</p><div class="actions"><button class="btn primary" id="downloadBtn">Download PNG</button><button class="btn" id="downloadJpgBtn">Download JPG</button></div></section>
 <div class="note"><strong>Privacy:</strong> Face processing is performed in your browser; this page does not upload selected photos to a DocuWorks server. <strong>Usage:</strong> The face-swap engine and model weights have separate licence terms; commercial use may require permission from their owners.</div>
 </main>
-<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/delaunator@5.0.1/delaunator.min.js"></script>
 <script type="module">
-import { createFaceSwap, KNOWN_SHA256, probe } from "https://esm.sh/browser-inswapper@0.1.0";
+let createFaceSwap, KNOWN_SHA256, probe;
+let modulePromise;
 
 const $=id=>document.getElementById(id);
 let targetFile=null,sourceFile=null,engine=null,targetFaces=[],sourceFaces=[],selectedTargetIndices=new Set(),originalBitmap=null;
@@ -55,15 +54,16 @@ function setProgress(p){$("progress").classList.add("show");$("progress").style.
 function hideProgress(){$("progress").classList.remove("show")}
 async function initEngine(){
   if(engine)return engine;
-  status("Checking AI engine…");
-  const caps=await probe();
-  if(!caps.webgpu.available&&!caps.webnn&&matchMedia("(pointer:coarse)").matches){
-    status("AI engine unavailable","error");
-    $("faceInfo").textContent="This device/browser has no WebGPU/WebNN. Use Chrome/Edge with WebGPU enabled for the high-quality engine.";
-    return null;
-  }
-  status("Loading AI models…");
+  status("Connecting to AI engine…");
   try{
+    // Load the module dynamically so CDN/import failures are caught and shown instead
+    // of leaving the page stuck forever on the initial "Loading face engine…" label.
+    if(!modulePromise) modulePromise=import("https://esm.sh/browser-inswapper@0.1.0?bundle");
+    const mod=await modulePromise;
+    createFaceSwap=mod.createFaceSwap; KNOWN_SHA256=mod.KNOWN_SHA256; probe=mod.probe;
+    if(typeof createFaceSwap!=="function" || !KNOWN_SHA256) throw new Error("The AI engine module did not load correctly. Refresh the page or try Chrome.");
+    const caps=await probe();
+    status(caps.webgpu?.available||caps.webnn?"Loading AI models…":"Loading CPU-compatible AI models…");
     engine=await createFaceSwap({
       models,
       backend:"auto",
@@ -85,8 +85,9 @@ async function initEngine(){
     ready();
     return engine;
   }catch(e){
-    console.error(e);hideProgress();status("AI engine failed","error");
-    $("faceInfo").textContent=e?.message||"Could not start the AI face engine.";
+    console.error("[DocuWorks Face Swap] Engine startup failed:",e);
+    hideProgress();status("AI engine failed","error");
+    $("faceInfo").textContent=(e?.message||String(e)||"Could not start the AI face engine.")+" — Check your internet connection, then refresh. The first load downloads large AI models.";
     return null;
   }
 }
@@ -192,6 +193,6 @@ $("compareSlider").addEventListener("input",drawComparison);
 function download(type,name){const a=document.createElement("a");a.href=$("output").toDataURL(type,.96);a.download=name;a.click()}
 $("downloadBtn").onclick=()=>download("image/png","docuworks-ai-face-swap.png");
 $("downloadJpgBtn").onclick=()=>download("image/jpeg","docuworks-ai-face-swap.jpg");
-initEngine();
+initEngine().catch(e=>{console.error(e);status("AI engine failed","error");$("faceInfo").textContent=e?.message||"Could not load the AI engine. Refresh and try again.";});
 </script>
 </body></html>
