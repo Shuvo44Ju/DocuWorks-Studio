@@ -26,7 +26,7 @@
 <div class="controls"><div class="info"><strong>High-accuracy head replacement</strong><span id="faceInfo">Choose both photos to begin.</span></div><div class="actions"><button class="btn" id="clearBtn">Clear</button><button class="btn primary" id="swapBtn" disabled>Swap Face</button></div></div>
 <div class="face-panel" id="facePanel"><h3>Choose target faces to replace</h3><div class="face-grid" id="faceChoices"></div><div class="quality" id="qualityInfo"></div></div>\n<div class="progress" id="progress"><i></i></div>
 <section class="result" id="result"><div class="resulthead"><strong>Result</strong><span>Browser-processed output</span></div><div class="canvaswrap"><canvas id="preview"></canvas></div><div class="compare"><label><span>Before / After</span><span id="compareValue">50% After</span></label><input id="compareSlider" type="range" min="0" max="100" value="50"><div class="compare-key"><span>Original</span><span>AI result</span></div></div><canvas id="output" hidden></canvas><p class="hint">Best results come from clear, well-lit, forward-facing photos with one person per image.</p><div class="actions"><button class="btn primary" id="downloadBtn">Download PNG</button><button class="btn" id="downloadJpgBtn">Download JPG</button></div></section>
-<div class="note"><strong>Privacy:</strong> Face processing is performed in your browser; this page does not upload selected photos to a DocuWorks server.</div>
+<div class="note"><strong>Privacy:</strong> Face processing is performed in your browser; this page does not upload selected photos to a DocuWorks server. <strong>Usage:</strong> The face-swap engine and model weights have separate licence terms; commercial use may require permission from their owners.</div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/delaunator@5.0.1/delaunator.min.js"></script>
@@ -106,8 +106,7 @@ function ready(){
 function qualitySummary(face){
   const issues=Array.isArray(face?.issues)?face.issues:[];
   const labels=issues.map(x=>String(x).replace(/[_-]/g," "));
-  const score=Math.max(25,100-labels.length*18);
-  return {score,labels};
+  return {labels};
 }
 function renderFaceChoices(){
   const panel=$("facePanel"),grid=$("faceChoices"),quality=$("qualityInfo");
@@ -118,7 +117,7 @@ function renderFaceChoices(){
     b.onclick=()=>{if(selectedTargetIndices.has(i))selectedTargetIndices.delete(i);else selectedTargetIndices.add(i);renderFaceChoices()};
     grid.appendChild(b);
     const q=qualitySummary(face);
-    const chip=document.createElement("span");chip.textContent="Face "+(i+1)+" quality: "+q.score+"/100"+(q.labels.length?" · "+q.labels.join(", "):" · Good capture");quality.appendChild(chip);
+    const chip=document.createElement("span");chip.textContent="Face "+(i+1)+": "+(q.labels.length?"Check "+q.labels.join(", "):"No capture issues flagged");quality.appendChild(chip);
   });
   panel.classList.toggle("show",targetFaces.length>0);
 }
