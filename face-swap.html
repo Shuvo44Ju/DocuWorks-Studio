@@ -58,7 +58,13 @@ async function initEngine(){
   try{
     // Load the module dynamically so CDN/import failures are caught and shown instead
     // of leaving the page stuck forever on the initial "Loading face engine…" label.
-    if(!modulePromise) modulePromise=import("https://esm.sh/browser-inswapper@0.1.0?bundle");
+    if(!modulePromise) modulePromise=(async()=>{
+      let firstError;
+      try{return await import("https://cdn.jsdelivr.net/npm/browser-inswapper@0.1.0/+esm");}
+      catch(e){firstError=e;console.warn("[DocuWorks Face Swap] jsDelivr module failed; trying esm.sh",e);}
+      try{return await import("https://esm.sh/browser-inswapper@0.1.0");}
+      catch(e){throw new Error("Could not download the face-swap engine from either CDN. jsDelivr: "+(firstError?.message||firstError)+"; esm.sh: "+(e?.message||e));}
+    })();
     const mod=await modulePromise;
     createFaceSwap=mod.createFaceSwap; KNOWN_SHA256=mod.KNOWN_SHA256; probe=mod.probe;
     if(typeof createFaceSwap!=="function" || !KNOWN_SHA256) throw new Error("The AI engine module did not load correctly. Refresh the page or try Chrome.");
