@@ -207,15 +207,114 @@ function adaptiveBinarize(base){
   }
   const out=mk(W,H);out.getContext('2d').putImageData(image,0,0);return out;
 }
+function magicEnhance(base,bgc){
+  const W=base.width,H=base.height,src=base.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H),d=src.data;
+  const out=new Uint8ClampedArray(d);
+  const lum=new Uint8Array(W*H);
+  for(let i=0,j=0;i<d.length;i+=4,j++)lum[j]=.299*d[i]+.587*d[i+1]+.114*d[i+2];
+
+  const {g:bgLum,br:bgRGrid,bg:bgGGrid,bb:bgBGrid,gw,gh,B}=bgc;
+  const sample=(grid,x,y)=>{
+    const fx=clamp(x/B-.5,0,gw-1),x0=fx|0,x1=Math.min(gw-1,x0+1),tx=fx-x0;
+    const fy=clamp(y/B-.5,0,gh-1),y0=fy|0,y1=Math.min(gh-1,y0+1),ty=fy-y0;
+    return (grid[y0*gw+x0]*(1-tx)+grid[y0*gw+x1]*tx)*(1-ty)+(grid[y1*gw+x0]*(1-tx)+grid[y1*gw+x1]*tx)*ty;
+  };
+
+  // Pass 1: illumination flattening + paper whitening.
+  // The background estimate is deliberately slow-changing, so text and stamps
+  // cannot become part of the paper model.
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const j=y*W+x,i=j*4,L=lum[j],bg=sample(bgLum,x,y);
+    const ratio=L/Math.max(bg,92);
+    const chroma=Math.max(d[i],d[i+1],d[i+2])-Math.min(d[i],d[i+1],d[i+2]);
+    const bgR=sample(bgRGrid,x,y),bgG=sample(bgGGrid,x,y),bgB=sample(bgBGrid,x,y);
+    const bgChroma=Math.max(bgR,bgG,bgB)-Math.min(bgR,bgG,bgB);
+    const colorInk=clamp((chroma-bgChroma-7)/34,0,1);
+
+    // Strong on the paper, weak on dark ink and colored marks.
+    const paperMask=clamp((ratio-.38)/.50,0,1);
+    const edgeL=Math.max(
+      Math.abs(L-lum[y*W+Math.max(0,x-1)]),
+      Math.abs(L-lum[y*W+Math.min(W-1,x+1)]),
+      Math.abs(L-lum[Math.max(0,y-1)*W+x]),
+      Math.abs(L-lum[Math.min(H-1,y+1)*W+x])
+    );
+    const edgeProtect=clamp((edgeL-4)/24,0,1);
+    const preserve=1-colorInk*.92;
+    const whiteStrength=.93*paperMask*(1-.72*edgeProtect)*preserve;
+
+    const nr=clamp(d[i]*255/Math.max(bgR,92),0,255);
+    const ng=clamp(d[i+1]*255/Math.max(bgG,92),0,255);
+    const nb=clamp(d[i+2]*255/Math.max(bgB,92),0,255);
+    const normL=.299*nr+.587*ng+.114*nb;
+
+    // Smooth highlight lift: weak grey paper becomes white, while dark text
+    // stays dark enough for OCR and printing.
+    const whiteCurve=255-Math.pow(255-normL,1.55);
+    let target=normL+(whiteCurve-normL)*whiteStrength;
+
+    // Recover faded neutral ink relative to its local paper background.
+    const local=(lum[y*W+Math.max(0,x-1)]+lum[y*W+Math.min(W-1,x+1)]
+      +lum[Math.max(0,y-1)*W+x]+lum[Math.min(H-1,y+1)*W+x])*.25;
+    const inkMask=clamp((local-L-1.5)/22,0,1)*clamp((.985-ratio)/.48,0,1)*preserve;
+    target-=inkMask*(8+18*clamp((local-L)/28,0,1));
+
+    // Gentle local contrast makes small printed characters cleaner without
+    // turning paper texture into harsh noise.
+    const localContrast=clamp((Math.abs(L-local)-2)/20,0,1);
+    target=clamp(128+(target-128)*(1+.12*localContrast),0,255);
+
+    const mix=colorInk*.82;
+    const delta=target-normL;
+    out[i]=clamp(nr+delta*(1-mix),0,255);
+    out[i+1]=clamp(ng+delta*(1-mix),0,255);
+    out[i+2]=clamp(nb+delta*(1-mix),0,255);
+    if(mix){
+      out[i]=clamp(out[i]*(1-mix)+d[i]*mix,0,255);
+      out[i+1]=clamp(out[i+1]*(1-mix)+d[i+1]*mix,0,255);
+      out[i+2]=clamp(out[i+2]*(1-mix)+d[i+2]*mix,0,255);
+    }
+    out[i+3]=255;
+  }
+
+  // Pass 2: edge-aware micro-contrast. It strengthens real character strokes
+  // but does not apply a global threshold, so signatures/stamps stay natural.
+  const refined=new Uint8ClampedArray(out);
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+    const j=y*W+x,i=j*4;
+    const L=.299*out[i]+.587*out[i+1]+.114*out[i+2];
+    const left=.299*out[i-4]+.587*out[i-3]+.114*out[i-2];
+    const right=.299*out[i+4]+.587*out[i+5]+.114*out[i+6];
+    const upi=((y-1)*W+x)*4,downi=((y+1)*W+x)*4;
+    const up=.299*out[upi]+.587*out[upi+1]+.114*out[upi+2];
+    const down=.299*out[downi]+.587*out[downi+1]+.114*out[downi+2];
+    const neighbor=(left+right+up+down)*.25;
+    const detail=L-neighbor;
+    const edge=clamp((Math.abs(detail)-.55)/10,0,1);
+    const chroma=Math.max(out[i],out[i+1],out[i+2])-Math.min(out[i],out[i+1],out[i+2]);
+    const neutral=1-clamp((chroma-12)/30,0,1)*.75;
+    const boost=clamp(detail*.32*edge*neutral,-4.5,4.5);
+    refined[i]=clamp(out[i]+boost,0,255);
+    refined[i+1]=clamp(out[i+1]+boost,0,255);
+    refined[i+2]=clamp(out[i+2]+boost,0,255);
+  }
+
+  const o=mk(W,H);o.getContext('2d').putImageData(new ImageData(refined,W,H),0,0);
+  // Final high-quality text sharpening is deliberately restrained after the
+  // two adaptive passes above, avoiding halos around letters.
+  return sharpenMagicText(o,.30);
+}
+
 function filt(base,type,bgc){
-  const W=base.width,H=base.height,o=mk(W,H),x=o.getContext('2d');x.drawImage(base,0,0);
+  const W=base.width,H=base.height,o=mk(W,H),x=o.getContext('2d');
+  x.drawImage(base,0,0);
   if(type==='orig')return o;
   if(type==='bw')return adaptiveBinarize(base);
+  if(type==='magic')return magicEnhance(base,bgc);
+
   const id=x.getImageData(0,0,W,H),d=id.data,{g:lumBg,br:bgRGrid,bg:bgGGrid,bb:bgBGrid,gw,gh,B}=bgc;
-  // A compact luminance map lets Magic distinguish soft paper shading from
-  // the sharp edges of printed letters and coloured marks.
   let lumMap=null;
-  if(type==='magic'||type==='pro'||type==='color'){
+  if(type==='pro'||type==='color'){
     lumMap=new Uint8Array(W*H);
     for(let p=0,j=0;p<d.length;p+=4,j++)lumMap[j]=.299*d[p]+.587*d[p+1]+.114*d[p+2];
   }
@@ -251,9 +350,6 @@ function filt(base,type,bgc){
         const paperTarget=255*(1-Math.pow(1-v,2.35));
         const paperBlend=.88*(1-edgeGuard)*(1-inkGuard)*(1-colorInk*.88);
         let targetL=clamp(cleanL+(paperTarget-cleanL)*paperBlend,0,255);
-        // Darken neutral printed ink separately from the paper correction.
-        // The background-relative mask catches faded grey text, while the
-        // chroma guard keeps colored stamps and annotations from turning muddy.
         const neutralInk=1-colorInk*.94;
         const inkDensity=clamp((.96-ratio)/.62,0,1)*neutralInk;
         const edgeInk=clamp((localMean-rawL-1)/22,0,1);
@@ -264,8 +360,6 @@ function filt(base,type,bgc){
         gg=clamp((ng+delta)*(1-colorMix)+gg*colorMix,0,255);
         b=clamp((nb+delta)*(1-colorMix)+b*colorMix,0,255);
       }else if(type==='color'){
-        // Scanner-style color correction: neutralize the paper's color cast
-        // while protecting colored stamps, signatures and text edges.
         const rawL=lumMap[y*W+xx],left=lumMap[y*W+Math.max(0,xx-1)],right=lumMap[y*W+Math.min(W-1,xx+1)];
         const up=lumMap[Math.max(0,y-1)*W+xx],down=lumMap[Math.min(H-1,y+1)*W+xx];
         const edge=Math.max(Math.abs(rawL-left),Math.abs(rawL-right),Math.abs(rawL-up),Math.abs(rawL-down));
@@ -279,71 +373,16 @@ function filt(base,type,bgc){
         const ng=clamp(gg*255/Math.max(bgG,90),0,255);
         const nb=clamp(b*255/Math.max(bgB,90),0,255);
         r=r+(nr-r)*blend;gg=gg+(ng-gg)*blend;b=b+(nb-b)*blend;
-      }else if(type==='magic'){
-        // Magic works on luminance while carrying the original chroma through
-        // the pipeline. This keeps stamps, signatures and colored annotations recognizable.
-        const rawL=lumMap[y*W+xx];
-        const left=lumMap[y*W+Math.max(0,xx-1)],right=lumMap[y*W+Math.min(W-1,xx+1)];
-        const up=lumMap[Math.max(0,y-1)*W+xx],down=lumMap[Math.min(H-1,y+1)*W+xx];
-        const localMean=(left+right+up+down)*.25;
-        const localDiff=Math.max(Math.abs(rawL-left),Math.abs(rawL-right),Math.abs(rawL-up),Math.abs(rawL-down));
-        const chroma=Math.max(r,gg,b)-Math.min(r,gg,b);
-        const colorWeight=clamp((chroma-10)/32,0,1);
-        const neutralWeight=1-colorWeight;
-
-        // Very light, edge-aware luminance smoothing suppresses sensor grain
-        // in flat paper areas. It backs off around character strokes and creases.
-        // A conservative four-neighbour smoother reduces random grain in
-        // flat paper while backing off at text edges and folded-paper contours.
-        const noiseMix=.10*(1-clamp((Math.abs(rawL-localMean)-3)/14,0,1))*neutralWeight;
-        const l=rawL+(localMean-rawL)*noiseMix;
-        // Push neutral paper much closer to clean white while excluding coloured marks.
-        const pageTarget=255;
-        const mapped=l*pageTarget/Math.max(bg,105);
-        const normalized=clamp(l+(mapped-l)*.99*neutralWeight,0,255);
-        const v=normalized/255;
-
-        // Stronger adaptive whitening targets grey paper and uneven illumination.
-        // Edge protection keeps dark printed strokes from being washed out.
-        const paperTarget=1-Math.pow(1-v,2.15);
-        const edge=Math.max(Math.abs(right-left),Math.abs(down-up),localDiff);
-        const edgeWeight=.12+.88*(1-clamp((edge-18)/48,0,1));
-        const paperAmount=clamp((v-.27)/.20,0,1);
-        const corrected=255*(v+(paperTarget-v)*.82*paperAmount*neutralWeight*edgeWeight);
-
-        // Recover faint neutral ink with a smooth tone curve and local contrast cue.
-        // The local cue is deliberately capped so paper folds remain natural.
-        const inkAmount=clamp((.995-v)/.50,0,1)*neutralWeight;
-        const inkTarget=255*Math.pow(v,1.68);
-        // A background-relative ink mask gives faded neutral letters more weight.
-        const inkDensity=clamp((.96-rawL/Math.max(bg,90))/.62,0,1)*neutralWeight;
-        const edgeInk=clamp((localMean-rawL-1)/22,0,1);
-        const localInkBoost=clamp((localMean-rawL-1)/15,0,1)*22*clamp((localDiff-3)/12,0,1)*neutralWeight;
-        const inkDarken=(8+15*edgeInk)*inkDensity;
-        const tone=clamp(corrected+(inkTarget-255*v)*inkAmount*1.05-localInkBoost-inkDarken,0,255);
-
-        // Recombine the adjusted luminance with the original chroma.
-        let dr=r-.299*r-.587*gg-.114*b;
-        let dg=gg-.299*r-.587*gg-.114*b;
-        let db=b-.299*r-.587*gg-.114*b;
-        let sat=1.06;
-        if(dr>0)sat=Math.min(sat,(255-tone)/dr);else if(dr<0)sat=Math.min(sat,(0-tone)/dr);
-        if(dg>0)sat=Math.min(sat,(255-tone)/dg);else if(dg<0)sat=Math.min(sat,(0-tone)/dg);
-        if(db>0)sat=Math.min(sat,(255-tone)/db);else if(db<0)sat=Math.min(sat,(0-tone)/db);
-        sat=clamp(sat,0,1.06);
-        r=tone+dr*sat;gg=tone+dg*sat;b=tone+db*sat;
       }else{
         r*=k;gg*=k;b*=k;
         const l=.299*r+.587*gg+.114*b;
-        if(type==='bw')r=gg=b=clamp((l-156)*5.2,0,255);
-        else r=gg=b=(l-128)*1.2+135;
+        r=gg=b=(l-128)*1.2+135;
       }
       d[i]=clamp(r,0,255);d[i+1]=clamp(gg,0,255);d[i+2]=clamp(b,0,255);
     }
   }
   x.putImageData(id,0,0);
-  if(type==='pro')return sharpenMagicText(o,.54);
-  return type==='magic'?sharpenMagicText(o,.38):sharpenText(o,.48);
+  return type==='pro'?sharpenMagicText(o,.54):sharpenText(o,.48);
 }
 function cleanDocument(base,bgc){
   const W=base.width,H=base.height,src=base.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H),d=src.data;
