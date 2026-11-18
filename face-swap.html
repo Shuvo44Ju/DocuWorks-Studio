@@ -36,13 +36,13 @@ let modulePromise;
 const $=id=>document.getElementById(id);
 let targetFile=null,sourceFile=null,engine=null,targetFaces=[],sourceFaces=[],selectedTargetIndices=new Set(),originalBitmap=null;
 const HF="https://huggingface.co/";
-const models={
+const getModels=()=>({
   landmarker:{url:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",sha256:KNOWN_SHA256.landmarker},
   swapperFp16:{url:HF+"facefusion/models-3.0.0/resolve/main/inswapper_128_fp16.onnx",sha256:KNOWN_SHA256.swapperFp16},
   swapperFp32:{url:HF+"facefusion/models-3.0.0/resolve/main/inswapper_128.onnx",sha256:KNOWN_SHA256.swapperFp32},
   arcface:{url:HF+"public-data/insightface/resolve/main/models/buffalo_l/w600k_r50.onnx",sha256:KNOWN_SHA256.arcface},
   segmenter:{url:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite",sha256:KNOWN_SHA256.segmenter}
-};
+});
 function status(t,c=""){const s=$("status");s.textContent=t;s.className="status "+c}
 function fileURL(file){return URL.createObjectURL(file)}
 function show(drop,file,inputId){
@@ -65,7 +65,7 @@ async function initEngine(){
     const caps=await probe();
     status(caps.webgpu?.available||caps.webnn?"Loading AI models…":"Loading CPU-compatible AI models…");
     engine=await createFaceSwap({
-      models,
+      models:getModels(),
       backend:"auto",
       occlusion:true,
       workers:{
