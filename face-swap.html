@@ -60,6 +60,7 @@ async function initEngine(){
     // of leaving the page stuck forever on the initial "Loading face engine…" label.
     if(!modulePromise) modulePromise=(async()=>{
       const sources=[
+        "https://docuworks-studio.shuvokh97.workers.dev/api/face-swap-engine",
         "https://cdn.skypack.dev/browser-inswapper@0.1.0",
         "https://jspm.dev/browser-inswapper@0.1.0",
         "https://esm.sh/browser-inswapper@0.1.0?bundle"
@@ -69,7 +70,7 @@ async function initEngine(){
         try{return await import(url);}
         catch(e){failures.push(url+" → "+(e?.message||String(e)));console.warn("[DocuWorks Face Swap] Module source failed:",url,e);}
       }
-      throw new Error("The AI engine could not be reached from this browser. Tried 3 independent module hosts: "+failures.join(" | ")+". This usually means the network, browser data saver, DNS filter or content blocker is blocking external JavaScript modules.");
+      throw new Error("The AI engine could not be reached. Tried the DocuWorks engine proxy plus 3 public hosts: "+failures.join(" | ")+".");
     })();
     const mod=await modulePromise;
     createFaceSwap=mod.createFaceSwap; KNOWN_SHA256=mod.KNOWN_SHA256; probe=mod.probe;
