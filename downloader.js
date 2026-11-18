@@ -1,6 +1,22 @@
 (()=>{
 "use strict";
 const $=id=>document.getElementById(id),jobs=[],queue=$("queue"),form=$("downloadForm");
+let activeTransfers=0,filterStatus="All",speedHistory=Array(48).fill(0),peakSpeed=0,sessionBytes=0;
+function maxActive(){return Math.max(1,Math.min(4,Number($("maxActive")?.value)||2))}
+function pumpQueue(){for(const j of jobs){if(activeTransfers>=maxActive())break;if(j.status==="Queued")start(j)}}
+function pace(bytes,started,signal,connections=1){const limit=Number($("bandwidthLimit")?.value)||0;if(!limit)return Promise.resolve();const target=bytes/(limit*1048576/Math.max(1,connections))*1000,wait=target-(Date.now()-started);return wait>0?sleep(wait,signal):Promise.resolve()}
+function extension(name){const m=(name||"").match(/\.([a-z0-9]{1,8})(?:$|[?#])/i);return m?m[1].toUpperCase():"FILE"}
+function category(j){if(j.status==="Completed")return"Completed";if(j.status==="Error")return"Failed";if(j.status==="Queued")return"Queued";if(j.status==="Paused"||j.status==="Cancelled")return"Paused";if(j.status==="Downloading")return"Active";return"All"}
+function drawDashboard(){
+ const active=jobs.filter(j=>j.status==="Downloading"),speed=active.reduce((n,j)=>n+(j.speed||0),0);
+ $("metricSpeed").textContent=fmt(speed)+"/s";$("metricData").textContent=fmt(sessionBytes);$("metricActive").textContent=String(active.length);$("metricCompleted").textContent=String(jobs.filter(j=>j.status==="Completed").length);
+ peakSpeed=Math.max(peakSpeed,speed);$("speedPeak").textContent="Peak "+fmt(peakSpeed)+"/s";
+ speedHistory.push(speed);if(speedHistory.length>48)speedHistory.shift();
+ const c=$("speedChart"),ctx=c?.getContext("2d");if(!ctx)return;
+ const w=Math.max(280,c.clientWidth||600),h=112,dpr=window.devicePixelRatio||1;c.width=w*dpr;c.height=h*dpr;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);ctx.strokeStyle="#e8edf5";ctx.lineWidth=1;
+ for(let y=20;y<h;y+=28){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
+ const max=Math.max(1,...speedHistory);ctx.beginPath();speedHistory.forEach((v,i)=>{const x=i/(speedHistory.length-1)*w,y=h-8-(v/max)*(h-20);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.lineWidth=2.5;ctx.strokeStyle="#2458d3";ctx.stroke();ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fillStyle="rgba(36,88,211,.10)";ctx.fill();
+}
 const PROXY="https://docuworks-studio.shuvokh97.workers.dev/api/download";
 const DB_NAME="docuworks-downloads",DB_VERSION=1;
 let dbPromise;
@@ -86,9 +102,13 @@ function updateLoaded(j){j.loaded=Object.values(j.parts||{}).reduce((sum,p)=>sum
 function render(){
  queue.innerHTML="";
  if(!jobs.length){queue.innerHTML='<div class="empty">Your download queue is empty.</div>';return}
- for(const j of jobs){
+ const term=($("jobSearch")?.value||"").toLowerCase();
+ const visible=jobs.filter(j=>(filterStatus==="All"||category(j)===filterStatus)&&(!term||((j.name||"")+" "+j.url).toLowerCase().includes(term)));
+ if(!visible.length){queue.innerHTML='<div class="empty">No downloads match this view.</div>';drawDashboard();return}
+ for(const j of visible){
   const el=document.createElement("article");el.className="job";
-  el.innerHTML='<div class="jobtop"><div class="fileicon">↓</div><div class="jobmain"><div class="filename"></div><div class="meta"></div></div><div class="actions"></div></div><div class="bar"><div class="fill"></div></div><div class="jobstats"><span class="left"></span><span class="right"></span></div>';
+  el.innerHTML='<div class="jobtop"><div class="fileicon"></div><div class="jobmain"><div class="filename"></div><div class="meta"></div></div><div class="actions"></div></div><div class="bar"><div class="fill"></div></div><div class="jobstats"><span class="left"></span><span class="right"></span></div>';
+  el.querySelector(".fileicon").textContent=extension(j.name||j.url);
   el.querySelector(".filename").textContent=j.name||j.url;
   el.querySelector(".meta").textContent=j.status+" · "+(j.total?fmt(j.total):"size unknown");
   el.querySelector(".fill").style.width=(j.total?Math.min(100,j.loaded/j.total*100):0)+"%";
@@ -105,6 +125,7 @@ function render(){
   if(["Completed","Cancelled","Error"].includes(j.status))button("Remove",()=>{jobs.splice(jobs.indexOf(j),1);render();dbDelete("jobs",j.id).catch(()=>{});dbDeleteParts(j.id).catch(()=>{})});
   queue.append(el);
  }
+ drawDashboard();
 }
 function save(j){
  if(!j.blob)return;
@@ -120,8 +141,12 @@ function add(raw){
  const j={id:crypto.randomUUID?.()||String(Date.now()+Math.random()),url:u.href,name:youtube?"Video page (not a direct file)":"",status:youtube?"Error":"Queued",loaded:0,total:0,speed:0,blob:null,parts:{},controller:null,error:youtube?"This is a YouTube webpage, not a direct media-file URL. This downloader accepts direct file links; use the platform's official download option where available.":"",pauseRequested:false,cancelRequested:false};
  j.created=Date.now();jobs.unshift(j);render();persist(j);if(!youtube&&$("autoStart").checked)start(j);
 }
-async function start(j){
+function start(j){
  if(j.status==="Downloading"||j.status==="Completed")return;
+ if(activeTransfers>=maxActive()){j.status="Queued";render();persist(j);return}
+ activeTransfers++;runJob(j).finally(()=>{activeTransfers=Math.max(0,activeTransfers-1);pumpQueue();render()});
+}
+async function runJob(j){
  j.pauseRequested=false;j.cancelRequested=false;j.error="";j.status="Downloading";j.controller=new AbortController();
  const signal=j.controller.signal;
  try{
@@ -141,13 +166,14 @@ async function start(j){
    let cursor=0;
    const worker=async()=>{
     while(cursor<pending.length&&!signal.aborted){
-     const index=pending[cursor++],from=index*chunkSize,to=Math.min(total-1,from+chunkSize-1);
+     const index=pending[cursor++],from=index*chunkSize,to=Math.min(total-1,from+chunkSize-1),started=Date.now();
      let last;
      for(let attempt=0;attempt<3&&!signal.aborted;attempt++){
       try{
        const r=await request(proxy(j.url),{headers:{Range:"bytes="+from+"-"+to},signal},"File segment");
        if(r.status!==206)throw new Error("The server stopped supporting range downloads (HTTP "+r.status+").");
        const bytes=await r.arrayBuffer();
+       await pace(bytes.byteLength,started,signal,connections);
        if(bytes.byteLength!==to-from+1)throw new Error("The server returned an incomplete file segment.");
        j.parts[index]=bytes;await dbWrite("parts",{key:j.id+":"+index,jobId:j.id,index,data:bytes});updateLoaded(j);render();last=null;break;
       }catch(e){last=e;if(signal.aborted)break;if(attempt<2)await sleep(500*(attempt+1),signal)}
@@ -172,7 +198,7 @@ async function start(j){
     while(true){
      const {done,value}=await reader.read();if(done)break;
      if(first){first=false;const sample=new TextDecoder().decode(value.slice(0,1024)).replace(/^\uFEFF/,"").trimStart();if(/^<!doctype\s+html|^<html[\s>]|^<head[\s>]|^<body[\s>]/i.test(sample))throw new Error("The server returned a webpage (HTML), not a file. Use a direct download link.");}
-     chunks.push(value);j.loaded+=value.byteLength;render();
+     chunks.push(value);j.loaded+=value.byteLength;sessionBytes+=value.byteLength;await pace(value.byteLength,Date.now(),signal,activeTransfers);render();
     }
     j.blob=new Blob(chunks,{type:response.headers.get("content-type")||"application/octet-stream"});
    }
@@ -198,6 +224,8 @@ setInterval(()=>{
  for(const j of jobs){if(j.status==="Downloading"){const previous=j._previousLoaded??j.loaded;j.speed=dt>0?Math.max(0,(j.loaded-previous)/dt):0;j._previousLoaded=j.loaded}}
  render();
 },1000);
-render();
-restoreJobs();
+$("statusTabs").addEventListener("click",e=>{const b=e.target.closest("[data-filter]");if(!b)return;filterStatus=b.dataset.filter;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));render()});
+$("jobSearch").addEventListener("input",render);
+["connections","maxActive","bandwidthLimit","autoStart"].forEach(id=>{const el=$(id),key="dws-setting-"+id;if(!el)return;const saved=localStorage.getItem(key);if(saved!==null){if(el.type==="checkbox")el.checked=saved==="true";else el.value=saved}el.addEventListener("change",()=>{localStorage.setItem(key,el.type==="checkbox"?String(el.checked):el.value);pumpQueue()})});
+render();restoreJobs().then(()=>{render();pumpQueue()});window.addEventListener("resize",drawDashboard);
 })();
