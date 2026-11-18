@@ -50,7 +50,7 @@ async function downloadProxy(request) {
       return jsonResponse({error:"The source redirected to an unsupported address."},502,downloadCors);
   } catch { return jsonResponse({error:"Invalid source response."},502,downloadCors); }
   const out=new Headers(downloadCors);
-  for (const name of ["content-type","content-length","content-range","content-disposition","accept-ranges","cache-control","last-modified","etag"]) {
+  for (const name of ["content-type","content-length","content-range","content-disposition","accept-ranges","cache-control","last-modified","etag","retry-after"]) {
     const value=upstream.headers.get(name); if(value) out.set(name,value);
   }
   out.set("Cache-Control","no-store");
