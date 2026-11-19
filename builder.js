@@ -139,14 +139,26 @@ function writeStandardBody(ws, startRow, model) {
         (items[end].type === 'row' || items[end].type === 'sw') &&
         normalizedHeadingKey(items[end].req || items[end].id || '') === key) end++;
 
-      // Repeated identical labels are usually a subsection/category followed by
-      // several specification cells. Render the label once as a merged heading
-      // and retain each source specification beneath it without repeating the label.
+      // Repeated labels are kept as a compact specification group:
+      // first row carries the label + first specification; following rows
+      // keep the specification only. This matches the CS template style.
       if (key && end - i > 1) {
-        if (key !== normalizedHeadingKey(parent)) parentHeadingRow(ws, row++, req, 3);
         for (let j = i; j < end; j++) {
           const child = items[j];
-          if (String(child.desc || '').trim()) writeStandardSpecOnlyRow(ws, row++, child);
+          const childReq = j === i ? req : '';
+          ws.getCell(row, 1).value = childReq;
+          ws.getCell(row, 2).value = child.desc || '';
+          ws.getCell(row, 3).value = null;
+          styleBodyRow(ws, row, 3, Boolean(child.review));
+          if (child.review) {
+            ws.getCell(row, 2).note = [
+              child.reviewReason || 'This cell needs verification against the original URS.',
+              child.loc ? 'Source: ' + child.loc : '',
+              child.minConf != null ? 'Minimum OCR confidence: ' + child.minConf + '%' : '',
+              child.raw ? 'OCR source text: ' + child.raw : ''
+            ].filter(Boolean).join('\n');
+          }
+          row++;
         }
         i = end - 1;
         continue;
@@ -220,13 +232,13 @@ function createWorkbook(model) {
     ];
   } else {
     ws.columns = [
-      { width: 34 }, { width: 52 }, { width: 38 }
+      { width: 38 }, { width: 78 }, { width: 34 }
     ];
   }
   const headerRow = setTopBlock(ws, model, lastCol);
   const labels = software
     ? ['Requirement ID', 'Requirement Description', 'Priority (1=Regulatory, 2=Business, 3=Desired)', 'Vendor Compliance', 'Vendor Remarks']
-    : ['Requirement', 'Incepta Specification / Description', 'Vendor Feedback'];
+    : ['Requirement', 'Incepta Specification / Description', 'Vendor Remarks'];
   styleHeader(ws, headerRow, labels, lastCol);
   const lastDataRow = software
     ? writeSoftwareBody(ws, headerRow + 1, model)
@@ -247,6 +259,25 @@ function createWorkbook(model) {
     paperSize: 9,
     margins: { left: 0.25, right: 0.25, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 }
   };
+  // Professional CS print layout: repeat the title/header band on every page,
+  // keep the three columns centered on A4 landscape, and show page numbering.
+  ws.pageSetup.printTitlesRow = '1:2';
+  ws.pageSetup.horizontalCentered = true;
+  ws.pageSetup.showRowColHeaders = false;
+  ws.headerFooter.oddFooter = '&LDocuWorks Studio  |  CS File&C&RPage &P of &N';
+  ws.headerFooter.evenFooter = '&LDocuWorks Studio  |  CS File&C&RPage &P of &N';
+
+  // Give long specification rows enough vertical room while keeping short rows compact.
+  for (let r = 1; r <= lastDataRow; r++) {
+    const values = [ws.getCell(r, 1).value, ws.getCell(r, 2).value, ws.getCell(r, 3).value]
+      .map(v => String(v == null ? '' : v));
+    const longest = Math.max(...values.map(v => v.length));
+    if (r > 2 && longest > 95) {
+      ws.getRow(r).height = Math.min(78, Math.max(30, Math.ceil(longest / 95) * 18));
+    } else if (r > 2 && longest > 48) {
+      ws.getRow(r).height = 30;
+    }
+  }
   // Do not add source/page numbering to the generated CS sheet.
   ws.printArea = 'A1:' + (software ? 'E' : 'C') + lastDataRow;
   return { workbook, worksheet: ws, lastRow: lastDataRow, sheetName: ws.name, layout: software ? 'software' : 'equipment' };
