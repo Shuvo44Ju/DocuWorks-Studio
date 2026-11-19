@@ -542,7 +542,8 @@ async function handlePost({ request, env }) {
     // Explicit values entered by the user take precedence over OCR/model guesses.
     if (equipmentNameOverride) validated.equipmentName = equipmentNameOverride;
     if (ursNumberOverride) validated.ursNumber = ursNumberOverride;
-    const repaired = repairKnownExtractionPatterns(validated);\n    const data = normalizeForCsTemplate(repaired);
+    const repaired = repairKnownExtractionPatterns(validated);
+    const data = normalizeForCsTemplate(repaired);
     const validationMs = Date.now() - validationStartedAt;
     data.model = MODEL;
     data.usage = result?.usage || null;
