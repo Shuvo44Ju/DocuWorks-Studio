@@ -480,7 +480,7 @@ async function handlePost({ request, env }) {
       error:"No PDF pages were supplied for AI reading. Please retry the upload."
     },400,origin);
     if (pageImages.length > MAX_PAGE_COUNT) return jsonResponse({
-      error:"This free conversion currently supports up to " + MAX_PAGE_COUNT + " PDF pages per file."
+      error:"This AI request supports up to " + MAX_PAGE_COUNT + " PDF pages per batch. The converter should split larger PDFs automatically."
     },413,origin);
     for (let i=0;i<pageImages.length;i++) {
       const page = pageImages[i];
