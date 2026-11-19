@@ -134,7 +134,7 @@ function removeRepeatedParentPrefixes(requirements) {
   // prefix when it is repeated across sibling rows in this same source section.
   const matches = requirements.map(item => {
     const label = String(item?.requirement || "").trim();
-    const match = label.match(/^(.{2,100}?)\\s+[–—-]\\s+(.{1,140})$/);
+    const match = label.match(/^(.{2,100}?)\s+[–—-]\s+(.{1,140})$/);
     return match ? { prefix: match[1].trim(), child: match[2].trim() } : null;
   });
   const counts = new Map();
@@ -538,7 +538,7 @@ export async function onRequestGet({request,env}) {
     architecture:"Mixture of Experts (4B active parameters)",
     reasoningEffort:"medium",
     diagnostic:{
-      build:"cs-partial-scan-cs-format-20261112-v6",
+      build:"cs-hierarchy-dedup-20261119-v1",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
