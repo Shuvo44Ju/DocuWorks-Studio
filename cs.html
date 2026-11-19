@@ -412,13 +412,14 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
  const preparationStarted=performance.now();
  const diagnostics={};
  const ext=sourceFile.name.toLowerCase().split('.').pop(),form=new FormData();
+ let pdfPages=null,referenceStructurePayload='';
  form.append('fileName',sourceFile.name);
  form.append('equipmentNameOverride',String(metadataOverrides?.equipmentName||''));
  form.append('ursNumberOverride',String(metadataOverrides?.ursNumber||''));
  if(ext==='pdf'){
   conversionStage='Preparing PDF pages for analysis';
   const pages=await renderPdfPagesForAI(sourceFile);
-  form.append('pageImages',JSON.stringify(pages));
+  pdfPages=pages;
   // Supply row/column-aware local extraction as a second reference. The AI must
   // verify these candidates against the page images rather than copying them blindly.
   try{
@@ -436,7 +437,7 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
     ocrPages:Number(localReference.ocrPages||0),
     pageCount:Number(localReference.pageCount||pages.length)
    };
-   form.append('referenceStructure',JSON.stringify(referenceStructure));
+   referenceStructurePayload=JSON.stringify(referenceStructure);
    setStatus(21,'PDF table structure prepared. Starting AI review…');
    diagnostics.localOcrPages=referenceStructure.ocrPages;
    diagnostics.localCandidateRows=referenceRows.filter(row=>row.type==='row').length;
@@ -466,60 +467,109 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
  if(!healthResponse.ok||!healthData?.configured){
   throw new Error('The Cloudflare Worker responded, but its AI binding is not ready. HTTP '+healthResponse.status+'. '+String(healthData?.error||'AI binding status is false or missing.'));
  }
- const expectedWorkerBuild='cs-hierarchy-audit-20261119-v4';
+ const expectedWorkerBuild='cs-hierarchy-audit-20261119-v5';
  const liveWorkerBuild=String(healthData?.diagnostic?.build||'');
  if(liveWorkerBuild!==expectedWorkerBuild){
   throw new Error('The AI service has not received the latest CS extraction update. Live Worker build: '+(liveWorkerBuild||'unknown')+'. Required build: '+expectedWorkerBuild+'. No workbook was generated. The Cloudflare Worker must be deployed from the latest GitHub main branch before conversion can continue.');
  }
  conversionStage='Sending the prepared document to Cloudflare AI';
  setStatus(25,'Uploading source pages to Cloudflare Workers AI…');
- const controller=new AbortController();
- const started=Date.now();
- const roundTripStarted=performance.now();
- let progressTimer=null,timeoutTimer=null,response;
- try{
-  timeoutTimer=setTimeout(()=>controller.abort(),180000);
-  const updateEstimate=()=>{
-   const elapsed=Math.floor((Date.now()-started)/1000);
-   // Estimate progress during the two-minute AI wait; the true model progress
-   // is not exposed by the inference request. Stop at 84% until it responds.
-   const estimate=Math.min(84,28+(elapsed/120)*56);
-   setStatus(estimate,'Cloudflare AI is analyzing your document… Keep this tab open.');
-   elapsedLabel.textContent=elapsed>=60?Math.floor(elapsed/60)+'m '+(elapsed%60)+'s elapsed':elapsed+'s elapsed';
-  };
-  updateEstimate();
-  progressTimer=setInterval(updateEstimate,1000);
+ let response;
+ const requestRoundTripStarted=performance.now();
+ const requestTimeoutMs=180000;
+ const postOnce=async(body,label)=>{
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),requestTimeoutMs);
+  const started=performance.now();
   try{
-   response=await fetch(endpoint,{method:'POST',body:form,signal:controller.signal,cache:'no-store'});
-  }catch(firstFetchError){
-   // Retry once with a cache-busting URL. This handles stale service-worker/browser
-   // resource entries that can surface as a Chromium NotFoundError even when the
-   // Cloudflare Worker itself is available.
-   if(firstFetchError&&firstFetchError.name==='NotFoundError'){
-    console.warn('Initial AI request raised NotFoundError; retrying the Worker endpoint.',firstFetchError);
-    const retryUrl=new URL(endpoint);
-    retryUrl.searchParams.set('_dw_retry',String(Date.now()));
-    response=await fetch(retryUrl.href,{method:'POST',body:form,signal:controller.signal,cache:'no-store'});
-   }else{
-    throw firstFetchError;
+   let result;
+   try{
+    result=await fetch(endpoint,{method:'POST',body,signal:controller.signal,cache:'no-store'});
+   }catch(firstFetchError){
+    if(firstFetchError&&firstFetchError.name==='NotFoundError'){
+     const retryUrl=new URL(endpoint);
+     retryUrl.searchParams.set('_dw_retry',String(Date.now()));
+     result=await fetch(retryUrl.href,{method:'POST',body,signal:controller.signal,cache:'no-store'});
+    }else throw firstFetchError;
    }
+   diagnostics.requestRoundTripMs=(diagnostics.requestRoundTripMs||0)+Math.round(performance.now()-started);
+   return result;
+  }catch(e){
+   if(e&&e.name==='AbortError')throw new Error(label+' did not finish within 3 minutes. The converter stopped this batch safely; no partial Excel workbook was generated.');
+   throw e;
+  }finally{clearTimeout(timeout);}
+ };
+ try{
+  if(ext==='pdf'){
+   const batchSize=4;
+   const totalBatches=Math.ceil(pdfPages.length/batchSize);
+   const combined={sections:[],warnings:[],layout:'equipment'};
+   let continuationContext='';
+   for(let batchIndex=0;batchIndex<totalBatches;batchIndex++){
+    const batchPages=pdfPages.slice(batchIndex*batchSize,(batchIndex+1)*batchSize);
+    const batchForm=new FormData();
+    batchForm.append('fileName',sourceFile.name);
+    batchForm.append('equipmentNameOverride',String(metadataOverrides?.equipmentName||''));
+    batchForm.append('ursNumberOverride',String(metadataOverrides?.ursNumber||''));
+    batchForm.append('pageImages',JSON.stringify(batchPages));
+    if(referenceStructurePayload)batchForm.append('referenceStructure',referenceStructurePayload);
+    if(continuationContext)batchForm.append('continuationContext',continuationContext);
+    const pct=25+(batchIndex/totalBatches)*58;
+    setStatus(pct,'Cloudflare AI is analyzing PDF batch '+(batchIndex+1)+' of '+totalBatches+' (source pages '+batchPages[0].page+'–'+batchPages[batchPages.length-1].page+')…');
+    elapsedLabel.textContent='Batch '+(batchIndex+1)+' of '+totalBatches;
+    const batchResponse=await postOnce(batchForm,'PDF batch '+(batchIndex+1)+' of '+totalBatches);
+    const batchData=await batchResponse.json().catch(()=>({}));
+    if(!batchResponse.ok){
+     const detail=String(batchData.error||('AI extraction failed (HTTP '+batchResponse.status+').'));
+     throw new Error('PDF batch '+(batchIndex+1)+' of '+totalBatches+' failed: '+detail+' No Excel file was generated.');
+    }
+    if(!Array.isArray(batchData.sections)||!batchData.sections.length){
+     throw new Error('Cloudflare AI returned no valid sections for PDF batch '+(batchIndex+1)+' of '+totalBatches+'. No Excel file was generated.');
+    }
+    if(batchIndex===0){
+     for(const key of ['equipmentName','ursNumber','referenceDocumentNumber','version','department','title','layout','model','provider'])if(batchData[key])combined[key]=batchData[key];
+     combined.layout=batchData.layout||'equipment';
+    }
+    if(Array.isArray(batchData.warnings))combined.warnings.push(...batchData.warnings);
+    for(const section of batchData.sections){
+     const title=String(section?.title||'').trim();
+     const previous=combined.sections[combined.sections.length-1];
+     if(previous&&title&&String(previous.title||'').trim().toLocaleLowerCase()===title.toLocaleLowerCase()){
+      previous.requirements.push(...(Array.isArray(section.requirements)?section.requirements:[]));
+     }else{
+      combined.sections.push({title,requirements:Array.isArray(section.requirements)?section.requirements.slice():[]});
+     }
+    }
+    const recentSections=combined.sections.slice(-5).map(section=>{
+     const recentRows=(section.requirements||[]).slice(-4).map(row=>{
+      const parent=String(row.parentRequirement||'').trim();
+      const label=String(row.requirement||'').trim();
+      return [parent,label].filter(Boolean).join(' / ');
+     }).filter(Boolean);
+     return section.title+(recentRows.length?'\nRecent hierarchy/leaf labels: '+recentRows.join('; '):'');
+    });
+    continuationContext=recentSections.join('\n\n').slice(-10000);
+   }
+   response=new Response(JSON.stringify(combined),{status:200,headers:{'Content-Type':'application/json'}});
+  }else{
+   setStatus(25,'Uploading the DOCX document to Cloudflare Workers AI…');
+   const controller=new AbortController();
+   const timeout=setTimeout(()=>controller.abort(),requestTimeoutMs);
+   try{
+    response=await fetch(endpoint,{method:'POST',body:form,signal:controller.signal,cache:'no-store'});
+   }catch(e){
+    if(e&&e.name==='AbortError')throw new Error('Cloudflare AI did not finish within 3 minutes. No Excel file was generated.');
+    throw e;
+   }finally{clearTimeout(timeout);}
+   diagnostics.requestRoundTripMs=Math.round(performance.now()-requestRoundTripStarted);
   }
-  diagnostics.requestRoundTripMs=Math.round(performance.now()-roundTripStarted);
  }catch(e){
-  if(e&&e.name==='AbortError')throw new Error('Cloudflare AI did not finish within 3 minutes. Try a smaller PDF (fewer pages or lower scan resolution) and retry. No Excel file was generated.');
-  // Do not silently switch to the local parser after a browser/network exception.
-  // The local fallback can fail for unrelated PDF/OCR reasons and hide the real
-  // POST problem. The GET health check above already verifies the Worker + CORS.
   const requestErrorName=String(e?.name||'NetworkError');
   const requestErrorMessage=String(e?.message||e||'Unknown request error');
-  console.error('Cloudflare Worker POST request failed after health check:',{
-   endpoint,origin:location.origin,name:requestErrorName,message:requestErrorMessage,stack:e?.stack||''
-  });
-  throw new Error('The Cloudflare Worker health check passed, but the document-upload request failed in the browser. '+requestErrorName+': '+requestErrorMessage+' Endpoint: '+endpoint);
- }finally{
-  if(progressTimer)clearInterval(progressTimer);
-  if(timeoutTimer)clearTimeout(timeoutTimer);
+  console.error('Cloudflare Worker POST request failed after health check:',{endpoint,origin:location.origin,name:requestErrorName,message:requestErrorMessage,stack:e?.stack||''});
+  throw new Error(requestErrorMessage.includes('No Excel file was generated.')?requestErrorMessage:'The Cloudflare Worker health check passed, but document analysis failed. '+requestErrorName+': '+requestErrorMessage+' No Excel file was generated.');
  }
+ diagnostics.requestRoundTripMs=diagnostics.requestRoundTripMs||Math.round(performance.now()-requestRoundTripStarted);
  setStatus(87,'AI analysis finished. Validating extracted requirement/specification pairs…');
  const responseParseStarted=performance.now();
  const data=await response.json().catch(()=>({}));
