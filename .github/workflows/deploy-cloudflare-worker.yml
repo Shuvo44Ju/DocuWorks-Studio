@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: docuworks-cloudflare-worker
@@ -131,3 +132,36 @@ jobs:
           status="$(curl --silent --output /tmp/download-proxy-check.json --write-out '%{http_code}' 'https://docuworks-studio.shuvokh97.workers.dev/api/download')"
           test "$status" = "400"
           grep -q 'Missing file URL' /tmp/download-proxy-check.json
+
+      - name: Publish deployment result to the source commit
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          if [ "${JOB_STATUS}" = "success" ]; then
+            STATE="success"
+            BUILD="$(node - <<'NODE'
+          const fs = require('node:fs');
+          const source = fs.readFileSync('functions/api/convert.js', 'utf8');
+          const marker = 'build:"';
+          const start = source.indexOf(marker);
+          const end = start < 0 ? -1 : source.indexOf('"', start + marker.length);
+          if (start < 0 || end < 0) process.exit(1);
+          process.stdout.write(source.slice(start + marker.length, end));
+          NODE
+          )"
+            DESCRIPTION="Live Worker verified: ${BUILD}"
+          else
+            STATE="failure"
+            DESCRIPTION="Cloudflare deployment or live Worker verification failed"
+          fi
+
+          gh api --method POST "/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -f state="${STATE}" \
+            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            -f description="${DESCRIPTION}" \
+            -f context="cloudflare/production" >/dev/null
+
+          echo "Published ${STATE} deployment status to ${GITHUB_SHA}."
