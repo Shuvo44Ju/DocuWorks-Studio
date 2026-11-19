@@ -527,6 +527,7 @@ async function handlePost({ request, env }) {
   }
 }
 
+// Source change intentionally triggers the deployment workflow's live build verification.
 export async function onRequestGet({request,env}) {
   const origin=request.headers.get("Origin")||"";
   const bindingPresent=Boolean(env?.AI && typeof env.AI.run==="function");
