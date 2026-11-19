@@ -143,11 +143,11 @@ footer{text-align:center;color:#667085;font-size:13px;padding:8px 18px 28px}
 <div class="setting">
 <label for="mode">Dark background cleanup</label>
 <select id="mode">
-<option value="auto">Auto-remove solid dark panels (recommended)</option>
+<option value="auto">Auto-remove dark and coloured backgrounds (recommended)</option>
 <option value="on">Force invert the entire page</option>
 <option value="off">Turn off background cleanup</option>
 </select>
-<small>Finds large, nearly uniform black areas such as dark sidebars, turns them white, and converts their white lettering to dark lettering. It leaves photographs and coloured page backgrounds alone.</small>
+<small>Removes large dark panels and flat coloured page backgrounds, including teal and yellow covers. It detects the dominant edge colour and protects most photos and foreground artwork.</small>
 </div>
 <div class="setting">
 <label for="ink">Ink reduction: <span id="inklabel">Balanced (25%)</span></label>
@@ -459,6 +459,265 @@ function detectDarkPanels(data, width, height) {
   return panels;
 }
 
+function recolorLightTextNearBackground(data, width, height, backgroundMask) {
+  // White lettering printed on a coloured background would disappear when
+  // that background is turned white. Find small, bright text-like components
+  // close to the removed background and change them to dark pixels.
+  // Large white objects (e.g. product photos) are excluded by component size.
+  const cellSize = 2;
+  const gridWidth = Math.ceil(width / cellSize);
+  const gridHeight = Math.ceil(height / cellSize);
+  const gridLength = gridWidth * gridHeight;
+  const backgroundGrid = new Uint8Array(gridLength);
+  const candidate = new Uint8Array(gridLength);
+  const horizontal = new Uint8Array(gridLength);
+  const nearBackground = new Uint8Array(gridLength);
+  const visitedQueue = new Int32Array(gridLength);
+
+  for (let gy = 0; gy < gridHeight; gy++) {
+    for (let gx = 0; gx < gridWidth; gx++) {
+      const x0 = gx * cellSize;
+      const y0 = gy * cellSize;
+      let found = false;
+      for (let oy = 0; oy < cellSize && y0 + oy < height && !found; oy++) {
+        for (let ox = 0; ox < cellSize && x0 + ox < width; ox++) {
+          if (backgroundMask[(y0 + oy) * width + x0 + ox]) {
+            found = true;
+            break;
+          }
+        }
+      }
+      if (found) backgroundGrid[gy * gridWidth + gx] = 1;
+    }
+  }
+
+  // Dilate the background map by about 8 pixels using two linear sliding
+  // windows. This catches the centre of thin lettering without expanding
+  // across the interior of large white objects.
+  const radius = 4;
+  for (let y = 0; y < gridHeight; y++) {
+    const row = y * gridWidth;
+    let count = 0;
+    for (let x = 0; x <= Math.min(radius, gridWidth - 1); x++) {
+      count += backgroundGrid[row + x];
+    }
+    for (let x = 0; x < gridWidth; x++) {
+      horizontal[row + x] = count > 0 ? 1 : 0;
+      const removeX = x - radius;
+      const addX = x + radius + 1;
+      if (removeX >= 0) count -= backgroundGrid[row + removeX];
+      if (addX < gridWidth) count += backgroundGrid[row + addX];
+    }
+  }
+
+  for (let x = 0; x < gridWidth; x++) {
+    let count = 0;
+    for (let y = 0; y <= Math.min(radius, gridHeight - 1); y++) {
+      count += horizontal[y * gridWidth + x];
+    }
+    for (let y = 0; y < gridHeight; y++) {
+      nearBackground[y * gridWidth + x] = count > 0 ? 1 : 0;
+      const removeY = y - radius;
+      const addY = y + radius + 1;
+      if (removeY >= 0) count -= horizontal[removeY * gridWidth + x];
+      if (addY < gridHeight) count += horizontal[addY * gridWidth + x];
+    }
+  }
+
+  // Create a low-resolution mask of bright, neutral pixels.
+  for (let gy = 0; gy < gridHeight; gy++) {
+    for (let gx = 0; gx < gridWidth; gx++) {
+      const cell = gy * gridWidth + gx;
+      if (!nearBackground[cell]) continue;
+
+      const x0 = gx * cellSize;
+      const y0 = gy * cellSize;
+      let bright = false;
+
+      for (let oy = 0; oy < cellSize && y0 + oy < height && !bright; oy++) {
+        for (let ox = 0; ox < cellSize && x0 + ox < width; ox++) {
+          const i = ((y0 + oy) * width + x0 + ox) * 4;
+          const red = data[i];
+          const green = data[i + 1];
+          const blue = data[i + 2];
+          const luminance = .299 * red + .587 * green + .114 * blue;
+          const chroma = Math.max(red, green, blue) - Math.min(red, green, blue);
+          if (luminance > 140 && chroma < 65) {
+            bright = true;
+            break;
+          }
+        }
+      }
+
+      if (bright) candidate[cell] = 1;
+    }
+  }
+
+  const maximumTextCells = Math.max(
+    12,
+    Math.floor((width * height * .003) / (cellSize * cellSize))
+  );
+
+  for (let seed = 0; seed < gridLength; seed++) {
+    if (!candidate[seed]) continue;
+
+    let head = 0;
+    let tail = 0;
+    visitedQueue[tail++] = seed;
+    candidate[seed] = 0;
+
+    while (head < tail) {
+      const current = visitedQueue[head++];
+      const x = current % gridWidth;
+      const y = Math.floor(current / gridWidth);
+
+      for (let dy = -1; dy <= 1; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= gridHeight) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const nx = x + dx;
+          if (nx < 0 || nx >= gridWidth) continue;
+          const next = ny * gridWidth + nx;
+          if (candidate[next]) {
+            candidate[next] = 0;
+            visitedQueue[tail++] = next;
+          }
+        }
+      }
+    }
+
+    // Text glyphs are small components. Skip large components such as a
+    // device casing, white photograph area, or other substantial artwork.
+    if (tail < 3 || tail > maximumTextCells) continue;
+
+    for (let q = 0; q < tail; q++) {
+      const cell = visitedQueue[q];
+      const gx = cell % gridWidth;
+      const gy = Math.floor(cell / gridWidth);
+      const x0 = gx * cellSize;
+      const y0 = gy * cellSize;
+
+      for (let oy = 0; oy < cellSize && y0 + oy < height; oy++) {
+        for (let ox = 0; ox < cellSize && x0 + ox < width; ox++) {
+          const i = ((y0 + oy) * width + x0 + ox) * 4;
+          const red = data[i];
+          const green = data[i + 1];
+          const blue = data[i + 2];
+          const luminance = .299 * red + .587 * green + .114 * blue;
+          const chroma = Math.max(red, green, blue) - Math.min(red, green, blue);
+          if (luminance > 140 && chroma < 65) {
+            data[i] = 255 - red;
+            data[i + 1] = 255 - green;
+            data[i + 2] = 255 - blue;
+          }
+        }
+      }
+    }
+  }
+}
+
+function removeColoredPageBackground(data, width, height) {
+  // Identify the dominant saturated colour along the page edge. This detects
+  // flat colour fields such as the teal cover and yellow back page, which the
+  // black-panel detector cannot recognise.
+  const histogram = new Uint32Array(4096);
+  const redSums = new Float64Array(4096);
+  const greenSums = new Float64Array(4096);
+  const blueSums = new Float64Array(4096);
+  const borderDepth = Math.max(2, Math.round(Math.min(width, height) * .015));
+  const stride = Math.max(1, Math.floor(Math.max(width, height) / 1800));
+  let sampleCount = 0;
+
+  function addEdgeSample(x, y) {
+    const i = (y * width + x) * 4;
+    const red = data[i];
+    const green = data[i + 1];
+    const blue = data[i + 2];
+    const bin = ((red >> 4) << 8) | ((green >> 4) << 4) | (blue >> 4);
+    histogram[bin]++;
+    redSums[bin] += red;
+    greenSums[bin] += green;
+    blueSums[bin] += blue;
+    sampleCount++;
+  }
+
+  for (let y = 0; y < borderDepth; y += stride) {
+    const bottomY = height - 1 - y;
+    for (let x = 0; x < width; x += stride) {
+      addEdgeSample(x, y);
+      if (bottomY !== y) addEdgeSample(x, bottomY);
+    }
+  }
+  for (let x = 0; x < borderDepth; x += stride) {
+    const rightX = width - 1 - x;
+    for (let y = borderDepth; y < height - borderDepth; y += stride) {
+      addEdgeSample(x, y);
+      if (rightX !== x) addEdgeSample(rightX, y);
+    }
+  }
+
+  let dominantBin = 0;
+  for (let i = 1; i < histogram.length; i++) {
+    if (histogram[i] > histogram[dominantBin]) dominantBin = i;
+  }
+
+  const dominantCount = histogram[dominantBin];
+  if (!sampleCount || dominantCount / sampleCount < .15) return false;
+
+  const targetRed = redSums[dominantBin] / dominantCount;
+  const targetGreen = greenSums[dominantBin] / dominantCount;
+  const targetBlue = blueSums[dominantBin] / dominantCount;
+  const targetMax = Math.max(targetRed, targetGreen, targetBlue);
+  const targetMin = Math.min(targetRed, targetGreen, targetBlue);
+  const targetLuminance =
+    .299 * targetRed + .587 * targetGreen + .114 * targetBlue;
+  const targetSaturation = targetMax === 0 ? 0 : (targetMax - targetMin) / targetMax;
+
+  // Ignore white/grey paper and dark panels: those are not coloured page fills.
+  if (targetSaturation < .22 || targetLuminance < 55 || targetLuminance > 245) {
+    return false;
+  }
+
+  // Darker saturated backgrounds need a wider tolerance (the textured teal
+  // cover); bright flat backgrounds use a tight tolerance to protect artwork.
+  const tolerance = targetLuminance > 170 ? 12 : 35;
+  const toleranceSquared = tolerance * tolerance;
+  const pixelCount = width * height;
+  const backgroundMask = new Uint8Array(pixelCount);
+  let backgroundPixels = 0;
+
+  for (let p = 0, i = 0; p < pixelCount; p++, i += 4) {
+    const dr = data[i] - targetRed;
+    const dg = data[i + 1] - targetGreen;
+    const db = data[i + 2] - targetBlue;
+    if (dr * dr + dg * dg + db * db <= toleranceSquared) {
+      backgroundMask[p] = 1;
+      backgroundPixels++;
+    }
+  }
+
+  // Require a substantial match before applying a page-wide colour key.
+  if (backgroundPixels / pixelCount < .12) return false;
+
+  // Only the darker teal-like cover needs its white title/logo converted.
+  // The yellow back cover already uses dark text, and has bright artwork that
+  // should not be mistaken for white lettering.
+  if (targetLuminance < 160) {
+    recolorLightTextNearBackground(data, width, height, backgroundMask);
+  }
+
+  for (let p = 0, i = 0; p < pixelCount; p++, i += 4) {
+    if (backgroundMask[p]) {
+      data[i] = 255;
+      data[i + 1] = 255;
+      data[i + 2] = 255;
+    }
+  }
+
+  return true;
+}
+
 function clean(canvas) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error('Could not access canvas memory.');
@@ -479,8 +738,8 @@ function clean(canvas) {
   } else if (mode === 'auto') {
     const panels = detectDarkPanels(data, canvas.width, canvas.height);
 
-    // Reverse only the detected dark panel. Its white logo/text becomes dark
-    // on the new white background, while the rest of the page is untouched.
+    // Reverse only each detected dark panel. Its white logo/text becomes dark,
+    // and unrelated photographs and coloured graphics are left untouched.
     for (const panel of panels) {
       for (let y = panel.y; y < panel.bottom; y++) {
         let i = (y * canvas.width + panel.x) * 4;
@@ -491,9 +750,12 @@ function clean(canvas) {
           data[i + 2] = 255 - data[i + 2];
         }
       }
+      correctedBackground = true;
     }
 
-    correctedBackground = panels.length > 0;
+    if (removeColoredPageBackground(data, canvas.width, canvas.height)) {
+      correctedBackground = true;
+    }
   }
 
   // Reduce dark ink without forcing the entire document into grayscale.
