@@ -164,13 +164,13 @@ function repairKnownExtractionPatterns(data) {
       let specification = String(item?.specification || "").trim();
 
       // Recover time values that the model incorrectly left inside the requirement label.
-      const usage = requirement.match(/^maximum\\s+uninterrupted\\s*\\/\\s*intermittent\\s+utilization(?:\\s+of)?\\s*[:：-]?\\s*([ab])\\s*[).:-]?\\s*(\\d+(?:\\.\\d+)?\\s*(?:hours?|hrs?|days?|weeks?)\\s+per\\s+(?:day|week))\\.?$/i);
+      const usage = requirement.match(/^maximum\s+uninterrupted\s*\/\s*intermittent\s+utilization(?:\s+of)?\s*[:：-]?\s*([ab])\s*[).:-]?\s*(\d+(?:\.\d+)?\s*(?:hours?|hrs?|days?|weeks?)\s+per\s+(?:day|week))\.?$/i);
       if (usage) {
-        const isHours = /\\b(?:hours?|hrs?)\\s+per\\s+day\\b/i.test(usage[2]);
+        const isHours = /\b(?:hours?|hrs?)\s+per\s+day\b/i.test(usage[2]);
         item.parentRequirement = "Maximum uninterrupted/intermittent utilization";
         item.requirement = isHours ? "Hours per Day" : "Days per Week";
-        if (!specification || /^maximum\\s+uninterrupted/i.test(specification) ||
-            specification.replace(/[.\\s]/g, "").toLowerCase() === requirement.replace(/[.\\s]/g, "").toLowerCase()) {
+        if (!specification || /^maximum\s+uninterrupted/i.test(specification) ||
+            specification.replace(/[.\s]/g, "").toLowerCase() === requirement.replace(/[.\s]/g, "").toLowerCase()) {
           item.specification = usage[2].trim();
         }
         item.parameterized = true;
@@ -180,9 +180,9 @@ function repairKnownExtractionPatterns(data) {
 
       // A repeated short label is not a specification value; the source cell was blank.
       const comparable = value => String(value || "").toLocaleLowerCase()
-        .replace(/[.。:：;；,，]+$/g, "").replace(/\\s+/g, " ").trim();
+        .replace(/[.。:：;；,，]+$/g, "").replace(/\s+/g, " ").trim();
       if (requirement && specification && comparable(requirement) === comparable(specification) &&
-          requirement.replace(/[^\\p{L}\\p{N}]+/gu, " ").trim().split(/\\s+/).length <= 8) {
+          requirement.replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(/\s+/).length <= 8) {
         item.specification = "";
       }
     }
