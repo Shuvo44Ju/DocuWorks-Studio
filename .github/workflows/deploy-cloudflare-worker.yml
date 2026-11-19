@@ -51,12 +51,14 @@ jobs:
           EXPECTED_BUILD="$(node - <<'NODE'
           const fs = require('node:fs');
           const source = fs.readFileSync('functions/api/convert.js', 'utf8');
-          const match = source.match(/build\\s*:\\s*["']([^"']+)["']/);
-          if (!match) {
+          const marker = 'build:"';
+          const start = source.indexOf(marker);
+          const end = start < 0 ? -1 : source.indexOf('"', start + marker.length);
+          if (start < 0 || end < 0) {
             console.error('Could not identify the converter build identifier in functions/api/convert.js');
             process.exit(1);
           }
-          process.stdout.write(match[1]);
+          process.stdout.write(source.slice(start + marker.length, end));
           NODE
           )"
           HEALTH_URL="https://docuworks-studio.shuvokh97.workers.dev/api/convert"
