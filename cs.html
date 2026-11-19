@@ -512,7 +512,9 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
     batchForm.append('equipmentNameOverride',String(metadataOverrides?.equipmentName||''));
     batchForm.append('ursNumberOverride',String(metadataOverrides?.ursNumber||''));
     batchForm.append('pageImages',JSON.stringify(batchPages));
-    if(referenceStructurePayload)batchForm.append('referenceStructure',referenceStructurePayload);
+    // Each batch must be grounded only in its own page images/text. The local
+    // preflight structure spans the full PDF and could leak future-page rows
+    // into an earlier batch, so do not attach it to per-batch AI requests.
     if(continuationContext)batchForm.append('continuationContext',continuationContext);
     const pct=25+(batchIndex/totalBatches)*58;
     setStatus(pct,'Cloudflare AI is analyzing PDF batch '+(batchIndex+1)+' of '+totalBatches+' (source pages '+batchPages[0].page+'–'+batchPages[batchPages.length-1].page+')…');
