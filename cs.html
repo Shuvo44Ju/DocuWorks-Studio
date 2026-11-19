@@ -466,7 +466,7 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
  if(!healthResponse.ok||!healthData?.configured){
   throw new Error('The Cloudflare Worker responded, but its AI binding is not ready. HTTP '+healthResponse.status+'. '+String(healthData?.error||'AI binding status is false or missing.'));
  }
- const expectedWorkerBuild='cs-bullet-preservation-20261119-v1';
+ const expectedWorkerBuild='cs-heading-hierarchy-20261119-v2';
  const liveWorkerBuild=String(healthData?.diagnostic?.build||'');
  if(liveWorkerBuild!==expectedWorkerBuild){
   throw new Error('The AI service has not received the latest CS extraction update. Live Worker build: '+(liveWorkerBuild||'unknown')+'. Required build: '+expectedWorkerBuild+'. No workbook was generated. The Cloudflare Worker must be deployed from the latest GitHub main branch before conversion can continue.');
@@ -560,6 +560,7 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
    const pages=Array.isArray(item.sourcePages)?item.sourcePages.filter(n=>Number.isInteger(n)&&n>0):[];
    rows.push({
     type:'row',req:req||'UNRESOLVED REQUIREMENT — REVIEW SOURCE',desc,
+    parentRequirement:String(item.parentRequirement||'').trim(),
     requirementId:String(item.requirementId||'').trim(),
     priority:item.priority==null?'':String(item.priority).trim(),
     loc:pages.length?'Source page(s): '+pages.join(', '):'Source location not identified',
@@ -648,10 +649,11 @@ function renderRowsReview(parsed,kind){
    const items=group.rows.map(row=>{
     const software=String(parsed?.layout||parsed?.sheets?.[0]?.layout||'').toLowerCase()==='software';
     const label=row.requirementId||row.req||row.id||'Unlabelled point';
+    const parent=row.parentRequirement?' <span class="text-slate-500">· '+escapeReviewText(row.parentRequirement)+'</span>':'';
     const preview=software?[row.req,row.desc].filter(Boolean).join('\n'):(row.desc||'');
     const priority=row.priority?' <span class="text-slate-500">[Priority '+escapeReviewText(row.priority)+']</span>':'';
     const review=row.review?' <span class="font-bold text-amber-700">· Review</span>':'';
-    return '<li class="py-1 text-xs text-slate-700"><div class="font-semibold">'+escapeReviewText(label)+priority+review+'</div><div class="whitespace-pre-wrap text-slate-600">'+escapeReviewText(preview)+'</div></li>';
+    return '<li class="py-1 text-xs text-slate-700"><div class="font-semibold">'+escapeReviewText(label)+priority+review+parent+'</div><div class="whitespace-pre-wrap text-slate-600">'+escapeReviewText(preview)+'</div></li>';
    }).join('');
    return '<details '+(i<6?'open':'')+' class="overflow-hidden rounded-lg border border-slate-200"><summary class="cursor-pointer bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800">'+escapeReviewText(group.title)+' <span class="font-semibold text-slate-500">('+group.rows.length+' rows)</span></summary><ol class="list-decimal space-y-1 py-2 pl-8 pr-3">'+items+'</ol></details>';
   }).join('');
