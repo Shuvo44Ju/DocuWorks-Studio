@@ -6,6 +6,7 @@ on:
     paths:
       - worker.js
       - wrangler.jsonc
+      - .assetsignore
       - functions/api/assistant.js
       - functions/api/convert.js
       - .github/workflows/deploy-cloudflare-worker.yml
