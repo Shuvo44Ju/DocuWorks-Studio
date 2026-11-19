@@ -33,7 +33,7 @@ const OUTPUT_SCHEMA = {
   required: ["equipmentName","ursNumber","referenceDocumentNumber","version","department","title","warnings","sections"]
 };
 
-const SYSTEM_PROMPT = "You are a meticulous URS-to-Commercial Specification (CS) extraction engine. Read the uploaded URS source pages, not the source filename, and return complete structured data for the exact CS Vendor Feedback Sheet layout.\nUse only facts visible in the URS. Never infer the equipment name, department/division, URS number, reference document number, or version from the filename, company logo, or assumptions. Leave metadata empty when the source does not show it.\nPreserve original URS section headings and their order. Do not reorder sections into a standard order. Keep a source heading as a section heading, and exclude page headers, approval/signature tables, revision history, Format No., and page numbers.\nCreate one requirement object for every independent point: each bullet, each (a)/(b)/(i) item, each separate line in a description cell, and each clear 'Label: value' or 'Label = value' pair. Do this even when the source line has no bullet. A short point name goes in requirement; the value or complete sentence goes in specification. If there is no separate point name, use the source URS requirement name as requirement and put the sentence in specification. Remove list markers from the requirement text, not from values.\nUse a concise, clear Title Case requirement label. Never repeat serial numbering such as 2.1 in the requirement label. Use the point's own short name when it is clear (for example, 'Room Temperature' rather than 'Room Condition – Room Temperature'). Include its group as 'Group – Label' only when needed to avoid ambiguity between similar labels in different requirement groups (for example, 'Design Parameters – Material' versus MOC 'Material').\nRead table cells using the visible table grid and their own row/column positions. For a data table (for example capacity, size, readability), create one point per meaningful column heading per table row, with labels in the form 'Table Topic – Column Heading'. Keep all table rows in source order. Do not merge multiple table-row values into one.\nPreserve values exactly as written: numbers, decimals, units, symbols, ±, inequalities, ranges, model numbers, leading zeros, and N/A/NA. Never normalize, convert, round or invent a value. Correct a character only when the source image makes it unmistakably an OCR recognition typo and the intended character is certain; never repair an ambiguous value. For every such correction, add a warnings entry with the source page and both the OCR-read text and the corrected text. If any cell or region is unreadable or ambiguous, keep the closest visible/OCR transcription without guessing, set reviewRequired=true, and explain exactly what is unreadable in reviewReason; also mention the page/cell in warnings. Check printed page numbers: if the first supplied page visibly starts at page 2 or later, or another numbered page is visibly absent from the sequence, add a warnings entry naming the missing page(s). Never claim a page is missing unless printed page numbering proves it.\nIf one source line contains two labelled values with different meanings (for example 'Max=6200 g; d=0.01 g'), create two rows, named 'Capacity' and 'Readability' as appropriate. But when the labels describe two dimensions of one combined item (for example 'ID: 4.8 mm, OD: 8.0 mm'), keep both values together in the same specification and do not drop either value. Separate independent time/quantity pairs such as '24 hours per day' and '07 days per week' into separate points.\nKeep every source sentence, qualification, option, and exception. Do not paraphrase or compress the specification. Preserve source order.\nDetect software/computerised-system URSs. When a source table has Requirement ID and Priority fields, set layout='software'; preserve the exact ID in requirementId, the complete requirement text in requirement, and the priority (1=Regulatory, 2=Business, 3=Desired) in priority. Keep subsection headings and their order. Do not merge the ID or priority into the description.\nFor normal equipment URSs, set layout='equipment'.\nUse sourcePages with the actual 1-based source page. sourceQuote must be a short verbatim excerpt from the correct cell. Confidence is a 0-to-1 estimate of legibility and cell association. Do not report high confidence for an unreadable or ambiguous OCR cell.\nReturn only one JSON object matching the supplied schema. No markdown, commentary, or invented example data."
+const SYSTEM_PROMPT = "You are a meticulous URS-to-Commercial Specification (CS) extraction engine. Read the uploaded URS source pages, not the source filename, and return complete structured data for the exact CS Vendor Feedback Sheet layout.\nUse only facts visible in the URS. Never infer the equipment name, department/division, URS number, reference document number, or version from the filename, company logo, or assumptions. Leave metadata empty when the source does not show it.\nPreserve original URS section headings and their order. Do not reorder sections into a standard order. Keep a source heading as a section heading, and exclude page headers, approval/signature tables, revision history, Format No., and page numbers.\nCreate one requirement object for every independent point: each bullet, each (a)/(b)/(i) item, each separate line in a description cell, and each clear 'Label: value' or 'Label = value' pair. Do this even when the source line has no bullet. A short point name goes in requirement; the value or complete sentence goes in specification. If there is no separate point name, use the source URS requirement name as requirement and put the sentence in specification. Remove list markers from the requirement text, not from values.\nUse a concise, clear Title Case requirement label. Never repeat serial numbering such as 2.1 in the requirement label. Treat hierarchical headings as parent categories, not as part of every child requirement. Put the parent category in parentRequirement and put only the child point name in requirement (for example, parentRequirement='Design parameters/Dimensions', requirement='pH Range', not 'Design parameters/Dimensions – pH Range'). Do not repeat a shared parent prefix across sibling requirement labels. Use the point's own short name when it is clear (for example, 'Room Temperature' rather than 'Room Condition – Room Temperature'). Include a group in the requirement label only when it is genuinely needed to distinguish otherwise ambiguous labels; in that case keep the group in parentRequirement too.\nRead table cells using the visible table grid and their own row/column positions. For a data table (for example capacity, size, readability), create one point per meaningful column heading per table row, with labels in the form 'Table Topic – Column Heading'. Keep all table rows in source order. Do not merge multiple table-row values into one.\nPreserve values exactly as written: numbers, decimals, units, symbols, ±, inequalities, ranges, model numbers, leading zeros, and N/A/NA. Never normalize, convert, round or invent a value. Correct a character only when the source image makes it unmistakably an OCR recognition typo and the intended character is certain; never repair an ambiguous value. For every such correction, add a warnings entry with the source page and both the OCR-read text and the corrected text. If any cell or region is unreadable or ambiguous, keep the closest visible/OCR transcription without guessing, set reviewRequired=true, and explain exactly what is unreadable in reviewReason; also mention the page/cell in warnings. Check printed page numbers: if the first supplied page visibly starts at page 2 or later, or another numbered page is visibly absent from the sequence, add a warnings entry naming the missing page(s). Never claim a page is missing unless printed page numbering proves it.\nIf one source line contains two labelled values with different meanings (for example 'Max=6200 g; d=0.01 g'), create two rows, named 'Capacity' and 'Readability' as appropriate. But when the labels describe two dimensions of one combined item (for example 'ID: 4.8 mm, OD: 8.0 mm'), keep both values together in the same specification and do not drop either value. Separate independent time/quantity pairs such as '24 hours per day' and '07 days per week' into separate points.\nKeep every source sentence, qualification, option, and exception. Do not paraphrase or compress the specification. Preserve source order.\nDetect software/computerised-system URSs. When a source table has Requirement ID and Priority fields, set layout='software'; preserve the exact ID in requirementId, the complete requirement text in requirement, and the priority (1=Regulatory, 2=Business, 3=Desired) in priority. Keep subsection headings and their order. Do not merge the ID or priority into the description.\nFor normal equipment URSs, set layout='equipment'.\nUse sourcePages with the actual 1-based source page. sourceQuote must be a short verbatim excerpt from the correct cell. Confidence is a 0-to-1 estimate of legibility and cell association. Do not report high confidence for an unreadable or ambiguous OCR cell.\nReturn only one JSON object matching the supplied schema. No markdown, commentary, or invented example data."
 
 function isAllowedOrigin(origin) {
   if (!origin) return false;
@@ -128,6 +128,34 @@ function isCsDocumentFurniture(requirement, specification, sourceTitle) {
   if (/^(?:prepared by|reviewed by|approved by|authori[sz]ed by)\b/i.test(r)) return true;
   return false;
 }
+function removeRepeatedParentPrefixes(requirements) {
+  // Some model responses still flatten a hierarchy into every child label
+  // (for example, "Design parameters/Dimensions – pH Range"). Only strip a
+  // prefix when it is repeated across sibling rows in this same source section.
+  const matches = requirements.map(item => {
+    const label = String(item?.requirement || "").trim();
+    const match = label.match(/^(.{2,100}?)\\s+[–—-]\\s+(.{1,140})$/);
+    return match ? { prefix: match[1].trim(), child: match[2].trim() } : null;
+  });
+  const counts = new Map();
+  for (const match of matches) {
+    if (match) {
+      const key = match.prefix.toLocaleLowerCase();
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+  }
+  return requirements.map((item, index) => {
+    const match = matches[index];
+    if (!match || (counts.get(match.prefix.toLocaleLowerCase()) || 0) < 2) return item;
+    const existingParent = String(item?.parentRequirement || "").trim();
+    return {
+      ...item,
+      requirement: match.child,
+      parentRequirement: existingParent || match.prefix
+    };
+  });
+}
+
 function normalizeForCsTemplate(data) {
   const sourceSections = Array.isArray(data.sections) ? data.sections : [];
   const software = String(data.layout || "").toLowerCase() === "software" ||
@@ -160,9 +188,12 @@ function normalizeForCsTemplate(data) {
         parameterized: false
       });
     }
+    // Clean repeated parent-category prefixes only when the same prefix
+    // appears on multiple sibling rows. Preserve the category in parentRequirement.
+    const cleanedRequirements = removeRepeatedParentPrefixes(requirements);
     // Do not change the source section title or its order.
-    if (requirements.length || sourceTitle) {
-      sections.push({ title: sourceTitle, requirements });
+    if (cleanedRequirements.length || sourceTitle) {
+      sections.push({ title: sourceTitle, requirements: cleanedRequirements });
     }
   }
   data.sections = sections;
