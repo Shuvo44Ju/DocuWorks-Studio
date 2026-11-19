@@ -514,7 +514,7 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
     // full-document OCR text or future-page rows to an earlier AI batch.
     const batchPageNumbers=new Set(batchPages.map(page=>Number(page.page)).filter(Number.isInteger));
     const batchReferenceRows=referenceRows.filter(row=>{
-     const match=String(row.loc||'').match(/Source page\\(s\\):\\s*([\\d,\\s]+)/i);
+     const match=String(row.loc||'').match(/Source page\(s\):\s*([\d,\s]+)/i);
      if(!match)return false;
      return match[1].split(',').map(value=>Number(value.trim())).some(page=>batchPageNumbers.has(page));
     });
