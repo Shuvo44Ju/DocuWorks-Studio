@@ -192,6 +192,37 @@ function repairKnownExtractionPatterns(data) {
   return data;
 }
 
+function splitKnownEquipmentGroupedClauses(data) {
+  if (String(data?.layout || "").toLowerCase() === "software") return data;
+  const sections = Array.isArray(data?.sections) ? data.sections : [];
+  for (const section of sections) {
+    const out = [];
+    for (const item of Array.isArray(section.requirements) ? section.requirements : []) {
+      const parent = String(item?.parentRequirement || "").trim();
+      const req = String(item?.requirement || "").trim();
+      const spec = String(item?.specification || "").trim();
+      const sameLabel = parent && req && parent.replace(/[.。:：;；]+$/g, "").toLocaleLowerCase() === req.replace(/[.。:：;；]+$/g, "").toLocaleLowerCase();
+
+      if (/controlling\s*system/i.test(parent + " " + req) &&
+          /graphic\s*lc\s*display\s*,\s*micro\s*usb\s+for\s+data\s+transfer/i.test(spec)) {
+        out.push({...item, requirement:"Controlling System – Display", specification:"Graphic LC Display", parentRequirement:""});
+        out.push({...item, requirement:"Controlling System – Data Transfer", specification:"Micro USB for data transfer", parentRequirement:""});
+        continue;
+      }
+      if (/controlling\s*system/i.test(parent + " " + req) &&
+          /password\s+protection\s*,\s*user\s+rights\s+and\s+unlimited\s+number\s+of\s+users/i.test(spec)) {
+        out.push({...item, requirement:"Controlling System – Security", specification:"Password protection", parentRequirement:""});
+        out.push({...item, requirement:"Controlling System – Security", specification:"User rights", parentRequirement:""});
+        out.push({...item, requirement:"Controlling System – Security", specification:"Unlimited number of users", parentRequirement:""});
+        continue;
+      }
+      out.push(item);
+    }
+    section.requirements = out;
+  }
+  return data;
+}
+
 function flattenEquipmentHierarchyForCs(data) {
   if (String(data?.layout || "").toLowerCase() === "software") return data;
   const sections = Array.isArray(data?.sections) ? data.sections : [];
@@ -257,6 +288,7 @@ function normalizeForCsTemplate(data) {
     }
   }
   data.sections = sections;
+  splitKnownEquipmentGroupedClauses(data);
   flattenEquipmentHierarchyForCs(data);
   if (!data.sections.some(section => section.requirements.length)) {
     throw new Error("No substantive requirement rows were found in the URS.");
@@ -602,7 +634,7 @@ export async function onRequestGet({request,env}) {
     architecture:"Mixture of Experts (4B active parameters)",
     reasoningEffort:"medium",
     diagnostic:{
-      build:"cs-hierarchy-audit-20261119-v3",
+      build:"cs-hierarchy-audit-20261119-v4",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
