@@ -143,11 +143,11 @@ footer{text-align:center;color:#667085;font-size:13px;padding:8px 18px 28px}
 <div class="setting">
 <label for="mode">Dark background cleanup</label>
 <select id="mode">
-<option value="auto">Smart cleanup (recommended)</option>
-<option value="on">Dark background → light</option>
-<option value="off">No background cleanup</option>
+<option value="auto">Auto-remove solid dark panels (recommended)</option>
+<option value="on">Force invert the entire page</option>
+<option value="off">Turn off background cleanup</option>
 </select>
-<small>Detects genuinely dark pages and corrects them without inverting normal white pages.</small>
+<small>Finds large, nearly uniform black areas such as dark sidebars, turns them white, and converts their white lettering to dark lettering. It leaves photographs and coloured page backgrounds alone.</small>
 </div>
 <div class="setting">
 <label for="ink">Ink reduction: <span id="inklabel">Balanced (25%)</span></label>
@@ -333,84 +333,190 @@ $('downloadScans').addEventListener('click',async()=>{if(!scanItems.length||scan
 function analyzePage(canvas) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error('Could not access canvas memory.');
-
   const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = image.data;
-  const step = Math.max(1, Math.floor(Math.sqrt(canvas.width * canvas.height / 16000)));
+  return { image, data: image.data };
+}
 
-  let luminanceSum = 0;
-  let darkCount = 0;
-  let sampleCount = 0;
+/*
+ * Find large, solid, neutral-dark blocks before changing individual pixels.
+ * The detector works on a small thumbnail grid, not on every full-size pixel.
+ * This helps identify black page panels while avoiding dark photographic areas.
+ */
+function detectDarkPanels(data, width, height) {
+  const sampleStep = Math.max(4, Math.ceil(Math.max(width, height) / 180));
+  const gridWidth = Math.ceil(width / sampleStep);
+  const gridHeight = Math.ceil(height / sampleStep);
+  const gridSize = gridWidth * gridHeight;
 
-  // Sample the page to detect a genuinely dark page background.
-  for (let y = 0; y < canvas.height; y += step) {
-    for (let x = 0; x < canvas.width; x += step) {
-      const i = (y * canvas.width + x) * 4;
-      const l = (.299 * data[i] + .587 * data[i + 1] + .114 * data[i + 2]);
-      luminanceSum += l;
-      if (l < 105) darkCount++;
-      sampleCount++;
+  const dark = new Uint8Array(gridSize);
+  const luminance = new Float32Array(gridSize);
+
+  for (let gy = 0; gy < gridHeight; gy++) {
+    const y = Math.min(height - 1, gy * sampleStep + Math.floor(sampleStep / 2));
+    for (let gx = 0; gx < gridWidth; gx++) {
+      const x = Math.min(width - 1, gx * sampleStep + Math.floor(sampleStep / 2));
+      const pixel = (y * width + x) * 4;
+      const red = data[pixel];
+      const green = data[pixel + 1];
+      const blue = data[pixel + 2];
+      const light = .299 * red + .587 * green + .114 * blue;
+      const maximum = Math.max(red, green, blue);
+      const minimum = Math.min(red, green, blue);
+      const saturation = maximum === 0 ? 0 : (maximum - minimum) / maximum;
+      const index = gy * gridWidth + gx;
+
+      luminance[index] = light;
+      if (light < 72 && saturation < .32) dark[index] = 1;
     }
   }
 
-  return {
-    image,
-    data,
-    average: luminanceSum / Math.max(1, sampleCount),
-    darkRatio: darkCount / Math.max(1, sampleCount)
-  };
+  const visited = new Uint8Array(gridSize);
+  const stack = new Int32Array(gridSize);
+  const minimumArea = Math.max(70, gridSize * .012);
+  const panels = [];
+
+  for (let seed = 0; seed < gridSize; seed++) {
+    if (!dark[seed] || visited[seed]) continue;
+
+    let top = 0;
+    stack[top++] = seed;
+    visited[seed] = 1;
+
+    let area = 0;
+    let xMin = gridWidth;
+    let yMin = gridHeight;
+    let xMax = -1;
+    let yMax = -1;
+    let luminanceSum = 0;
+    let luminanceSquareSum = 0;
+
+    while (top > 0) {
+      const current = stack[--top];
+      const x = current % gridWidth;
+      const y = Math.floor(current / gridWidth);
+      const light = luminance[current];
+
+      area++;
+      luminanceSum += light;
+      luminanceSquareSum += light * light;
+      if (x < xMin) xMin = x;
+      if (x > xMax) xMax = x;
+      if (y < yMin) yMin = y;
+      if (y > yMax) yMax = y;
+
+      // Four-way connectivity is enough for a solid panel and avoids
+      // joining separate dark objects that only touch diagonally.
+      const neighbours = [
+        x > 0 ? current - 1 : -1,
+        x + 1 < gridWidth ? current + 1 : -1,
+        y > 0 ? current - gridWidth : -1,
+        y + 1 < gridHeight ? current + gridWidth : -1
+      ];
+
+      for (let n = 0; n < neighbours.length; n++) {
+        const next = neighbours[n];
+        if (next >= 0 && dark[next] && !visited[next]) {
+          visited[next] = 1;
+          stack[top++] = next;
+        }
+      }
+    }
+
+    const boxWidth = xMax - xMin + 1;
+    const boxHeight = yMax - yMin + 1;
+    const boxArea = boxWidth * boxHeight;
+    const fillRatio = area / Math.max(1, boxArea);
+    const pageFraction = boxArea / gridSize;
+    const meanLuminance = luminanceSum / Math.max(1, area);
+    const variance = Math.max(
+      0,
+      luminanceSquareSum / Math.max(1, area) - meanLuminance * meanLuminance
+    );
+    const luminanceDeviation = Math.sqrt(variance);
+    const touchesPageEdge =
+      xMin <= 1 || yMin <= 1 ||
+      xMax >= gridWidth - 2 || yMax >= gridHeight - 2;
+
+    const largeEnough =
+      area >= minimumArea &&
+      fillRatio >= .78 &&
+      pageFraction >= .035 &&
+      touchesPageEdge &&
+      meanLuminance < 42 &&
+      luminanceDeviation < 22 &&
+      (boxWidth >= gridWidth * .07 || boxHeight >= gridHeight * .07);
+
+    if (largeEnough) {
+      panels.push({
+        x: xMin * sampleStep,
+        y: yMin * sampleStep,
+        right: Math.min(width, (xMax + 1) * sampleStep),
+        bottom: Math.min(height, (yMax + 1) * sampleStep)
+      });
+    }
+  }
+
+  return panels;
 }
 
 function clean(canvas) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error('Could not access canvas memory.');
-  const { image, data, average, darkRatio } = analyzePage(canvas);
+
+  const { image, data } = analyzePage(canvas);
   const mode = $('mode').value;
   const lift = Number($('ink').value) / 100;
+  let correctedBackground = false;
 
-  // Only invert when the page is genuinely dark. This avoids destroying
-  // normal white pages that happen to contain dark photos or large graphics.
-  const invert =
-    mode === 'on' ||
-    (mode === 'auto' && average < 112 && darkRatio > 0.48);
+  if (mode === 'on') {
+    // Explicit override: invert the full page only when the user asks for it.
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = 255 - data[i];
+      data[i + 1] = 255 - data[i + 1];
+      data[i + 2] = 255 - data[i + 2];
+    }
+    correctedBackground = true;
+  } else if (mode === 'auto') {
+    const panels = detectDarkPanels(data, canvas.width, canvas.height);
 
-  // Smart ink reduction keeps the original hue instead of converting the
-  // entire document to grayscale. Neutral/dark text gets the full reduction;
-  // strongly coloured pixels are protected so brochures, stamps and graphics
-  // remain recognisable.
-  for (let i = 0; i < data.length; i += 4) {
-    let r = data[i];
-    let g = data[i + 1];
-    let b = data[i + 2];
-
-    if (invert) {
-      r = 255 - r;
-      g = 255 - g;
-      b = 255 - b;
+    // Reverse only the detected dark panel. Its white logo/text becomes dark
+    // on the new white background, while the rest of the page is untouched.
+    for (const panel of panels) {
+      for (let y = panel.y; y < panel.bottom; y++) {
+        let i = (y * canvas.width + panel.x) * 4;
+        const end = (y * canvas.width + panel.right) * 4;
+        for (; i < end; i += 4) {
+          data[i] = 255 - data[i];
+          data[i + 1] = 255 - data[i + 1];
+          data[i + 2] = 255 - data[i + 2];
+        }
+      }
     }
 
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const saturation = max === 0 ? 0 : (max - min) / max;
+    correctedBackground = panels.length > 0;
+  }
 
-    // Reduce ink more strongly on dark/neutral pixels, while preserving
-    // saturated colour. This is much safer for colour-heavy PDFs.
-    const protection = Math.min(0.55, saturation * 0.8);
+  // Reduce dark ink without forcing the entire document into grayscale.
+  // Strongly saturated pixels receive less treatment to protect colour artwork.
+  for (let i = 0; i < data.length; i += 4) {
+    const red = data[i];
+    const green = data[i + 1];
+    const blue = data[i + 2];
+    const maximum = Math.max(red, green, blue);
+    const minimum = Math.min(red, green, blue);
+    const saturation = maximum === 0 ? 0 : (maximum - minimum) / maximum;
+    const protection = Math.min(.55, saturation * .8);
     const effectiveLift = lift * (1 - protection);
 
     if (effectiveLift > 0) {
-      r += (255 - r) * effectiveLift;
-      g += (255 - g) * effectiveLift;
-      b += (255 - b) * effectiveLift;
+      data[i] = Math.round(red + (255 - red) * effectiveLift);
+      data[i + 1] = Math.round(green + (255 - green) * effectiveLift);
+      data[i + 2] = Math.round(blue + (255 - blue) * effectiveLift);
     }
-
-    data[i] = Math.round(Math.max(0, Math.min(255, r)));
-    data[i + 1] = Math.round(Math.max(0, Math.min(255, g)));
-    data[i + 2] = Math.round(Math.max(0, Math.min(255, b)));
   }
 
   ctx.putImageData(image, 0, 0);
-  return invert;
+  return correctedBackground;
 }
 
 function blobToDataURL(blob) {
