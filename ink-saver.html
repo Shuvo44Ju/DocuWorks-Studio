@@ -362,6 +362,8 @@ function analyzePage(canvas) {
 }
 
 function clean(canvas) {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('Could not access canvas memory.');
   const { image, data, average, darkRatio } = analyzePage(canvas);
   const mode = $('mode').value;
   const lift = Number($('ink').value) / 100;
