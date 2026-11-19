@@ -412,7 +412,7 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
  const preparationStarted=performance.now();
  const diagnostics={};
  const ext=sourceFile.name.toLowerCase().split('.').pop(),form=new FormData();
- let pdfPages=null,referenceStructurePayload='';
+ let pdfPages=null,referenceRows=[];
  form.append('fileName',sourceFile.name);
  form.append('equipmentNameOverride',String(metadataOverrides?.equipmentName||''));
  form.append('ursNumberOverride',String(metadataOverrides?.ursNumber||''));
@@ -426,18 +426,16 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
    conversionStage='Checking PDF table structure and OCR';
    setStatus(20,'Checking table rows and text alignment…');
    const localReference=preflight||await parsePdf(sourceFile,true);
-   const referenceRows=(localReference.sheets||[]).flatMap(sh=>(sh.rows||[]).map(row=>({
+   referenceRows=(localReference.sheets||[]).flatMap(sh=>(sh.rows||[]).map(row=>({
     type:row.type, title:row.title, req:row.req, desc:row.desc, parent:row.parent,
     group:row.group, label:row.label, loc:row.loc, conf:row.conf, minConf:row.minConf
    }))).slice(0,350);
    const referenceStructure={
     rows:referenceRows,
-    text:String(localReference.text||'').slice(0,45000),
     ocrUsed:Boolean(localReference.ocr),
     ocrPages:Number(localReference.ocrPages||0),
     pageCount:Number(localReference.pageCount||pages.length)
    };
-   referenceStructurePayload=JSON.stringify(referenceStructure);
    setStatus(21,'PDF table structure prepared. Starting AI review…');
    diagnostics.localOcrPages=referenceStructure.ocrPages;
    diagnostics.localCandidateRows=referenceRows.filter(row=>row.type==='row').length;
@@ -512,9 +510,17 @@ async function extractWithAI(sourceFile,preflight,metadataOverrides){
     batchForm.append('equipmentNameOverride',String(metadataOverrides?.equipmentName||''));
     batchForm.append('ursNumberOverride',String(metadataOverrides?.ursNumber||''));
     batchForm.append('pageImages',JSON.stringify(batchPages));
-    // Each batch must be grounded only in its own page images/text. The local
-    // preflight structure spans the full PDF and could leak future-page rows
-    // into an earlier batch, so do not attach it to per-batch AI requests.
+    // Keep the supplemental OCR/table candidates page-scoped. Never send the
+    // full-document OCR text or future-page rows to an earlier AI batch.
+    const batchPageNumbers=new Set(batchPages.map(page=>Number(page.page)).filter(Number.isInteger));
+    const batchReferenceRows=referenceRows.filter(row=>{
+     const match=String(row.loc||'').match(/Source page\\(s\\):\\s*([\\d,\\s]+)/i);
+     if(!match)return false;
+     return match[1].split(',').map(value=>Number(value.trim())).some(page=>batchPageNumbers.has(page));
+    });
+    if(batchReferenceRows.length){
+     batchForm.append('referenceStructure',JSON.stringify({rows:batchReferenceRows.slice(0,180),pageCount:batchPages.length}));
+    }
     if(continuationContext)batchForm.append('continuationContext',continuationContext);
     const pct=25+(batchIndex/totalBatches)*58;
     setStatus(pct,'Cloudflare AI is analyzing PDF batch '+(batchIndex+1)+' of '+totalBatches+' (source pages '+batchPages[0].page+'–'+batchPages[batchPages.length-1].page+')…');
