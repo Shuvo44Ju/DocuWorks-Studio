@@ -143,24 +143,25 @@ footer{text-align:center;color:#667085;font-size:13px;padding:8px 18px 28px}
 <div class="setting">
 <label for="mode">Dark background cleanup</label>
 <select id="mode">
-<option value="auto">Auto-detect (recommended)</option>
-<option value="on">Force invert</option>
-<option value="off">Do not invert</option>
+<option value="auto">Smart cleanup (recommended)</option>
+<option value="on">Dark background → light</option>
+<option value="off">No background cleanup</option>
 </select>
-<small>Attempts to convert dark backgrounds to light and light text to dark.</small>
+<small>Detects genuinely dark pages and corrects them without inverting normal white pages.</small>
 </div>
 <div class="setting">
 <label for="ink">Ink reduction: <span id="inklabel">Balanced (25%)</span></label>
 <input id="ink" type="range" min="0" max="50" step="5" value="25">
-<small>Higher values lighten dark pixels more. Too much reduction may make thin text faint.</small>
+<small>Lightens dark ink toward white while preserving colour. Start around 20–25%; higher values can weaken thin text.</small>
 </div>
 <div class="setting">
 <label for="quality">Text clarity / file size</label>
 <select id="quality">
-<option value="small">Smaller file</option>
-<option value="clear" selected>Super clear text (larger file)</option>
+<option value="balanced" selected>Balanced print (150 DPI)</option>
+<option value="print">High quality print (200 DPI)</option>
+<option value="small">Smaller file (120 DPI)</option>
 </select>
-<small>Super clear uses higher-resolution PNG page images. Smaller file uses lower-resolution JPEG images for faster processing and smaller output.</small>
+<small>Balanced keeps good text and image quality at 150 DPI. High quality uses 200 DPI for sharper printing. Smaller file uses 120 DPI and stronger JPEG compression.</small>
 <small>Processing can continue while you switch tabs, but keep this tab open and your device awake. Your browser may slow background tabs; closing or refreshing this tab stops the current job.</small>
 </div>
 </div>
@@ -329,61 +330,85 @@ scanInput.addEventListener('change',e=>{addScanFiles(e.target.files);scanInput.v
 function downloadBlob(blob,name){const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
 $('downloadScans').addEventListener('click',async()=>{if(!scanItems.length||scanBusy)return;scanBusy=true;$('downloadScans').disabled=true;$('clearScans').disabled=true;let canvases=[];try{const fmt=$('scanformat').value;for(let i=0;i<scanItems.length;i++){const it=scanItems[i];scanMessage('Preparing scanned page '+(i+1)+' of '+scanItems.length+'…');const img=await loadScanImage(it.url),canvas=cropPhoto(img,it);canvases.push({canvas,it});await new Promise(ok=>setTimeout(ok,30));}if(fmt==='pdf'){const JsPDF=window.jspdf&&window.jspdf.jsPDF?window.jspdf.jsPDF:(typeof jspdf!=='undefined'?jspdf.jsPDF:null);if(!JsPDF)throw Error('PDF library is unavailable. Refresh the page and retry.');let doc=null;for(let i=0;i<canvases.length;i++){const canvas=canvases[i].canvas,w=canvas.width,h=canvas.height,orientation=w>=h?'landscape':'portrait';if(!doc)doc=new JsPDF({orientation,unit:'pt',format:[w,h],compress:true});else doc.addPage([w,h],orientation);doc.addImage(canvas,'JPEG',0,0,w,h,undefined,'FAST');}downloadBlob(doc.output('blob'),'scanned-document.pdf');scanMessage('PDF downloaded with '+canvases.length+' scanned page(s).');}else{for(let i=0;i<canvases.length;i++){const canvas=canvases[i].canvas,it=canvases[i].it,blob=await new Promise((ok,no)=>canvas.toBlob(v=>v?ok(v):no(Error('Image export failed')),fmt==='png'?'image/png':'image/jpeg',fmt==='png'?undefined:.92)),name=(it.file.name.split('.').slice(0,-1).join('.').replace(/[^a-z0-9_-]+/gi,'-')||'scan')+'-scanned.'+fmt;downloadBlob(blob,name);await new Promise(ok=>setTimeout(ok,120));}scanMessage('Downloaded '+canvases.length+' scan-style image(s) as '+fmt.toUpperCase()+'.');}}catch(e){scanMessage('Download failed: '+(e.message||'Unknown error'));}finally{canvases.forEach(item=>{item.canvas.width=item.canvas.height=1;});scanBusy=false;$('clearScans').disabled=false;updateScanStatus();}});
 
-function clean(canvas) {
+function analyzePage(canvas) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) {
-    throw new Error('Could not access canvas memory. Try Smaller file.');
-  }
+  if (!ctx) throw new Error('Could not access canvas memory.');
 
   const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = image.data;
-  let sum = 0;
-  let count = 0;
-  const step = Math.max(
-    1,
-    Math.floor(Math.sqrt(canvas.width * canvas.height / 10000))
-  );
+  const step = Math.max(1, Math.floor(Math.sqrt(canvas.width * canvas.height / 16000)));
 
-  // Sample the page first so Auto mode can decide whether to invert it.
+  let luminanceSum = 0;
+  let darkCount = 0;
+  let sampleCount = 0;
+
+  // Sample the page to detect a genuinely dark page background.
   for (let y = 0; y < canvas.height; y += step) {
     for (let x = 0; x < canvas.width; x += step) {
       const i = (y * canvas.width + x) * 4;
-      sum += .299 * data[i] + .587 * data[i + 1] + .114 * data[i + 2];
-      count++;
+      const l = (.299 * data[i] + .587 * data[i + 1] + .114 * data[i + 2]);
+      luminanceSum += l;
+      if (l < 105) darkCount++;
+      sampleCount++;
     }
   }
 
-  const average = sum / Math.max(count, 1);
+  return {
+    image,
+    data,
+    average: luminanceSum / Math.max(1, sampleCount),
+    darkRatio: darkCount / Math.max(1, sampleCount)
+  };
+}
+
+function clean(canvas) {
+  const { image, data, average, darkRatio } = analyzePage(canvas);
   const mode = $('mode').value;
-  const invert = mode === 'on' || (mode === 'auto' && average < 125);
   const lift = Number($('ink').value) / 100;
 
-  // Precompute the exact grayscale/ink-lift result for all 256 luminance
-  // values, avoiding repeated lift, clamp and rounding calculations per pixel.
-  const mapped = new Uint8Array(256);
-  for (let value = 0; value < 256; value++) {
-    let output = invert ? 255 - value : value;
-    if (lift > 0 && output < 245) output += (255 - output) * lift;
-    mapped[value] = Math.round(Math.max(0, Math.min(255, output)));
-  }
+  // Only invert when the page is genuinely dark. This avoids destroying
+  // normal white pages that happen to contain dark photos or large graphics.
+  const invert =
+    mode === 'on' ||
+    (mode === 'auto' && average < 112 && darkRatio > 0.48);
 
+  // Smart ink reduction keeps the original hue instead of converting the
+  // entire document to grayscale. Neutral/dark text gets the full reduction;
+  // strongly coloured pixels are protected so brochures, stamps and graphics
+  // remain recognisable.
   for (let i = 0; i < data.length; i += 4) {
-    const luminance = Math.round(.299 * data[i] + .587 * data[i + 1] + .114 * data[i + 2]);
-    const value = mapped[luminance];
-    data[i] = data[i + 1] = data[i + 2] = value;
+    let r = data[i];
+    let g = data[i + 1];
+    let b = data[i + 2];
+
+    if (invert) {
+      r = 255 - r;
+      g = 255 - g;
+      b = 255 - b;
+    }
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const saturation = max === 0 ? 0 : (max - min) / max;
+
+    // Reduce ink more strongly on dark/neutral pixels, while preserving
+    // saturated colour. This is much safer for colour-heavy PDFs.
+    const protection = Math.min(0.55, saturation * 0.8);
+    const effectiveLift = lift * (1 - protection);
+
+    if (effectiveLift > 0) {
+      r += (255 - r) * effectiveLift;
+      g += (255 - g) * effectiveLift;
+      b += (255 - b) * effectiveLift;
+    }
+
+    data[i] = Math.round(Math.max(0, Math.min(255, r)));
+    data[i + 1] = Math.round(Math.max(0, Math.min(255, g)));
+    data[i + 2] = Math.round(Math.max(0, Math.min(255, b)));
   }
 
   ctx.putImageData(image, 0, 0);
   return invert;
-}
-
-function canvasToBlob(canvas, isClear) {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(blob => {
-      if (blob) resolve(blob);
-      else reject(new Error('Could not create page image. Try Smaller file.'));
-    }, isClear ? 'image/png' : 'image/jpeg', isClear ? undefined : 0.82);
-  });
 }
 
 function blobToDataURL(blob) {
@@ -406,16 +431,19 @@ async function processOne(file, index, total) {
     throw new Error(`Maximum 200 pages per PDF. This file has ${pdf.numPages} pages.`);
   }
 
-  const isClear = $('quality').value === 'clear';
-  // Smaller file prioritizes speed: render at a modest resolution and use JPEG.
-  // Super clear keeps more detail, but will take longer and use more memory.
-  const scale = 1;
-  const imageFormat = isClear ? 'PNG' : 'JPEG';
+  const quality = $('quality').value;
+  const settings = quality === 'print'
+    ? { dpi: 200, format: 'PNG', jpegQuality: 1 }
+    : quality === 'small'
+      ? { dpi: 120, format: 'JPEG', jpegQuality: 0.78 }
+      : { dpi: 150, format: 'JPEG', jpegQuality: 0.88 };
+
+  const scale = settings.dpi / 72;
   let doc = null;
 
   try {
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-      msg(`Processing ${index}/${total}: ${file.name} — page ${pageNumber} of ${pdf.numPages}…`);
+      msg(`Processing ${index}/${total}: ${file.name} — page ${pageNumber} of ${pdf.numPages} at ${settings.dpi} DPI…`);
 
       let page = null;
       let canvas = null;
@@ -423,6 +451,7 @@ async function processOne(file, index, total) {
       try {
         page = await pdf.getPage(pageNumber);
         const viewport = page.getViewport({ scale });
+
         canvas = document.createElement('canvas');
         canvas.width = Math.ceil(viewport.width);
         canvas.height = Math.ceil(viewport.height);
@@ -440,40 +469,56 @@ async function processOne(file, index, total) {
           const box = document.createElement('div');
           box.className = 'preview';
           const title = document.createElement('b');
-          title.textContent = `Page ${pageNumber}${inverted ? ' · background corrected' : ''}`;
+          title.textContent = `Page ${pageNumber}${inverted ? ' · dark background corrected' : ''}`;
+
           const preview = document.createElement('canvas');
           const previewScale = Math.min(1, 400 / canvas.width);
           preview.width = Math.max(1, Math.round(canvas.width * previewScale));
           preview.height = Math.max(1, Math.round(canvas.height * previewScale));
+
           const previewCtx = preview.getContext('2d');
-          if (previewCtx) previewCtx.drawImage(canvas, 0, 0, preview.width, preview.height);
+          if (previewCtx) {
+            previewCtx.drawImage(canvas, 0, 0, preview.width, preview.height);
+          }
+
           box.append(title, preview);
           $('previews').append(box);
           $('previewpanel').classList.remove('hidden');
         }
 
-        // Use the rendered viewport dimensions for the output page. This avoids
-        // invalid/zero custom page sizes on PDFs with unusual page boxes.
         const width = Math.max(1, viewport.width);
         const height = Math.max(1, viewport.height);
         const orientation = width >= height ? 'landscape' : 'portrait';
-        const pageFormat = [width, height];
 
         if (!doc) {
           doc = new jspdf.jsPDF({
             orientation,
             unit: 'pt',
-            format: pageFormat,
+            format: [width, height],
             compress: true,
             hotfixes: ['px_scaling']
           });
         } else {
-          doc.addPage(pageFormat, orientation);
+          doc.addPage([width, height], orientation);
         }
 
-        // Convert explicitly to a data URL for consistent jsPDF compatibility.
-        const imageData = canvas.toDataURL(isClear ? 'image/png' : 'image/jpeg', isClear ? undefined : 0.82);
-        doc.addImage(imageData, isClear ? 'PNG' : 'JPEG', 0, 0, width, height);
+        // Export directly from the rendered canvas. PNG is used for the
+        // high-quality preset; JPEG is used for the smaller/balanced presets.
+        const imageData = canvas.toDataURL(
+          settings.format === 'PNG' ? 'image/png' : 'image/jpeg',
+          settings.format === 'PNG' ? undefined : settings.jpegQuality
+        );
+
+        doc.addImage(
+          imageData,
+          settings.format,
+          0,
+          0,
+          width,
+          height,
+          undefined,
+          settings.format === 'JPEG' ? 'FAST' : undefined
+        );
       } finally {
         if (canvas) {
           canvas.width = 1;
