@@ -79,8 +79,19 @@ function sectionRow(ws, row, title, lastCol) {
   cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
   ws.getRow(row).height = 20;
 }
+function parentHeadingRow(ws, row, title, lastCol) {
+  const lastLetter = lastCol === 5 ? 'E' : 'C';
+  ws.mergeCells('A' + row + ':' + lastLetter + row);
+  const cell = ws.getCell(row, 1);
+  cell.value = title;
+  cell.font = { name: 'Arial', size: 10, bold: true, italic: true, color: { argb: 'FF404040' } };
+  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDEDED' } };
+  cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true, indent: 1 };
+  ws.getRow(row).height = 19;
+}
 function writeStandardBody(ws, startRow, model) {
   let row = startRow;
+  let activeParent = '';
   sectionRow(ws, row++, 'Vendor / Product Information', 3);
   for (const label of ['Manufacturer', 'Local Agent', 'Origin', 'Model']) {
     ws.getCell(row, 1).value = label;
@@ -93,9 +104,15 @@ function writeStandardBody(ws, startRow, model) {
     for (const item of sheet.rows || []) {
       if (item.type === 'section') {
         sectionRow(ws, row++, item.title || 'Section', 3);
+        activeParent = '';
         continue;
       }
       if (item.type !== 'row' && item.type !== 'sw') continue;
+      const parent = String(item.parentRequirement || '').trim();
+      if (parent !== activeParent) {
+        if (parent) parentHeadingRow(ws, row++, parent, 3);
+        activeParent = parent;
+      }
       const req = item.req || item.id || '';
       const desc = item.desc || '';
       ws.getCell(row, 1).value = req;
@@ -117,13 +134,20 @@ function writeStandardBody(ws, startRow, model) {
 }
 function writeSoftwareBody(ws, startRow, model) {
   let row = startRow;
+  let activeParent = '';
   for (const sheet of model.sheets || []) {
     for (const item of sheet.rows || []) {
       if (item.type === 'section') {
         sectionRow(ws, row++, item.title || 'Sub-section', 5);
+        activeParent = '';
         continue;
       }
       if (item.type !== 'row' && item.type !== 'sw') continue;
+      const parent = String(item.parentRequirement || '').trim();
+      if (parent !== activeParent) {
+        if (parent) parentHeadingRow(ws, row++, parent, 5);
+        activeParent = parent;
+      }
       const description = [item.req, item.desc].filter(Boolean).join(item.req && item.desc ? '\n' : '');
       ws.getCell(row, 1).value = item.requirementId || item.id || '';
       ws.getCell(row, 2).value = description;
