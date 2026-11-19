@@ -1,6 +1,6 @@
 const MODEL = "@cf/google/gemma-4-26b-a4b-it";
 const MAX_HTML_CHARS = 12 * 1024 * 1024;
-const MAX_PAGE_COUNT = 30;
+const MAX_PAGE_COUNT = 4;
 
 const OUTPUT_SCHEMA = {
   type: "object", additionalProperties: false,
@@ -458,6 +458,7 @@ async function handlePost({ request, env }) {
   const documentHtml = String(form.get("documentHtml") || "");
   const pageImagesRaw = String(form.get("pageImages") || "");
   const referenceStructureRaw = String(form.get("referenceStructure") || "");
+  const continuationContext = String(form.get("continuationContext") || "").slice(0,12000);
   const equipmentNameOverride = String(form.get("equipmentNameOverride") || "").trim().slice(0,180);
   const ursNumberOverride = String(form.get("ursNumberOverride") || "").trim().slice(0,100);
   const extension = fileName.toLowerCase().split(".").pop();
@@ -479,7 +480,7 @@ async function handlePost({ request, env }) {
       error:"No PDF pages were supplied for AI reading. Please retry the upload."
     },400,origin);
     if (pageImages.length > MAX_PAGE_COUNT) return jsonResponse({
-      error:"This free conversion currently supports up to " + MAX_PAGE_COUNT + " PDF pages per file."
+      error:"This AI request supports up to " + MAX_PAGE_COUNT + " PDF pages per batch. The converter should split larger PDFs automatically."
     },413,origin);
     for (let i=0;i<pageImages.length;i++) {
       const page = pageImages[i];
@@ -491,6 +492,7 @@ async function handlePost({ request, env }) {
     }
     description += "The user supplied " + pageImages.length + " rendered PDF page images plus any embedded PDF text layer. Read every page in order. Use the image as the visual authority for layout and the embedded text as a transcription aid. Reconcile differences; never silently omit text that is visible in the image.";
     userContent.push({type:"text",text:description});
+    if (continuationContext) userContent.push({type:"text",text:"CROSS-BATCH CONTINUITY CONTEXT (for hierarchy only; do not re-extract or repeat any earlier requirement rows):\n" + continuationContext + "\nContinue the source page sequence from the supplied pages. If a heading began on an earlier page, preserve that heading path for applicable rows. Output only requirements visible on the pages in this batch."});
     if (referenceStructureRaw && referenceStructureRaw.length <= 180000) {
       try {
         const reference = JSON.parse(referenceStructureRaw);
@@ -634,7 +636,7 @@ export async function onRequestGet({request,env}) {
     architecture:"Mixture of Experts (4B active parameters)",
     reasoningEffort:"medium",
     diagnostic:{
-      build:"cs-hierarchy-audit-20261119-v4",
+      build:"cs-hierarchy-audit-20261119-v5",
       workersAIBindingPresent:bindingPresent,
       assetsBindingPresent:Boolean(env?.ASSETS),
       anthropicApiKeyRequired:false
