@@ -17,7 +17,7 @@ permissions:
 
 concurrency:
   group: docuworks-cloudflare-worker
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy-worker:
@@ -73,8 +73,8 @@ jobs:
           echo "Checking live Worker: ${HEALTH_URL}"
 
           verified=false
-          for attempt in $(seq 1 24); do
-            if response="$(curl --silent --show-error --fail --max-time 20 "${HEALTH_URL}")"; then
+          for attempt in $(seq 1 6); do
+            if response="$(curl --silent --show-error --fail --max-time 8 "${HEALTH_URL}")"; then
               if RESPONSE_JSON="${response}" EXPECTED_BUILD="${EXPECTED_BUILD}" node - <<'NODE'
           let data;
           try {
@@ -104,8 +104,8 @@ jobs:
                 break
               fi
             fi
-            echo "Attempt ${attempt}/24: the live Worker is not yet reporting the expected build. Retrying in 5 seconds..."
-            sleep 5
+            echo "Attempt ${attempt}/6: the live Worker is not yet reporting the expected build. Retrying in 3 seconds..."
+            sleep 3
           done
 
           if [ "${verified}" != "true" ]; then
