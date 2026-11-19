@@ -89,6 +89,23 @@ function parentHeadingRow(ws, row, title, lastCol) {
   cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true, indent: 1 };
   ws.getRow(row).height = 19;
 }
+function normalizedHeadingKey(value) {
+  return String(value || '').toLocaleLowerCase().replace(/[.。:：;；]+$/g, '').replace(/\s+/g, ' ').trim();
+}
+function writeStandardSpecOnlyRow(ws, row, item) {
+  ws.getCell(row, 1).value = '';
+  ws.getCell(row, 2).value = item.desc || '';
+  ws.getCell(row, 3).value = null;
+  styleBodyRow(ws, row, 3, Boolean(item.review));
+  if (item.review) {
+    ws.getCell(row, 2).note = [
+      item.reviewReason || 'This cell needs verification against the original URS.',
+      item.loc ? 'Source: ' + item.loc : '',
+      item.minConf != null ? 'Minimum OCR confidence: ' + item.minConf + '%' : '',
+      item.raw ? 'OCR source text: ' + item.raw : ''
+    ].filter(Boolean).join('\n');
+  }
+}
 function writeStandardBody(ws, startRow, model) {
   let row = startRow;
   let activeParent = '';
@@ -101,7 +118,9 @@ function writeStandardBody(ws, startRow, model) {
     row++;
   }
   for (const sheet of model.sheets || []) {
-    for (const item of sheet.rows || []) {
+    const items = sheet.rows || [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       if (item.type === 'section') {
         sectionRow(ws, row++, item.title || 'Section', 3);
         activeParent = '';
@@ -113,10 +132,28 @@ function writeStandardBody(ws, startRow, model) {
         if (parent) parentHeadingRow(ws, row++, parent, 3);
         activeParent = parent;
       }
-      const req = item.req || item.id || '';
-      const desc = item.desc || '';
+      const req = String(item.req || item.id || '').trim();
+      const key = normalizedHeadingKey(req);
+      let end = i + 1;
+      while (key && end < items.length &&
+        (items[end].type === 'row' || items[end].type === 'sw') &&
+        normalizedHeadingKey(items[end].req || items[end].id || '') === key) end++;
+
+      // Repeated identical labels are usually a subsection/category followed by
+      // several specification cells. Render the label once as a merged heading
+      // and retain each source specification beneath it without repeating the label.
+      if (key && end - i > 1) {
+        if (key !== normalizedHeadingKey(parent)) parentHeadingRow(ws, row++, req, 3);
+        for (let j = i; j < end; j++) {
+          const child = items[j];
+          if (String(child.desc || '').trim()) writeStandardSpecOnlyRow(ws, row++, child);
+        }
+        i = end - 1;
+        continue;
+      }
+
       ws.getCell(row, 1).value = req;
-      ws.getCell(row, 2).value = desc;
+      ws.getCell(row, 2).value = item.desc || '';
       ws.getCell(row, 3).value = null;
       styleBodyRow(ws, row, 3, Boolean(item.review));
       if (item.review) {
