@@ -184,8 +184,8 @@ function normalizeForCsTemplate(data) {
         ...item,
         requirement: requirement || "UNRESOLVED REQUIREMENT — REVIEW SOURCE",
         specification,
-        parentRequirement: "",
-        parameterized: false
+        parentRequirement: String(item?.parentRequirement || "").trim(),
+        parameterized: Boolean(item?.parameterized)
       });
     }
     // Clean repeated parent-category prefixes only when the same prefix
