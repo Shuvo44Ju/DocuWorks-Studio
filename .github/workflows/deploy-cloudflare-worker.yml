@@ -30,16 +30,20 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Validate Cloudflare deployment credentials
+      - name: Check Cloudflare deployment credentials
+        id: cloudflare-credentials
         run: |
           set -euo pipefail
-          if [ -z "${CF_API_TOKEN}" ] || [ -z "${CF_ACCOUNT_ID}" ]; then
-            echo "::error::Cloudflare deployment credentials are missing. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID under Settings > Secrets and variables > Actions."
-            exit 1
+          if [ -n "${CF_API_TOKEN}" ] && [ -n "${CF_ACCOUNT_ID}" ]; then
+            echo "available=true" >> "${GITHUB_OUTPUT}"
+            echo "Cloudflare deployment credentials are present; this workflow will deploy the Worker."
+          else
+            echo "available=false" >> "${GITHUB_OUTPUT}"
+            echo "::warning::Cloudflare deployment credentials are not configured. Skipping deployment, but continuing with a read-only live Worker version check."
           fi
-          echo "Cloudflare deployment credentials are present."
 
       - name: Deploy Worker and static assets
+        if: steps.cloudflare-credentials.outputs.available == 'true'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -47,6 +51,8 @@ jobs:
 
       - name: Verify deployed URS-to-CS converter build
         id: verify-converter
+        env:
+          DEPLOYED_BY_GITHUB_ACTIONS: ${{ steps.cloudflare-credentials.outputs.available }}
         run: |
           set -euo pipefail
           EXPECTED_BUILD="$(node - <<'NODE'
@@ -115,6 +121,11 @@ jobs:
             echo "- **AI binding:** active"
             echo "- **Health endpoint:** ${HEALTH_URL}"
             echo "- **Source commit:** ${GITHUB_SHA}"
+            if [ "${DEPLOYED_BY_GITHUB_ACTIONS}" = "true" ]; then
+              echo "- **Deployment method:** deployed by this GitHub Actions workflow"
+            else
+              echo "- **Deployment method:** existing Cloudflare deployment (read-only verification; no deployment token configured)"
+            fi
             echo "- **Result:** live Worker matches the build in this commit"
           } >> "${GITHUB_STEP_SUMMARY}"
 
